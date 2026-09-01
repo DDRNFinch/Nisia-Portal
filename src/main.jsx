@@ -11,12 +11,18 @@ const cards = [
 
 function NisiaMark() {
   return (
-    <div className="wordmark" aria-label="Nisia">
-      <span>N</span>
-      <span className="letter-dot yellow">i</span>
-      <span>s</span>
-      <span className="letter-dot blue">i</span>
-      <span>a</span>
+    <div className="brand" aria-label="Nisia">
+      <div className="wordmark">
+        <span>N</span>
+        <span className="brand-i brand-yellow">i</span>
+        <span>s</span>
+        <span className="brand-i brand-blue">i</span>
+        <span>a</span>
+      </div>
+      <div className="brand-dots" aria-hidden="true">
+        <span className="brand-dot brand-coral" />
+        <span className="brand-dot brand-teal" />
+      </div>
     </div>
   )
 }
