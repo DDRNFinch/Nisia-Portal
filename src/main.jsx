@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
 import './styles.css'
 import './learners.css'
+import './courses.css'
 
 const supabase = createClient(
   'https://ffgfigkeeeauzkifopei.supabase.co',
@@ -375,12 +376,12 @@ function PortalTopbar({ context, email, onSignOut }) {
   )
 }
 
-function Dashboard({ context, counts, email, onSignOut, onOpenLearners }) {
+function Dashboard({ context, counts, email, onSignOut, onOpenLearners, onOpenCourses }) {
   const cards = [
     { title: 'Reviews', detail: `${counts.reviews} ${counts.reviews === 1 ? 'review' : 'reviews'}`, accent: 'blue' },
     { title: 'Evidence', detail: `${counts.evidence} ${counts.evidence === 1 ? 'item' : 'items'}`, accent: 'yellow' },
     { title: 'Progress', detail: `${counts.enrolments} ${counts.enrolments === 1 ? 'enrolment' : 'enrolments'}`, accent: 'teal' },
-    { title: 'Courses', detail: `${counts.courses} ${counts.courses === 1 ? 'course' : 'courses'}`, accent: 'coral' },
+    { title: 'Courses', detail: `${counts.courses} ${counts.courses === 1 ? 'course' : 'courses'}`, accent: 'coral', onClick: onOpenCourses },
   ]
 
   return (
@@ -413,7 +414,7 @@ function Dashboard({ context, counts, email, onSignOut, onOpenLearners }) {
 
         <div className="card-grid">
           {cards.map((card) => (
-            <button className={`small-card ${card.accent}`} type="button" key={card.title}>
+            <button className={`small-card ${card.accent}`} type="button" key={card.title} onClick={card.onClick}>
               <span className="small-card-title">{card.title}</span>
               <span className="small-card-detail">{card.detail}</span>
               <span className="mini-arrow" aria-hidden="true">→</span>
@@ -531,6 +532,62 @@ async function loadLearnerActivityCounts(learner) {
   }
 }
 
+async function loadCourses() {
+  const { data: courses, error: courseError } = await supabase
+    .from('courses')
+    .select('id, code, title, created_at')
+    .order('title', { ascending: true })
+  if (courseError) throw courseError
+
+  const courseIds = (courses || []).map((course) => course.id)
+  const { data: sections, error: sectionError } = courseIds.length
+    ? await supabase.from('course_sections').select('id, course_id').in('course_id', courseIds)
+    : { data: [], error: null }
+  if (sectionError) throw sectionError
+
+  return (courses || []).map((course) => ({
+    ...course,
+    sectionCount: (sections || []).filter((section) => section.course_id === course.id).length,
+  }))
+}
+
+async function loadCourseProgress(enrolment) {
+  const courseId = enrolment.course_id
+  const [{ data: sections, error: sectionError }, { data: criteria, error: criteriaError }] = await Promise.all([
+    supabase.from('course_sections').select('id, title, position').eq('course_id', courseId).order('position', { ascending: true }),
+    supabase.from('criteria').select('id, section_id').eq('course_id', courseId),
+  ])
+  if (sectionError) throw sectionError
+  if (criteriaError) throw criteriaError
+
+  const { data: evidenceRows, error: evidenceError } = await supabase
+    .from('evidence')
+    .select('id')
+    .eq('enrolment_id', enrolment.id)
+  if (evidenceError) throw evidenceError
+
+  const evidenceIds = (evidenceRows || []).map((row) => row.id)
+  const { data: evidenceCriteria, error: evidenceCriteriaError } = evidenceIds.length
+    ? await supabase.from('evidence_criteria').select('criterion_id').in('evidence_id', evidenceIds).eq('course_id', courseId)
+    : { data: [], error: null }
+  if (evidenceCriteriaError) throw evidenceCriteriaError
+
+  const evidenced = new Set((evidenceCriteria || []).map((row) => row.criterion_id))
+  const totalCriteria = (criteria || []).length
+  const evidencedCriteria = [...evidenced].filter((id) => (criteria || []).some((criterion) => criterion.id === id)).length
+  const progress = totalCriteria ? Math.round((evidencedCriteria / totalCriteria) * 100) : 0
+
+  return {
+    sections: (sections || []).map((section) => ({
+      ...section,
+      criteriaCount: (criteria || []).filter((criterion) => criterion.section_id === section.id).length,
+    })),
+    totalCriteria,
+    evidencedCriteria,
+    progress,
+  }
+}
+
 function LearnersPage({ context, email, onSignOut, onBack, onOpenLearner, onLearnerCreated }) {
   const [learners, setLearners] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -635,13 +692,121 @@ function LearnersPage({ context, email, onSignOut, onBack, onOpenLearner, onLear
   )
 }
 
-function LearnerOverviewPage({ learner, context, email, onSignOut, onBack }) {
+function CoursesPage({ context, email, onSignOut, onBack, assignmentLearner, onAssigned }) {
+  const [courses, setCourses] = useState(null)
+  const [status, setStatus] = useState('loading')
+  const [message, setMessage] = useState('')
+  const canAssign = Boolean(assignmentLearner && context.roles.includes('admin'))
+
+  useEffect(() => {
+    let cancelled = false
+    loadCourses()
+      .then((rows) => {
+        if (!cancelled) {
+          setCourses(rows)
+          setStatus('ready')
+        }
+      })
+      .catch((error) => {
+        console.error('Unable to load courses', error)
+        if (!cancelled) {
+          setStatus('error')
+          setMessage('Courses could not be loaded.')
+        }
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  async function assignCourse(course) {
+    if (!canAssign || status === 'assigning') return
+    setStatus('assigning')
+    setMessage('')
+
+    const { data, error } = await supabase.functions.invoke('admin-assign-course', {
+      body: {
+        organisation_id: context.organisation.id,
+        learner_id: assignmentLearner.id,
+        course_id: course.id,
+      },
+    })
+
+    if (error || !data?.enrolment_id) {
+      console.error('Unable to assign course', error, data)
+      setStatus('ready')
+      setMessage('The course could not be assigned.')
+      return
+    }
+
+    try {
+      const learners = await loadLearners(context.organisation.id)
+      const refreshed = learners.find((learner) => learner.id === assignmentLearner.id)
+      if (!refreshed) throw new Error('Learner refresh failed')
+      onAssigned(refreshed)
+    } catch (refreshError) {
+      console.error('Course assigned but learner refresh failed', refreshError)
+      setStatus('ready')
+      setMessage('The course was assigned, but the learner view could not refresh yet.')
+    }
+  }
+
+  return (
+    <main className="page-shell">
+      <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
+      <section className="content courses-content">
+        <button className="back-link" type="button" onClick={onBack}>{assignmentLearner ? '← Learner' : '← Home'}</button>
+
+        <div className="section-heading-row">
+          <div>
+            <p className="eyebrow">Organisation</p>
+            <h1>{assignmentLearner ? 'Assign course' : 'Courses'}</h1>
+            <p className="subtle">{assignmentLearner ? 'Choose a course for this fake development learner.' : 'Courses currently available in Nisia.'}</p>
+          </div>
+        </div>
+
+        {assignmentLearner && (
+          <div className="assignment-banner">
+            <strong>{assignmentLearner.displayName}</strong>
+            <span>Fake development learner</span>
+          </div>
+        )}
+
+        {message && <p className="auth-message error-message learner-message">{message}</p>}
+
+        {status === 'loading' && <div className="course-empty"><p>Loading courses…</p></div>}
+        {status !== 'loading' && courses?.length === 0 && <div className="course-empty"><p>No courses are available yet.</p></div>}
+
+        {courses?.length > 0 && (
+          <div className="course-list">
+            {courses.map((course) => (
+              <div className="course-row" key={course.id}>
+                <div className="course-row-copy">
+                  <strong>{course.title}</strong>
+                  <span>{course.code} · {course.sectionCount} {course.sectionCount === 1 ? 'section' : 'sections'}</span>
+                </div>
+                {canAssign ? (
+                  <button className="course-row-action" type="button" onClick={() => assignCourse(course)} disabled={status === 'assigning'}>
+                    {status === 'assigning' ? 'Assigning…' : 'Assign'}
+                  </button>
+                ) : (
+                  <span className="course-row-arrow" aria-hidden="true">→</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  )
+}
+
+function LearnerOverviewPage({ learner, context, email, onSignOut, onBack, onAssignCourse, onOpenCourse }) {
   const [activity, setActivity] = useState(null)
   const [message, setMessage] = useState('')
   const primaryEnrolment = learner.enrolments[0]
   const courseText = primaryEnrolment?.course
     ? `${primaryEnrolment.course.title}${primaryEnrolment.course.code ? ` · ${primaryEnrolment.course.code}` : ''}`
     : 'No course assigned'
+  const canAssignCourse = context.roles.includes('admin') && !primaryEnrolment
 
   useEffect(() => {
     let cancelled = false
@@ -676,6 +841,9 @@ function LearnerOverviewPage({ learner, context, email, onSignOut, onBack }) {
           <p className="eyebrow">Learner overview</p>
           <h1>{learner.displayName}</h1>
           <p className="subtle">{courseText}</p>
+          {canAssignCourse && (
+            <button className="assign-course-button" type="button" onClick={onAssignCourse}>+ Assign course</button>
+          )}
         </div>
 
         {message && <p className="auth-message error-message learner-message">{message}</p>}
@@ -688,10 +856,95 @@ function LearnerOverviewPage({ learner, context, email, onSignOut, onBack }) {
         </div>
 
         <div className="overview-option-grid">
-          {overviewCards.map(([label, count]) => (
-            <div className="overview-option" key={label}>
-              <strong>{label}</strong>
-              <span>{label === 'Course' ? (count ? 'Assigned' : 'Not assigned') : `${count} recorded`}</span>
+          {overviewCards.map(([label, count]) => {
+            const isCourse = label === 'Course'
+            const content = (
+              <>
+                <strong>{label}</strong>
+                <span>{isCourse ? (count ? 'Assigned' : 'Not assigned') : `${count} recorded`}</span>
+              </>
+            )
+
+            if (isCourse && primaryEnrolment) {
+              return (
+                <button className="overview-option course-option-button" type="button" key={label} onClick={onOpenCourse}>
+                  {content}
+                </button>
+              )
+            }
+
+            return <div className="overview-option" key={label}>{content}</div>
+          })}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function CourseProgressPage({ learner, context, email, onSignOut, onBack }) {
+  const enrolment = learner.enrolments[0]
+  const [progressData, setProgressData] = useState(null)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    if (!enrolment) return undefined
+
+    loadCourseProgress(enrolment)
+      .then((data) => {
+        if (!cancelled) setProgressData(data)
+      })
+      .catch((error) => {
+        console.error('Unable to load course progress', error)
+        if (!cancelled) setMessage('Course progress could not be loaded.')
+      })
+
+    return () => { cancelled = true }
+  }, [enrolment?.id])
+
+  if (!enrolment?.course) {
+    return <AccessMessage title="No course assigned" message="This learner does not currently have a course enrolment." onSignOut={onSignOut} />
+  }
+
+  const data = progressData || { sections: [], totalCriteria: 0, evidencedCriteria: 0, progress: 0 }
+
+  return (
+    <main className="page-shell">
+      <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
+      <section className="content course-progress-content">
+        <button className="back-link" type="button" onClick={onBack}>← Learner</button>
+
+        <div className="learner-title-block">
+          <p className="eyebrow">Course</p>
+          <h1>{enrolment.course.title}</h1>
+          <p className="subtle">{learner.displayName} · {enrolment.course.code}</p>
+        </div>
+
+        {message && <p className="auth-message error-message learner-message">{message}</p>}
+
+        <div className="course-progress-hero">
+          <div className="progress-value-row">
+            <div>
+              <div className="progress-value">{data.progress}%</div>
+              <div className="progress-label">Course progress</div>
+            </div>
+            <div className="progress-label">{data.evidencedCriteria} of {data.totalCriteria} criteria evidenced</div>
+          </div>
+          <div className="progress-track" aria-hidden="true">
+            <div className="progress-fill" style={{ width: `${data.progress}%` }} />
+          </div>
+        </div>
+
+        <div className="course-meta-grid">
+          <div className="course-meta-card"><strong>{data.sections.length}</strong><span>Sections</span></div>
+          <div className="course-meta-card"><strong>{data.totalCriteria}</strong><span>Criteria</span></div>
+        </div>
+
+        <div className="course-section-list">
+          {data.sections.map((section) => (
+            <div className="course-section-card" key={section.id}>
+              <strong>{section.title}</strong>
+              <span>{section.criteriaCount ? `${section.criteriaCount} criteria` : 'No criteria added yet'}</span>
             </div>
           ))}
         </div>
@@ -879,6 +1132,48 @@ function App() {
   if (gate === 'error') return <AccessMessage title="Unable to load Nisia" message="Your account is signed in, but secure organisation access could not be loaded. Try again shortly." onSignOut={signOut} />
 
   if (gate === 'ready' && context && counts) {
+    if (view === 'courseProgress' && selectedLearner) {
+      return (
+        <CourseProgressPage
+          learner={selectedLearner}
+          context={context}
+          email={session?.user?.email || ''}
+          onSignOut={signOut}
+          onBack={() => setView('learner')}
+        />
+      )
+    }
+
+    if (view === 'assignCourse' && selectedLearner) {
+      return (
+        <CoursesPage
+          context={context}
+          email={session?.user?.email || ''}
+          onSignOut={signOut}
+          onBack={() => setView('learner')}
+          assignmentLearner={selectedLearner}
+          onAssigned={(updatedLearner) => {
+            setSelectedLearner(updatedLearner)
+            refreshDashboardCounts()
+            setView('learner')
+          }}
+        />
+      )
+    }
+
+    if (view === 'courses') {
+      return (
+        <CoursesPage
+          context={context}
+          email={session?.user?.email || ''}
+          onSignOut={signOut}
+          onBack={() => setView('dashboard')}
+          assignmentLearner={null}
+          onAssigned={() => {}}
+        />
+      )
+    }
+
     if (view === 'learner' && selectedLearner) {
       return (
         <LearnerOverviewPage
@@ -887,6 +1182,8 @@ function App() {
           email={session?.user?.email || ''}
           onSignOut={signOut}
           onBack={() => setView('learners')}
+          onAssignCourse={() => setView('assignCourse')}
+          onOpenCourse={() => setView('courseProgress')}
         />
       )
     }
@@ -914,6 +1211,7 @@ function App() {
         email={session?.user?.email || ''}
         onSignOut={signOut}
         onOpenLearners={() => setView('learners')}
+        onOpenCourses={() => setView('courses')}
       />
     )
   }
