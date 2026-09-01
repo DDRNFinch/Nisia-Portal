@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
 import './styles.css'
+import './learners.css'
 
 const supabase = createClient(
   'https://ffgfigkeeeauzkifopei.supabase.co',
@@ -352,9 +353,29 @@ function ProfileMenu({ context, email, onSignOut }) {
   )
 }
 
-function Dashboard({ context, counts, email, onSignOut }) {
+function PortalTopbar({ context, email, onSignOut }) {
   const [profileOpen, setProfileOpen] = useState(false)
 
+  return (
+    <header className="topbar">
+      <NisiaMark />
+      <div className="profile-wrap">
+        <button
+          className="profile-button"
+          type="button"
+          aria-label="Account"
+          aria-expanded={profileOpen}
+          onClick={() => setProfileOpen((open) => !open)}
+        >
+          <span className="profile-dot" />
+        </button>
+        {profileOpen && <ProfileMenu context={context} email={email} onSignOut={onSignOut} />}
+      </div>
+    </header>
+  )
+}
+
+function Dashboard({ context, counts, email, onSignOut, onOpenLearners }) {
   const cards = [
     { title: 'Reviews', detail: `${counts.reviews} ${counts.reviews === 1 ? 'review' : 'reviews'}`, accent: 'blue' },
     { title: 'Evidence', detail: `${counts.evidence} ${counts.evidence === 1 ? 'item' : 'items'}`, accent: 'yellow' },
@@ -364,21 +385,7 @@ function Dashboard({ context, counts, email, onSignOut }) {
 
   return (
     <main className="page-shell">
-      <header className="topbar">
-        <NisiaMark />
-        <div className="profile-wrap">
-          <button
-            className="profile-button"
-            type="button"
-            aria-label="Account"
-            aria-expanded={profileOpen}
-            onClick={() => setProfileOpen((open) => !open)}
-          >
-            <span className="profile-dot" />
-          </button>
-          {profileOpen && <ProfileMenu context={context} email={email} onSignOut={onSignOut} />}
-        </div>
-      </header>
+      <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
 
       <section className="content">
         <div className="intro-row">
@@ -395,7 +402,7 @@ function Dashboard({ context, counts, email, onSignOut }) {
           </div>
         </div>
 
-        <button className="hero-card" type="button">
+        <button className="hero-card" type="button" onClick={onOpenLearners}>
           <div>
             <span className="card-kicker">Learners</span>
             <strong>{counts.learners} {counts.learners === 1 ? 'learner' : 'learners'}</strong>
@@ -411,6 +418,281 @@ function Dashboard({ context, counts, email, onSignOut }) {
               <span className="small-card-detail">{card.detail}</span>
               <span className="mini-arrow" aria-hidden="true">→</span>
             </button>
+          ))}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function TestCredentials({ credentials, onClose }) {
+  if (!credentials) return null
+
+  return (
+    <div className="credential-overlay" role="presentation">
+      <section className="credential-card" role="dialog" aria-modal="true" aria-labelledby="test-created-title">
+        <p className="eyebrow">Fake development account</p>
+        <h2 id="test-created-title">Test learner created</h2>
+        <p className="credential-name">{credentials.display_name}</p>
+        <div className="credential-row">
+          <span>Email</span>
+          <code>{credentials.email}</code>
+        </div>
+        <div className="credential-row">
+          <span>Password</span>
+          <code>{credentials.password}</code>
+        </div>
+        <p className="credential-note">These are fake development credentials. The password is not stored in the Nisia database and is shown here only so this test account can be used later.</p>
+        <button className="primary-button full-width" type="button" onClick={onClose}>Done</button>
+      </section>
+    </div>
+  )
+}
+
+async function loadLearners(organisationId) {
+  const { data: learnerRows, error: learnerError } = await supabase
+    .from('learners')
+    .select('id, organisation_member_id, created_at')
+    .eq('organisation_id', organisationId)
+    .order('created_at', { ascending: true })
+
+  if (learnerError) throw learnerError
+  if (!learnerRows?.length) return []
+
+  const memberIds = learnerRows.map((learner) => learner.organisation_member_id)
+  const { data: members, error: memberError } = await supabase
+    .from('organisation_members')
+    .select('id, user_id')
+    .in('id', memberIds)
+  if (memberError) throw memberError
+
+  const userIds = (members || []).map((member) => member.user_id)
+  const { data: profiles, error: profileError } = userIds.length
+    ? await supabase.from('profiles').select('id, display_name').in('id', userIds)
+    : { data: [], error: null }
+  if (profileError) throw profileError
+
+  const learnerIds = learnerRows.map((learner) => learner.id)
+  const { data: enrolments, error: enrolmentError } = await supabase
+    .from('enrolments')
+    .select('id, learner_id, course_id, start_date, end_date')
+    .in('learner_id', learnerIds)
+  if (enrolmentError) throw enrolmentError
+
+  const courseIds = [...new Set((enrolments || []).map((enrolment) => enrolment.course_id))]
+  const { data: courses, error: courseError } = courseIds.length
+    ? await supabase.from('courses').select('id, code, title').in('id', courseIds)
+    : { data: [], error: null }
+  if (courseError) throw courseError
+
+  const memberById = new Map((members || []).map((member) => [member.id, member]))
+  const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]))
+  const courseById = new Map((courses || []).map((course) => [course.id, course]))
+
+  return learnerRows.map((learner, index) => {
+    const member = memberById.get(learner.organisation_member_id)
+    const profile = member ? profileById.get(member.user_id) : null
+    const learnerEnrolments = (enrolments || [])
+      .filter((enrolment) => enrolment.learner_id === learner.id)
+      .map((enrolment) => ({ ...enrolment, course: courseById.get(enrolment.course_id) || null }))
+
+    return {
+      ...learner,
+      displayName: profile?.display_name || `Test Learner ${String(index + 1).padStart(3, '0')}`,
+      enrolments: learnerEnrolments,
+    }
+  })
+}
+
+async function loadLearnerActivityCounts(learner) {
+  const enrolmentIds = learner.enrolments.map((enrolment) => enrolment.id)
+  if (!enrolmentIds.length) {
+    return { evidence: 0, reviews: 0, otj: 0, targets: 0, observations: 0 }
+  }
+
+  const [evidence, reviews, otj, targets, observations] = await Promise.all([
+    supabase.from('evidence').select('*', { count: 'exact', head: true }).in('enrolment_id', enrolmentIds),
+    supabase.from('reviews').select('*', { count: 'exact', head: true }).in('enrolment_id', enrolmentIds),
+    supabase.from('otj_entries').select('*', { count: 'exact', head: true }).in('enrolment_id', enrolmentIds),
+    supabase.from('targets').select('*', { count: 'exact', head: true }).in('enrolment_id', enrolmentIds),
+    supabase.from('observations').select('*', { count: 'exact', head: true }).in('enrolment_id', enrolmentIds),
+  ])
+
+  const results = [evidence, reviews, otj, targets, observations]
+  const failure = results.find((result) => result.error)
+  if (failure) throw failure.error
+
+  return {
+    evidence: evidence.count || 0,
+    reviews: reviews.count || 0,
+    otj: otj.count || 0,
+    targets: targets.count || 0,
+    observations: observations.count || 0,
+  }
+}
+
+function LearnersPage({ context, email, onSignOut, onBack, onOpenLearner, onLearnerCreated }) {
+  const [learners, setLearners] = useState(null)
+  const [status, setStatus] = useState('loading')
+  const [message, setMessage] = useState('')
+  const [credentials, setCredentials] = useState(null)
+  const canAddTestLearner = context.roles.includes('admin')
+
+  async function refreshLearners() {
+    setStatus('loading')
+    setMessage('')
+    try {
+      const rows = await loadLearners(context.organisation.id)
+      setLearners(rows)
+      setStatus('ready')
+    } catch (error) {
+      console.error('Unable to load learners', error)
+      setStatus('error')
+      setMessage('Learners could not be loaded.')
+    }
+  }
+
+  useEffect(() => {
+    refreshLearners()
+  }, [context.organisation.id])
+
+  async function addTestLearner() {
+    if (!canAddTestLearner || status === 'creating') return
+    setStatus('creating')
+    setMessage('')
+
+    const { data, error } = await supabase.functions.invoke('admin-create-test-learner', {
+      body: { organisation_id: context.organisation.id },
+    })
+
+    if (error || !data?.learner_id) {
+      console.error('Unable to create test learner', error, data)
+      setStatus('ready')
+      setMessage('The test learner could not be created.')
+      return
+    }
+
+    setCredentials(data)
+    await refreshLearners()
+    onLearnerCreated()
+  }
+
+  return (
+    <main className="page-shell">
+      <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
+      <section className="content learners-content">
+        <button className="back-link" type="button" onClick={onBack}>← Home</button>
+
+        <div className="section-heading-row">
+          <div>
+            <p className="eyebrow">Organisation</p>
+            <h1>Learners</h1>
+            <p className="subtle">Only learners this account is authorised to access are shown.</p>
+          </div>
+          {canAddTestLearner && (
+            <button className="add-test-button" type="button" onClick={addTestLearner} disabled={status === 'creating'}>
+              {status === 'creating' ? 'Creating…' : '+ Add test learner'}
+            </button>
+          )}
+        </div>
+
+        {message && <p className="auth-message error-message learner-message">{message}</p>}
+
+        {status === 'loading' && <div className="learner-empty"><p>Loading learners…</p></div>}
+
+        {status !== 'loading' && learners?.length === 0 && (
+          <div className="learner-empty">
+            <span className="empty-dot" />
+            <h2>No learners yet</h2>
+            <p>This organisation currently has no learner records.</p>
+          </div>
+        )}
+
+        {learners?.length > 0 && (
+          <div className="learner-list">
+            {learners.map((learner) => {
+              const primaryEnrolment = learner.enrolments[0]
+              const courseText = primaryEnrolment?.course
+                ? `${primaryEnrolment.course.title}${primaryEnrolment.course.code ? ` · ${primaryEnrolment.course.code}` : ''}`
+                : 'No course assigned'
+
+              return (
+                <button className="learner-row" type="button" key={learner.id} onClick={() => onOpenLearner(learner)}>
+                  <div>
+                    <strong>{learner.displayName}</strong>
+                    <span>{courseText}</span>
+                  </div>
+                  <span className="learner-arrow" aria-hidden="true">→</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <TestCredentials credentials={credentials} onClose={() => setCredentials(null)} />
+    </main>
+  )
+}
+
+function LearnerOverviewPage({ learner, context, email, onSignOut, onBack }) {
+  const [activity, setActivity] = useState(null)
+  const [message, setMessage] = useState('')
+  const primaryEnrolment = learner.enrolments[0]
+  const courseText = primaryEnrolment?.course
+    ? `${primaryEnrolment.course.title}${primaryEnrolment.course.code ? ` · ${primaryEnrolment.course.code}` : ''}`
+    : 'No course assigned'
+
+  useEffect(() => {
+    let cancelled = false
+    loadLearnerActivityCounts(learner)
+      .then((counts) => {
+        if (!cancelled) setActivity(counts)
+      })
+      .catch((error) => {
+        console.error('Unable to load learner overview', error)
+        if (!cancelled) setMessage('Learner activity could not be loaded.')
+      })
+    return () => { cancelled = true }
+  }, [learner.id])
+
+  const counts = activity || { evidence: 0, reviews: 0, otj: 0, targets: 0, observations: 0 }
+  const overviewCards = [
+    ['Evidence', counts.evidence],
+    ['Reviews', counts.reviews],
+    ['OTJ', counts.otj],
+    ['Targets', counts.targets],
+    ['Course', primaryEnrolment ? 1 : 0],
+    ['Observations', counts.observations],
+  ]
+
+  return (
+    <main className="page-shell">
+      <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
+      <section className="content learner-overview-content">
+        <button className="back-link" type="button" onClick={onBack}>← Learners</button>
+
+        <div className="learner-title-block">
+          <p className="eyebrow">Learner overview</p>
+          <h1>{learner.displayName}</h1>
+          <p className="subtle">{courseText}</p>
+        </div>
+
+        {message && <p className="auth-message error-message learner-message">{message}</p>}
+
+        <div className="learner-stat-grid">
+          <div className="learner-stat"><strong>{counts.evidence}</strong><span>Evidence</span></div>
+          <div className="learner-stat"><strong>{counts.reviews}</strong><span>Reviews</span></div>
+          <div className="learner-stat"><strong>{counts.otj}</strong><span>OTJ entries</span></div>
+          <div className="learner-stat"><strong>{counts.targets}</strong><span>Targets</span></div>
+        </div>
+
+        <div className="overview-option-grid">
+          {overviewCards.map(([label, count]) => (
+            <div className="overview-option" key={label}>
+              <strong>{label}</strong>
+              <span>{label === 'Course' ? (count ? 'Assigned' : 'Not assigned') : `${count} recorded`}</span>
+            </div>
           ))}
         </div>
       </section>
@@ -489,6 +771,8 @@ function App() {
   const [counts, setCounts] = useState(null)
   const [mfaFactorId, setMfaFactorId] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [view, setView] = useState('dashboard')
+  const [selectedLearner, setSelectedLearner] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -516,6 +800,8 @@ function App() {
         setGate('login')
         setContext(null)
         setCounts(null)
+        setView('dashboard')
+        setSelectedLearner(null)
         clearMFASetup()
         return
       }
@@ -576,12 +862,61 @@ function App() {
     setRefreshKey((value) => value + 1)
   }
 
+  async function refreshDashboardCounts() {
+    if (!context) return
+    try {
+      const nextCounts = await loadDashboardCounts(context.organisation.id)
+      setCounts(nextCounts)
+    } catch (error) {
+      console.error('Unable to refresh dashboard counts', error)
+    }
+  }
+
   if (gate === 'loading') return <LoadingScreen />
   if (gate === 'login') return <LoginScreen />
   if (gate === 'mfa' && context) return <MFAScreen existingFactorId={mfaFactorId} onVerified={handleMFAVerified} onSignOut={signOut} />
   if (gate === 'denied') return <AccessMessage title="Access not assigned" message="This account does not have an active Nisia organisation membership and role." onSignOut={signOut} />
   if (gate === 'error') return <AccessMessage title="Unable to load Nisia" message="Your account is signed in, but secure organisation access could not be loaded. Try again shortly." onSignOut={signOut} />
-  if (gate === 'ready' && context && counts) return <Dashboard context={context} counts={counts} email={session?.user?.email || ''} onSignOut={signOut} />
+
+  if (gate === 'ready' && context && counts) {
+    if (view === 'learner' && selectedLearner) {
+      return (
+        <LearnerOverviewPage
+          learner={selectedLearner}
+          context={context}
+          email={session?.user?.email || ''}
+          onSignOut={signOut}
+          onBack={() => setView('learners')}
+        />
+      )
+    }
+
+    if (view === 'learners') {
+      return (
+        <LearnersPage
+          context={context}
+          email={session?.user?.email || ''}
+          onSignOut={signOut}
+          onBack={() => setView('dashboard')}
+          onLearnerCreated={refreshDashboardCounts}
+          onOpenLearner={(learner) => {
+            setSelectedLearner(learner)
+            setView('learner')
+          }}
+        />
+      )
+    }
+
+    return (
+      <Dashboard
+        context={context}
+        counts={counts}
+        email={session?.user?.email || ''}
+        onSignOut={signOut}
+        onOpenLearners={() => setView('learners')}
+      />
+    )
+  }
 
   return <LoadingScreen />
 }
