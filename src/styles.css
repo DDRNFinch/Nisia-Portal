@@ -102,6 +102,10 @@ button {
   background: #6da89b;
 }
 
+.profile-wrap {
+  position: relative;
+}
+
 .profile-button {
   width: 38px;
   height: 38px;
@@ -120,6 +124,55 @@ button {
   border-radius: 999px;
   background: #252525;
   opacity: 0.82;
+}
+
+.profile-menu {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: min(290px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid rgba(37, 37, 37, 0.07);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 50px rgba(42, 38, 31, 0.15);
+}
+
+.profile-org,
+.profile-role,
+.profile-email {
+  margin: 0;
+}
+
+.profile-org {
+  font-size: 16px;
+  font-weight: 730;
+}
+
+.profile-role {
+  margin-top: 4px;
+  color: #66615a;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.profile-email {
+  margin-top: 10px;
+  color: #8b867e;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.menu-signout {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 16px;
+  border: 1px solid #ded9d0;
+  border-radius: 13px;
+  color: #4f4b45;
+  background: #fbfaf7;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 .content {
@@ -192,12 +245,24 @@ h1 {
   place-items: center;
 }
 
+.loading-lockup {
+  text-align: center;
+}
+
+.loading-lockup .subtle {
+  margin-top: 18px;
+}
+
 .auth-panel {
   width: min(100%, 430px);
   padding: 30px;
   border-radius: 30px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 20px 55px rgba(42, 38, 31, 0.09);
+}
+
+.access-panel {
+  width: min(100%, 470px);
 }
 
 .auth-brand-row {
@@ -209,6 +274,10 @@ h1 {
 
 .auth-heading {
   margin-top: 42px;
+}
+
+.compact-heading {
+  margin-top: 34px;
 }
 
 .auth-heading h1 {
@@ -286,6 +355,10 @@ h1 {
   margin-top: 28px;
 }
 
+.quiet-button {
+  margin-top: 18px;
+}
+
 .auth-message {
   margin: 8px 0 0;
   padding: 11px 13px;
@@ -304,6 +377,76 @@ h1 {
   text-align: center;
   color: #98938b;
   font-size: 11px;
+}
+
+.security-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  color: #5e5a53;
+  background: #f2efe8;
+  font-size: 11px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.mfa-panel {
+  width: min(100%, 480px);
+}
+
+.mfa-setup {
+  margin-top: 24px;
+}
+
+.mfa-qr {
+  display: block;
+  width: min(240px, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 12px;
+  border: 1px solid #e5e0d8;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.setup-note {
+  margin: 16px 0 0;
+  color: #777169;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.secret-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 15px;
+  background: #f7f4ee;
+}
+
+.secret-box span {
+  display: block;
+  color: #8b867e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.secret-box code {
+  display: block;
+  margin-top: 7px;
+  color: #252525;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.mfa-form {
+  margin-top: 20px;
 }
 
 .hero-card,
@@ -462,6 +605,20 @@ h1 {
 
   .auth-heading {
     margin-top: 36px;
+  }
+
+  .compact-heading {
+    margin-top: 30px;
+  }
+
+  .mfa-panel {
+    margin-top: 18px;
+  }
+
+  .profile-menu {
+    position: fixed;
+    top: 72px;
+    right: 12px;
   }
 
   .hero-card {
