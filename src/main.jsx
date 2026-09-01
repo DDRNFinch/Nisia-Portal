@@ -15,12 +15,11 @@ const supabase = createClient(
   },
 )
 
-const cards = [
-  { title: 'Reviews', detail: '3 test reviews due', accent: 'blue' },
-  { title: 'Evidence', detail: '8 test items waiting', accent: 'yellow' },
-  { title: 'Progress', detail: 'View learner progress', accent: 'teal' },
-  { title: 'Courses', detail: '4 test courses', accent: 'coral' },
-]
+const staffRoles = new Set(['admin', 'assessor', 'tutor', 'employer'])
+
+function titleCase(value) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : ''
+}
 
 function NisiaMark({ large = false }) {
   return (
@@ -43,7 +42,10 @@ function NisiaMark({ large = false }) {
 function LoadingScreen() {
   return (
     <main className="auth-shell auth-loading" aria-live="polite">
-      <NisiaMark large />
+      <div className="loading-lockup">
+        <NisiaMark large />
+        <p className="subtle">Checking secure access…</p>
+      </div>
     </main>
   )
 }
@@ -89,7 +91,7 @@ function LoginScreen() {
         </div>
 
         <div className="auth-heading">
-          <p className="eyebrow">Nisia portal</p>
+          <p className="eyebrow">Secure portal</p>
           <h1 id="sign-in-title">Sign in</h1>
           <p className="subtle">Use your Nisia account to continue.</p>
         </div>
@@ -97,10 +99,9 @@ function LoginScreen() {
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field-label" htmlFor="email">Email</label>
           <input
-            id="email"
             className="text-input"
+            id="email"
             type="email"
-            inputMode="email"
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -109,8 +110,8 @@ function LoginScreen() {
 
           <label className="field-label" htmlFor="password">Password</label>
           <input
-            id="password"
             className="text-input"
+            id="password"
             type="password"
             autoComplete="current-password"
             value={password}
@@ -118,110 +119,200 @@ function LoginScreen() {
             required
           />
 
-          {message ? <p className="auth-message error-message" role="alert">{message}</p> : null}
+          {message && <p className="auth-message error-message">{message}</p>}
 
           <button className="primary-button" type="submit" disabled={status === 'submitting'}>
             {status === 'submitting' ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="development-note">Development preview · authorised test accounts only</p>
+        <p className="development-note">Development environment · authorised users only</p>
       </section>
     </main>
   )
 }
 
-function MfaScreen({ factorId, onVerified }) {
+function AccessMessage({ title, message, onSignOut }) {
+  return (
+    <main className="auth-shell">
+      <section className="auth-panel access-panel">
+        <NisiaMark large />
+        <div className="auth-heading compact-heading">
+          <p className="eyebrow">Access</p>
+          <h1>{title}</h1>
+          <p className="subtle">{message}</p>
+        </div>
+        <button className="secondary-button full-width" type="button" onClick={onSignOut}>Sign out</button>
+      </section>
+    </main>
+  )
+}
+
+function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
+  const [factorId, setFactorId] = useState(existingFactorId || '')
+  const [qrCode, setQrCode] = useState('')
+  const [secret, setSecret] = useState('')
   const [code, setCode] = useState('')
   const [status, setStatus] = useState('idle')
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(event) {
+  const hasVerifiedFactor = Boolean(existingFactorId)
+  const enrollmentStarted = Boolean(factorId && !hasVerifiedFactor)
+
+  async function startEnrollment() {
+    setStatus('submitting')
+    setMessage('')
+
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'Nisia Portal',
+    })
+
+    if (error || !data?.id || !data?.totp) {
+      setStatus('error')
+      setMessage('MFA setup could not be started. Try again.')
+      return
+    }
+
+    setFactorId(data.id)
+    setQrCode(data.totp.qr_code || '')
+    setSecret(data.totp.secret || '')
+    setStatus('idle')
+  }
+
+  async function verifyCode(event) {
     event.preventDefault()
-    if (status === 'submitting') return
+    const cleanCode = code.replace(/\s/g, '')
+    if (!factorId || !/^\d{6}$/.test(cleanCode)) {
+      setMessage('Enter the 6-digit code from your authenticator app.')
+      return
+    }
 
     setStatus('submitting')
     setMessage('')
 
     const { error } = await supabase.auth.mfa.challengeAndVerify({
       factorId,
-      code: code.trim(),
+      code: cleanCode,
     })
 
     if (error) {
       setStatus('error')
-      setMessage('That verification code was not accepted.')
+      setMessage('That code could not be verified. Check the code and try again.')
       return
     }
 
     setStatus('idle')
+    setCode('')
     onVerified()
   }
 
+  const qrSrc = qrCode
+    ? (qrCode.startsWith('data:') ? qrCode : `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`)
+    : ''
+
   return (
     <main className="auth-shell">
-      <section className="auth-panel" aria-labelledby="mfa-title">
+      <section className="auth-panel mfa-panel" aria-labelledby="mfa-title">
         <div className="auth-brand-row">
           <NisiaMark large />
+          <span className="security-pill">MFA required</span>
         </div>
-        <div className="auth-heading">
-          <p className="eyebrow">Security check</p>
-          <h1 id="mfa-title">Verification</h1>
-          <p className="subtle">Enter the six-digit code from your authenticator app.</p>
+
+        <div className="auth-heading compact-heading">
+          <p className="eyebrow">Second factor</p>
+          <h1 id="mfa-title">Verify it’s you</h1>
+          <p className="subtle">
+            {hasVerifiedFactor
+              ? 'Open your authenticator app and enter the current 6-digit code.'
+              : 'Staff accounts must set up an authenticator before protected organisation data can open.'}
+          </p>
         </div>
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label className="field-label" htmlFor="mfa-code">Verification code</label>
-          <input
-            id="mfa-code"
-            className="text-input code-input"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength="6"
-            value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-            required
-          />
-          {message ? <p className="auth-message error-message" role="alert">{message}</p> : null}
-          <button className="primary-button" type="submit" disabled={status === 'submitting' || code.length !== 6}>
-            {status === 'submitting' ? 'Checking…' : 'Verify'}
+
+        {!hasVerifiedFactor && !enrollmentStarted && (
+          <button className="primary-button full-width" type="button" onClick={startEnrollment} disabled={status === 'submitting'}>
+            {status === 'submitting' ? 'Starting…' : 'Set up authenticator'}
           </button>
-          <button className="secondary-button" type="button" onClick={() => supabase.auth.signOut()}>
-            Sign out
-          </button>
-        </form>
+        )}
+
+        {!hasVerifiedFactor && enrollmentStarted && (
+          <div className="mfa-setup">
+            {qrSrc && <img className="mfa-qr" src={qrSrc} alt="Authenticator setup QR code" />}
+            <p className="setup-note">Scan this with your authenticator app. If you are using this same phone, add the setup key manually instead.</p>
+            {secret && (
+              <div className="secret-box">
+                <span>Setup key</span>
+                <code>{secret}</code>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(hasVerifiedFactor || enrollmentStarted) && (
+          <form className="auth-form mfa-form" onSubmit={verifyCode}>
+            <label className="field-label" htmlFor="mfa-code">Authenticator code</label>
+            <input
+              className="text-input code-input"
+              id="mfa-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              required
+            />
+            {message && <p className="auth-message error-message">{message}</p>}
+            <button className="primary-button" type="submit" disabled={status === 'submitting'}>
+              {status === 'submitting' ? 'Verifying…' : 'Verify'}
+            </button>
+          </form>
+        )}
+
+        {message && !factorId && <p className="auth-message error-message">{message}</p>}
+        <button className="secondary-button full-width quiet-button" type="button" onClick={onSignOut}>Sign out</button>
       </section>
     </main>
   )
 }
 
-function MfaUnavailableScreen() {
+function ProfileMenu({ context, email, onSignOut }) {
   return (
-    <main className="auth-shell">
-      <section className="auth-panel">
-        <NisiaMark large />
-        <div className="auth-heading">
-          <p className="eyebrow">Security check</p>
-          <h1>MFA required</h1>
-          <p className="subtle">This account requires multi-factor authentication, but no verified authenticator is available.</p>
-        </div>
-        <button className="secondary-button full-width" type="button" onClick={() => supabase.auth.signOut()}>
-          Sign out
-        </button>
-      </section>
-    </main>
+    <div className="profile-menu" role="dialog" aria-label="Account">
+      <p className="profile-org">{context.organisation.name}</p>
+      <p className="profile-role">{context.roles.map(titleCase).join(' · ')}</p>
+      <p className="profile-email">{email}</p>
+      <button type="button" className="menu-signout" onClick={onSignOut}>Sign out</button>
+    </div>
   )
 }
 
-function Dashboard() {
+function Dashboard({ context, counts, email, onSignOut }) {
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  const cards = [
+    { title: 'Reviews', detail: `${counts.reviews} ${counts.reviews === 1 ? 'review' : 'reviews'}`, accent: 'blue' },
+    { title: 'Evidence', detail: `${counts.evidence} ${counts.evidence === 1 ? 'item' : 'items'}`, accent: 'yellow' },
+    { title: 'Progress', detail: `${counts.enrolments} ${counts.enrolments === 1 ? 'enrolment' : 'enrolments'}`, accent: 'teal' },
+    { title: 'Courses', detail: `${counts.courses} ${counts.courses === 1 ? 'course' : 'courses'}`, accent: 'coral' },
+  ]
+
   return (
     <main className="page-shell">
       <header className="topbar">
         <NisiaMark />
-        <button className="profile-button" type="button" aria-label="Sign out" title="Sign out" onClick={() => supabase.auth.signOut()}>
-          <span className="profile-dot" />
-        </button>
+        <div className="profile-wrap">
+          <button
+            className="profile-button"
+            type="button"
+            aria-label="Account"
+            aria-expanded={profileOpen}
+            onClick={() => setProfileOpen((open) => !open)}
+          >
+            <span className="profile-dot" />
+          </button>
+          {profileOpen && <ProfileMenu context={context} email={email} onSignOut={onSignOut} />}
+        </div>
       </header>
 
       <section className="content">
@@ -229,7 +320,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Development preview</p>
             <h1>Good morning</h1>
-            <p className="subtle">Fake data only while Nisia is being built.</p>
+            <p className="subtle">{context.organisation.name} · {context.roles.map(titleCase).join(' · ')}</p>
           </div>
           <div className="accent-dots" aria-hidden="true">
             <span className="dot yellow" />
@@ -242,7 +333,7 @@ function Dashboard() {
         <button className="hero-card" type="button">
           <div>
             <span className="card-kicker">Learners</span>
-            <strong>12 test learners</strong>
+            <strong>{counts.learners} {counts.learners === 1 ? 'learner' : 'learners'}</strong>
             <span className="card-detail">Open learner overview</span>
           </div>
           <span className="arrow" aria-hidden="true">→</span>
@@ -262,75 +353,169 @@ function Dashboard() {
   )
 }
 
-function AuthenticatedApp() {
-  const [mfaState, setMfaState] = useState({ status: 'checking', factorId: null })
+async function loadAccessContext(userId) {
+  const { data: memberships, error: membershipError } = await supabase
+    .from('organisation_members')
+    .select('id, organisation_id, active')
+    .eq('user_id', userId)
+    .eq('active', true)
 
-  async function checkMfa() {
-    setMfaState({ status: 'checking', factorId: null })
+  if (membershipError) throw membershipError
+  if (!memberships?.length) return null
 
-    const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-    if (aalError) {
-      setMfaState({ status: 'ready', factorId: null })
-      return
-    }
+  const membership = memberships[0]
 
-    if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel !== 'aal2') {
-      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors()
-      if (factorsError) {
-        setMfaState({ status: 'unavailable', factorId: null })
-        return
-      }
+  const [{ data: organisation, error: organisationError }, { data: roleLinks, error: roleLinkError }] = await Promise.all([
+    supabase.from('organisations').select('id, name').eq('id', membership.organisation_id).single(),
+    supabase.from('organisation_member_roles').select('role_id').eq('organisation_member_id', membership.id),
+  ])
 
-      const factor = factorsData?.totp?.find((item) => item.status === 'verified')
-      if (!factor) {
-        setMfaState({ status: 'unavailable', factorId: null })
-        return
-      }
+  if (organisationError) throw organisationError
+  if (roleLinkError) throw roleLinkError
 
-      setMfaState({ status: 'required', factorId: factor.id })
-      return
-    }
+  const roleIds = (roleLinks || []).map((item) => item.role_id)
+  let roles = []
 
-    setMfaState({ status: 'ready', factorId: null })
+  if (roleIds.length) {
+    const { data: roleRows, error: roleError } = await supabase
+      .from('roles')
+      .select('code')
+      .in('id', roleIds)
+
+    if (roleError) throw roleError
+    roles = (roleRows || []).map((item) => item.code)
   }
 
-  useEffect(() => {
-    checkMfa()
-  }, [])
+  if (!roles.length) return null
 
-  if (mfaState.status === 'checking') return <LoadingScreen />
-  if (mfaState.status === 'required') return <MfaScreen factorId={mfaState.factorId} onVerified={checkMfa} />
-  if (mfaState.status === 'unavailable') return <MfaUnavailableScreen />
-  return <Dashboard />
+  return {
+    membershipId: membership.id,
+    organisation,
+    roles,
+    requiresMFA: roles.some((role) => staffRoles.has(role)),
+  }
+}
+
+async function loadDashboardCounts(organisationId) {
+  const [learners, reviews, evidence, enrolments, courses] = await Promise.all([
+    supabase.from('learners').select('*', { count: 'exact', head: true }).eq('organisation_id', organisationId),
+    supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('organisation_id', organisationId),
+    supabase.from('evidence').select('*', { count: 'exact', head: true }).eq('organisation_id', organisationId),
+    supabase.from('enrolments').select('*', { count: 'exact', head: true }).eq('organisation_id', organisationId),
+    supabase.from('courses').select('*', { count: 'exact', head: true }),
+  ])
+
+  const failures = [learners, reviews, evidence, enrolments, courses].filter((result) => result.error)
+  if (failures.length) throw failures[0].error
+
+  return {
+    learners: learners.count || 0,
+    reviews: reviews.count || 0,
+    evidence: evidence.count || 0,
+    enrolments: enrolments.count || 0,
+    courses: courses.count || 0,
+  }
 }
 
 function App() {
-  const [session, setSession] = useState(null)
-  const [ready, setReady] = useState(false)
+  const [session, setSession] = useState(undefined)
+  const [gate, setGate] = useState('loading')
+  const [context, setContext] = useState(null)
+  const [counts, setCounts] = useState(null)
+  const [mfaFactorId, setMfaFactorId] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    let active = true
+    let mounted = true
 
     supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      setReady(true)
+      if (mounted) setSession(data.session)
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
-      setReady(true)
     })
 
     return () => {
-      active = false
-      authListener.subscription.unsubscribe()
+      mounted = false
+      listener.subscription.unsubscribe()
     }
   }, [])
 
-  if (!ready) return <LoadingScreen />
-  if (!session) return <LoginScreen />
-  return <AuthenticatedApp />
+  useEffect(() => {
+    let cancelled = false
+
+    async function bootstrap() {
+      if (session === undefined) return
+      if (!session) {
+        setGate('login')
+        setContext(null)
+        setCounts(null)
+        return
+      }
+
+      setGate('loading')
+
+      try {
+        const accessContext = await loadAccessContext(session.user.id)
+        if (cancelled) return
+
+        if (!accessContext) {
+          setGate('denied')
+          setContext(null)
+          setCounts(null)
+          return
+        }
+
+        setContext(accessContext)
+
+        if (accessContext.requiresMFA) {
+          const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+          if (aalError) throw aalError
+
+          if (aal?.currentLevel !== 'aal2') {
+            const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors()
+            if (factorError) throw factorError
+
+            const verifiedTotp = (factors?.totp || []).find((factor) => factor.status === 'verified')
+            if (cancelled) return
+            setMfaFactorId(verifiedTotp?.id || '')
+            setGate('mfa')
+            setCounts(null)
+            return
+          }
+        }
+
+        const dashboardCounts = await loadDashboardCounts(accessContext.organisation.id)
+        if (cancelled) return
+        setCounts(dashboardCounts)
+        setGate('ready')
+      } catch (error) {
+        console.error('Nisia access bootstrap failed', error)
+        if (!cancelled) setGate('error')
+      }
+    }
+
+    bootstrap()
+    return () => { cancelled = true }
+  }, [session, refreshKey])
+
+  async function signOut() {
+    await supabase.auth.signOut()
+  }
+
+  function handleMFAVerified() {
+    setRefreshKey((value) => value + 1)
+  }
+
+  if (gate === 'loading') return <LoadingScreen />
+  if (gate === 'login') return <LoginScreen />
+  if (gate === 'mfa' && context) return <MFAScreen existingFactorId={mfaFactorId} onVerified={handleMFAVerified} onSignOut={signOut} />
+  if (gate === 'denied') return <AccessMessage title="Access not assigned" message="This account does not have an active Nisia organisation membership and role." onSignOut={signOut} />
+  if (gate === 'error') return <AccessMessage title="Unable to load Nisia" message="Your account is signed in, but secure organisation access could not be loaded. Try again shortly." onSignOut={signOut} />
+  if (gate === 'ready' && context && counts) return <Dashboard context={context} counts={counts} email={session?.user?.email || ''} onSignOut={signOut} />
+
+  return <LoadingScreen />
 }
 
 createRoot(document.getElementById('root')).render(
