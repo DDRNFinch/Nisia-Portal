@@ -163,21 +163,35 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
     setStatus('submitting')
     setMessage('')
 
-    const { data, error } = await supabase.auth.mfa.enroll({
-      factorType: 'totp',
-      friendlyName: 'Nisia Portal',
-    })
+    try {
+      const { data: factors, error: listError } = await supabase.auth.mfa.listFactors()
+      if (listError) throw listError
 
-    if (error || !data?.id || !data?.totp) {
+      const unfinished = (factors?.totp || []).filter(
+        (factor) => factor.status !== 'verified' && factor.friendly_name === 'Nisia Portal',
+      )
+
+      for (const factor of unfinished) {
+        const { error: removeError } = await supabase.auth.mfa.unenroll({ factorId: factor.id })
+        if (removeError) throw removeError
+      }
+
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'Nisia Portal',
+      })
+
+      if (error || !data?.id || !data?.totp) throw error || new Error('Missing MFA enrollment data')
+
+      setFactorId(data.id)
+      setQrCode(data.totp.qr_code || '')
+      setSecret(data.totp.secret || '')
+      setStatus('idle')
+    } catch (error) {
+      console.error('Nisia MFA enrollment failed', error)
       setStatus('error')
       setMessage('MFA setup could not be started. Try again.')
-      return
     }
-
-    setFactorId(data.id)
-    setQrCode(data.totp.qr_code || '')
-    setSecret(data.totp.secret || '')
-    setStatus('idle')
   }
 
   async function verifyCode(event) {
