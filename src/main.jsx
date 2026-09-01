@@ -16,9 +16,38 @@ const supabase = createClient(
 )
 
 const staffRoles = new Set(['admin', 'assessor', 'tutor', 'employer'])
+const MFA_SETUP_KEY = 'nisia-mfa-setup-v1'
 
 function titleCase(value) {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : ''
+}
+
+function readMFASetup() {
+  try {
+    const raw = sessionStorage.getItem(MFA_SETUP_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.factorId || !parsed?.qrCode || !parsed?.secret) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveMFASetup(setup) {
+  try {
+    sessionStorage.setItem(MFA_SETUP_KEY, JSON.stringify(setup))
+  } catch {
+    // The setup still works while this page stays open even if session storage is unavailable.
+  }
+}
+
+function clearMFASetup() {
+  try {
+    sessionStorage.removeItem(MFA_SETUP_KEY)
+  } catch {
+    // Nothing else is required if session storage is unavailable.
+  }
 }
 
 function NisiaMark({ large = false }) {
@@ -149,15 +178,20 @@ function AccessMessage({ title, message, onSignOut }) {
 }
 
 function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
-  const [factorId, setFactorId] = useState(existingFactorId || '')
-  const [qrCode, setQrCode] = useState('')
-  const [secret, setSecret] = useState('')
+  const storedSetup = existingFactorId ? null : readMFASetup()
+  const [factorId, setFactorId] = useState(existingFactorId || storedSetup?.factorId || '')
+  const [qrCode, setQrCode] = useState(storedSetup?.qrCode || '')
+  const [secret, setSecret] = useState(storedSetup?.secret || '')
   const [code, setCode] = useState('')
   const [status, setStatus] = useState('idle')
   const [message, setMessage] = useState('')
 
   const hasVerifiedFactor = Boolean(existingFactorId)
   const enrollmentStarted = Boolean(factorId && !hasVerifiedFactor)
+
+  useEffect(() => {
+    if (hasVerifiedFactor) clearMFASetup()
+  }, [hasVerifiedFactor])
 
   async function startEnrollment() {
     setStatus('submitting')
@@ -176,6 +210,8 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
         if (removeError) throw removeError
       }
 
+      clearMFASetup()
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Nisia Portal',
@@ -183,9 +219,16 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
 
       if (error || !data?.id || !data?.totp) throw error || new Error('Missing MFA enrollment data')
 
-      setFactorId(data.id)
-      setQrCode(data.totp.qr_code || '')
-      setSecret(data.totp.secret || '')
+      const setup = {
+        factorId: data.id,
+        qrCode: data.totp.qr_code || '',
+        secret: data.totp.secret || '',
+      }
+
+      saveMFASetup(setup)
+      setFactorId(setup.factorId)
+      setQrCode(setup.qrCode)
+      setSecret(setup.secret)
       setStatus('idle')
     } catch (error) {
       console.error('Nisia MFA enrollment failed', error)
@@ -216,9 +259,15 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
       return
     }
 
+    clearMFASetup()
     setStatus('idle')
     setCode('')
     onVerified()
+  }
+
+  async function signOutFromMFA() {
+    clearMFASetup()
+    await onSignOut()
   }
 
   const qrSrc = qrCode
@@ -239,7 +288,9 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
           <p className="subtle">
             {hasVerifiedFactor
               ? 'Open your authenticator app and enter the current 6-digit code.'
-              : 'Staff accounts must set up an authenticator before protected organisation data can open.'}
+              : enrollmentStarted
+                ? 'Your setup is waiting. Open your authenticator app, then return here and enter its current 6-digit code.'
+                : 'Staff accounts must set up an authenticator before protected organisation data can open.'}
           </p>
         </div>
 
@@ -252,7 +303,7 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
         {!hasVerifiedFactor && enrollmentStarted && (
           <div className="mfa-setup">
             {qrSrc && <img className="mfa-qr" src={qrSrc} alt="Authenticator setup QR code" />}
-            <p className="setup-note">Scan this with your authenticator app. If you are using this same phone, add the setup key manually instead.</p>
+            <p className="setup-note">Scan this with your authenticator app. If you are using this same phone, add the setup key manually instead. You can leave Nisia to get the code and come back without restarting setup.</p>
             {secret && (
               <div className="secret-box">
                 <span>Setup key</span>
@@ -284,7 +335,7 @@ function MFAScreen({ existingFactorId, onVerified, onSignOut }) {
         )}
 
         {message && !factorId && <p className="auth-message error-message">{message}</p>}
-        <button className="secondary-button full-width quiet-button" type="button" onClick={onSignOut}>Sign out</button>
+        <button className="secondary-button full-width quiet-button" type="button" onClick={signOutFromMFA}>Sign out</button>
       </section>
     </main>
   )
@@ -465,6 +516,7 @@ function App() {
         setGate('login')
         setContext(null)
         setCounts(null)
+        clearMFASetup()
         return
       }
 
@@ -500,6 +552,7 @@ function App() {
           }
         }
 
+        clearMFASetup()
         const dashboardCounts = await loadDashboardCounts(accessContext.organisation.id)
         if (cancelled) return
         setCounts(dashboardCounts)
@@ -515,6 +568,7 @@ function App() {
   }, [session, refreshKey])
 
   async function signOut() {
+    clearMFASetup()
     await supabase.auth.signOut()
   }
 
