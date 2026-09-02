@@ -90,7 +90,7 @@ async function fetchJson(url) {
   return response.json()
 }
 
-async function loadKsbMappings(pointer) {
+async function loadCoursePaths(pointer) {
   const packUrl = clean(pointer?.packUrl)
   if (!packUrl) throw new Error('Course mapping pack is unavailable')
   if (pointer?.patch || pointer?.customisations) throw new Error('Customised mapping needs its published course structure')
@@ -101,7 +101,7 @@ async function loadKsbMappings(pointer) {
   const packDir = new URL('./', packUrl)
   const categoryUrls = (pack.categoryFiles || []).map((file) => new URL(file, packDir).href)
   const categories = await Promise.all(categoryUrls.map(fetchJson))
-  const mappings = new Map()
+  const paths = new Set()
 
   for (const category of categories) {
     const categoryTitle = clean(category?.title)
@@ -110,18 +110,12 @@ async function loadKsbMappings(pointer) {
       for (const task of subcategory?.tasks || []) {
         const taskTitle = clean(task?.title)
         if (!categoryTitle || !subcategoryTitle || !taskTitle) continue
-        const key = pathKey([categoryTitle, subcategoryTitle, taskTitle])
-        for (const rawCode of task?.ksbTargets || []) {
-          const code = clean(rawCode)
-          if (!code) continue
-          if (!mappings.has(code)) mappings.set(code, new Set())
-          mappings.get(code).add(key)
-        }
+        paths.add(pathKey([categoryTitle, subcategoryTitle, taskTitle]))
       }
     }
   }
 
-  return mappings
+  return paths
 }
 
 function pageIdentity(scope) {
@@ -196,26 +190,16 @@ async function resolveCourseContext(identity) {
 
 async function calculateProgress(identity) {
   const { course, enrolment } = await resolveCourseContext(identity)
-  const [{ data: criteria, error: criteriaError }, { data: evidenceRows, error: evidenceError }, mappings] = await Promise.all([
-    supabase.from('criteria').select('id, code').eq('course_id', course.id),
+  const [{ data: evidenceRows, error: evidenceError }, coursePaths] = await Promise.all([
     supabase.from('evidence').select('id, evidence_type, source_metadata').eq('enrolment_id', enrolment.id),
-    loadKsbMappings(course.source_pointer),
+    loadCoursePaths(course.source_pointer),
   ])
 
-  if (criteriaError) throw criteriaError
   if (evidenceError) throw evidenceError
 
   const completedPaths = completedEvidencePaths(evidenceRows || [])
-  const courseCriteria = criteria || []
-  let completed = 0
-
-  for (const criterion of courseCriteria) {
-    const paths = mappings.get(clean(criterion.code))
-    if (!paths?.size) continue
-    if ([...paths].every((key) => completedPaths.has(key))) completed += 1
-  }
-
-  const total = courseCriteria.length
+  const completed = [...coursePaths].filter((key) => completedPaths.has(key)).length
+  const total = coursePaths.size
   const progress = total ? Math.round((completed / total) * 100) : 0
   return { completed, total, progress }
 }
@@ -226,8 +210,8 @@ function applyResult(scope, result) {
   const fill = scope.querySelector('.course-progress-hero .progress-fill')
 
   if (value && value.textContent !== `${result.progress}%`) value.textContent = `${result.progress}%`
-  if (labels[1] && labels[1].textContent !== `${result.completed} of ${result.total} criteria evidenced`) {
-    labels[1].textContent = `${result.completed} of ${result.total} criteria evidenced`
+  if (labels[1] && labels[1].textContent !== `${result.completed} of ${result.total} evidence areas completed`) {
+    labels[1].textContent = `${result.completed} of ${result.total} evidence areas completed`
   }
   if (fill && fill.style.width !== `${result.progress}%`) fill.style.width = `${result.progress}%`
 }
