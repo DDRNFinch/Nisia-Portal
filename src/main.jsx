@@ -551,31 +551,138 @@ async function loadCourses() {
   }))
 }
 
+function cleanCourseProgressValue(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function courseEvidencePathKey(path) {
+  return JSON.stringify((Array.isArray(path) ? path : []).map(cleanCourseProgressValue).filter(Boolean))
+}
+
+function courseEvidenceCounts(rows) {
+  const counts = { photo: 0, video: 0, audio: 0, written: 0, document: 0, other: 0 }
+  for (const row of rows) {
+    const type = cleanCourseProgressValue(row?.evidence_type).toLowerCase()
+    if (Object.prototype.hasOwnProperty.call(counts, type)) counts[type] += 1
+    else counts.other += 1
+  }
+  return counts
+}
+
+function courseEvidenceMethodSatisfied(label, rows) {
+  const text = cleanCourseProgressValue(label).toLowerCase().replace(/[–—]/g, '-')
+  if (!text || !rows.length) return false
+
+  const counts = courseEvidenceCounts(rows)
+  const has = (type) => counts[type] > 0
+
+  if (text.includes(' or ')) {
+    const options = text.split(/\s+or\s+/).map((part) => part.trim()).filter(Boolean)
+    if (options.length > 1) return options.some((option) => courseEvidenceMethodSatisfied(option, rows))
+  }
+
+  const requirements = []
+
+  if (/set of 3 photos|3-photo set|3 photos/.test(text) && !/1-3 photos/.test(text)) {
+    requirements.push(counts.photo >= 3)
+  } else if (/photo/.test(text)) {
+    requirements.push(has('photo'))
+  }
+
+  if (/video/.test(text)) requirements.push(has('video'))
+  if (/audio/.test(text)) requirements.push(has('audio'))
+  if (/written|text statement|written account/.test(text)) requirements.push(has('written'))
+  if (/document|file|pdf/.test(text)) requirements.push(has('document'))
+  if (/witness/.test(text)) requirements.push(has('other'))
+
+  return requirements.length > 0 && requirements.every(Boolean)
+}
+
+function completedCourseEvidencePaths(evidenceRows) {
+  const byPath = new Map()
+
+  for (const row of evidenceRows || []) {
+    const metadata = row?.source_metadata && typeof row.source_metadata === 'object' ? row.source_metadata : {}
+    if (cleanCourseProgressValue(metadata.source).toLowerCase() !== 'evia') continue
+    const key = courseEvidencePathKey(metadata.path)
+    if (key === '[]') continue
+    if (!byPath.has(key)) byPath.set(key, [])
+    byPath.get(key).push(row)
+  }
+
+  const completed = new Set()
+  for (const [key, rows] of byPath) {
+    const byMethod = new Map()
+    for (const row of rows) {
+      const label = cleanCourseProgressValue(row?.source_metadata?.method?.label)
+      if (!byMethod.has(label)) byMethod.set(label, [])
+      byMethod.get(label).push(row)
+    }
+    if ([...byMethod].some(([label, methodRows]) => courseEvidenceMethodSatisfied(label, methodRows))) completed.add(key)
+  }
+
+  return completed
+}
+
+async function fetchCourseMappingJson(url) {
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error(`Course mapping request failed (${response.status})`)
+  return response.json()
+}
+
+async function loadCourseEvidencePaths(pointer) {
+  const packUrl = cleanCourseProgressValue(pointer?.packUrl)
+  if (!packUrl) throw new Error('Course mapping pack is unavailable')
+  if (pointer?.patch || pointer?.customisations) throw new Error('Customised mapping needs its published course structure')
+
+  const pack = await fetchCourseMappingJson(packUrl)
+  if (cleanCourseProgressValue(pack?.courseType).toLowerCase() !== 'ksb') throw new Error('This course does not use KSB mapping')
+
+  const packDir = new URL('./', packUrl)
+  const categoryUrls = (pack.categoryFiles || []).map((file) => new URL(file, packDir).href)
+  const categories = await Promise.all(categoryUrls.map(fetchCourseMappingJson))
+  const paths = new Set()
+
+  for (const category of categories) {
+    const categoryTitle = cleanCourseProgressValue(category?.title)
+    for (const subcategory of category?.subcategories || []) {
+      const subcategoryTitle = cleanCourseProgressValue(subcategory?.title)
+      for (const task of subcategory?.tasks || []) {
+        const taskTitle = cleanCourseProgressValue(task?.title)
+        if (!categoryTitle || !subcategoryTitle || !taskTitle) continue
+        paths.add(courseEvidencePathKey([categoryTitle, subcategoryTitle, taskTitle]))
+      }
+    }
+  }
+
+  return paths
+}
+
 async function loadCourseProgress(enrolment) {
   const courseId = enrolment.course_id
-  const [{ data: sections, error: sectionError }, { data: criteria, error: criteriaError }] = await Promise.all([
+  const [
+    { data: sections, error: sectionError },
+    { data: criteria, error: criteriaError },
+    { data: evidenceRows, error: evidenceError },
+    { data: course, error: courseError },
+  ] = await Promise.all([
     supabase.from('course_sections').select('id, title, position').eq('course_id', courseId).order('position', { ascending: true }),
     supabase.from('criteria').select('id, section_id').eq('course_id', courseId),
+    supabase.from('evidence').select('id, evidence_type, source_metadata').eq('enrolment_id', enrolment.id),
+    supabase.from('courses').select('source_pointer').eq('id', courseId).single(),
   ])
+
   if (sectionError) throw sectionError
   if (criteriaError) throw criteriaError
-
-  const { data: evidenceRows, error: evidenceError } = await supabase
-    .from('evidence')
-    .select('id')
-    .eq('enrolment_id', enrolment.id)
   if (evidenceError) throw evidenceError
+  if (courseError) throw courseError
 
-  const evidenceIds = (evidenceRows || []).map((row) => row.id)
-  const { data: evidenceCriteria, error: evidenceCriteriaError } = evidenceIds.length
-    ? await supabase.from('evidence_criteria').select('criterion_id').in('evidence_id', evidenceIds).eq('course_id', courseId)
-    : { data: [], error: null }
-  if (evidenceCriteriaError) throw evidenceCriteriaError
-
-  const evidenced = new Set((evidenceCriteria || []).map((row) => row.criterion_id))
+  const coursePaths = await loadCourseEvidencePaths(course?.source_pointer)
+  const completedPaths = completedCourseEvidencePaths(evidenceRows || [])
+  const completedEvidenceAreas = [...coursePaths].filter((key) => completedPaths.has(key)).length
+  const totalEvidenceAreas = coursePaths.size
+  const progress = totalEvidenceAreas ? Math.round((completedEvidenceAreas / totalEvidenceAreas) * 100) : 0
   const totalCriteria = (criteria || []).length
-  const evidencedCriteria = [...evidenced].filter((id) => (criteria || []).some((criterion) => criterion.id === id)).length
-  const progress = totalCriteria ? Math.round((evidencedCriteria / totalCriteria) * 100) : 0
 
   return {
     sections: (sections || []).map((section) => ({
@@ -583,7 +690,8 @@ async function loadCourseProgress(enrolment) {
       criteriaCount: (criteria || []).filter((criterion) => criterion.section_id === section.id).length,
     })),
     totalCriteria,
-    evidencedCriteria,
+    completedEvidenceAreas,
+    totalEvidenceAreas,
     progress,
   }
 }
@@ -906,8 +1014,6 @@ function CourseProgressPage({ learner, context, email, onSignOut, onBack }) {
     return <AccessMessage title="No course assigned" message="This learner does not currently have a course enrolment." onSignOut={onSignOut} />
   }
 
-  const data = progressData || { sections: [], totalCriteria: 0, evidencedCriteria: 0, progress: 0 }
-
   return (
     <main className="page-shell">
       <PortalTopbar context={context} email={email} onSignOut={onSignOut} />
@@ -922,32 +1028,48 @@ function CourseProgressPage({ learner, context, email, onSignOut, onBack }) {
 
         {message && <p className="auth-message error-message learner-message">{message}</p>}
 
-        <div className="course-progress-hero">
-          <div className="progress-value-row">
-            <div>
-              <div className="progress-value">{data.progress}%</div>
-              <div className="progress-label">Course progress</div>
+        {!progressData && !message && (
+          <div className="course-progress-hero">
+            <div className="progress-value-row">
+              <div>
+                <div className="progress-value">--</div>
+                <div className="progress-label">Course progress</div>
+              </div>
+              <div className="progress-label">Loading progress…</div>
             </div>
-            <div className="progress-label">{data.evidencedCriteria} of {data.totalCriteria} criteria evidenced</div>
           </div>
-          <div className="progress-track" aria-hidden="true">
-            <div className="progress-fill" style={{ width: `${data.progress}%` }} />
-          </div>
-        </div>
+        )}
 
-        <div className="course-meta-grid">
-          <div className="course-meta-card"><strong>{data.sections.length}</strong><span>Sections</span></div>
-          <div className="course-meta-card"><strong>{data.totalCriteria}</strong><span>Criteria</span></div>
-        </div>
-
-        <div className="course-section-list">
-          {data.sections.map((section) => (
-            <div className="course-section-card" key={section.id}>
-              <strong>{section.title}</strong>
-              <span>{section.criteriaCount ? `${section.criteriaCount} criteria` : 'No criteria added yet'}</span>
+        {progressData && (
+          <>
+            <div className="course-progress-hero">
+              <div className="progress-value-row">
+                <div>
+                  <div className="progress-value">{progressData.progress}%</div>
+                  <div className="progress-label">Course progress</div>
+                </div>
+                <div className="progress-label">{progressData.completedEvidenceAreas} of {progressData.totalEvidenceAreas} evidence areas completed</div>
+              </div>
+              <div className="progress-track" aria-hidden="true">
+                <div className="progress-fill" style={{ width: `${progressData.progress}%` }} />
+              </div>
             </div>
-          ))}
-        </div>
+
+            <div className="course-meta-grid">
+              <div className="course-meta-card"><strong>{progressData.sections.length}</strong><span>Sections</span></div>
+              <div className="course-meta-card"><strong>{progressData.totalCriteria}</strong><span>Criteria</span></div>
+            </div>
+
+            <div className="course-section-list">
+              {progressData.sections.map((section) => (
+                <div className="course-section-card" key={section.id}>
+                  <strong>{section.title}</strong>
+                  <span>{section.criteriaCount ? `${section.criteriaCount} criteria` : 'No criteria added yet'}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </section>
     </main>
   )
