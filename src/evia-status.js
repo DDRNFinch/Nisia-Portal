@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import QRCode from 'qrcode'
 
 const supabase = createClient(
   'https://ffgfigkeeeauzkifopei.supabase.co',
@@ -23,8 +24,10 @@ function addStyles() {
     .nisia-evia-button:disabled{opacity:.55}
     .nisia-evia-connected{border-radius:999px;padding:10px 15px;background:#ece8df;color:#242424;font-size:13px;font-weight:800}
     .nisia-evia-note{font-size:12px;opacity:.64;line-height:1.4}
-    .nisia-evia-code{border:1px solid rgba(30,30,30,.12);border-radius:16px;padding:12px 14px;background:#fff;display:grid;gap:6px}
-    .nisia-evia-code strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:.06em}
+    .nisia-evia-code{border:1px solid rgba(30,30,30,.12);border-radius:18px;padding:14px;background:#fff;display:grid;gap:10px;justify-items:start}
+    .nisia-evia-code strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17px;letter-spacing:.06em;overflow-wrap:anywhere}
+    .nisia-evia-qr{width:min(220px,72vw);height:auto;display:block;border-radius:14px;background:#fff}
+    .nisia-evia-fallback{display:grid;gap:6px;width:100%;padding-top:4px;border-top:1px solid rgba(30,30,30,.08)}
   `
   document.head.appendChild(style)
 }
@@ -94,15 +97,28 @@ async function createPairing(wrap, learner) {
   try {
     const data = await request(learner, 'create')
     if (!data.pairing_code || !data.expires_at) throw new Error('No pairing code')
+
+    const qrPayload = JSON.stringify({ type: 'nisia-evia-pairing-v1', pairing_code: data.pairing_code })
+    const qrUrl = await QRCode.toDataURL(qrPayload, { width: 320, margin: 1, errorCorrectionLevel: 'M' })
+
     wrap.replaceChildren()
     const card = el('div', 'nisia-evia-code')
-    card.append(el('span', 'nisia-evia-note', 'Enter this once in Evia → Connect Nisia'), el('strong', '', data.pairing_code), el('span', 'nisia-evia-note', 'Expires in 10 minutes and can only be used once.'))
+    card.appendChild(el('span', 'nisia-evia-note', 'Open Evia → Connect Nisia → Scan Nisia QR'))
+    const image = el('img', 'nisia-evia-qr')
+    image.src = qrUrl
+    image.alt = 'One-time Evia connection QR code'
+    card.appendChild(image)
+    card.appendChild(el('span', 'nisia-evia-note', 'Expires in 10 minutes and can only be used once.'))
+
+    const fallback = el('div', 'nisia-evia-fallback')
+    fallback.append(el('span', 'nisia-evia-note', 'Manual code fallback'), el('strong', '', data.pairing_code))
     const copy = el('button', 'nisia-evia-copy', 'Copy code')
     copy.type = 'button'
     copy.onclick = async () => {
       try { await navigator.clipboard.writeText(data.pairing_code); copy.textContent = 'Copied' } catch { copy.textContent = 'Copy unavailable' }
     }
-    card.appendChild(copy)
+    fallback.appendChild(copy)
+    card.appendChild(fallback)
     wrap.appendChild(card)
 
     const expires = new Date(data.expires_at).getTime()
