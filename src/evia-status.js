@@ -74,29 +74,36 @@ async function resolveLearner(scope) {
   return { organisation_id: membership.organisation_id, learner_id: learners[0].id }
 }
 
-async function request(learner, action) {
+async function request(learner, action, extra = {}) {
   const { data, error } = await supabase.functions.invoke('admin-create-evia-pairing', {
-    body: { ...learner, action },
+    body: { ...learner, action, ...extra },
   })
   if (error) throw error
   return data || {}
 }
 
-function showConnected(wrap, connectedAt) {
+function showConnected(wrap, connectedAt, learner) {
   wrap.replaceChildren(el('div', 'nisia-evia-connected', 'Evia connected'))
   if (connectedAt) {
     const date = new Date(connectedAt)
     if (!Number.isNaN(date.getTime())) wrap.appendChild(el('div', 'nisia-evia-note', `Connected ${date.toLocaleString()}`))
   }
+  const reconnect = el('button', 'nisia-evia-button', 'Reconnect Evia')
+  reconnect.type = 'button'
+  reconnect.onclick = () => createPairing(wrap, learner)
+  wrap.appendChild(reconnect)
+  wrap.appendChild(el('div', 'nisia-evia-note', 'Use this only if Evia was reset, reinstalled or moved to another device.'))
 }
 
 async function createPairing(wrap, learner) {
   const button = wrap.querySelector('button')
-  button.disabled = true
-  button.textContent = 'Creating…'
+  if (button) {
+    button.disabled = true
+    button.textContent = 'Creating…'
+  }
   try {
     const data = await request(learner, 'create')
-    if (!data.pairing_code || !data.expires_at) throw new Error('No pairing code')
+    if (!data.pairing_id || !data.pairing_code || !data.expires_at) throw new Error('No pairing code')
 
     const qrPayload = JSON.stringify({ type: 'nisia-evia-pairing-v1', pairing_code: data.pairing_code })
     const qrUrl = await QRCode.toDataURL(qrPayload, { width: 320, margin: 1, errorCorrectionLevel: 'M' })
@@ -125,17 +132,19 @@ async function createPairing(wrap, learner) {
     const timer = window.setInterval(async () => {
       if (!wrap.isConnected || Date.now() > expires) return window.clearInterval(timer)
       try {
-        const status = await request(learner, 'status')
+        const status = await request(learner, 'status', { pairing_id: data.pairing_id })
         if (status.connected) {
           window.clearInterval(timer)
-          showConnected(wrap, status.last_connected_at)
+          showConnected(wrap, status.last_connected_at, learner)
         }
       } catch {}
     }, 3000)
   } catch (error) {
     console.error('Evia pairing failed', error)
-    button.disabled = false
-    button.textContent = 'Connect Evia'
+    if (button) {
+      button.disabled = false
+      button.textContent = 'Connect Evia'
+    }
   }
 }
 
@@ -155,7 +164,7 @@ async function mount() {
     const learner = await resolveLearner(scope)
     const status = await request(learner, 'status')
     if (!wrap.isConnected) return
-    if (status.connected) return showConnected(wrap, status.last_connected_at)
+    if (status.connected) return showConnected(wrap, status.last_connected_at, learner)
 
     wrap.replaceChildren()
     const button = el('button', 'nisia-evia-button', 'Connect Evia')
