@@ -559,66 +559,15 @@ function courseEvidencePathKey(path) {
   return JSON.stringify((Array.isArray(path) ? path : []).map(cleanCourseProgressValue).filter(Boolean))
 }
 
-function courseEvidenceCounts(rows) {
-  const counts = { photo: 0, video: 0, audio: 0, written: 0, document: 0, other: 0 }
-  for (const row of rows) {
-    const type = cleanCourseProgressValue(row?.evidence_type).toLowerCase()
-    if (Object.prototype.hasOwnProperty.call(counts, type)) counts[type] += 1
-    else counts.other += 1
-  }
-  return counts
-}
-
-function courseEvidenceMethodSatisfied(label, rows) {
-  const text = cleanCourseProgressValue(label).toLowerCase().replace(/[–—]/g, '-')
-  if (!text || !rows.length) return false
-
-  const counts = courseEvidenceCounts(rows)
-  const has = (type) => counts[type] > 0
-
-  if (text.includes(' or ')) {
-    const options = text.split(/\s+or\s+/).map((part) => part.trim()).filter(Boolean)
-    if (options.length > 1) return options.some((option) => courseEvidenceMethodSatisfied(option, rows))
-  }
-
-  const requirements = []
-
-  if (/set of 3 photos|3-photo set|3 photos/.test(text) && !/1-3 photos/.test(text)) {
-    requirements.push(counts.photo >= 3)
-  } else if (/photo/.test(text)) {
-    requirements.push(has('photo'))
-  }
-
-  if (/video/.test(text)) requirements.push(has('video'))
-  if (/audio/.test(text)) requirements.push(has('audio'))
-  if (/written|text statement|written account/.test(text)) requirements.push(has('written'))
-  if (/document|file|pdf/.test(text)) requirements.push(has('document'))
-  if (/witness/.test(text)) requirements.push(has('other'))
-
-  return requirements.length > 0 && requirements.every(Boolean)
-}
-
 function completedCourseEvidencePaths(evidenceRows) {
-  const byPath = new Map()
+  const completed = new Set()
 
   for (const row of evidenceRows || []) {
     const metadata = row?.source_metadata && typeof row.source_metadata === 'object' ? row.source_metadata : {}
     if (cleanCourseProgressValue(metadata.source).toLowerCase() !== 'evia') continue
+    if (metadata.area_complete !== true) continue
     const key = courseEvidencePathKey(metadata.path)
-    if (key === '[]') continue
-    if (!byPath.has(key)) byPath.set(key, [])
-    byPath.get(key).push(row)
-  }
-
-  const completed = new Set()
-  for (const [key, rows] of byPath) {
-    const byMethod = new Map()
-    for (const row of rows) {
-      const label = cleanCourseProgressValue(row?.source_metadata?.method?.label)
-      if (!byMethod.has(label)) byMethod.set(label, [])
-      byMethod.get(label).push(row)
-    }
-    if ([...byMethod].some(([label, methodRows]) => courseEvidenceMethodSatisfied(label, methodRows))) completed.add(key)
+    if (key !== '[]') completed.add(key)
   }
 
   return completed
