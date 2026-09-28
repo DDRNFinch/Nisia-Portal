@@ -375,3 +375,8 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .pf-ev{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px 9px 48px;border-top:1px solid var(--line);cursor:pointer}
 .pf-ev:hover,.pf-ev:focus-visible{background:var(--surface-2)}
 @media(max-width:560px){.pf-ev{padding-left:12px}}
+/* Evidence strength: Evia's signal bars. */
+.sbars{display:inline-flex;align-items:flex-end;gap:3px;height:19px;flex:0 0 auto}
+.sbar{display:block;width:6px;border-radius:3px;transform:skewX(-7deg);background:#e2e6eb}
+.sbar-1{height:7px}.sbar-2{height:13px}.sbar-3{height:19px}
+.sbars-weak .sbar.on{background:#e8a33d}.sbars-good .sbar.on{background:#e7b900}.sbars-strong .sbar.on{background:#2f9e62}

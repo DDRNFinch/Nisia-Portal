@@ -124,3 +124,8 @@ a{color:var(--accent-text)}
 .sigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .sig-box{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--hair);border-radius:12px;font-size:14px}
 .sig-box img{width:100%;height:auto;aspect-ratio:900/260;object-fit:contain;background:#fff}
+/* Evidence strength: Evia's signal bars. */
+.sbars{display:inline-flex;align-items:flex-end;gap:3px;height:19px;flex:0 0 auto}
+.sbar{display:block;width:6px;border-radius:3px;transform:skewX(-7deg);background:#e2e6eb}
+.sbar-1{height:7px}.sbar-2{height:13px}.sbar-3{height:19px}
+.sbars-weak .sbar.on{background:#e8a33d}.sbars-good .sbar.on{background:#e7b900}.sbars-strong .sbar.on{background:#2f9e62}

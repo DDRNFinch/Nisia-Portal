@@ -44,6 +44,7 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_admin_colleges") return json(S.colleges);
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
+    if (p === "/rest/v1/rpc/nisia_set_safeguarding") { S.dsl = body; return json(null); }
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
     if (p === "/rest/v1/reviews") {
       const sig = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -152,7 +153,10 @@ try {
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");
     await page.waitForSelector(".linkbox");
     check("College admin invites staff", /#invite=STAFFINVITECODE1$/.test(await page.inputValue(".linkbox input")));
-    await page.click(".x"); await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
+    await page.click(".x"); await page.click("[data-go=licence]"); await page.waitForSelector("#dsl");
+    await page.fill("#dsl [name=name]", "Jo Smith"); await page.fill("#dsl [name=phone]", "01234 567890"); await page.click("#dsl button[type=submit]"); await page.waitForTimeout(400);
+    check("College admin sets the safeguarding lead (it goes to Evia)", fake.S.dsl && fake.S.dsl.p_name === "Jo Smith" && fake.S.dsl.p_phone === "01234 567890");
+    await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));
     check("No script errors (college portal)", !errors.length, errors.join(" | "));

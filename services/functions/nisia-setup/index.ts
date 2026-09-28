@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
 /* What Evia shows on "Is this you?" and fills in for the learner. */
 async function learnerDetails(admin: ReturnType<typeof service>, learnerId: string, orgId: string) {
-  const { data: org } = await admin.from("organisations").select("name").eq("id", orgId).single();
+  const { data: org } = await admin.from("organisations").select("name, safeguarding_name, safeguarding_phone, safeguarding_email").eq("id", orgId).single();
   const { data: l } = await admin.from("learners").select("organisation_member_id, organisation_members!inner(user_id)").eq("id", learnerId).single();
   const { data: prof } = await admin.from("profiles").select("display_name").eq("id", (l as any).organisation_members.user_id).single();
   const { data: e } = await admin.from("enrolments").select("id, course_id, start_date, end_date, status, planned_otj_hours, employer_name, employer_contact_name, nvq_optional, courses(source_id, title)").eq("learner_id", learnerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -88,5 +88,7 @@ async function learnerDetails(admin: ReturnType<typeof service>, learnerId: stri
     name: prof?.display_name ?? "", college: org?.name ?? "", course: (e as any)?.courses?.source_id ?? "", courseTitle: (e as any)?.courses?.title ?? "",
     start: e?.start_date ?? "", end: e?.end_date ?? "", employer: e?.employer_name ?? "", employerContact: e?.employer_contact_name ?? "",
     plannedOtjHours: e?.planned_otj_hours ?? null, nvqOptional: e?.nvq_optional ?? [], ...people,
+    safeguarding: org && (org.safeguarding_name || org.safeguarding_phone || org.safeguarding_email)
+      ? { name: org.safeguarding_name ?? "", phone: org.safeguarding_phone ?? "", email: org.safeguarding_email ?? "" } : undefined,
   };
 }

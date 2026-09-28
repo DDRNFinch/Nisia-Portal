@@ -25,9 +25,9 @@ const jwt = (aal) => b64({ alg: "HS256" }) + "." + b64({ sub: "u-mark", aal, amr
 const day = (n) => new Date(Date.now() + n * 864e5).toISOString();
 const start = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10), end = new Date(Date.now() + 330 * 864e5).toISOString().slice(0, 10);
 const LEARNER = { learner_id: "L1", member_id: "ML", name: "Callum Hughes", email: "x@learners.nisia.invalid", enrolment_id: "E1", course_code: "bricklayer", course_title: "Bricklayer", start_date: start, end_date: end, status: "active", employer_name: "Hughes & Sons Builders", planned_otj_hours: 416, assessors: [{ member_id: "M2", name: "Mark Ellis" }], paired: true, evidence: 3, otj_hours: 120, last_activity: day(-2) };
-const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59, pct: 36, timePct: 55 }, units: [{ name: "Cavity walling", total: 12, missing: ["K4", "K5", "S3"], started: true, packs: 1 }, { name: "Setting out", total: 8, missing: [], started: true, packs: 2 }],
+const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59, pct: 36, timePct: 55 }, units: [{ name: "Cavity walling", total: 12, missing: ["K4", "K5", "S3"], started: true, packs: 1, strength: "weak" }, { name: "Setting out", total: 8, missing: [], started: true, packs: 2, strength: "strong" }, { name: "Mixing mortar", total: 8, missing: [], started: true, packs: 1, strength: "strong" }, { name: "Jointing Styles", total: 8, missing: [], started: true, packs: 1, strength: "good" }],
   packs: 3, otj: { total: 120, month: 12, week: 2 }, writeupCoverage: 64, tests: [{ type: "epa", name: "EPA mock", count: 2, best: 70, latest: { pct: 70 } }, { type: "maths", name: "Maths", count: 1, best: 60, latest: { pct: 60 } }],
-  confidence: { practise: ["Reading drawings"], confident: ["Mixing mortar"], scores: [] }, maths: true, english: false,
+  confidence: { practise: ["Reading drawings"], confident: ["Mixing mortar"], scores: [{ area: "Reading drawings", score: 2 }, { area: "Mixing mortar", score: 4 }] }, maths: true, english: false,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
@@ -83,6 +83,8 @@ try {
   const lt = await page.textContent("#main");
   check("The learner page shows Evia's coverage and hours", /36%/.test(lt) && /120 h/.test(lt));
   await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
+  check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
+    /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
   const units = await page.$$eval(".pf-unit .pf-name > b", (els) => els.map((x) => x.textContent));
   check("The portfolio lists the course's units in Evia's order, then other units and supporting evidence", units[0] === "Mixing mortar" && units[7] === "Construct Cavity Walling" && units.at(-2) === "Other units" && units.at(-1) === "Supporting evidence");
   check("New evidence is highlighted and counted; assessed evidence shows as signed off", /3 new to assess/.test(await page.textContent("#pfBox")) && !!(await page.$("[data-ev=ev1].is-new")) && /Accepted/.test(await page.textContent("[data-ev=ev2]")) && /2\/8/.test(await page.textContent(".pf-unit:first-child .pf-met")));

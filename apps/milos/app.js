@@ -4,7 +4,7 @@
 import { db, call, rpc, me, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth } from "../../packages/core/signin.js";
 import { loadLearner, reviewDue, dueText, facts, openReview, downloadPdf } from "./review.js";
-import { loadPortfolio, groupByUnit, portfolioHtml, openEvidence } from "./portfolio.js";
+import { loadPortfolio, groupByUnit, portfolioHtml, openEvidence, insightsHtml } from "./portfolio.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
 
 const root = document.getElementById("app");
@@ -90,6 +90,7 @@ async function learner(r) {
       stat(F.ksb.pct + "%", (F.nvq ? "criteria" : "KSBs") + " evidenced · " + (F.timePct ?? "–") + "% through", F.timePct != null && F.ksb.pct < F.timePct - 10) +
       stat(F.otj.total + " h", "off-the-job" + (F.otj.expected != null ? " · " + F.otj.expected + " h expected" : ""), F.otj.onTrack === false) +
       stat(F.evidencePeriod, "evidence since " + (F.lastReview ? "the last review" : "the start")) + '</div>' +
+    insightsHtml(L.snapshot) +
     '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
     '<h2>Reviews</h2><div class="card list">' + (L.reviews.length ? L.reviews.slice().reverse().map((v, i) =>
       '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Signed</span><span class="chev">›</span></button>').join("") : '<p class="small muted" style="padding:10px 4px">None yet. The first one is started with the button above.</p>') + '</div>' +
@@ -97,7 +98,7 @@ async function learner(r) {
   let onlyNew = false, groups = [];
   const pfBox = root.querySelector("#pfBox");
   const drawPortfolio = () => {
-    pfBox.innerHTML = portfolioHtml(groups, onlyNew);
+    pfBox.innerHTML = portfolioHtml(groups, onlyNew, L.snapshot);
     pfBox.querySelector("#pfFilter").onclick = () => { onlyNew = !onlyNew; drawPortfolio(); };
     pfBox.querySelectorAll("[data-ev]").forEach((b) => b.onclick = () => {
       const item = groups.flatMap((g) => g.items).find((it) => it.e.id === b.dataset.ev);

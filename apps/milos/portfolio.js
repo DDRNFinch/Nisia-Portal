@@ -5,6 +5,7 @@
    Nisia's assessments (the latest one stands), so the history is kept. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
+import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 
 const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -49,7 +50,7 @@ const status = (it) => !it.latest ? { cls: "accent", text: "New" } : it.latest.d
 export const statusPill = (it) => { const s = status(it); return '<span class="pill ' + s.cls + '">' + s.text + '</span>'; };
 
 /* The unit list on the learner page. */
-export function portfolioHtml(groups, onlyNew) {
+export function portfolioHtml(groups, onlyNew, snap) {
   const newCount = groups.reduce((n, g) => n + g.items.filter((it) => !it.latest).length, 0);
   return '<div class="between"><h2>Portfolio</h2><div class="row">' + (newCount ? '<span class="pill accent">' + newCount + ' new to assess</span>' : '<span class="pill good">All assessed</span>') +
     '<button class="btn ghost" id="pfFilter">' + (onlyNew ? "Show everything" : "Only new") + '</button></div></div>' +
@@ -62,6 +63,7 @@ export function portfolioHtml(groups, onlyNew) {
       return '<details class="card pf-unit' + (fresh ? " has-new" : "") + (g.items.length ? "" : " pf-none") + '"' + (fresh || onlyNew ? " open" : "") + '><summary>' +
         '<span class="pf-no">' + (g.no || "") + '</span><span class="pf-name"><b>' + esc(g.name) + '</b><span class="sub">' +
         (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + (fresh ? ' · <b class="new-txt">' + fresh + ' new</b>' : "") + '</span></span>' +
+        (g.no ? strengthBars(unitStrength(snap, g.name, g.items.map((it) => ({ photos: it.files.filter((f) => /^image\//.test(f.mime_type)).length || ((it.e.source_metadata || {}).photoIds || []).length, text: (it.e.source_metadata || {}).text })))) : "") +
         (g.ksbs.length ? '<span class="pf-met" title="KSBs signed off">' + covered + '/' + g.ksbs.length + '<small>signed off</small></span>' : "") + '</summary>' +
         (items.length ? '<div class="pf-items">' + items.map((it) => '<button class="pf-item' + (!it.latest ? " is-new" : "") + '" data-ev="' + it.e.id + '">' +
           '<span class="name-cell"><span class="name">' + esc(g.key === "supporting" || g.key === "other" ? it.e.title : ukDate(it.e.created_at)) + '</span>' +
@@ -201,4 +203,24 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed }) {
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(L.row.name + " · " + (isSupporting(e) ? e.title : unitOf(e)) + " · page " + i + " of " + pages, M, 297 - 8); doc.setTextColor(0); }
   doc.save((L.row.name + " " + (isSupporting(e) ? e.title : unitOf(e)) + " " + String(e.created_at).slice(0, 10)).replace(/[^A-Za-z0-9 -]+/g, "").replace(/\s+/g, "-") + ".pdf");
+}
+
+/* Evia's picture of the learner, small and dense: evidence strength, write-ups, tests, confidence and Teach me. */
+export function insightsHtml(snap) {
+  if (!snap) return "";
+  const pct = (v) => v == null ? "–" : Math.round(v) + "%";
+  const units = (snap.units || []).filter((u) => u.strength), count = (l) => units.filter((u) => u.strength === l).length;
+  const tile = (label, body) => '<div class="in-tile"><span class="in-l">' + label + '</span>' + body + '</div>';
+  const TNAME = { epa: "EPA mock", maths: "Maths", english: "English" };
+  const tests = (snap.tests || []).filter((t) => t.count);
+  const conf = (snap.confidence && snap.confidence.scores) || [];
+  const subj = ((snap.teach && snap.teach.subjects) || []).map((s) => s.total ? s : { ...s, done: s.areasDone || 0, total: (s.areas || []).length }).filter((s) => s.total);
+  return '<section class="card insights" aria-label="From Evia"><div class="in-head"><b>From Evia</b><span class="sub">' + (snap.at ? "updated " + esc(ukDate(snap.at)) : "") + '</span></div><div class="in-grid">' +
+    tile("Evidence strength", units.length ? '<span class="in-v">' + ["strong", "good", "weak"].map((l) => count(l) ? '<span class="in-s">' + strengthBars(l) + count(l) + '</span>' : "").join("") + '</span>' : '<span class="in-v muted">No units yet</span>') +
+    tile("Write-ups", '<span class="in-v"><b>' + pct(snap.writeupCoverage) + '</b> of things to mention</span>') +
+    tile("Tests", tests.length ? '<span class="in-v">' + tests.map((t) => '<span class="in-c">' + esc(TNAME[t.type] || t.name || t.type) + ' <b>' + pct(t.latest ? t.latest.pct : t.best) + '</b>' + (t.best != null && t.latest && t.best !== t.latest.pct ? '<small> best ' + pct(t.best) + '</small>' : "") + '</span>').join("") + '</span>' : '<span class="in-v muted">None taken</span>') +
+    tile("Confidence", conf.length ? '<span class="in-v">' + conf.slice().sort((a, b) => a.score - b.score).map((c) => '<span class="in-c' + (c.score <= 2 ? " low" : "") + '" title="' + c.score + ' out of 4">' + esc(c.area) + ' <b>' + c.score + '</b></span>').join("") + '</span>' : '<span class="in-v muted">Not rated yet</span>') +
+    tile("Teach me", subj.length ? '<span class="in-v">' + subj.map((s) => '<span class="in-c">' + esc(s.name) + ' <b>' + s.done + '/' + s.total + '</b>' + (s.avg != null ? '<small> ' + s.avg + '%</small>' : "") + '</span>').join("") + '</span>' : '<span class="in-v muted">Not started</span>') +
+    tile("Activity", '<span class="in-v"><span class="in-c">Streak <b>' + (snap.streak || 0) + ' wk</b></span><span class="in-c">Last evidence <b>' + (snap.daysSince == null ? "–" : snap.daysSince === 0 ? "today" : snap.daysSince + "d ago") + '</b></span>' + (snap.otj ? '<span class="in-c">This month <b>' + (Math.round((snap.otj.month || 0) * 10) / 10) + ' h</b></span>' : "") + '</span>') +
+    '</div></section>';
 }

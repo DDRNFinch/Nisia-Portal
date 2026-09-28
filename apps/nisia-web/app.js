@@ -7,6 +7,7 @@ import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pa
 import { auth, MARK } from "../../packages/core/signin.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
+import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -84,7 +85,7 @@ function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"]]
-    .concat(admin ? [["staff", "Staff", "staff"], ["licence", "Courses and licence", "courses"]] : quality ? [["licence", "Courses and licence", "courses"]] : []);
+    .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
 function shell(content) {
   const m = S.org ? mine(S.org) : null, orgName = S.data && S.data.summary ? S.data.summary.name : m && m.organisation;
@@ -260,7 +261,7 @@ function addLearner() {
 /* The learner's portfolio, unit by unit in the course's order as in Evia and Milos: what's been added, and what the
    assessor has accepted. Each piece opens with its photos and the assessor's decision. */
 const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-function portfolioPanel(l, evidence, first) {
+function portfolioPanel(l, evidence, first, snap) {
   const C = COURSE_DATA[l.course_code] || { units: [] };
   const groups = C.units.map(([name, ksbs], i) => ({ no: i + 1, name, ksbs, items: [] })), other = { name: "Other units", ksbs: [], items: [] }, sup = { name: "Supporting evidence", ksbs: [], items: [] };
   evidence.forEach((e) => {
@@ -273,7 +274,7 @@ function portfolioPanel(l, evidence, first) {
     (evidence.length ? '<div class="pf-list">' + all.map((g) => {
       const met = new Set(); g.items.forEach((e) => { if (e.assessment && e.assessment.decision === "accepted") (e.assessment.ksbs || []).forEach((k) => met.add(k)); });
       return '<div class="pf-unit' + (g.items.length ? "" : " pf-none") + '"><div class="pf-row"><span class="pf-no">' + (g.no || "") + '</span><b>' + esc(g.name) + '</b><span class="small muted">' +
-        (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + '</span>' + (g.ksbs.length ? '<span class="small num pf-met">' + g.ksbs.filter((k) => met.has(k)).length + '/' + g.ksbs.length + ' KSBs signed off</span>' : "") + '</div>' +
+        (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + '</span>' + (g.no ? strengthBars(unitStrength(snap, g.name, g.items.map((e) => ({ photos: e.files || e.photos_expected || 0, text: e.text })))) : "") + (g.ksbs.length ? '<span class="small num pf-met">' + g.ksbs.filter((k) => met.has(k)).length + '/' + g.ksbs.length + ' KSBs signed off</span>' : "") + '</div>' +
         g.items.map((e) => '<div class="pf-ev" role="button" tabindex="0" data-ev="' + e.id + '"><span>' + esc(g.no ? ukDate(e.at) : e.title) + '<span class="small muted"> · ' + esc(EV_TYPE[e.type] || e.type) + (e.files ? " · " + e.files + (e.files === 1 ? " file" : " files") : "") + '</span></span>' + assessedPill(e.assessment) + '</div>').join("") + '</div>';
     }).join("") + '</div>' : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>';
 }
@@ -366,7 +367,7 @@ async function learnerPage() {
       '<div class="stat"><span class="label">Evidence items</span><span class="big num">' + (l.evidence || 0) + '</span><span class="sub">' + (l.evidence_4w || 0) + ' in the last 4 weeks</span></div>' +
       '<div class="stat"><span class="label">Last active</span><span class="big num" style="' + (l.quiet != null && l.quiet > 14 ? "color:var(--bad)" : "") + '">' + (l.quiet == null ? "–" : l.quiet <= 0 ? "Today" : l.quiet + "d") + '</span><span class="sub">' + (l.reviewIn == null ? "" : l.reviewIn < 0 ? "Review overdue" : "Review due in " + l.reviewIn + " days") + '</span></div>' +
     '</section>' +
-    portfolioPanel(l, d.evidence || [], first) +
+    portfolioPanel(l, d.evidence || [], first, d.snapshot) +
     '<div class="grid cols-2">' +
       '<section class="panel"><div class="panel-head"><h2>Targets</h2><span class="small muted">Set in Evia and at reviews</span></div>' +
         (targets.length ? targets.map((g) => '<div class="target"><span class="tick ' + (g.s === "done" ? "done" : g.s === "late" ? "late" : "") + '"></span><span>' + esc(g.t) + '<br><span class="small muted">' + g.from + '</span></span><span class="small ' + (g.s === "late" ? "" : "muted") + '" style="' + (g.s === "late" ? "color:var(--bad);font-weight:600" : "") + '">' + (g.s === "done" ? "Done" : g.s === "late" ? "Overdue" : g.due ? "Due " + esc(ukDate(g.due)) : "") + '</span></div>').join("") : '<p class="muted small">No targets yet.</p>') + '</section>' +
@@ -492,7 +493,8 @@ function inviteForm(org, action, collegeName) {
 function licencePage() {
   const D = S.data, s = D.summary;
   shell(
-    '<div class="topbar"><div><div class="label">' + esc(s.name) + '</div><h1>Courses and licence</h1></div></div>' +
+    '<div class="topbar"><div><div class="label">' + esc(s.name) + '</div><h1>College</h1></div></div>' +
+    safeguardingPanel(s, D.admin) +
     '<div class="grid cols-2e">' +
       '<section class="panel"><div class="panel-head"><h2>Licence</h2>' + (s.status === "active" ? '<span class="pill good">Active</span>' : '<span class="pill bad">Suspended</span>') + '</div>' +
         '<div style="display:flex;align-items:baseline;gap:8px"><span class="num" style="font-family:var(--display);font-size:34px;font-weight:700">' + s.seats_used + '</span><span class="muted">of ' + s.seats + ' seats in use</span></div>' +
@@ -501,6 +503,31 @@ function licencePage() {
       '<section class="panel"><div class="panel-head"><h2>Courses</h2></div>' +
         COURSES.map((c) => '<div class="course"><div><b>' + esc(c.name) + '</b><br><span class="small muted">Units and KSBs, Teach me lessons, EPA guide and tests</span></div><span class="pill good">Included</span></div>').join("") + '</section>' +
     '</div>');
+  wireSafeguarding();
+}
+
+/* The college's designated safeguarding lead: shown to every learner in Evia (profile, and wherever Evia points
+   them for help), updated on their next sync. */
+function safeguardingPanel(s, canEdit) {
+  const g = s.safeguarding || {};
+  return '<section class="panel"><div class="panel-head"><h2>Safeguarding lead</h2><span class="small muted">Shown to every learner in Evia</span></div>' +
+    (canEdit ? '<form class="form-grid" id="dsl">' +
+      '<label class="field">Name<input name="name" value="' + esc(g.name || "") + '" placeholder="e.g. Jo Smith" autocomplete="off"></label>' +
+      '<label class="field">Phone<input name="phone" type="tel" value="' + esc(g.phone || "") + '" placeholder="e.g. 01234 567890"></label>' +
+      '<label class="field full">Email<input name="email" type="email" value="' + esc(g.email || "") + '" placeholder="e.g. safeguarding@college.ac.uk"></label>' +
+      '<p class="err full"></p><p class="small muted full" style="margin:0">Learners’ Evia updates the next time it connects.</p><button class="btn primary full" type="submit">Save</button></form>'
+      : (g.name || g.phone || g.email ? '<p><b>' + esc(g.name || "") + '</b><br><span class="small">' + esc([g.phone, g.email].filter(Boolean).join(" · ")) + '</span></p>' : '<p class="muted small">Not set yet. A college admin adds it here.</p>')) +
+    '</section>';
+}
+function wireSafeguarding() {
+  const f = root.querySelector("#dsl"); if (!f) return;
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
+    const d = formData(f);
+    if (!d.name.trim() || !(d.phone.trim() || d.email.trim())) { f.querySelector(".err").textContent = "Add a name, and a phone number or email."; return; }
+    try { await rpc("nisia_set_safeguarding", { p_org: S.org, p_name: d.name, p_phone: d.phone, p_email: d.email });
+      S.data.summary.safeguarding = { name: d.name.trim(), phone: d.phone.trim(), email: d.email.trim() }; f.querySelector(".err").textContent = ""; toast("Saved. Evia will update for every learner."); }
+    catch (x) { f.querySelector(".err").textContent = x.message; }
+  }); };
 }
 
 /* ---------- Master admin: colleges ---------- */
