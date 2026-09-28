@@ -351,3 +351,14 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .feed-item.tap:hover{background:var(--surface-2,#f4f6f8)}
 .table-wrap.flat{border:0;box-shadow:none}
 .connected{display:flex;align-items:center;justify-content:center;gap:8px;padding:28px 12px;border-radius:14px;background:var(--good-soft);color:var(--good);font-weight:700;font-size:17px}
+/* A completed review, on screen. */
+.target.tap{cursor:pointer;border-radius:10px}.target.tap:hover{background:var(--surface-2)}
+.modal-head .btn{margin-left:auto}
+.review-doc{display:flex;flex-direction:column;gap:16px}
+.review-doc h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin:0 0 6px}
+.review-doc dl{margin:0;display:grid;grid-template-columns:minmax(120px,38%) 1fr;gap:6px 14px;font-size:14px}
+.review-doc dt{color:var(--ink-3,#667085);font-weight:600}.review-doc dd{margin:0;white-space:pre-wrap}
+@media(max-width:560px){.review-doc dl{grid-template-columns:1fr}}
+.sigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sig-box{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px}
+.sig-box img{width:100%;height:auto;aspect-ratio:900/260;object-fit:contain;background:#fff;border-radius:6px}

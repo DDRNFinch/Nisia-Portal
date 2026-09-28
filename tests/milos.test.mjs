@@ -145,9 +145,12 @@ try {
     ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(A).slice(0, 300));
   check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === "REV1" && !!tg && tg.body.length >= 2);
   check("Completing it doesn't download a file: it's kept in Nisia", !downloaded);
-  const [revDl] = await Promise.all([page.waitForEvent("download"), page.evaluate(async (c) => { const m = await import("./review.js"); await m.downloadPdf({ ...c, id: "REV1", reviewedAt: c.answers.date }); }, rev.body.content)]);
-  const pdfPath = shots + "/review.pdf"; await revDl.saveAs(pdfPath);
-  check("A saved review still makes a PDF, with names but no signature images", fs.statSync(pdfPath).size > 3000 && fs.statSync(pdfPath).size < 60000 && fs.readFileSync(pdfPath).slice(0, 4).toString() === "%PDF");
+  const pdfOf = async (withSigs) => { const [d] = await Promise.all([page.waitForEvent("download"), page.evaluate(async ([c, w]) => { const m = await import("../../packages/core/reviewdoc.js"); await m.reviewPdf({ ...c, id: "REV1", reviewedAt: c.answers.date }, { signatures: w }); }, [rev.body.content, withSigs])]);
+    const f = shots + "/review" + (withSigs ? "" : "-learner") + ".pdf"; await d.saveAs(f); return fs.readFileSync(f); };
+  const staffPdf = await pdfOf(true), learnerPdf = await pdfOf(false);
+  check("The staff PDF has the signatures; the learner's copy names the signers without them", staffPdf.slice(0, 4).toString() === "%PDF" && learnerPdf.slice(0, 4).toString() === "%PDF" && /\/Subtype \/Image/.test(staffPdf.toString("latin1")) && !/\/Subtype \/Image/.test(learnerPdf.toString("latin1")));
+  const html = await page.evaluate(async (c) => { const m = await import("../../packages/core/reviewdoc.js"); return [m.reviewHtml(c), m.reviewHtml(c, { signatures: false })]; }, rev.body.content);
+  check("On screen, staff see the signatures and the learner's view doesn't", (html[0].match(/<img/g) || []).length === 3 && !/<img/.test(html[1]) && /Callum Hughes/.test(html[1]));
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

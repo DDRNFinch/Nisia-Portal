@@ -7,6 +7,7 @@
    is kept on this device until then. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "./courses.js";
+import { reviewPdf } from "../../packages/core/reviewdoc.js";
 
 export const RULES = { id: "apprenticeship-funding-2025-26", intervalWeeks: 12, name: "Apprenticeship funding rules 2025 to 2026" };
 const DAY = 864e5;
@@ -277,48 +278,5 @@ async function hash(o) {
   return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/* ---------- The PDF ---------- */
-export async function downloadPdf(c) {
-  const { jsPDF } = window.jspdf, F = c.facts, A = c.answers, doc = new jsPDF({ unit: "mm", format: "a4" });
-  const W = 210, M = 16, T = (s) => String(s ?? "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/…/g, "...");
-  let y = 18;
-  const room = (h) => { if (y + h > 282) { doc.addPage(); y = 18; } };
-  const h1 = (t) => { doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(23, 32, 51); doc.text(T(t), M, y); y += 8; };
-  const h2 = (t) => { room(14); y += 3; doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(44, 133, 247); doc.text(T(t), M, y); y += 6; doc.setTextColor(23, 32, 51); };
-  const kv = (k, v) => { doc.setFontSize(9.5); doc.setFont("helvetica", "bold"); const keys = doc.splitTextToSize(T(k), 54); doc.setFont("helvetica", "normal"); const lines = doc.splitTextToSize(T(v || "-"), W - 2 * M - 58), h = Math.max(keys.length, lines.length) * 4.6 + 1.5;
-    room(h); doc.setFont("helvetica", "bold"); doc.setTextColor(102, 112, 133); doc.text(keys, M, y); doc.setFont("helvetica", "normal"); doc.setTextColor(23, 32, 51); doc.text(lines, M + 58, y); y += h; };
-  const para = (t) => { if (!String(t || "").trim()) return; doc.setFont("helvetica", "normal"); doc.setFontSize(10); const lines = doc.splitTextToSize(T(t), W - 2 * M); lines.forEach((l) => { room(5); doc.text(l, M, y); y += 4.8; }); y += 1; };
-  h1("Apprenticeship progress review");
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(102, 112, 133);
-  doc.text(T(F.learner + "  ·  " + F.course + "  ·  Review " + F.reviewNo + "  ·  " + ukDate(c.reviewedAt)), M, y); y += 8;
-  const or = (...xs) => xs.find((x) => x != null && String(x).trim() !== "") || "";
-  h2("About this review");
-  kv("Apprentice", F.learner); kv("Employer", F.employer); kv("Programme", ukDate(F.start) + " to " + ukDate(F.end)); kv("Review period", ukDate(F.periodStart) + " to " + ukDate(F.periodEnd));
-  kv("Held", A.method); kv("Took part", Object.entries(A.attendees).filter(([, v]) => v).map(([k]) => k[0].toUpperCase() + k.slice(1)).join(", ") + (A.employerName ? " (employer: " + A.employerName + (A.employerRole ? ", " + A.employerRole : "") + ")" : ""));
-  h2("Progress");
-  kv("Time through programme", F.timePct != null ? F.timePct + "%" : "-"); kv(F.nvq ? "Criteria evidenced" : "KSBs evidenced", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)");
-  kv("Evidence this period", F.evidencePeriod + " (" + F.evidenceTotal + " in total)");
-  if (A.previous.length) A.previous.forEach((t) => kv("Previous target: " + t.title, (t.outcome || "Not recorded") + (t.comment ? ". " + t.comment : "")));
-  kv("Against the plan", A.progressRag); kv("Assessor", A.progressComment); kv("Employer", A.employerComment);
-  kv("Off-the-job hours", F.otj.total + " h logged (" + F.otj.period + " h this period)" + (F.otj.expected != null ? ", " + F.otj.expected + " h expected by now" : ""));
-  kv("In working hours", A.otjConfirmed ? "Confirmed by the employer" : "Not confirmed. " + (A.otjComment || ""));
-  kv("Maths", F.maths && F.maths.on ? A.mathsStatus : "Achieved or exempt"); kv("English", F.english && F.english.on ? A.englishStatus : "Achieved or exempt");
-  if (A.fsComment) kv("English and maths", A.fsComment); if (A.knowledgeComment) kv("Knowledge discussed", A.knowledgeComment);
-  h2("Wellbeing, safety and support");
-  kv("Feels safe", A.feelsSafe + (A.feelsSafe !== "Yes" && A.safeguardingComment ? ". " + A.safeguardingComment : "")); kv("Knows how to raise a concern", A.knowsReporting);
-  kv("Discussed (Prevent, British values, EDI)", A.topicDiscussed);
-  kv("Health and safety", or(A.hsStatus === "Something to record" ? A.healthSafety : A.hsStatus, A.healthSafety));
-  kv("Learning support", A.supportInPlace + (A.supportInPlace !== "Not needed" && A.supportNeeds ? ". " + A.supportNeeds : ""));
-  kv("Changes in circumstances", A.changes + (A.changes === "Yes" && A.changesDetail ? ". " + A.changesDetail : ""));
-  h2("Next steps");
-  kv("Apprentice", A.apprenticeComment); kv("Careers advice", or(A.iagGiven ? A.iagGiven + (A.iagGiven === "Yes" && A.nextSteps ? ". " + A.nextSteps : "") : "", A.iag, A.nextSteps));
-  kv("End-point assessment", A.epaReady + (A.predictedGrade && A.predictedGrade !== "Too early" ? " (predicted " + A.predictedGrade + ")" : ""));
-  if (c.targets.length) c.targets.forEach((t, i) => kv("Target " + (i + 1) + ": " + t.title, t.how + (t.due ? " By " + ukDate(t.due) + "." : "") + (t.support ? " Support: " + t.support + "." : ""))); else kv("Targets", "None.");
-  kv("Next review", ukDate(A.nextReview));
-  h2("Overall"); kv("Overall progress", A.overallRag); kv("Summary", A.summary);
-  /* Signed by all three; the signatures themselves stay in Nisia's record and aren't shown. */
-  kv("Signed by", ["apprentice", "employer", "assessor"].filter((k) => c.signatures[k]).map((k) => k[0].toUpperCase() + k.slice(1) + ": " + c.signatures[k].name + ", " + new Date(c.signatures[k].at).toLocaleDateString("en-GB")).join("\n"));
-  const n = doc.getNumberOfPages();
-  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(152, 162, 179); doc.text(T("Nisia · Milos · " + RULES.name + " · record " + (c.id || "") + " · content hash " + (c.hash || "").slice(0, 16) + " · page " + i + " of " + n), M, 292); }
-  doc.save(("Progress review " + F.reviewNo + " " + F.learner + " " + c.reviewedAt).replace(/[^\w .-]/g, "") + ".pdf");
-}
+/* ---------- The PDF (staff copy, with signatures) ---------- */
+export const downloadPdf = (c) => reviewPdf(c, { signatures: true });

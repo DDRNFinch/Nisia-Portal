@@ -114,3 +114,13 @@ a{color:var(--accent-text)}
 .media img,.media video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;background:#f2f4f7;display:block}
 .media audio,.media .btn,.media p{grid-column:1/-1}
 [hidden]{display:none!important}
+/* A completed review, on screen (Milos and the portal). */
+.sheet.wide{width:min(760px,100%)}
+.review-doc{display:flex;flex-direction:column;gap:16px}
+.review-doc h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent-text);margin:0 0 6px}
+.review-doc dl{margin:0;display:grid;grid-template-columns:minmax(120px,38%) 1fr;gap:6px 14px;font-size:14px}
+.review-doc dt{color:var(--muted);font-weight:600}.review-doc dd{margin:0;white-space:pre-wrap}
+@media(max-width:520px){.review-doc dl{grid-template-columns:1fr}.review-doc dd{margin-bottom:6px}}
+.sigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sig-box{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--hair);border-radius:12px;font-size:14px}
+.sig-box img{width:100%;height:auto;aspect-ratio:900/260;object-fit:contain;background:#fff}

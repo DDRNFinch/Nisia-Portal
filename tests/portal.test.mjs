@@ -45,6 +45,15 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
+    if (p === "/rest/v1/reviews") {
+      const sig = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+      const content = { facts: { learner: "Callum Hughes", course: "Bricklayer", employer: "Hughes & Sons", reviewNo: 1, start: "2025-09-01", end: "2027-08-31", periodStart: "2025-09-01", periodEnd: "2025-11-24", timePct: 12, ksb: { met: 5, total: 59, pct: 8 }, evidencePeriod: 3, evidenceTotal: 3, otj: { total: 40, period: 40, expected: 38 }, maths: { on: false }, english: { on: false } },
+        answers: { date: "2025-11-24", method: "In person", attendees: { apprentice: true, employer: true, assessor: true }, previous: [], progressRag: "On track", progressComment: "Strong start.", otjConfirmed: true, feelsSafe: "Yes", knowsReporting: "Yes", topicDiscussed: "Prevent", hsStatus: "No incidents or concerns", supportInPlace: "Not needed", changes: "None", iagGiven: "Yes", epaReady: "Too early", nextReview: "2026-02-16", overallRag: "On track" },
+        targets: [{ title: "Finish Mixing mortar", how: "Photos and write-up", due: "2026-01-10" }], hash: "ab".repeat(32),
+        signatures: { apprentice: { name: "Callum Hughes", at: "2025-11-24T10:00:00Z", image: sig }, employer: { name: "Dave Hughes", at: "2025-11-24T10:01:00Z", image: sig }, assessor: { name: "Mark Ellis", at: "2025-11-24T10:02:00Z", image: sig } } };
+      const one = { id: "R1", enrolment_id: "e0", reviewed_at: "2025-11-24T12:00:00Z", content, overall: "On track" };
+      return /vnd\.pgrst\.object/.test(req.headers()["accept"] || "") ? json(one) : json([one]);
+    }
     if (p === "/rest/v1/evidence_files") return json([{ storage_path: "o1/ev1/a.jpeg", mime_type: "image/jpeg" }]);
     if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
     if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
@@ -54,7 +63,7 @@ function fakeSupabase(persona) {
     if (p === "/functions/v1/nisia-admin") {
       if (body.action === "create_college") { S.colleges.push({ id: "c" + S.colleges.length, name: body.name, status: "active", seats: +body.seats, seats_used: 0, staff: 0, learners: 0, contact_name: body.admin_name, contact_email: body.admin_email, licence_ends: body.licence_ends || null }); return json({ organisation_id: "c0", invite_code: "COLLEGEADMINCODE" }); }
       if (body.action === "update_college") { const c = S.colleges.find((x) => x.id === body.organisation_id); c.seats = +body.seats; c.status = body.status; return json({ ok: true }); }
-      if (body.action === "add_learner") { S.learners.push({ learner_id: "l" + S.learners.length, name: body.name, email: body.email || "x@learners.nisia.invalid", course_code: body.course, start_date: body.start_date, end_date: body.end_date, status: "active", employer_name: body.employer_name, planned_otj_hours: body.planned_otj_hours, assessors: S.staff.filter((s) => body.staff_member_ids.includes(s.member_id)).map((s) => ({ member_id: s.member_id, name: s.name })), paired: false, evidence: 0, otj_hours: 0, last_activity: null }); return json({ learner_id: "l0", enrolment_id: "e0" }); }
+      if (body.action === "add_learner") { S.learners.push({ learner_id: "l" + S.learners.length, enrolment_id: "e" + S.learners.length, name: body.name, email: body.email || "x@learners.nisia.invalid", course_code: body.course, start_date: body.start_date, end_date: body.end_date, status: "active", employer_name: body.employer_name, planned_otj_hours: body.planned_otj_hours, assessors: S.staff.filter((s) => body.staff_member_ids.includes(s.member_id)).map((s) => ({ member_id: s.member_id, name: s.name })), paired: false, evidence: 0, otj_hours: 0, last_activity: null }); return json({ learner_id: "l0", enrolment_id: "e0" }); }
       if (body.action === "pairing_code") return json({ code: "ABC2345", qr: "NISI:PAIR:2:ABC2345", expires_in_minutes: 30 });
       if (body.action === "invite_staff") return json({ invite_code: "STAFFINVITECODE1" });
     }
@@ -124,6 +133,10 @@ try {
     check("A learner's page shows what Evia sends", /Upload the cavity wall photos/.test(await page.textContent("#main")));
     await page.click("tr[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
     check("Staff open a piece of evidence and see the write-up and photos", /Ties every 450/.test(await page.textContent(".modal")) && (await page.$$(".media img")).length === 1);
+    await page.click(".modal .x");
+    await page.click("nav [data-go=reviews]"); await page.waitForSelector("#done [data-review]");
+    await page.click("#done [data-review]"); await page.waitForSelector(".review-doc"); await page.screenshot({ path: shots + "/11c-review.png" });
+    check("A completed review opens in Nisia, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);
     await page.click(".modal .x");
     await page.click("nav [data-go=staff]"); await page.waitForSelector("#inv"); await page.click("#inv");
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");

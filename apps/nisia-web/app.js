@@ -5,6 +5,7 @@
    learners here and work in Milos. */
 import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, MARK } from "../../packages/core/signin.js";
+import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -255,6 +256,18 @@ function addLearner() {
   }); };
 }
 /* One piece of evidence, as the learner saved it in Evia: what they wrote, the KSBs, and the photos or files. */
+/* A completed review, as the college sees it (signatures included), with a PDF copy. */
+async function showReview(id) {
+  const m = modal("Progress review", '<p class="muted">Loading…</p>'); m.classList.add("wide-modal");
+  try {
+    const { data: v, error } = await db.from("reviews").select("id, content, reviewed_at").eq("id", id).single();
+    if (error) throw error;
+    const c = { ...v.content, id: v.id, reviewedAt: v.reviewed_at.slice(0, 10) };
+    m.innerHTML = '<div class="modal-head"><button class="btn" type="button" id="rvPdf">PDF</button><button class="x" aria-label="Close">×</button></div>' + reviewHtml(c);
+    m.querySelector(".x").onclick = closeModal;
+    m.querySelector("#rvPdf").onclick = async () => { try { await reviewPdf(c); } catch (x) { toast(x.message); } };
+  } catch (x) { m.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
+}
 const assessedPill = (a) => !a ? '<span class="pill">Not yet</span>' : a.decision === "accepted" ? '<span class="pill good">Accepted</span>' : '<span class="pill warn">Changes needed</span>';
 const EV_TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up" };
 async function showEvidence(e) {
@@ -350,7 +363,7 @@ async function learnerPage() {
         (targets.length ? targets.map((g) => '<div class="target"><span class="tick ' + (g.s === "done" ? "done" : g.s === "late" ? "late" : "") + '"></span><span>' + esc(g.t) + '<br><span class="small muted">' + g.from + '</span></span><span class="small ' + (g.s === "late" ? "" : "muted") + '" style="' + (g.s === "late" ? "color:var(--bad);font-weight:600" : "") + '">' + (g.s === "done" ? "Done" : g.s === "late" ? "Overdue" : g.due ? "Due " + esc(ukDate(g.due)) : "") + '</span></div>').join("") : '<p class="muted small">No targets yet.</p>') + '</section>' +
       '<section class="panel"><div class="panel-head"><h2>Reviews</h2><span class="small muted">Done in Milos</span></div>' +
         '<div class="target"><span class="tick' + (l.reviewIn != null && l.reviewIn < 0 ? " late" : "") + '"></span><span><b>Next progress review</b><br><span class="small muted">' + (l.reviewIn == null ? "" : l.reviewIn < 0 ? "Overdue by " + -l.reviewIn + " days" : "Due in " + l.reviewIn + " days") + ' · filled in from Evia in Milos</span></span><span class="pill ' + (l.reviewIn != null && l.reviewIn < 0 ? "bad" : "warn") + '">' + (l.reviewIn != null && l.reviewIn < 0 ? "Overdue" : "Upcoming") + '</span></div>' +
-        (d.reviews || []).map((r, i, a) => '<div class="target"><span class="tick done"></span><span>Progress review ' + (a.length - i) + '<br><span class="small muted">Signed by all three, ' + esc(ukDate(r.at)) + '</span></span><span class="pill good">' + esc(r.overall || "Signed") + '</span></div>').join("") + '</section>' +
+        (d.reviews || []).map((r, i, a) => '<div class="target tap" role="button" tabindex="0" data-review="' + r.id + '"><span class="tick done"></span><span>Progress review ' + (a.length - i) + '<br><span class="small muted">Signed by all three, ' + esc(ukDate(r.at)) + '</span></span><span class="pill good">' + esc(r.overall || "Signed") + '</span></div>').join("") + '</section>' +
     '</div>' +
     '<section class="panel"><div class="panel-head"><h2>Evidence</h2><span class="small muted">' + (d.evidence || []).length + ' from Evia · tap one to see it</span></div>' +
       ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th><th>Assessed</th></tr></thead><tbody>' + d.evidence.map((e) =>
@@ -364,6 +377,7 @@ async function learnerPage() {
         '<div><span class="label">Kept safe</span><ul><li>Stored in the UK (London)</li><li>Only this college’s staff, and only their own learners</li><li>Photos upload on WiFi</li></ul></div></div></section>' +
     '</div>');
   root.querySelector("[data-go=learners].back").onclick = () => go("learners");
+  root.querySelectorAll("[data-review]").forEach((r) => { const open = () => showReview(r.dataset.review); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelectorAll("#main [data-ev]").forEach((r) => { const open = () => showEvidence(d.evidence.find((x) => x.id === r.dataset.ev)); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelector("#pair").onclick = () => pairing(l);
   const as = root.querySelector("#assign");
@@ -388,8 +402,20 @@ function reviewsPage() {
       '<td class="small">' + (l.last_review ? esc(ukDate(l.last_review)) : '<span class="muted">None yet</span>') + '</td>' +
       '<td class="num small" style="' + (l.reviewIn < 0 ? "color:var(--bad);font-weight:600" : l.reviewIn < 7 ? "color:var(--warn);font-weight:600" : "") + '">' + (l.reviewIn < 0 ? "Overdue by " + -l.reviewIn + " days" : l.reviewIn === 0 ? "Today" : "In " + l.reviewIn + " days") + '</td>' +
       '<td>' + (l.reviewIn < 0 ? '<span class="pill bad">Overdue</span>' : l.reviewIn <= 14 ? '<span class="pill warn">Ready in Milos</span>' : '<span class="pill idle">Not due yet</span>') + '</td></tr>').join("")
-      : '<tr class="static"><td colspan="5" class="empty">No learners yet.</td></tr>') + '</tbody></table></div>');
+      : '<tr class="static"><td colspan="5" class="empty">No learners yet.</td></tr>') + '</tbody></table></div>' +
+    '<section class="panel"><div class="panel-head"><h2>Completed reviews</h2><span class="small muted">Signed by all three · open one to read it</span></div><div id="done"><p class="muted small">Loading…</p></div></section>');
   root.querySelectorAll("tr[data-learner]").forEach((r) => r.onclick = () => go("learner", { learner: r.dataset.learner }));
+  const byEnrolment = Object.fromEntries(D.learners.map((l) => [l.enrolment_id, l]));
+  db.from("reviews").select("id, enrolment_id, reviewed_at, overall:content->answers->>overallRag").eq("organisation_id", S.org).order("reviewed_at", { ascending: false }).limit(200).then(({ data, error }) => {
+    const box = root.querySelector("#done"); if (!box) return;
+    if (error) { box.innerHTML = '<p class="err">' + esc(error.message) + '</p>'; return; }
+    const rows = (data || []).filter((r) => byEnrolment[r.enrolment_id]);
+    box.innerHTML = rows.length ? '<div class="table-wrap flat"><table><thead><tr><th>Learner</th><th>Date</th><th>Overall</th></tr></thead><tbody>' + rows.map((r) =>
+      '<tr data-review="' + r.id + '" tabindex="0"><td><div class="person">' + avatar(byEnrolment[r.enrolment_id].name) + '<b>' + esc(byEnrolment[r.enrolment_id].name) + '</b></div></td><td class="small">' + esc(ukDate(r.reviewed_at)) + '</td><td>' +
+      (r.overall ? '<span class="pill ' + (r.overall === "On track" ? "good" : r.overall === "At risk" ? "bad" : "warn") + '">' + esc(r.overall) + '</span>' : "") + '</td></tr>').join("") + '</tbody></table></div>'
+      : '<p class="muted small">None yet. Reviews done in Milos appear here.</p>';
+    box.querySelectorAll("[data-review]").forEach((r) => { const open = () => showReview(r.dataset.review); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
+  });
 }
 
 /* ---------- Staff ---------- */
