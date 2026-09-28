@@ -161,10 +161,13 @@ async function enqueue(j) {
   try { await flush(); return !(await get("outbox", j.id)); } catch (e) { console.warn("Milos: sending", e.message); set({ error: e.message }); return false; }
 }
 
-export function saveObservation({ enrolmentId, evidence, photos, assessment }) {
+/* An observation: the evidence, its photos, the sign-off, and a PDF of it all (observation.pdf), which Evia puts in
+   the learner's Supporting evidence. */
+export function saveObservation({ enrolmentId, evidence, photos, assessment, pdf }) {
   const id = evidence.id || uuid(), org = evidence.organisation_id;
   const files = photos.map((blob, i) => ({ id: uuid(), blob, mime: blob.type || "application/octet-stream",
     path: org + "/" + id + "/obs-" + (i + 1) + "-" + Math.random().toString(36).slice(2, 8) + "." + ((blob.type.split("/")[1] || "jpg").replace(/[^a-z0-9]/g, "").slice(0, 5)) }));
+  if (pdf) files.push({ id: uuid(), blob: pdf, mime: "application/pdf", path: org + "/" + id + "/observation.pdf" });
   return enqueue({ kind: "observation", enrolmentId, evidence: { ...evidence, id, client_reference: "observation:" + id }, files, assessment: { id: uuid(), ...assessment, evidence_id: id } });
 }
 export const saveAssessment = ({ enrolmentId, row }) => enqueue({ kind: "assessment", enrolmentId, row: { id: uuid(), ...row } });

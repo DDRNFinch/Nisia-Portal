@@ -178,7 +178,7 @@ export async function openEvidence(ctx, item, onSaved) {
 const asDataUrl = (url) => fetch(url).then((r) => r.blob()).then((blob) => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = rej; f.readAsDataURL(blob); }));
 const imgSize = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.onerror = () => res([4, 3]); i.src = src; });
 
-export async function evidencePdf({ L, C, e, item, college, media, claimed }) {
+export async function evidencePdf({ L, C, e, item, college, media, claimed, asBlob }) {
   const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" }), W = 210, M = 16, full = W - 2 * M;
   let y = M;
   const room = (h) => { if (y + h > 297 - M) { doc.addPage(); y = M; } };
@@ -204,16 +204,17 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed }) {
     }
     if (col === 1) y += rowH + 5;
   }
-  const others = media.filter((f) => f.url && !/^image\//.test(f.mime_type));
+  const others = media.filter((f) => f.url && !/^image\//.test(f.mime_type) && !/observation\.pdf$/.test(f.storage_path || ""));
   if (others.length) { head("Other files"); others.forEach((f) => text("• " + f.storage_path.split("/").pop() + " (" + f.mime_type + "), kept in Nisia", 9, "normal", 0.6)); }
   head("Assessment");
   if (item.latest) {
-    text((item.latest.decision === "accepted" ? "Accepted" : "Changes needed") + " on " + ukDate(item.latest.created_at), 10, "bold");
+    text((item.latest.decision === "accepted" ? (isObservation(e) ? "Observed and signed off" : "Accepted") : "Changes needed") + " on " + ukDate(item.latest.created_at) + (isObservation(e) && e.source_metadata.observedBy ? " by " + e.source_metadata.observedBy : ""), 10, "bold");
     if (item.latest.feedback) text(item.latest.feedback, 10);
     if ((item.latest.ksbs || []).length) { text("KSBs signed off:", 10, "bold", 0.5); item.latest.ksbs.forEach((k) => text(k + "  " + ksbText(C, k), 9, "normal", 0.6)); }
   } else text("Not assessed yet.", 10);
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text(L.row.name + " · " + (isSupporting(e) ? e.title : unitOf(e)) + " · page " + i + " of " + pages, M, 297 - 8); doc.setTextColor(0); }
+  if (asBlob) return doc.output("blob");
   doc.save((L.row.name + " " + (isSupporting(e) ? e.title : unitOf(e)) + " " + String(e.created_at).slice(0, 10)).replace(/[^A-Za-z0-9 -]+/g, "").replace(/\s+/g, "-") + ".pdf");
 }
 

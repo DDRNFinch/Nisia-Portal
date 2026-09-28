@@ -105,7 +105,8 @@ try {
   check("An observation is captured like Evia (unit prompts, photos, things to mention ticking off), then signed off and saved to Nisia",
     /Things to capture/.test(obsPrompts) && /silos/.test(obsPrompts) && mentionOn.some((t) => /ratio/.test(t)) && mentionOn.some((t) => /safety signage/.test(t)) &&
     obsTicks.join() === "S14,K20,S1,K1,S6,K12,S20,B1" && ev && ev.body.source_metadata.collection === "observation" && ev.body.created_by_member_id === "M2" && ev.body.source_metadata.unit === "Mixing mortar" &&
-    posted.filter((x) => x.table === "storage").length === 2 && posted.filter((x) => x.table === "evidence_files" && x.body.evidence_id === ev.body.id).length === 2 &&
+    posted.filter((x) => x.table === "storage").length === 3 && posted.some((x) => x.table === "storage" && /\/observation\.pdf$/.test(x.body)) &&
+    posted.filter((x) => x.table === "evidence_files" && x.body.evidence_id === ev.body.id).length === 3 && posted.some((x) => x.table === "evidence_files" && x.body.mime_type === "application/pdf" && x.body.size_bytes > 1000) &&
     a && a.body.evidence_id === ev.body.id && a.body.decision === "accepted" && !a.body.ksbs.includes("B1") && a.body.ksbs.length === 7, JSON.stringify({ mentionOn, obsTicks, ev: ev && ev.body, a: a && a.body }));
   const units = await page.$$eval(".pf-unit .pf-name > b", (els) => els.map((x) => x.textContent));
   check("The portfolio lists the course's units in Evia's order, then other units and supporting evidence", units[0] === "Mixing mortar" && units[7] === "Construct Cavity Walling" && units.at(-2) === "Other units" && units.at(-1) === "Supporting evidence");
@@ -193,7 +194,7 @@ try {
   await ctx.setOffline(false); await page.evaluate(() => dispatchEvent(new Event("online"))); await page.waitForTimeout(300);
   await page.click("#syncNow"); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
   const ev2 = posted.slice(before).find((x) => x.table === "evidence"), up2 = posted.slice(before).filter((x) => x.table === "storage").length, as2 = posted.slice(before).find((x) => x.table === "assessments");
-  check("Back online, Sync now sends it: the observation, its photo and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 1 && !!as2 && as2.body.evidence_id === ev2.body.id);
+  check("Back online, Sync now sends it: the observation, its photo, its PDF for the learner's Evia, and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 2 && !!as2 && as2.body.evidence_id === ev2.body.id);
   check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

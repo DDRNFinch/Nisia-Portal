@@ -8,6 +8,7 @@ import { COURSE_DATA } from "../../packages/core/courses.js";
 import { PROMPTS, split, termMatched } from "../../packages/core/prompts.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { saveObservation } from "./store.js";
+import { evidencePdf } from "./portfolio.js";
 
 /* Evia's strength rules (strength.js), for a pack being captured. */
 const words = (t) => String(t || "").trim().split(/\s+/).filter(Boolean).length;
@@ -133,12 +134,20 @@ export function openObservation({ L, me }, onSaved) {
     b.disabled = true; err.textContent = ""; prog.textContent = navigator.onLine ? "Saving and sending…" : "Saving on this phone…";
     const org = L.enrolment.organisation_id, u = S.unit;
     try {
-      const sent = await saveObservation({ enrolmentId: L.enrolment.id,
-        evidence: { organisation_id: org, enrolment_id: L.enrolment.id, course_id: L.enrolment.course_id, created_by_member_id: me.member_id,
-          evidence_type: S.photos.some((p) => /^video\//.test(p.blob.type)) ? "video" : S.photos.length ? "photo" : "written", title: u.name,
-          source_metadata: { collection: "observation", unit: u.name, text: S.text.trim(), ksbs: [...S.ticked], observedOn: S.on, observedBy: me.name, photoCount: S.photos.length } },
-        photos: S.photos.map((p) => p.blob),
-        assessment: { organisation_id: org, assessor_member_id: me.member_id, decision: "accepted", feedback: S.feedback.trim() || null, ksbs: [...S.ticked] } });
+      const evidence = { id: crypto.randomUUID(), organisation_id: org, enrolment_id: L.enrolment.id, course_id: L.enrolment.course_id, created_by_member_id: me.member_id,
+        evidence_type: S.photos.some((p) => /^video\//.test(p.blob.type)) ? "video" : S.photos.length ? "photo" : "written", title: u.name,
+        source_metadata: { collection: "observation", unit: u.name, text: S.text.trim(), ksbs: [...S.ticked], observedOn: S.on, observedBy: me.name, photoCount: S.photos.length, nvqUnit: u.sub ? u.sub.split(" ")[0] : null } };
+      const assessment = { organisation_id: org, assessor_member_id: me.member_id, decision: "accepted", feedback: S.feedback.trim() || null, ksbs: [...S.ticked] };
+      /* The PDF the learner gets in Evia: made here, so it works offline too. */
+      let pdf = null;
+      try {
+        prog.textContent = "Making the PDF…";
+        pdf = await evidencePdf({ L, C, e: { ...evidence, created_at: new Date(S.on + "T12:00:00").toISOString() }, item: { latest: { ...assessment, created_at: new Date().toISOString() } },
+          college: L.row.org && L.row.org.organisation, claimed: [...S.ticked], asBlob: true,
+          media: S.photos.filter((p) => /^image\//.test(p.blob.type)).map((p) => ({ url: p.url, mime_type: p.blob.type, storage_path: "photo" })) });
+      } catch (x) { console.warn("Milos: observation PDF", x.message); }
+      prog.textContent = navigator.onLine ? "Saving and sending…" : "Saving on this phone…";
+      const sent = await saveObservation({ enrolmentId: L.enrolment.id, evidence, photos: S.photos.map((p) => p.blob), assessment, pdf });
       try { localStorage.removeItem(DRAFT); } catch (_) {}
       close(); onSaved(sent);
     } catch (x) { prog.textContent = ""; b.disabled = false; err.textContent = "Couldn’t save on this phone: " + (x.message || x); }
