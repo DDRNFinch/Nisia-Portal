@@ -73,7 +73,7 @@ async function learnerDetails(admin: ReturnType<typeof service>, learnerId: stri
   const { data: org } = await admin.from("organisations").select("name").eq("id", orgId).single();
   const { data: l } = await admin.from("learners").select("organisation_member_id, organisation_members!inner(user_id)").eq("id", learnerId).single();
   const { data: prof } = await admin.from("profiles").select("display_name").eq("id", (l as any).organisation_members.user_id).single();
-  const { data: e } = await admin.from("enrolments").select("id, start_date, end_date, status, planned_otj_hours, employer_name, employer_contact_name, nvq_optional, courses(source_id, title)").eq("learner_id", learnerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: e } = await admin.from("enrolments").select("id, course_id, start_date, end_date, status, planned_otj_hours, employer_name, employer_contact_name, nvq_optional, courses(source_id, title)").eq("learner_id", learnerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const { data: staff } = await admin.from("learner_access").select("organisation_member_id, organisation_members!inner(user_id, organisation_member_roles(roles(code)))").eq("learner_id", learnerId);
   const people: { assessor?: string; tutor?: string } = {};
   for (const s of staff ?? []) {
@@ -84,7 +84,7 @@ async function learnerDetails(admin: ReturnType<typeof service>, learnerId: stri
     if (codes.includes("tutor") && !people.tutor) people.tutor = p?.display_name ?? "";
   }
   return {
-    learnerId, organisationId: orgId, enrolmentId: e?.id ?? null, memberId: l!.organisation_member_id,
+    learnerId, organisationId: orgId, enrolmentId: e?.id ?? null, courseId: (e as any)?.course_id ?? null, memberId: l!.organisation_member_id,
     name: prof?.display_name ?? "", college: org?.name ?? "", course: (e as any)?.courses?.source_id ?? "", courseTitle: (e as any)?.courses?.title ?? "",
     start: e?.start_date ?? "", end: e?.end_date ?? "", employer: e?.employer_name ?? "", employerContact: e?.employer_contact_name ?? "",
     plannedOtjHours: e?.planned_otj_hours ?? null, nvqOptional: e?.nvq_optional ?? [], ...people,

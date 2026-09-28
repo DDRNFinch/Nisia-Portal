@@ -12,11 +12,11 @@ Companion-first PWAs (Evia, Milos, Symi, Paros) sync to a unified Nisia backend.
 |---|---|---|
 | **Nisia portal** (master admin and college portal) | `apps/nisia-web` | Built. Sign-in with password and authenticator app; master admin creates colleges and sets seats; colleges add learners and staff and show Evia's pairing QR |
 | **Backend** | Supabase project "Nisia" (London), `services/` | Live: database, security rules, `nisia-setup` and `nisia-admin` functions |
-| **Evia** | `DDRNFinch/Evia7` (for now) | Being connected: pairing and sync |
-| **Milos** | `apps/milos` | Next: learners, reviews filled in from Evia, signatures and PDF |
+| **Evia** | `DDRNFinch/Evia7` (for now) | Connected: the assessor's pairing code signs it in; every record syncs (photos and files on WiFi), plus a live progress snapshot |
+| **Milos** | `apps/milos` | Built: the assessor's learners, reviews due (every 12 weeks), connect Evia, a progress review filled in from Evia with three signatures, saved to Nisia with a content hash, new targets, and a PDF |
 
 Run locally: serve the repo root (`python3 -m http.server`) and open `/apps/nisia-web/`.
-Test: `node tests/portal.test.mjs` (a stand-in Supabase, no internet needed).
+Test: `node tests/portal.test.mjs` and `node tests/milos.test.mjs` (a stand-in Supabase, no internet needed).
 Publish: `.github/workflows/pages.yml` puts the portal at the site root and Milos at `/milos/`.
 
 ## Repository structure

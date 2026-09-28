@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2C85F7">
+<title>Milos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%232C85F7' stroke-width='4'/%3E%3Cellipse cx='15' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3Cellipse cx='25' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../packages/ui/nisia.css">
+<style>
+/* Milos: Evia's look in Milos blue. */
+:root{--accent:#2C85F7;--accent-ink:#fff;--accent-soft:#e8f1fe;--accent-line:#b9d4fc;--accent-text:#1b5fb8}
+.stat.tap{text-align:left;cursor:pointer;font:inherit}
+.stat.tap:hover{border-color:var(--accent-line)}
+/* The review: a full screen, a step at a time. */
+.rv{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column}
+.rv-top{display:flex;align-items:center;gap:12px;padding:max(12px,env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line);background:#fff}
+.rv-prog{flex:1;height:8px;border-radius:8px;background:#eef1f5;overflow:hidden}.rv-prog i{display:block;height:100%;background:var(--accent);border-radius:8px;transition:width .25s ease}
+.rv-body{flex:1;overflow:auto;width:100%;max-width:760px;margin:0 auto;padding:20px 18px 30px;display:flex;flex-direction:column;gap:14px}
+.rv-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#fff}
+.rv-foot .btn{min-width:120px}
+.from{padding:14px;border-radius:18px;background:var(--accent-soft);border:1px solid var(--accent-line)}
+.from .label{color:var(--accent-text);margin:0 0 8px}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.fact{background:#fff;border-radius:12px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;border:1px solid var(--hair)}
+.fact span{font-size:12px;color:var(--muted)}.fact b{font-size:15px}.fact small{font-size:12px;color:var(--accent-text)}
+.sig canvas{width:100%;height:auto;aspect-ratio:900/260;border:1.5px dashed #c7d0db;border-radius:14px;background:#fff;touch-action:none}
+.target{display:flex;flex-direction:column;gap:10px}
+details summary{cursor:pointer}
+.due-m{display:none;margin-top:4px}
+@media(max-width:720px){.due-m{display:block}}
+</style>
+</head>
+<body>
+<div id="app"><div class="auth"><p class="muted">Loading Milos…</p></div></div>
+<noscript><p style="padding:20px">Milos needs JavaScript switched on.</p></noscript>
+<script src="../../packages/vendor/supabase-2.45.4.js"></script>
+<script src="../../packages/vendor/qrcode-generator-1.4.4.js"></script>
+<script src="../../packages/vendor/jspdf-2.umd.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

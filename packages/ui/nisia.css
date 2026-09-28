@@ -56,14 +56,14 @@ a{color:var(--accent-text)}
 
 /* Forms */
 .field{display:grid;gap:6px;font-size:13px;font-weight:700;color:var(--muted)}
-.field input:not([type=checkbox]),.field select,.field textarea{width:100%;min-height:48px;padding:11px 14px;border:1px solid #dfe4ea;border-radius:14px;background:#fff;font-size:15px;font-weight:500;color:var(--ink)}
+.field input:not([type=checkbox]):not([type=radio]),.field select,.field textarea{width:100%;min-height:48px;padding:11px 14px;border:1px solid #dfe4ea;border-radius:14px;background:#fff;font-size:15px;font-weight:500;color:var(--ink)}
 .field textarea{min-height:100px;resize:vertical;line-height:1.5}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .field small{font-weight:500;color:var(--faint)}
 .checks{display:flex;flex-wrap:wrap;gap:8px}
 .check{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid #dfe4ea;border-radius:999px;background:#fff;font-size:14px;font-weight:600;color:var(--text)}
 .check:has(input:checked){background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-text)}
-.check input{accent-color:var(--accent);width:18px;height:18px;margin:0}
+.check input{accent-color:var(--accent);width:18px;height:18px;margin:0;flex:0 0 auto}
 .err{padding:10px 13px;border-radius:12px;background:var(--bad-soft);color:var(--bad);font-size:14px;font-weight:600}
 .err:empty{display:none}
 .note{padding:12px 14px;border-radius:14px;background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent-text);font-size:14px}
