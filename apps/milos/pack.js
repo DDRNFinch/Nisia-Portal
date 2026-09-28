@@ -93,7 +93,7 @@ export function packPdf(pack) {
   const text = (s, size = 10, style = "normal", gap = 1.5, x = M, width = full, grey) => { font(size, style, grey); doc.splitTextToSize(String(s), width).forEach((line) => { room(size * 0.45); doc.text(line, x, y); y += size * 0.42; }); y += gap; };
   const head = (s) => { y += 3; room(14); doc.setDrawColor(200); doc.line(M, y - 3, W - M, y - 3); text(s, 12, "bold", 1.5); };
 
-  text("Portfolio pack for IQA and EPA", 9, "normal", 0.5, M, full, true);
+  text("Portfolio pack for IQA and EPA", 9, "normal", 5, M, full, true);
   text(pack.learner, 20, "bold", 1);
   text((pack.C.name || "") + (pack.C.std ? " (" + pack.C.std + ")" : ""), 11, "normal", 0.5);
   text((pack.employer ? pack.employer + " · " : "") + ukDate(pack.start) + " to " + ukDate(pack.end), 10, "normal", 0.5, M, full, true);
