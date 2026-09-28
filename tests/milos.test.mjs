@@ -55,8 +55,9 @@ function handle(route) {
     { id: "ev1", organisation_id: "O1", title: "Construct Cavity Walling", evidence_type: "photo", created_at: day(-10), source_metadata: { collection: "evidence", unit: "Construct Cavity Walling", ksbs: ["S11", "K22", "S5"], text: "Built a cavity wall with ties every 450 mm.", photoIds: ["p1", "p2"] } },
     { id: "ev2", organisation_id: "O1", title: "Mixing mortar", evidence_type: "photo", created_at: day(-200), source_metadata: { collection: "evidence", unit: "Mixing mortar", ksbs: ["S14"] } },
     { id: "ev3", organisation_id: "O1", title: "Structural carcassing", evidence_type: "photo", created_at: day(-5), source_metadata: { collection: "evidence", unit: "Structural carcassing", ksbs: [] } },
+    { id: "ev5", organisation_id: "O1", title: "Jointing Styles", evidence_type: "photo", created_at: day(-2), client_reference: "observation:ev5", source_metadata: { collection: "observation", unit: "Jointing Styles", observedBy: "Mark Ellis", observedOn: day(-2).slice(0, 10), ksbs: ["S12", "K17"], text: "Pointed the joints." } },
     { id: "ev4", organisation_id: "O1", title: "Site induction.pdf", evidence_type: "document", created_at: day(-3), client_reference: "supporting:s1", source_metadata: { collection: "supporting", ksbs: [] } }]);
-  if (p === "/rest/v1/assessments" && q.method() === "GET") return json([{ id: "A0", evidence_id: "ev2", decision: "accepted", feedback: null, ksbs: ["S14", "K20"], created_at: day(-190), assessor_member_id: "M1" }]);
+  if (p === "/rest/v1/assessments" && q.method() === "GET") return json([{ id: "A0", evidence_id: "ev2", decision: "accepted", feedback: null, ksbs: ["S14", "K20"], created_at: day(-190), assessor_member_id: "M1" }, { id: "A5", evidence_id: "ev5", decision: "accepted", feedback: null, ksbs: ["S12", "K17"], created_at: day(-2), assessor_member_id: "M2" }]);
   if (p === "/rest/v1/assessments" && q.method() === "POST") { posted.push({ table: "assessments", body }); return json({ id: "A1", ...body, created_at: new Date().toISOString() }, 201); }
   if (p === "/rest/v1/evidence_files") return json([{ evidence_id: "ev1", storage_path: "O1/ev1/a.jpeg", mime_type: "image/jpeg" }, { evidence_id: "ev1", storage_path: "O1/ev1/b.jpeg", mime_type: "image/jpeg" }]);
   if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
@@ -130,6 +131,10 @@ try {
   const texts = [];
   check("The review is four screens", /1\/4/.test(await page.textContent(".rv-top")));
   await page.screenshot({ path: shots + "/m3-review-progress.png", fullPage: true }); texts.push(await page.textContent(".rv-body"));
+  const drafted = await page.inputValue("[name=progressComment]"), hintTxt = await page.textContent(".rag-hint");
+  console.log("   Drafted progress: " + drafted + "\n   " + hintTxt);
+  check("The review's progress is written from Evia and Nisia (where they are, this period, observations, strength, knowledge, what's next) with a suggested rating",
+    /Callum is \d+% of the way through/.test(drafted) && /21 of 59 KSBs/.test(drafted) && /I observed Callum at work/.test(drafted) && /strongest evidence is for [^.]*Mixing mortar/.test(drafted) && /priority now is/.test(drafted) && /off-the-job/.test(drafted) && /Evia suggests/.test(hintTxt));
   await next();
   check("A required answer stops the review moving on", /previous target|each previous target/i.test(await page.textContent("#stepErr")));
   await page.check('input[name=prev_0][value="Partly met"]'); await next();

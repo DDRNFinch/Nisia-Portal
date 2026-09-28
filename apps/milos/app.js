@@ -155,7 +155,7 @@ async function learner(r, keepScroll) {
   };
   groups = groupByUnit(L, P); drawPortfolio();
   if (y) scrollTo(0, y);
-  root.querySelector("#rev").onclick = () => openReview(L, { name: who.name, member_id: r.org.member_id }, (sent) => { toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); learner(r); });
+  root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { name: who.name, member_id: r.org.member_id }, (sent) => { toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); learner(r); });
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelector("#obs").onclick = () => openObservation({ L, me: { name: who.name, member_id: r.org.member_id } }, (sent) => { toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: v.reviewed_at.slice(0, 10) }); });

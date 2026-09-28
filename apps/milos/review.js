@@ -8,6 +8,7 @@
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { saveReview } from "./store.js";
+import { progressText, otjText, fsText, summaryText, suggestRag } from "./draft.js";
 import { reviewPdf } from "../../packages/core/reviewdoc.js";
 
 export const RULES = { id: "apprenticeship-funding-2025-26", intervalWeeks: 12, name: "Apprenticeship funding rules 2025 to 2026" };
@@ -55,7 +56,7 @@ export function facts(L, now = Date.now()) {
   const otjPeriod = round1(L.otj.filter((x) => Date.parse(x.activity_date) >= periodStart - DAY).reduce((n, x) => n + Number(x.hours || 0), 0));
   const otjExpected = planned != null && timePct != null ? Math.round(planned * timePct / 100) : null;
   const ksb = snap.ksb || { met: 0, total: course.ksbs.length, pct: 0 };
-  const missingUnits = (snap.units || []).filter((u) => (u.missing || []).length).map((u) => ({ name: u.name, missing: u.missing.length, total: u.total, started: u.started }));
+  const missingUnits = (snap.units || []).filter((u) => (u.missing || []).length).map((u) => ({ name: u.name, missing: u.missing.length, codes: u.missing.slice(0, 6), total: u.total, started: u.started, strength: u.strength || null }));
   const subject = (id) => ((snap.teach && snap.teach.subjects) || []).find((s) => s.id === id) || null;
   const test = (type) => (snap.tests || []).find((t) => t.type === type) || null;
   const eviaReview = L.eviaReviews.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0] || null;
@@ -83,24 +84,26 @@ export function facts(L, now = Date.now()) {
 export function suggestTargets(F) {
   const due = isoDay(Date.now() + 6 * 7 * DAY), out = [];
   const gap = F.missingUnits.slice().sort((a, b) => b.missing - a.missing)[0];
-  if (gap) out.push({ title: "Evidence for " + gap.name, how: "Photos and a write-up of a job covering the " + gap.missing + " " + (F.nvq ? "criteria" : "KSBs") + " still missing. Use Evia’s guided mode.", due, support: "Employer to give the chance to do this work" });
+  if (gap) out.push({ title: "Evidence for " + gap.name, how: "A pack in Evia with at least 10 photos from start to finish and a write-up using guided mode, covering " + (gap.codes && gap.codes.length ? gap.codes.join(", ") + (gap.missing > gap.codes.length ? " and the rest still missing" : "") : "the " + gap.missing + " " + (F.nvq ? "criteria" : "KSBs") + " still missing") + ". I'll observe one of these jobs.", due, support: "Employer to give the chance to do this work" });
+  const weak = F.missingUnits.filter((u) => u.strength === "weak" && (!gap || u.name !== gap.name))[0];
+  if (weak) out.push({ title: "Strengthen " + weak.name, how: "Add a second pack to " + weak.name + " so Evia's bars show at least two: more photos and a write-up covering the things to mention.", due, support: "" });
   if (F.otj.onTrack === false) out.push({ title: "Catch up on off-the-job training", how: "Log at least " + Math.max(6, Math.ceil((F.otj.expected - F.otj.total) / 6)) + " hours a week in Evia until back on plan (" + F.otj.expected + " h expected by now, " + F.otj.total + " h logged).", due, support: "Employer to protect training time in working hours" });
   if (F.maths.on && !(F.maths.teach && F.maths.teach.areasDone === F.maths.teach.areas.length)) out.push({ title: "Maths practice", how: "Finish the next two maths areas in Teach me and take a maths test.", due, support: "" });
   if (F.english.on && !(F.english.teach && F.english.teach.areasDone === F.english.teach.areas.length)) out.push({ title: "English practice", how: "Finish the next two English areas in Teach me and take an English test.", due, support: "" });
   const low = F.confidence && F.confidence.practise && F.confidence.practise[0];
   if (low) out.push({ title: "Build confidence: " + low, how: "Practise " + low + " at work with support, then re-rate it in Evia.", due, support: "Supervisor to demonstrate and observe" });
-  return out.slice(0, 4);
+  return out.slice(0, 5);
 }
 
 /* ---------- The review form ---------- */
 const DRAFT = (e) => "milos-draft-" + e;
-const blank = (F, me) => ({
+const blank = (F, me, L) => ({
   date: isoDay(Date.now()), method: "In person", attendees: { apprentice: true, employer: true, assessor: true, tutor: false },
   employerName: F.employerContact, employerRole: "", assessorName: me.name || "",
   previous: F.previousTargets.map((t) => ({ ...t, outcome: t.met ? "Met" : "", comment: "" })),
-  progressRag: "", progressComment: "", employerComment: "",
+  progressRag: "", progressComment: [progressText(L, F), otjText(F)].filter(Boolean).join(" "), employerComment: "",
   otjConfirmed: false, otjComment: "",
-  mathsStatus: F.maths.on ? "Working towards" : "Achieved or exempt", englishStatus: F.english.on ? "Working towards" : "Achieved or exempt", fsComment: "",
+  mathsStatus: F.maths.on ? "Working towards" : "Achieved or exempt", englishStatus: F.english.on ? "Working towards" : "Achieved or exempt", fsComment: fsText(F),
   knowledgeComment: "",
   feelsSafe: "", knowsReporting: "", hsStatus: "", healthSafety: "", topicDiscussed: "", safeguardingComment: "",
   supportNeeds: F.reflection.support, supportInPlace: "",
@@ -119,7 +122,13 @@ const TOPICS = ["Prevent", "British values", "Equality and diversity", "Online s
 export function openReview(L, me, onDone) {
   const F = facts(L);
   let R; try { R = JSON.parse(localStorage.getItem(DRAFT(L.row.enrolment_id)) || "null"); } catch { R = null; }
-  if (!R || R.v !== 2) R = { v: 2, ...blank(F, me) };
+  if (!R || R.v !== 2) R = { v: 2, ...blank(F, me, L) };
+  /* Written from Evia; a draft left empty is filled in too. The summary follows the targets, so it's written last. */
+  if (!String(R.progressComment || "").trim()) R.progressComment = [progressText(L, F), otjText(F)].filter(Boolean).join(" ");
+  if (!String(R.fsComment || "").trim()) R.fsComment = fsText(F);
+  if (!String(R.summary || "").trim()) R.summary = summaryText(L, F, R);
+  const rag = suggestRag(F);
+  const redo = { progressComment: () => [progressText(L, F), otjText(F)].filter(Boolean).join(" "), fsComment: () => fsText(F), summary: () => summaryText(L, F, R) };
   let step = 0;
   const save = () => { try { localStorage.setItem(DRAFT(L.row.enrolment_id), JSON.stringify(R)); } catch { /* storage full */ } };
   const root = document.createElement("div"); root.className = "rv"; root.setAttribute("role", "dialog"); root.setAttribute("aria-modal", "true");
@@ -130,6 +139,10 @@ export function openReview(L, me, onDone) {
   const fromEvia = (html) => '<section class="from"><p class="label">From Evia' + (F.hasEvia ? "" : " (not connected yet)") + '</p><div class="facts">' + html + '</div></section>';
   const choice = (name, opts, val) => '<div class="checks" role="radiogroup">' + opts.map((o) => '<label class="check"><input type="radio" name="' + name + '" value="' + esc(o) + '"' + (val === o ? " checked" : "") + '> ' + esc(o) + '</label>').join("") + '</div>';
   const area = (name, label, val, ph) => '<label class="field">' + esc(label) + '<textarea name="' + name + '" placeholder="' + esc(ph || "") + '">' + esc(val || "") + '</textarea></label>';
+  /* A written part: drafted from Evia, edited by the assessor, and rewritten from Evia if they want to start again. */
+  const drafted = (name, label, val) => '<div class="field drafted"><div class="between"><span>' + esc(label) + '</span><button class="btn ghost small-btn" type="button" data-redo="' + name + '">Rewrite from Evia</button></div>' +
+    '<textarea name="' + name + '" rows="' + Math.min(14, Math.max(4, Math.ceil(String(val || "").length / 70))) + '">' + esc(val || "") + '</textarea><small class="muted">Written from Evia and Nisia. Read it through and change anything.</small></div>';
+  const hint = (r) => r ? '<small class="rag-hint">Evia suggests <b>' + esc(r.rag) + '</b>: ' + esc(r.why) + '.</small>' : "";
   const input = (name, label, val, type) => '<label class="field">' + esc(label) + '<input name="' + name + '" type="' + (type || "text") + '" value="' + esc(val || "") + '"></label>';
   const subj = (s) => s ? s.areasDone + " of " + s.areas.length + " areas done" + (s.avg != null ? ", average " + s.avg + "%" : "") : "Not started";
 
@@ -148,12 +161,13 @@ export function openReview(L, me, onDone) {
           fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—")) +
         (F.missingUnits.length ? '<details class="card flat"><summary><b>Still to evidence</b> (' + F.missingUnits.length + ' units)</summary><ul class="small">' + F.missingUnits.map((u) => '<li>' + esc(u.name) + ': ' + u.missing + ' of ' + u.total + ' still to do</li>').join("") + '</ul></details>' : "") +
         (R.previous.length ? '<div class="field">Previous targets' + R.previous.map((t, i) => '<div class="prev"><span>' + esc(t.title) + '</span>' + choice("prev_" + i, ["Met", "Partly met", "Not met"], t.outcome) + '</div>').join("") + '</div>' : "") +
-        '<div class="field">Progress against the training plan' + choice("progressRag", ["On track", "Slightly behind", "At risk"], R.progressRag) + '</div>' +
+        '<div class="field">Progress against the training plan' + choice("progressRag", ["On track", "Slightly behind", "At risk"], R.progressRag) + hint(rag) + '</div>' +
         '<label class="check wide-check"><input type="checkbox" name="otjConfirmed"' + (R.otjConfirmed ? " checked" : "") + '> The employer confirms off-the-job training is happening in paid working hours</label>' +
         when("otjConfirmed!=on", area("otjComment", "Why not, and what happens next", R.otjComment)) +
         (F.maths.on ? '<div class="field">Maths' + choice("mathsStatus", ["Working towards", "Booked to take", "Achieved or exempt"], R.mathsStatus) + '</div>' : "") +
         (F.english.on ? '<div class="field">English' + choice("englishStatus", ["Working towards", "Booked to take", "Achieved or exempt"], R.englishStatus) + '</div>' : "") +
-        area("progressComment", "What they’ve learnt and achieved this period, and what to work on", R.progressComment, "New skills, knowledge and behaviours, with examples") +
+        drafted("progressComment", "Progress this period", R.progressComment) +
+        (F.maths.on || F.english.on ? drafted("fsComment", "Maths and English", R.fsComment) : "") +
         input("employerComment", "Employer’s view of their work (optional)", R.employerComment);
       case "wellbeing": return '<div class="field">Do they feel safe at work and at college?' + choice("feelsSafe", ["Yes", "No, action taken", "Discussed"], R.feelsSafe) + '</div>' +
         when("feelsSafe!=Yes", area("safeguardingComment", "What was said, and what was done (a referral goes to the safeguarding lead today)", R.safeguardingComment)) +
@@ -176,7 +190,7 @@ export function openReview(L, me, onDone) {
           '<label class="field">What<input name="t_title_' + i + '" value="' + esc(t.title) + '"></label><label class="field">How it will be done and measured<input name="t_how_' + i + '" value="' + esc(t.how) + '"></label>' +
           '<div class="grid2"><label class="field">By<input type="date" name="t_due_' + i + '" value="' + esc(t.due) + '"></label><label class="field">Support from<input name="t_support_' + i + '" value="' + esc(t.support) + '"></label></div></div>').join("") +
         '<button class="btn wide" type="button" id="addT">+ Add a target</button>' + input("nextReview", "Next review (within " + RULES.intervalWeeks + " weeks)", R.nextReview, "date");
-      case "sign": return '<div class="field">Overall progress' + choice("overallRag", ["On track", "Slightly behind", "At risk"], R.overallRag) + '</div>' + input("summary", "Summary (optional)", R.summary) +
+      case "sign": return '<div class="field">Overall progress' + choice("overallRag", ["On track", "Slightly behind", "At risk"], R.overallRag) + hint(rag) + '</div>' + drafted("summary", "Summary", R.summary) +
         '<p class="note">Signing confirms this is an accurate record of the review. Each person signs on this screen.</p>' +
         [["apprentice", "Apprentice", F.learner], ["employer", "Employer", R.employerName || "Employer"], ["assessor", "Assessor", R.assessorName]].map(([k, t, n]) =>
           '<div class="card flat sig"><div class="between"><b>' + esc(t) + '</b><span class="small muted">' + esc(n) + '</span></div><canvas data-sig="' + k + '" width="900" height="260" aria-label="' + esc(t) + ' signature"></canvas><button class="btn ghost" type="button" data-clear="' + k + '">Clear</button></div>').join("") +
@@ -187,7 +201,7 @@ export function openReview(L, me, onDone) {
   function read() {
     const f = root.querySelector("form"); if (!f) return;
     const v = (n) => { const el = f.elements[n]; if (!el) return undefined; if (el.length && el[0] && el[0].type === "radio") { const c = [...el].find((x) => x.checked); return c ? c.value : ""; } return el.type === "checkbox" ? el.checked : el.value; };
-    for (const k of ["date", "method", "employerName", "employerRole", "progressRag", "progressComment", "employerComment", "otjComment", "mathsStatus", "englishStatus", "feelsSafe", "knowsReporting", "hsStatus", "healthSafety", "safeguardingComment", "supportNeeds", "supportInPlace", "changes", "changesDetail", "apprenticeComment", "iagGiven", "nextSteps", "epaReady", "predictedGrade", "overallRag", "nextReview", "summary"]) { const x = v(k); if (x !== undefined) R[k] = x; }
+    for (const k of ["date", "method", "employerName", "employerRole", "progressRag", "progressComment", "fsComment", "employerComment", "otjComment", "mathsStatus", "englishStatus", "feelsSafe", "knowsReporting", "hsStatus", "healthSafety", "safeguardingComment", "supportNeeds", "supportInPlace", "changes", "changesDetail", "apprenticeComment", "iagGiven", "nextSteps", "epaReady", "predictedGrade", "overallRag", "nextReview", "summary"]) { const x = v(k); if (x !== undefined) R[k] = x; }
     if (f.querySelector("[name=topics]")) R.topicDiscussed = [...f.querySelectorAll("[name=topics]:checked")].map((x) => x.value).join(", ");
     if (f.elements.otjConfirmed) R.otjConfirmed = f.elements.otjConfirmed.checked;
     ["apprentice", "employer", "assessor", "tutor"].forEach((k) => { if (f.elements["att_" + k]) R.attendees[k] = f.elements["att_" + k].checked; });
@@ -237,6 +251,11 @@ export function openReview(L, me, onDone) {
     const b = root.querySelector("#back"); if (b) b.onclick = () => { read(); step--; draw(); };
     root.querySelector("#next").onclick = () => { read(); const m = missing(id); if (m) { root.querySelector("#stepErr").textContent = m; return; } if (id === "sign") return complete(); step++; draw(); };
     root.querySelectorAll("[data-del]").forEach((x) => x.onclick = () => { read(); R.targets.splice(+x.dataset.del, 1); draw(); });
+    root.querySelectorAll("[data-redo]").forEach((x) => x.onclick = () => {
+      read(); const k = x.dataset.redo, fresh = redo[k]();
+      if (String(R[k] || "").trim() && R[k] !== fresh && !confirm("Replace what’s written with a fresh draft from Evia?")) return;
+      R[k] = fresh; save(); draw();
+    });
     const add = root.querySelector("#addT"); if (add) add.onclick = () => { read(); R.targets.push({ title: "", how: "", due: isoDay(Date.now() + 42 * DAY), support: "" }); draw(); };
     root.querySelectorAll("canvas[data-sig]").forEach(pad);
     root.querySelectorAll("[data-clear]").forEach((x) => x.onclick = () => { delete R.signatures[x.dataset.clear]; const c = root.querySelector('canvas[data-sig="' + x.dataset.clear + '"]'); c.getContext("2d").clearRect(0, 0, c.width, c.height); save(); });
