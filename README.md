@@ -6,6 +6,19 @@ Apprenticeship platform for learners, assessors, tutors and employers.
 
 Companion-first PWAs (Evia, Milos, Symi, Paros) sync to a unified Nisia backend. See [docs/architecture/nisia-shared-core.md](../Milos/docs/architecture/nisia-shared-core.md) for the full design.
 
+## What's working now (September 2026)
+
+| Part | Where | State |
+|---|---|---|
+| **Nisia portal** (master admin and college portal) | `apps/nisia-web` | Built. Sign-in with password and authenticator app; master admin creates colleges and sets seats; colleges add learners and staff and show Evia's pairing QR |
+| **Backend** | Supabase project "Nisia" (London), `services/` | Live: database, security rules, `nisia-setup` and `nisia-admin` functions |
+| **Evia** | `DDRNFinch/Evia7` (for now) | Being connected: pairing and sync |
+| **Milos** | `apps/milos` | Next: learners, reviews filled in from Evia, signatures and PDF |
+
+Run locally: serve the repo root (`python3 -m http.server`) and open `/apps/nisia-web/`.
+Test: `node tests/portal.test.mjs` (a stand-in Supabase, no internet needed).
+Publish: `.github/workflows/pages.yml` puts the portal at the site root and Milos at `/milos/`.
+
 ## Repository structure
 
 ```

@@ -1,0 +1,37 @@
+# Publishes the Nisia portal (site root) and Milos (/milos/) to GitHub Pages on every push to main.
+name: Deploy Nisia to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site
+        run: |
+          mkdir -p _site
+          cp -r packages _site/packages
+          cp -r apps/nisia-web/. _site/
+          if [ -d apps/milos ]; then mkdir -p _site/milos && cp -r apps/milos/. _site/milos/; fi
+          # In the repo the apps sit two folders down; on the site the portal is at the root and Milos one down.
+          find _site -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' \) -exec sed -i 's#\.\./\.\./packages/#./packages/#g' {} +
+          if [ -d _site/milos ]; then find _site/milos -type f \( -name '*.html' -o -name '*.js' -o -name '*.webmanifest' \) -exec sed -i 's#\.\./\.\./packages/#../packages/#g' {} +; fi
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

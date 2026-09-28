@@ -36,3 +36,5 @@ coverage/
 
 # Misc
 .turbo/
+tests/shots/
+node_modules/
