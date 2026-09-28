@@ -45,6 +45,8 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
+    if (p === "/rest/v1/rpc/nisia_college_activity") return json([{ week_start: "2026-09-21", evidence: 3, hours: 6 }]);
+    if (p === "/rest/v1/rpc/nisia_learner_detail") return json({ snapshot: { ksb: { met: 12, total: 59, pct: 20 }, units: [{ name: "Unit 201", total: 10, missing: ["K1", "K2"] }], otj: { total: 14 } }, snapshot_at: new Date().toISOString(), evia_targets: [{ title: "Upload the cavity wall photos", due: "2026-10-10" }], targets: [], reviews: [], evidence: [{ kind: "evidence", title: "Laid a cavity wall", type: "photo", at: new Date().toISOString() }], hours: [{ kind: "hours", title: "Teach me: cavity walls", hours: 1.5, at: new Date().toISOString().slice(0, 10) }], weekly: [0, 0, 1, 2, 0, 3, 1, 0, 2, 4, 1, 1] });
     if (p === "/functions/v1/nisia-setup" && body.action === "accept") return String(body.code).toUpperCase().replace(/[^A-Z0-9]/g, "") === "GOODINVITECODE01" ? json({ ok: true, email: persona.email }) : json({ error: "This invite has already been used, or doesn’t exist. Ask for a new one." }, 400);
     if (p === "/functions/v1/nisia-admin") {
       if (body.action === "create_college") { S.colleges.push({ id: "c" + S.colleges.length, name: body.name, status: "active", seats: +body.seats, seats_used: 0, staff: 0, learners: 0, contact_name: body.admin_name, contact_email: body.admin_email, licence_ends: body.licence_ends || null }); return json({ organisation_id: "c0", invite_code: "COLLEGEADMINCODE" }); }
@@ -59,7 +61,7 @@ function fakeSupabase(persona) {
 
 const browser = await pw.chromium.launch();
 async function open(persona, hash) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: persona.mobile ? { width: 390, height: 844 } : { width: 1280, height: 860 }, deviceScaleFactor: persona.mobile ? 2 : 1 });
   const page = await ctx.newPage(), errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errors.push(m.text()); });
@@ -77,7 +79,7 @@ try {
     await page.waitForSelector("#f"); await page.screenshot({ path: shots + "/1-invite.png" });
     await page.fill("#name", "Nisia admin"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector(".qr"); await page.screenshot({ path: shots + "/2-authenticator.png" });
-    check("Invite → sign-in → add Nisia to an authenticator app", /authenticator app/.test(await page.textContent(".auth")) && !/invite=/.test(page.url()));
+    check("Invite → sign-in → add Nisia to an authenticator app", /authenticator app/.test(await page.textContent(".signin-form")) && !/invite=/.test(page.url()));
     await page.fill("#c", "111111"); await page.click("button[type=submit]"); await page.waitForTimeout(300);
     check("A wrong authenticator code is refused", /didn’t work/.test(await page.textContent(".err")));
     await page.fill("#c", "123 456"); await page.click("button[type=submit]");
@@ -87,9 +89,9 @@ try {
     await page.waitForSelector(".linkbox"); await page.screenshot({ path: shots + "/4-college-invite.png" });
     const link = await page.inputValue(".linkbox input");
     check("Master admin creates a college and gets its admin's invite link", /#invite=COLLEGEADMINCODE$/.test(link) && fake.S.calls.includes("/functions/v1/nisia-admin:create_college"), link);
-    await page.click(".x"); await page.waitForSelector("[data-id=c0]"); await page.screenshot({ path: shots + "/5-master-admin.png" });
-    await page.click("[data-id=c0]"); await page.fill("#f [name=seats]", "40"); await page.click("#f button[type=submit]"); await page.waitForTimeout(400);
-    check("Master admin changes a college's seats", fake.S.colleges[0].seats === 40 && /40/.test(await page.textContent("[data-id=c0]")));
+    await page.click(".x"); await page.waitForSelector("tr[data-id=c0]"); await page.screenshot({ path: shots + "/5-master-admin.png" });
+    await page.click("tr[data-id=c0]"); await page.fill("#f [name=seats]", "40"); await page.click("#f button[type=submit]"); await page.waitForTimeout(400);
+    check("Master admin changes a college's seats", fake.S.colleges[0].seats === 40 && /40/.test(await page.textContent("tr[data-id=c0]")));
     check("No script errors (master admin)", !errors.length, errors.join(" | "));
     await ctx.close();
   }
@@ -105,18 +107,25 @@ try {
     await page.click("#back"); await page.waitForSelector("#email"); await page.fill("#email", "s.mitchell@brookfield.example");
     await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector("#c"); await page.fill("#c", "123456"); await page.click("button[type=submit]");
-    await page.waitForSelector("text=Learners"); await page.screenshot({ path: shots + "/6-college-empty.png" });
-    await page.click("#add"); await page.fill("[name=name]", "Callum Hughes"); await page.selectOption("[name=course]", "bricklayer");
+    await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/6-college-empty.png" });
+    await page.click("nav [data-go=learners]"); await page.click("#add"); await page.fill("[name=name]", "Callum Hughes"); await page.selectOption("[name=course]", "bricklayer");
     await page.fill("[name=start_date]", "2025-09-01"); await page.fill("[name=end_date]", "2027-08-31"); await page.fill("[name=employer_name]", "Hughes & Sons Builders");
     await page.check("[name=staff][value=m2]"); await page.screenshot({ path: shots + "/7-add-learner.png" }); await page.click("#f button[type=submit]");
     await page.waitForSelector(".qr svg"); await page.screenshot({ path: shots + "/8-evia-qr.png" });
-    check("College admin adds a learner with their assessor, then Evia's pairing QR shows", fake.S.learners.length === 1 && fake.S.learners[0].assessors[0].name === "Mark Ellis" && /ABC-2345/.test(await page.textContent(".code")));
+    check("College admin adds a learner with their assessor, then Evia's pairing QR shows", fake.S.learners.length === 1 && fake.S.learners[0].assessors[0].name === "Mark Ellis" && /ABC-2345/.test(await page.textContent(".big-code")));
     await page.click(".x"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/9-college.png", fullPage: true });
-    check("The learner shows with 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".grid3")) && /Callum Hughes/.test(await page.textContent(".list")));
-    await page.click("[data-tab=staff]"); await page.waitForSelector("#inv"); await page.click("#inv");
+    check("The learner shows in the table", /Callum Hughes/.test(await page.textContent("table")));
+    await page.click("nav [data-go=overview]"); await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/10-overview.png", fullPage: true });
+    check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
+    await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });
+    check("A learner's page shows what Evia sends", /Upload the cavity wall photos/.test(await page.textContent("#main")));
+    await page.click("nav [data-go=staff]"); await page.waitForSelector("#inv"); await page.click("#inv");
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");
     await page.waitForSelector(".linkbox");
     check("College admin invites staff", /#invite=STAFFINVITECODE1$/.test(await page.inputValue(".linkbox input")));
+    await page.click(".x"); await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
+    await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
+    check("On a phone the menu opens the learners list", /Callum Hughes/.test(await page.textContent("table")));
     check("No script errors (college portal)", !errors.length, errors.join(" | "));
     await ctx.close();
   }

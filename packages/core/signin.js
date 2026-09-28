@@ -20,8 +20,15 @@ export async function auth(root, o) {
   return signInForm(root, o);
 }
 
-const frame = (o, body, say) =>
-  '<div class="auth"><div class="box"><div class="hello"><span class="av lg" aria-hidden="true"><i></i><i></i></span>' +
+/* Two looks: Evia's (Milos), or o.split, the portal's: a dark panel with the Nisia islands beside the form. */
+const ISLANDS = '<svg class="islands" viewBox="0 0 420 260" aria-hidden="true"><path d="M0 200 C60 185 120 215 180 200 S300 185 420 200 V260 H0z" fill="#1B3350"/><path d="M40 200 C70 150 110 130 150 150 C170 120 210 115 240 150 C255 140 275 150 290 200z" fill="#0B6E78"/><path d="M300 200 C315 170 340 160 365 175 C380 165 400 175 410 200z" fill="#E7B900"/><path d="M190 205 C200 190 220 188 235 205z" fill="#2C85F7"/><path d="M0 225 C60 212 120 238 180 225 S300 212 420 225" fill="none" stroke="#3FB8C3" stroke-width="2" opacity=".5"/></svg>';
+export const MARK = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="10" fill="var(--accent)"/><path d="M6 23c3-3 6-3 9 0s6 3 9 0 3-1.5 4-1.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M9 18.5c1.5-4 3.5-6 5.5-6s3 2 4 3.5c1-1 2-1.5 3-1.5 1.6 0 2.8 1.4 3.5 4" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const frame = (o, body, say) => o.split
+  ? '<div class="signin"><section class="signin-art"><div class="label" style="color:#7FD0D8">Nisia · for colleges and training providers</div>' +
+    '<div style="display:flex;flex-direction:column;gap:14px;position:relative;z-index:1"><h1>See how every apprentice is really doing.</h1><p>Live progress from Evia, your learners’ app: who’s active, who’s gone quiet, and where evidence or learning hours are falling behind.</p></div>' + ISLANDS + '</section>' +
+    '<section class="signin-form"><div class="form"><div style="display:flex;align-items:center;gap:10px">' + MARK + '<span class="brand-name">' + esc(o.title) + '</span></div>' +
+    (say ? '<p class="muted small">' + say + '</p>' : '<div><h2>Sign in</h2><p class="muted small">' + esc(o.subtitle || "") + '</p></div>') + body + '</div></section></div>'
+  : '<div class="auth"><div class="box"><div class="hello"><span class="av lg" aria-hidden="true"><i></i><i></i></span>' +
   '<div><h1>' + esc(o.title) + '</h1><p class="muted">' + esc(o.subtitle || "") + '</p></div>' + (say ? '<p class="say">' + say + '</p>' : "") + '</div>' + body + '</div></div>';
 
 function signInForm(root, o, email, err) {
