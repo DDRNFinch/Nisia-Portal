@@ -1,11 +1,13 @@
 /* Milos observations: the assessor captures evidence the way the learner does in Evia (pick the unit, photos against
    its "things to capture", a write-up that ticks off its "things to mention", with the same strength bars), then signs
-   it off with the KSBs it meets, as when marking. It's saved to Nisia as the learner's evidence, recorded as the
-   assessor's observation, with the photos in the college's private evidence store. */
+   it off with the KSBs it meets, as when marking. It's saved on the phone first, then to Nisia as the learner's
+   evidence (recorded as the assessor's observation, photos in the college's private evidence store), now or once
+   there's signal. */
 import { db, esc } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { PROMPTS, split, termMatched } from "../../packages/core/prompts.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
+import { saveObservation } from "./store.js";
 
 /* Evia's strength rules (strength.js), for a pack being captured. */
 const words = (t) => String(t || "").trim().split(/\s+/).filter(Boolean).length;
@@ -124,42 +126,22 @@ export function openObservation({ L, me }, onSaved) {
     o.querySelector("#obSave").onclick = () => save();
   };
 
-  /* Saved in three steps (the evidence, each photo, the sign-off). If the signal drops part-way, trying again
-     carries on from where it stopped. */
+  /* Saved on this phone first, then sent to Nisia now if there's signal, or as soon as there is (store.js). */
   async function save() {
     const b = o.querySelector("#obSave"), err = o.querySelector(".err"), prog = o.querySelector("#obProg");
     if (!S.ticked.size) { err.textContent = "Tick at least one " + (code === "trowel3" ? "criterion" : "KSB") + " this observation meets."; return; }
-    b.disabled = true; err.textContent = "";
+    b.disabled = true; err.textContent = ""; prog.textContent = navigator.onLine ? "Saving and sending…" : "Saving on this phone…";
     const org = L.enrolment.organisation_id, u = S.unit;
     try {
-      if (!S.evId) {
-        prog.textContent = "Saving the observation…";
-        const id = crypto.randomUUID();
-        const { error } = await db.from("evidence").insert({ id, organisation_id: org, enrolment_id: L.enrolment.id, course_id: L.enrolment.course_id, created_by_member_id: me.member_id,
-          evidence_type: S.photos.some((p) => /^video\//.test(p.blob.type)) ? "video" : S.photos.length ? "photo" : "written", title: u.name, client_reference: "observation:" + id,
-          source_metadata: { collection: "observation", unit: u.name, text: S.text.trim(), ksbs: [...S.ticked], observedOn: S.on, observedBy: me.name, photoCount: S.photos.length } });
-        if (error) throw error;
-        S.evId = id;
-      }
-      for (let i = 0; i < S.photos.length; i++) {
-        if (S.sent[i]) continue;
-        prog.textContent = "Uploading photo " + (i + 1) + " of " + S.photos.length + "…";
-        const blob = S.photos[i].blob, ext = (blob.type.split("/")[1] || "jpg").replace(/[^a-z0-9]/g, "").slice(0, 5), path = org + "/" + S.evId + "/obs-" + (i + 1) + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
-        const up = await db.storage.from("evidence").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: false });
-        if (up.error) throw up.error;
-        const { error } = await db.from("evidence_files").insert({ organisation_id: org, evidence_id: S.evId, uploaded_by_member_id: me.member_id, storage_path: path, mime_type: blob.type || "application/octet-stream", size_bytes: blob.size });
-        if (error) throw error;
-        S.sent[i] = true;
-      }
-      prog.textContent = "Signing off…";
-      const { error } = await db.from("assessments").insert({ organisation_id: org, evidence_id: S.evId, assessor_member_id: me.member_id, decision: "accepted", feedback: S.feedback.trim() || null, ksbs: [...S.ticked] });
-      if (error) throw error;
+      const sent = await saveObservation({ enrolmentId: L.enrolment.id,
+        evidence: { organisation_id: org, enrolment_id: L.enrolment.id, course_id: L.enrolment.course_id, created_by_member_id: me.member_id,
+          evidence_type: S.photos.some((p) => /^video\//.test(p.blob.type)) ? "video" : S.photos.length ? "photo" : "written", title: u.name,
+          source_metadata: { collection: "observation", unit: u.name, text: S.text.trim(), ksbs: [...S.ticked], observedOn: S.on, observedBy: me.name, photoCount: S.photos.length } },
+        photos: S.photos.map((p) => p.blob),
+        assessment: { organisation_id: org, assessor_member_id: me.member_id, decision: "accepted", feedback: S.feedback.trim() || null, ksbs: [...S.ticked] } });
       try { localStorage.removeItem(DRAFT); } catch (_) {}
-      close(); onSaved();
-    } catch (x) {
-      prog.textContent = ""; b.disabled = false;
-      err.textContent = (navigator.onLine ? x.message || String(x) : "No signal.") + " Nothing is lost: try again and it carries on from where it stopped.";
-    }
+      close(); onSaved(sent);
+    } catch (x) { prog.textContent = ""; b.disabled = false; err.textContent = "Couldn’t save on this phone: " + (x.message || x); }
   }
   draw();
 }

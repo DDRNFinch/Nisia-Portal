@@ -6,6 +6,7 @@
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
+import { saveAssessment } from "./store.js";
 
 const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -49,7 +50,7 @@ export function groupByUnit(L, P) {
 }
 
 const status = (it) => !it.latest ? { cls: "accent", text: "New" } : it.latest.decision === "accepted" ? { cls: "good", text: "Accepted" } : { cls: "warn", text: "Changes needed" };
-export const statusPill = (it) => { const s = status(it); return '<span class="pill ' + s.cls + '">' + s.text + '</span>'; };
+export const statusPill = (it) => { const s = status(it); return '<span class="pill ' + s.cls + '">' + s.text + '</span>' + (it.latest && it.latest.pending || it.e.pending ? '<span class="pill idle" title="Saved on this phone, sent when there’s signal">Waiting to send</span>' : ""); };
 
 /* The unit list on the learner page. */
 export function portfolioHtml(groups, onlyNew, snap) {
@@ -75,11 +76,18 @@ export function portfolioHtml(groups, onlyNew, snap) {
 }
 
 /* ---------- One piece of evidence, as a document ---------- */
+/* Photos waiting to be sent are shown from the phone; the rest come from Nisia, so need signal. */
 async function signed(files) {
-  if (!files.length) return [];
-  const { data, error } = await db.storage.from("evidence").createSignedUrls(files.map((f) => f.storage_path), 3600);
-  if (error) throw error;
-  return files.map((f, i) => ({ ...f, url: data[i] && data[i].signedUrl }));
+  const here = files.filter((f) => f.blob), there = files.filter((f) => !f.blob);
+  const urls = {};
+  here.forEach((f) => { urls[f.storage_path] = URL.createObjectURL(f.blob); });
+  if (there.length) {
+    if (!navigator.onLine) throw new Error("Photos open when there’s signal. Everything else here works offline.");
+    const { data, error } = await db.storage.from("evidence").createSignedUrls(there.map((f) => f.storage_path), 3600);
+    if (error) throw error;
+    there.forEach((f, i) => { urls[f.storage_path] = data[i] && data[i].signedUrl; });
+  }
+  return files.map((f) => ({ ...f, url: urls[f.storage_path] }));
 }
 const ksbText = (C, code) => ((C.ksbs || []).find((k) => k[0] === code) || [code, ""])[1];
 
@@ -146,10 +154,12 @@ export async function openEvidence(ctx, item, onSaved) {
       if (decision !== "accepted" && !feedback) { err.textContent = "Say what the learner needs to add or change."; fb.focus(); return; }
       if (decision === "accepted" && !ticked.size) { err.textContent = "Tick at least one KSB this evidence meets, or ask for changes."; return; }
       b.disabled = true; b.textContent = "Saving…";
-      const { data, error } = await db.from("assessments").insert({ organisation_id: e.organisation_id || L.enrolment.organisation_id, evidence_id: e.id, assessor_member_id: me.member_id, decision, feedback: feedback || null, ksbs: [...ticked] }).select("id, evidence_id, decision, feedback, ksbs, created_at, assessor_member_id").single();
-      if (error) { err.textContent = error.message; b.disabled = false; draw(); return; }
+      const row = { organisation_id: e.organisation_id || L.enrolment.organisation_id, evidence_id: e.id, assessor_member_id: me.member_id, decision, feedback: feedback || null, ksbs: [...ticked] };
+      let sent;
+      try { sent = await saveAssessment({ enrolmentId: L.enrolment.id, row }); } catch (x) { err.textContent = "Couldn’t save on this phone: " + x.message; b.disabled = false; return; }
+      const data = { ...row, created_at: new Date().toISOString(), pending: !sent };
       item.history.unshift(data); item.latest = data; box.dataset.fb = "";
-      onSaved(item);
+      onSaved(item, sent);
       /* On to the next piece still to assess, through the units in order. */
       const all = groups.flatMap((g) => g.items), here = all.indexOf(item);
       const next = all.slice(here + 1).find((x) => !x.latest) || all.slice(0, here).find((x) => !x.latest);

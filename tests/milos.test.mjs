@@ -167,7 +167,7 @@ try {
   check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met === 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
     A.feelsSafe === "Yes" && A.topicDiscussed === "British values" && A.changes === "None" && A.iagGiven === "Yes" && A.epaReady === "On track" && !!A.nextReview && A.previous[0].outcome === "Partly met" &&
     ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(A).slice(0, 300));
-  check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === "REV1" && !!tg && tg.body.length >= 2);
+  check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === rev.body.id && /^[0-9a-f-]{36}$/.test(rev.body.id) && !!tg && tg.body.length >= 2);
   check("Completing it doesn't download a file: it's kept in Nisia", !downloaded);
   const pdfOf = async (withSigs) => { const [d] = await Promise.all([page.waitForEvent("download"), page.evaluate(async ([c, w]) => { const m = await import("../../packages/core/reviewdoc.js"); await m.reviewPdf({ ...c, id: "REV1", reviewedAt: c.answers.date }, { signatures: w }); }, [rev.body.content, withSigs])]);
     const f = shots + "/review" + (withSigs ? "" : "-learner") + ".pdf"; await d.saveAs(f); return fs.readFileSync(f); };
@@ -175,7 +175,26 @@ try {
   check("The staff PDF has the signatures; the learner's copy names the signers without them", staffPdf.slice(0, 4).toString() === "%PDF" && learnerPdf.slice(0, 4).toString() === "%PDF" && /\/Subtype \/Image/.test(staffPdf.toString("latin1")) && !/\/Subtype \/Image/.test(learnerPdf.toString("latin1")));
   const html = await page.evaluate(async (c) => { const m = await import("../../packages/core/reviewdoc.js"); return [m.reviewHtml(c), m.reviewHtml(c, { signatures: false })]; }, rev.body.content);
   check("On screen, staff see the signatures and the learner's view doesn't", (html[0].match(/<img/g) || []).length === 3 && !/<img/.test(html[1]) && /Callum Hughes/.test(html[1]));
-  check("No script errors", !errors.length, errors.join(" | "));
+  /* Offline: Milos opens from the phone, an observation waits on the phone, and Sync now sends it. */
+  await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForTimeout(800);
+  const before = posted.length;
+  await ctx.setOffline(true);
+  await page.reload(); await page.waitForSelector("[data-id=L1]", { timeout: 10000 });
+  const offBar = await page.textContent("#syncbar");
+  await page.click("[data-id=L1]"); await page.waitForSelector("#obs");
+  const offLearner = /36%/.test(await page.textContent("#main"));
+  await page.click("#obs"); await page.click('.obs-units [data-u="1"]'); await page.waitForSelector("#obText");
+  await page.setInputFiles("#obPick", [{ name: "o.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") }]);
+  await page.fill("#obText", "Pointed the joints with a half round finish, wearing PPE."); await page.click("#obNext"); await page.click("#obSave");
+  await page.waitForSelector(".obs", { state: "detached" }); await page.waitForSelector("#pfBox .pf-unit");
+  const waitingShown = /waiting to send/i.test(await page.textContent("#syncbar")) && /Waiting to send/.test(await page.textContent("#pfBox"));
+  const nothingSent = posted.length === before;
+  check("Offline, Milos opens from the phone with the learners and their progress, and an observation waits on the phone", /Offline/.test(offBar) && offLearner && waitingShown && nothingSent, JSON.stringify({ offBar, offLearner, waitingShown, nothingSent }));
+  await ctx.setOffline(false); await page.evaluate(() => dispatchEvent(new Event("online"))); await page.waitForTimeout(300);
+  await page.click("#syncNow"); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
+  const ev2 = posted.slice(before).find((x) => x.table === "evidence"), up2 = posted.slice(before).filter((x) => x.table === "storage").length, as2 = posted.slice(before).find((x) => x.table === "assessments");
+  check("Back online, Sync now sends it: the observation, its photo and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 1 && !!as2 && as2.body.evidence_id === ev2.body.id);
+  check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }
 await browser.close(); server.close();

@@ -7,6 +7,7 @@
    is kept on this device until then. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
+import { saveReview } from "./store.js";
 import { reviewPdf } from "../../packages/core/reviewdoc.js";
 
 export const RULES = { id: "apprenticeship-funding-2025-26", intervalWeeks: 12, name: "Apprenticeship funding rules 2025 to 2026" };
@@ -262,12 +263,13 @@ export function openReview(L, me, onDone) {
         targets: R.targets.filter((t) => t.title.trim()), completedAt: new Date().toISOString() };
       content.hash = await hash({ ...content, signatures: Object.fromEntries(Object.entries(content.signatures).map(([k, s]) => [k, { name: s.name, at: s.at }])) });
       const en = L.enrolment;
-      const { data: rev, error } = await db.from("reviews").insert({ organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, review_type: "progress", content, reviewed_at: new Date(R.date + "T12:00:00").toISOString() }).select("id").single();
-      if (error) throw new Error(error.message);
-      await db.from("review_signoffs").insert({ organisation_id: en.organisation_id, review_id: rev.id, member_id: me.member_id, signer_role: "assessor" });
-      if (content.targets.length) await db.from("targets").insert(content.targets.map((t) => ({ organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, title: t.title, description: [t.how, t.support ? "Support: " + t.support : ""].filter(Boolean).join("\n"), due_date: t.due || null, status: "open" })));
+      /* Saved on this phone, then sent to Nisia now or once there's signal (store.js). */
+      const sent = await saveReview({ enrolmentId: en.id,
+        review: { organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, review_type: "progress", content, reviewed_at: new Date(R.date + "T12:00:00").toISOString() },
+        signoff: { organisation_id: en.organisation_id, member_id: me.member_id, signer_role: "assessor" },
+        targets: content.targets.map((t) => ({ organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, title: t.title, description: [t.how, t.support ? "Support: " + t.support : ""].filter(Boolean).join("\n"), due_date: t.due || null, status: "open" })) });
       localStorage.removeItem(DRAFT(L.row.enrolment_id));
-      close(); onDone && onDone();
+      close(); onDone && onDone(sent);
     } catch (e) { btn.disabled = false; btn.textContent = "Complete review"; root.querySelector("#signErr").textContent = e.message; }
   }
   draw();
