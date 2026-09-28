@@ -67,6 +67,17 @@ function handle(route) {
   return json({ error: "not faked " + p }, 404);
 }
 
+/* Every file Milos loads is in its offline copy (sw.js), or Milos can't open without signal. */
+{
+  const dir = path.join(root, "apps", "milos"), sw = fs.readFileSync(path.join(dir, "sw.js"), "utf8");
+  const listed = new Set(sw.match(/FILES = \[([\s\S]*?)\];/)[1].match(/"([^"]+)"/g).map((x) => path.normalize(path.join(dir, x.slice(1, -1)))));
+  const need = new Set(), seen = new Set();
+  const walk = (f) => { if (seen.has(f)) return; seen.add(f); need.add(f); for (const m of fs.readFileSync(f, "utf8").matchAll(/from "(\.[^"]+)"/g)) walk(path.normalize(path.join(path.dirname(f), m[1]))); };
+  walk(path.join(dir, "app.js"));
+  for (const m of fs.readFileSync(path.join(dir, "index.html"), "utf8").matchAll(/(?:src|href)="(\.[^"]+\.(?:js|css))"/g)) need.add(path.normalize(path.join(dir, m[1])));
+  const missing = [...need].filter((f) => !listed.has(f)).map((f) => path.relative(root, f));
+  check("Every file Milos loads is in its offline copy", !missing.length, "missing from sw.js: " + missing.join(", "));
+}
 const browser = await pw.chromium.launch();
 try {
   const ctx = await browser.newContext({ viewport: { width: 400, height: 860 }, acceptDownloads: true, locale: "en-GB" });
