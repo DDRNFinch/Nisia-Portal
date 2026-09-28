@@ -15,9 +15,9 @@ let who = null, rows = [], filter = "all";
    otherwise sign in, then download. Sign-in that can't reach Nisia (no signal) falls back to the phone's copy. */
 const AUTH = { title: "Milos", subtitle: "For assessors", onReady: () => home(true) };
 async function start() {
-  let have = null; try { have = await cached(); } catch (_) {}
-  const { data } = await db.auth.getSession().catch(() => ({ data: {} }));
-  if (have && data && data.session) return home(true);
+  let have = null; try { have = await withTimeout(cached(), 5000); } catch (_) {}
+  /* Learners on the phone: open them straight away, whatever the sign-in is doing; syncing checks it later. */
+  if (have && localStorage.getItem("nisia-auth")) return home(true);
   try { await withTimeout(auth(root, AUTH), 15000); }
   catch (e) {
     root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Milos couldn’t reach Nisia: " + e.message : "You’re offline, and there are no learners on this phone yet. Connect to the internet once to download them.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>';

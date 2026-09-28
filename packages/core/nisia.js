@@ -7,7 +7,21 @@ const { createClient } = window.supabase;
 export const NISIA_URL = "https://ffgfigkeeeauzkifopei.supabase.co";
 export const NISIA_KEY = "sb_publishable_w_R4Kqq3UqNKQuv6erQzAQ_bXBkw8Bc";
 
-export const db = createClient(NISIA_URL, NISIA_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "nisia-auth" } });
+/* Two things that could leave a screen waiting for ever (seen on phones after an update):
+   - supabase-js holds a cross-tab lock while it refreshes the sign-in; a frozen old page, or the portal open in
+     another tab, could keep it. Each page manages its own sign-in instead (a lock that just runs).
+   - a request with no answer. Every request now gives up after a while (longer for uploads), so it becomes an
+     error the screen can show, and offline Milos carries on from the phone. */
+const timedFetch = (url, o = {}) => {
+  if (o.signal) return fetch(url, o);
+  const c = new AbortController(), ms = /\/storage\/v1\/object\//.test(String(url)) && o.method && o.method !== "GET" ? 120000 : 25000;
+  const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { ...o, signal: c.signal }).catch((e) => { throw e.name === "AbortError" ? new Error("Nisia didn’t answer in time. Check your signal and try again.") : e; }).finally(() => clearTimeout(t));
+};
+export const db = createClient(NISIA_URL, NISIA_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: "nisia-auth", lock: (_name, _timeout, fn) => fn() },
+  global: { fetch: timedFetch },
+});
 
 /* An edge function; throws the function's own message on failure. */
 export async function call(fn, body) {

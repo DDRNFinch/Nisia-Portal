@@ -135,7 +135,29 @@ details summary{cursor:pointer}
 </style>
 </head>
 <body>
-<div id="app"><div class="auth"><p class="muted">Loading Milos…</p></div></div>
+<div id="app"><div class="auth"><p class="muted" id="booting">Loading Milos…</p></div></div>
+<script>
+/* A backstop: if Milos hasn’t opened in 20 seconds, say why, and offer a reload or a fresh copy of the app. */
+(function () {
+  var errs = [];
+  addEventListener("error", function (e) { errs.push((e.message || (e.target && (e.target.src || e.target.href)) || "error") + ""); }, true);
+  addEventListener("unhandledrejection", function (e) { errs.push(String(e.reason && e.reason.message || e.reason)); });
+  setTimeout(function () {
+    var b = document.getElementById("booting"); if (!b) return;
+    b.parentNode.innerHTML = '<div class="box"><h2>Milos is taking too long to open</h2><p class="muted">' + (navigator.onLine ? "It may be a slow connection, or an old copy of Milos on this phone." : "You’re offline.") + '</p>' +
+      (errs.length ? '<p class="small muted">' + errs.slice(-3).join("<br>").replace(/[<>&]/g, "") + '</p>' : "") +
+      '<button class="btn primary wide" id="bootReload">Reload</button><button class="btn ghost wide" id="bootReset">Reset Milos</button>' +
+      '<p class="small muted">Reset gets a fresh copy of the app. Your learners and anything waiting to send stay on the phone.</p></div>';
+    document.getElementById("bootReload").onclick = function () { location.reload(); };
+    document.getElementById("bootReset").onclick = function () {
+      var jobs = [];
+      if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+      if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^milos-/.test(k); }).map(function (k) { return caches.delete(k); })); }));
+      Promise.all(jobs).catch(function () {}).then(function () { location.replace(location.pathname + "?fresh=" + Date.now()); });
+    };
+  }, 20000);
+})();
+</script>
 <noscript><p style="padding:20px">Milos needs JavaScript switched on.</p></noscript>
 <script src="../../packages/vendor/supabase-2.45.4.js"></script>
 <script src="../../packages/vendor/qrcode-generator-1.4.4.js"></script>
