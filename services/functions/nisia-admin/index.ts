@@ -112,15 +112,16 @@ Deno.serve(async (req) => {
         }
       }
       case "pairing_code": {
-        // Anyone who can see the learner and isn't the learner (their assessor, tutor or college admin).
-        const { data: l } = await me.from("learners").select("id, organisation_id, organisation_member_id").eq("id", b.learner_id).maybeSingle();
+        // Anyone who can see the learner and isn't the learner (their assessor, tutor or college admin), or the master admin.
+        const platform = await isPlatform();
+        const { data: l } = await (platform ? admin : me).from("learners").select("id, organisation_id, organisation_member_id").eq("id", b.learner_id).maybeSingle();
         if (!l) return fail("You can’t see this learner.", 403);
         const { data: mine } = await admin.from("organisation_members").select("id").eq("organisation_id", l.organisation_id).eq("user_id", uid).eq("active", true).maybeSingle();
-        if (!mine || mine.id === l.organisation_member_id) return fail("Not allowed.", 403);
+        if (mine ? mine.id === l.organisation_member_id : !platform) return fail("Not allowed.", 403);
         await admin.from("evia_pairing_tokens").delete().eq("learner_id", l.id).is("used_at", null);
         const code = makeCode(7), minutes = 30;
         const { error } = await admin.from("evia_pairing_tokens").insert({
-          organisation_id: l.organisation_id, learner_id: l.id, created_by_member_id: mine.id, token_hash: await sha256(code),
+          organisation_id: l.organisation_id, learner_id: l.id, created_by_member_id: mine?.id ?? null, token_hash: await sha256(code),
           expires_at: new Date(Date.now() + minutes * 60000).toISOString(),
         });
         if (error) throw error;
