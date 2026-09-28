@@ -83,8 +83,8 @@ export function draftFeedback(A, { first, decision, ticked, unitName, nvq }) {
     return s.join(" ");
   }
   const s = ["Thanks" + (n ? " " + n : "") + ", this is a good start on " + unitName.toLowerCase() + ". I'd like a bit more before I sign it off."];
-  const add = [gaps.length ? "explain " + list(gaps) + " in your own words" : "", photoNote, A.words < 60 ? "a fuller write-up: say what you did, in order, and why" : ""].filter(Boolean);
-  s.push(add.length ? "Please add " + list(add) + "." : "Please add more detail on how you did the job and why.");
+  const add = [photoNote, A.words < 60 ? "a fuller write-up saying what you did, in order, and why" : ""].filter(Boolean);
+  s.push(gaps.length ? "Please explain " + list(gaps) + " in your own words" + (add.length ? ", and add " + list(add) : "") + "." : add.length ? "Please add " + list(add) + "." : "Please add more detail on how you did the job and why.");
   s.push("Evia's guided mode will take you through it step by step.");
   return s.join(" ");
 }

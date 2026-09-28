@@ -131,7 +131,14 @@ try {
   const hl = await page.evaluate(() => ({ marks: document.querySelectorAll("#acct mark.ev-hl").length, found: [...document.querySelectorAll(".ev-found")].map((b) => b.textContent), fb: document.querySelector("#fb").value, note: (document.querySelector("#acctNote") || {}).textContent }));
   check("Evidence: Evia's matched words are highlighted in the write-up and against each KSB, with feedback drafted to edit", hl.marks >= 3 && hl.found.length >= 1 && /Callum/.test(hl.fb) && /Covers \d+ of \d+ things to mention/.test(hl.note), JSON.stringify(hl).slice(0, 400));
   await page.locator("#paper section").first().screenshot({ path: shots + "/m2d-highlight.png" }).catch(() => {}); await page.locator("#assess").screenshot({ path: shots + "/m2e-assess.png" }).catch(() => {});
-  await page.click("#hlOn"); const off = await page.evaluate(() => document.querySelectorAll("#acct mark").length === 0 && !document.querySelector(".ev-found"));
+  const sp = await page.evaluate(() => [...document.querySelectorAll(".ev-spotted .ksb-row")].map((r) => ({ k: r.querySelector("input").value, on: r.querySelector("input").checked, marks: r.querySelectorAll("mark").length, found: (r.querySelector(".ev-found") || {}).textContent || "", from: (r.querySelector("em") || {}).textContent || "" })));
+  await page.locator(".ev-spotted").screenshot({ path: shots + "/m2h-spotted.png" }).catch(() => {});
+  console.log("   Spotted: " + JSON.stringify(sp));
+  check("Evia suggests other KSBs whose words are in the write-up, unticked, with the matching words marked and the unit they're from", sp.length >= 1 && sp.every((x) => !x.on && x.marks >= 1 && /Evia found/.test(x.found) && /^Unit \d+/.test(x.from)), JSON.stringify(sp));
+  if (sp.length) { await page.click('.ev-spotted .ev-found'); await page.waitForTimeout(150); }
+  check("…and tapping the words highlights them in the write-up", sp.length > 0 && await page.evaluate(() => document.querySelectorAll("#acct mark").length >= 1 && /Showing the words for/.test(document.querySelector("#acctNote").textContent)));
+  if (sp.length) { await page.click('.ev-spotted .ev-found'); await page.waitForTimeout(150); }
+  await page.click("#hlOn"); const off = await page.evaluate(() => document.querySelectorAll("#acct mark").length === 0 && !document.querySelector(".ksbs:not(.ev-spotted .ksbs) .ev-found"));
   await page.click("#hlOn");
   await page.click('[data-d="changes_required"]'); const fbChanges = await page.inputValue("#fb"); await page.click('[data-d="accepted"]');
   check("…the highlight switch turns it off, and the draft follows the decision", off && /before I sign it off/.test(fbChanges), fbChanges);
