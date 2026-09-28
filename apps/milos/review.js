@@ -100,27 +100,24 @@ const blank = (F, me) => ({
   otjConfirmed: false, otjComment: "",
   mathsStatus: F.maths.on ? "Working towards" : "Achieved or exempt", englishStatus: F.english.on ? "Working towards" : "Achieved or exempt", fsComment: "",
   knowledgeComment: "",
-  feelsSafe: "", knowsReporting: "", healthSafety: "", topicDiscussed: "", safeguardingComment: "",
+  feelsSafe: "", knowsReporting: "", hsStatus: "", healthSafety: "", topicDiscussed: "", safeguardingComment: "",
   supportNeeds: F.reflection.support, supportInPlace: "",
   changes: "None", changesDetail: "",
-  apprenticeComment: F.reflection.feedback, nextSteps: F.reflection.nextSteps, iag: "",
+  apprenticeComment: F.reflection.feedback, iagGiven: "", nextSteps: F.reflection.nextSteps,
   epaReady: "", predictedGrade: "", epaComment: "",
   targets: suggestTargets(F),
   overallRag: "", nextReview: isoDay(Date.now() + RULES.intervalWeeks * 7 * DAY), summary: "",
   signatures: {},
 });
 
-const STEPS = [
-  ["about", "About this review"], ["previous", "Previous targets"], ["progress", "Progress against the plan"], ["otj", "Off-the-job training"],
-  ["fs", "English and maths"], ["knowledge", "Knowledge and practice"], ["safe", "Safeguarding, Prevent, British values and EDI"],
-  ["support", "Support needs"], ["changes", "Changes in circumstances"], ["voices", "Apprentice and employer"], ["epa", "End-point assessment"],
-  ["targets", "New SMART targets"], ["overall", "Overall"], ["sign", "Sign the review"],
-];
-
+/* Four screens. Everything the funding rules and Ofsted look for is still here, mostly as ticks and choices; a note
+   box only opens when an answer needs one (someone doesn't feel safe, a change in circumstances, support needed). */
+const STEPS = [["progress", "Progress"], ["wellbeing", "Wellbeing, safety and support"], ["next", "Next steps"], ["sign", "Overall and signatures"]];
+const TOPICS = ["Prevent", "British values", "Equality and diversity", "Online safety", "Mental health and wellbeing", "Health and safety"];
 export function openReview(L, me, onDone) {
   const F = facts(L);
   let R; try { R = JSON.parse(localStorage.getItem(DRAFT(L.row.enrolment_id)) || "null"); } catch { R = null; }
-  if (!R || R.v !== 1) R = { v: 1, ...blank(F, me) };
+  if (!R || R.v !== 2) R = { v: 2, ...blank(F, me) };
   let step = 0;
   const save = () => { try { localStorage.setItem(DRAFT(L.row.enrolment_id), JSON.stringify(R)); } catch { /* storage full */ } };
   const root = document.createElement("div"); root.className = "rv"; root.setAttribute("role", "dialog"); root.setAttribute("aria-modal", "true");
@@ -134,79 +131,101 @@ export function openReview(L, me, onDone) {
   const input = (name, label, val, type) => '<label class="field">' + esc(label) + '<input name="' + name + '" type="' + (type || "text") + '" value="' + esc(val || "") + '"></label>';
   const subj = (s) => s ? s.areasDone + " of " + s.areas.length + " areas done" + (s.avg != null ? ", average " + s.avg + "%" : "") : "Not started";
 
+  /* A note that only shows while an answer needs it: data-when="name=value" (or name!=value). */
+  const when = (cond, html) => '<div data-when="' + esc(cond) + '">' + html + '</div>';
+  const ticks = (name, opts, vals) => '<div class="checks">' + opts.map((o) => '<label class="check"><input type="checkbox" name="' + name + '" value="' + esc(o) + '"' + (vals.includes(o) ? " checked" : "") + '> ' + esc(o) + '</label>').join("") + '</div>';
+
   function body(id) {
     switch (id) {
-      case "about": return fromEvia(fact("Apprentice", F.learner) + fact("Course", F.course) + fact("Employer", F.employer) + fact("Programme", ukDate(F.start) + " to " + ukDate(F.end)) + fact("Review", "Number " + F.reviewNo) + fact("Period", ukDate(F.periodStart) + " to " + ukDate(F.periodEnd))) +
-        input("date", "Date of review", R.date, "date") + '<div class="field">How it was held' + choice("method", ["In person", "Online", "At the workplace"], R.method) + '</div>' +
-        '<div class="field">Who took part (a progress review is three-way)<div class="checks">' + [["apprentice", "Apprentice"], ["employer", "Employer"], ["assessor", "Assessor"], ["tutor", "Tutor"]].map(([k, t]) => '<label class="check"><input type="checkbox" name="att_' + k + '"' + (R.attendees[k] ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div>' +
-        '<div class="grid2">' + input("employerName", "Employer’s name", R.employerName) + input("employerRole", "Their role", R.employerRole) + '</div>';
-      case "previous": return (R.previous.length ? R.previous.map((t, i) => '<div class="card flat"><b>' + esc(t.title) + '</b><p class="small muted">' + (t.source === "evia" ? "Set in Evia" : "Set at the last review") + (t.due ? " · due " + esc(ukDate(t.due)) : "") + '</p>' + choice("prev_" + i, ["Met", "Partly met", "Not met"], t.outcome) + '<label class="field">Comment<input name="prevc_' + i + '" value="' + esc(t.comment) + '"></label></div>').join("")
-        : '<p class="note">No targets were set before this review.</p>');
-      case "progress": return fromEvia(fact("Time through the programme", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Criteria with evidence" : "KSBs with evidence", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)", F.timePct != null ? (F.ksb.pct >= F.timePct - 10 ? "On track for time" : "Behind for time") : "") +
-        fact("Evidence this period", F.evidencePeriod, F.evidenceTotal + " in total") + fact("Write-ups cover", F.writeupCoverage != null ? F.writeupCoverage + "% of what to mention" : "—") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—")) +
+      case "progress": return '<details class="card flat about"' + (R.date ? "" : " open") + '><summary><b>About this review</b> <span class="small muted">' + esc(ukDate(R.date)) + ' · ' + esc(R.method) + ' · review ' + F.reviewNo + ' (' + esc(ukDate(F.periodStart)) + ' to ' + esc(ukDate(F.periodEnd)) + ')</span></summary>' +
+          '<div class="grid2">' + input("date", "Date", R.date, "date") + '<div class="field">How<select name="method">' + ["In person", "Online", "At the workplace"].map((o) => '<option' + (R.method === o ? " selected" : "") + '>' + o + '</option>').join("") + '</select></div>' + input("employerName", "Employer’s name", R.employerName) + input("employerRole", "Their role", R.employerRole) + '</div>' +
+          '<div class="field">Who took part (apprentice and employer must)<div class="checks">' + [["apprentice", "Apprentice"], ["employer", "Employer"], ["assessor", "Assessor"], ["tutor", "Tutor"]].map(([k, t]) => '<label class="check"><input type="checkbox" name="att_' + k + '"' + (R.attendees[k] ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div></details>' +
+        fromEvia(fact("Time through", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Criteria evidenced" : "KSBs evidenced", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)", F.timePct != null ? (F.ksb.pct >= F.timePct - 10 ? "On track for time" : "Behind for time") : "") +
+          fact("Evidence this period", F.evidencePeriod, F.evidenceTotal + " in total") + fact("Off-the-job hours", F.otj.total + " h", F.otj.expected != null ? F.otj.expected + " h expected by now" : "") +
+          (F.maths.on ? fact("Maths", F.maths.test ? "Best " + F.maths.test.best + "%" : subj(F.maths.teach)) : "") + (F.english.on ? fact("English", F.english.test ? "Best " + F.english.test.best + "%" : subj(F.english.teach)) : "") +
+          fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—")) +
         (F.missingUnits.length ? '<details class="card flat"><summary><b>Still to evidence</b> (' + F.missingUnits.length + ' units)</summary><ul class="small">' + F.missingUnits.map((u) => '<li>' + esc(u.name) + ': ' + u.missing + ' of ' + u.total + ' still to do</li>').join("") + '</ul></details>' : "") +
+        (R.previous.length ? '<div class="field">Previous targets' + R.previous.map((t, i) => '<div class="prev"><span>' + esc(t.title) + '</span>' + choice("prev_" + i, ["Met", "Partly met", "Not met"], t.outcome) + '</div>').join("") + '</div>' : "") +
         '<div class="field">Progress against the training plan' + choice("progressRag", ["On track", "Slightly behind", "At risk"], R.progressRag) + '</div>' +
-        area("progressComment", "Assessor’s comments on progress (new skills, knowledge and behaviours this period)", R.progressComment, "What they’ve done well, what they’ve learnt, where they need to develop") +
-        area("employerComment", "Employer’s comments on performance at work", R.employerComment, "How they’re doing at work, and the chances they’ve had to practise");
-      case "otj": return fromEvia(fact("Planned in total", F.otj.planned != null ? F.otj.planned + " h" : "Not set in Nisia") + fact("Expected by now", F.otj.expected != null ? F.otj.expected + " h" : "—") + fact("Logged in total", F.otj.total + " h", F.otj.onTrack == null ? "" : F.otj.onTrack ? "On track" : "Behind") + fact("This period", F.otj.period + " h")) +
-        '<label class="check"><input type="checkbox" name="otjConfirmed"' + (R.otjConfirmed ? " checked" : "") + '> The employer confirms off-the-job training is happening in paid working hours</label>' +
-        area("otjComment", "Off-the-job training this period, and any barriers", R.otjComment, "e.g. college days, toolbox talks, shadowing; what’s getting in the way");
-      case "fs": return fromEvia(fact("Maths in Teach me", F.maths.on ? subj(F.maths.teach) : "Not needed") + fact("Maths test", F.maths.test ? "Best " + F.maths.test.best + "%" : "None yet") + fact("English in Teach me", F.english.on ? subj(F.english.teach) : "Not needed") + fact("English test", F.english.test ? "Best " + F.english.test.best + "%" : "None yet")) +
-        '<div class="field">Maths' + choice("mathsStatus", ["Achieved or exempt", "Working towards", "Booked to take"], R.mathsStatus) + '</div>' +
-        '<div class="field">English' + choice("englishStatus", ["Achieved or exempt", "Working towards", "Booked to take"], R.englishStatus) + '</div>' + area("fsComment", "English and maths progress", R.fsComment);
-      case "knowledge": return fromEvia(fact("Teach me: " + (F.teachCourse ? F.teachCourse.name : "course"), subj(F.teachCourse)) + fact("Medals", F.medals ? F.medals.gold + " gold, " + F.medals.silver + " silver, " + F.medals.bronze + " bronze" : "—") +
-        fact(F.nvq ? "Knowledge tests" : "EPA mock tests", F.mock ? "Best " + F.mock.best + "% (" + F.mock.count + " taken)" : "None yet") + fact("Wants more practice in", F.confidence && F.confidence.practise && F.confidence.practise.length ? F.confidence.practise.slice(0, 4).join(", ") : "Nothing rated low")) +
-        area("knowledgeComment", "Knowledge, skills and behaviours: what was discussed", R.knowledgeComment, "e.g. questions asked about the standard, and how they answered");
-      case "safe": return fromEvia(fact("EDI and safeguarding lessons", subj(F.edi))) +
-        '<div class="field">Does the apprentice feel safe at work and at college?' + choice("feelsSafe", ["Yes", "No, action taken", "Discussed"], R.feelsSafe) + '</div>' +
+        '<label class="check wide-check"><input type="checkbox" name="otjConfirmed"' + (R.otjConfirmed ? " checked" : "") + '> The employer confirms off-the-job training is happening in paid working hours</label>' +
+        when("otjConfirmed!=on", area("otjComment", "Why not, and what happens next", R.otjComment)) +
+        (F.maths.on ? '<div class="field">Maths' + choice("mathsStatus", ["Working towards", "Booked to take", "Achieved or exempt"], R.mathsStatus) + '</div>' : "") +
+        (F.english.on ? '<div class="field">English' + choice("englishStatus", ["Working towards", "Booked to take", "Achieved or exempt"], R.englishStatus) + '</div>' : "") +
+        area("progressComment", "What they’ve learnt and achieved this period, and what to work on", R.progressComment, "New skills, knowledge and behaviours, with examples") +
+        input("employerComment", "Employer’s view of their work (optional)", R.employerComment);
+      case "wellbeing": return '<div class="field">Do they feel safe at work and at college?' + choice("feelsSafe", ["Yes", "No, action taken", "Discussed"], R.feelsSafe) + '</div>' +
+        when("feelsSafe!=Yes", area("safeguardingComment", "What was said, and what was done (a referral goes to the safeguarding lead today)", R.safeguardingComment)) +
         '<div class="field">Do they know how to raise a concern, and who the safeguarding lead is?' + choice("knowsReporting", ["Yes", "No, explained today"], R.knowsReporting) + '</div>' +
-        input("topicDiscussed", "Prevent, British values or EDI topic discussed", R.topicDiscussed) + area("healthSafety", "Health and safety at work (incidents, near misses, concerns)", R.healthSafety, "None, or what happened and what was done") +
-        area("safeguardingComment", "Anything else (anything needing a referral goes to the safeguarding lead today, not in this form)", R.safeguardingComment);
-      case "support": return fromEvia(fact("What the apprentice said in Evia", F.reflection.support || "Nothing added")) +
-        area("supportNeeds", "Learning support needs (e.g. reading, writing, maths, dyslexia, a disability)", R.supportNeeds) +
-        '<div class="field">Additional learning support' + choice("supportInPlace", ["Not needed", "In place and working", "Needed: arranging", "Needs reviewing"], R.supportInPlace) + '</div>';
-      case "changes": return '<div class="field">Any change to job role, employer, hours, contract, or a need for a break in learning?' + choice("changes", ["None", "Yes"], R.changes) + '</div>' +
-        area("changesDetail", "What’s changed, and what happens next (the college must be told straight away)", R.changesDetail);
-      case "voices": return fromEvia(fact("How it’s going (Evia)", F.reflection.feedback || "Nothing added") + fact("Future plans (Evia)", F.reflection.nextSteps || "Nothing added")) +
-        area("apprenticeComment", "Apprentice’s comments", R.apprenticeComment, "In their own words") + area("nextSteps", "Career plans and next steps", R.nextSteps) + area("iag", "Careers information and advice given", R.iag);
-      case "epa": return fromEvia(fact("Time through the programme", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Evidence coverage", F.ksb.pct + "%")) +
-        '<div class="field">Readiness for gateway' + choice("epaReady", ["Not yet (early in programme)", "On track", "Ready for gateway", "Concerns"], R.epaReady) + '</div>' +
-        '<div class="field">Predicted grade' + choice("predictedGrade", ["Too early to say", "Pass", "Merit", "Distinction"], R.predictedGrade) + '</div>' + area("epaComment", "EPA preparation", R.epaComment);
-      case "targets": return '<p class="small muted">Specific, measurable, achievable, relevant and time-bound. Suggested from Evia; change anything.</p>' +
+        '<div class="field">Discussed today (Prevent, British values, EDI)' + ticks("topics", TOPICS, String(R.topicDiscussed || "").split(", ").filter(Boolean)) + '</div>' +
+        '<div class="field">Health and safety at work' + choice("hsStatus", ["No incidents or concerns", "Something to record"], R.hsStatus) + '</div>' +
+        when("hsStatus=Something to record", area("healthSafety", "What happened, and what was done", R.healthSafety)) +
+        '<div class="field">Learning support' + choice("supportInPlace", ["Not needed", "In place and working", "Needed: arranging", "Needs reviewing"], R.supportInPlace) + '</div>' +
+        when("supportInPlace!=Not needed", area("supportNeeds", "What support, and who’s arranging it", R.supportNeeds, F.reflection.support ? "In Evia they said: " + F.reflection.support : "")) +
+        '<div class="field">Any change to job, employer, hours or contract, or a need for a break in learning?' + choice("changes", ["None", "Yes"], R.changes) + '</div>' +
+        when("changes=Yes", area("changesDetail", "What’s changed (tell the college straight away)", R.changesDetail));
+      case "next": return fromEvia(fact("How it’s going", F.reflection.feedback || "Nothing added") + fact("Future plans", F.reflection.nextSteps || "Nothing added")) +
+        area("apprenticeComment", "Apprentice’s comments", R.apprenticeComment, "In their own words") +
+        '<div class="field">Careers advice and next steps discussed?' + choice("iagGiven", ["Yes", "Not this time"], R.iagGiven) + '</div>' +
+        when("iagGiven=Yes", input("nextSteps", "What was discussed", R.nextSteps)) +
+        '<div class="grid2"><div class="field">End-point assessment' + choice("epaReady", ["Too early", "On track", "Ready for gateway", "Concerns"], R.epaReady) + '</div>' +
+        '<div class="field">Predicted grade (optional)' + choice("predictedGrade", ["Too early", "Pass", "Merit", "Distinction"], R.predictedGrade) + '</div></div>' +
+        '<h3>New SMART targets</h3><p class="small muted">Suggested from Evia; change anything.</p>' +
         R.targets.map((t, i) => '<div class="card flat target"><div class="between"><b>Target ' + (i + 1) + '</b><button class="btn ghost" type="button" data-del="' + i + '">Remove</button></div>' +
-          '<label class="field">What<input name="t_title_' + i + '" value="' + esc(t.title) + '"></label><label class="field">How it will be done and measured<textarea name="t_how_' + i + '">' + esc(t.how) + '</textarea></label>' +
+          '<label class="field">What<input name="t_title_' + i + '" value="' + esc(t.title) + '"></label><label class="field">How it will be done and measured<input name="t_how_' + i + '" value="' + esc(t.how) + '"></label>' +
           '<div class="grid2"><label class="field">By<input type="date" name="t_due_' + i + '" value="' + esc(t.due) + '"></label><label class="field">Support from<input name="t_support_' + i + '" value="' + esc(t.support) + '"></label></div></div>').join("") +
-        '<button class="btn wide" type="button" id="addT">+ Add a target</button>';
-      case "overall": return '<div class="field">Overall progress' + choice("overallRag", ["On track", "Slightly behind", "At risk"], R.overallRag) + '</div>' +
-        input("nextReview", "Next review (within " + RULES.intervalWeeks + " weeks)", R.nextReview, "date") + area("summary", "Summary", R.summary);
-      case "sign": return '<p class="note">Signing confirms this review is an accurate record of the discussion. Each person signs on this screen.</p>' +
+        '<button class="btn wide" type="button" id="addT">+ Add a target</button>' + input("nextReview", "Next review (within " + RULES.intervalWeeks + " weeks)", R.nextReview, "date");
+      case "sign": return '<div class="field">Overall progress' + choice("overallRag", ["On track", "Slightly behind", "At risk"], R.overallRag) + '</div>' + input("summary", "Summary (optional)", R.summary) +
+        '<p class="note">Signing confirms this is an accurate record of the review. Each person signs on this screen.</p>' +
         [["apprentice", "Apprentice", F.learner], ["employer", "Employer", R.employerName || "Employer"], ["assessor", "Assessor", R.assessorName]].map(([k, t, n]) =>
           '<div class="card flat sig"><div class="between"><b>' + esc(t) + '</b><span class="small muted">' + esc(n) + '</span></div><canvas data-sig="' + k + '" width="900" height="260" aria-label="' + esc(t) + ' signature"></canvas><button class="btn ghost" type="button" data-clear="' + k + '">Clear</button></div>').join("") +
         '<p class="err" id="signErr"></p>';
     }
     return "";
   }
-
   function read() {
     const f = root.querySelector("form"); if (!f) return;
     const v = (n) => { const el = f.elements[n]; if (!el) return undefined; if (el.length && el[0] && el[0].type === "radio") { const c = [...el].find((x) => x.checked); return c ? c.value : ""; } return el.type === "checkbox" ? el.checked : el.value; };
-    for (const k of ["date", "method", "employerName", "employerRole", "progressRag", "progressComment", "employerComment", "otjComment", "mathsStatus", "englishStatus", "fsComment", "knowledgeComment", "feelsSafe", "knowsReporting", "healthSafety", "topicDiscussed", "safeguardingComment", "supportNeeds", "supportInPlace", "changes", "changesDetail", "apprenticeComment", "nextSteps", "iag", "epaReady", "predictedGrade", "epaComment", "overallRag", "nextReview", "summary"]) { const x = v(k); if (x !== undefined) R[k] = x; }
+    for (const k of ["date", "method", "employerName", "employerRole", "progressRag", "progressComment", "employerComment", "otjComment", "mathsStatus", "englishStatus", "feelsSafe", "knowsReporting", "hsStatus", "healthSafety", "safeguardingComment", "supportNeeds", "supportInPlace", "changes", "changesDetail", "apprenticeComment", "iagGiven", "nextSteps", "epaReady", "predictedGrade", "overallRag", "nextReview", "summary"]) { const x = v(k); if (x !== undefined) R[k] = x; }
+    if (f.querySelector("[name=topics]")) R.topicDiscussed = [...f.querySelectorAll("[name=topics]:checked")].map((x) => x.value).join(", ");
     if (f.elements.otjConfirmed) R.otjConfirmed = f.elements.otjConfirmed.checked;
     ["apprentice", "employer", "assessor", "tutor"].forEach((k) => { if (f.elements["att_" + k]) R.attendees[k] = f.elements["att_" + k].checked; });
-    R.previous.forEach((t, i) => { const o = v("prev_" + i); if (o !== undefined) t.outcome = o; const c = v("prevc_" + i); if (c !== undefined) t.comment = c; });
+    R.previous.forEach((t, i) => { const o = v("prev_" + i); if (o !== undefined) t.outcome = o; });
     R.targets.forEach((t, i) => { ["title", "how", "due", "support"].forEach((k) => { const x = v("t_" + k + "_" + i); if (x !== undefined) t[k] = x; }); });
     save();
   }
   /* What must be filled in before moving on (the rules need these). */
   function missing(id) {
-    if (id === "about" && !(R.attendees.apprentice && R.attendees.employer)) return "A progress review needs the apprentice and the employer. If the employer couldn’t attend, rearrange it.";
-    if (id === "progress" && !R.progressRag) return "Choose how they’re doing against the plan.";
-    if (id === "safe" && (!R.feelsSafe || !R.knowsReporting)) return "Ask both safeguarding questions.";
-    if (id === "targets" && !R.targets.filter((t) => t.title.trim()).length) return "Set at least one target.";
-    if (id === "overall" && !R.overallRag) return "Choose the overall progress.";
+    const days = (d) => (Date.parse(d) - Date.parse(R.date)) / DAY;
+    if (id === "progress") {
+      if (!(R.attendees.apprentice && R.attendees.employer)) return "A progress review needs the apprentice and the employer. If the employer couldn’t take part, rearrange it.";
+      if (R.previous.some((t) => !t.outcome)) return "Say whether each previous target was met.";
+      if (!R.progressRag) return "Choose how they’re doing against the plan.";
+      if (!R.otjConfirmed && !String(R.otjComment || "").trim()) return "Confirm off-the-job training, or say why not.";
+      if (!String(R.progressComment || "").trim()) return "Add a few words on what they’ve learnt and achieved.";
+    }
+    if (id === "wellbeing") {
+      if (!R.feelsSafe || !R.knowsReporting) return "Ask both safeguarding questions.";
+      if (!R.topicDiscussed) return "Tick at least one topic discussed (Prevent, British values or EDI).";
+      if (!R.hsStatus || !R.supportInPlace || !R.changes) return "Answer health and safety, learning support and changes.";
+      if (R.changes === "Yes" && !String(R.changesDetail || "").trim()) return "Say what’s changed.";
+    }
+    if (id === "next") {
+      if (!R.iagGiven || !R.epaReady) return "Answer careers advice and end-point assessment.";
+      if (!R.targets.filter((t) => t.title.trim()).length) return "Set at least one target.";
+      if (!R.nextReview || days(R.nextReview) < 1 || days(R.nextReview) > RULES.intervalWeeks * 7) return "Set the next review within " + RULES.intervalWeeks + " weeks.";
+    }
+    if (id === "sign" && !R.overallRag) return "Choose the overall progress.";
     return "";
   }
-
+  /* Show or hide the notes that depend on an answer. */
+  function toggle() {
+    const f = root.querySelector("form"); if (!f) return;
+    f.querySelectorAll("[data-when]").forEach((el) => {
+      const [, name, not, val] = /^([^!=]+)(!?)=(.*)$/.exec(el.dataset.when), inp = f.elements[name];
+      let cur = ""; if (inp) { if (inp.length && inp[0] && inp[0].type === "radio") { const c = [...inp].find((x) => x.checked); cur = c ? c.value : ""; } else cur = inp.type === "checkbox" ? (inp.checked ? "on" : "") : inp.value; }
+      el.hidden = not ? cur === val || !cur && name !== "otjConfirmed" : cur !== val;
+    });
+  }
   function draw() {
     const [id, title] = STEPS[step];
     root.innerHTML = '<header class="rv-top"><button class="x" aria-label="Close and keep the draft">×</button><div class="rv-prog" aria-hidden="true"><i style="width:' + Math.round((step + 1) / STEPS.length * 100) + '%"></i></div><span class="small muted">' + (step + 1) + '/' + STEPS.length + '</span></header>' +
@@ -219,6 +238,7 @@ export function openReview(L, me, onDone) {
     const add = root.querySelector("#addT"); if (add) add.onclick = () => { read(); R.targets.push({ title: "", how: "", due: isoDay(Date.now() + 42 * DAY), support: "" }); draw(); };
     root.querySelectorAll("canvas[data-sig]").forEach(pad);
     root.querySelectorAll("[data-clear]").forEach((x) => x.onclick = () => { delete R.signatures[x.dataset.clear]; const c = root.querySelector('canvas[data-sig="' + x.dataset.clear + '"]'); c.getContext("2d").clearRect(0, 0, c.width, c.height); save(); });
+    root.querySelector(".rv-body").addEventListener("change", toggle); toggle();
     root.querySelector(".rv-body").scrollTop = 0;
   }
   function pad(c) {
@@ -246,7 +266,6 @@ export function openReview(L, me, onDone) {
       await db.from("review_signoffs").insert({ organisation_id: en.organisation_id, review_id: rev.id, member_id: me.member_id, signer_role: "assessor" });
       if (content.targets.length) await db.from("targets").insert(content.targets.map((t) => ({ organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, title: t.title, description: [t.how, t.support ? "Support: " + t.support : ""].filter(Boolean).join("\n"), due_date: t.due || null, status: "open" })));
       localStorage.removeItem(DRAFT(L.row.enrolment_id));
-      await downloadPdf({ ...content, id: rev.id, reviewedAt: R.date });
       close(); onDone && onDone();
     } catch (e) { btn.disabled = false; btn.textContent = "Complete review"; root.querySelector("#signErr").textContent = e.message; }
   }
@@ -266,39 +285,39 @@ export async function downloadPdf(c) {
   const room = (h) => { if (y + h > 282) { doc.addPage(); y = 18; } };
   const h1 = (t) => { doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(23, 32, 51); doc.text(T(t), M, y); y += 8; };
   const h2 = (t) => { room(14); y += 3; doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(44, 133, 247); doc.text(T(t), M, y); y += 6; doc.setTextColor(23, 32, 51); };
-  const kv = (k, v) => { const lines = doc.splitTextToSize(T(v || "-"), W - 2 * M - 58); room(lines.length * 4.6 + 1); doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(102, 112, 133); doc.text(T(k), M, y); doc.setFont("helvetica", "normal"); doc.setTextColor(23, 32, 51); doc.text(lines, M + 58, y); y += lines.length * 4.6 + 1; };
+  const kv = (k, v) => { doc.setFontSize(9.5); doc.setFont("helvetica", "bold"); const keys = doc.splitTextToSize(T(k), 54); doc.setFont("helvetica", "normal"); const lines = doc.splitTextToSize(T(v || "-"), W - 2 * M - 58), h = Math.max(keys.length, lines.length) * 4.6 + 1.5;
+    room(h); doc.setFont("helvetica", "bold"); doc.setTextColor(102, 112, 133); doc.text(keys, M, y); doc.setFont("helvetica", "normal"); doc.setTextColor(23, 32, 51); doc.text(lines, M + 58, y); y += h; };
   const para = (t) => { if (!String(t || "").trim()) return; doc.setFont("helvetica", "normal"); doc.setFontSize(10); const lines = doc.splitTextToSize(T(t), W - 2 * M); lines.forEach((l) => { room(5); doc.text(l, M, y); y += 4.8; }); y += 1; };
   h1("Apprenticeship progress review");
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(102, 112, 133);
   doc.text(T(F.learner + "  ·  " + F.course + "  ·  Review " + F.reviewNo + "  ·  " + ukDate(c.reviewedAt)), M, y); y += 8;
+  const or = (...xs) => xs.find((x) => x != null && String(x).trim() !== "") || "";
   h2("About this review");
   kv("Apprentice", F.learner); kv("Employer", F.employer); kv("Programme", ukDate(F.start) + " to " + ukDate(F.end)); kv("Review period", ukDate(F.periodStart) + " to " + ukDate(F.periodEnd));
-  kv("Held", A.method); kv("Attended", Object.entries(A.attendees).filter(([, v]) => v).map(([k]) => k[0].toUpperCase() + k.slice(1)).join(", ") + (A.employerName ? " (employer: " + A.employerName + (A.employerRole ? ", " + A.employerRole : "") + ")" : ""));
-  h2("Previous targets");
-  if (A.previous.length) A.previous.forEach((t) => kv(t.title, (t.outcome || "Not recorded") + (t.comment ? ". " + t.comment : ""))); else para("None set before this review.");
-  h2("Progress against the training plan");
+  kv("Held", A.method); kv("Took part", Object.entries(A.attendees).filter(([, v]) => v).map(([k]) => k[0].toUpperCase() + k.slice(1)).join(", ") + (A.employerName ? " (employer: " + A.employerName + (A.employerRole ? ", " + A.employerRole : "") + ")" : ""));
+  h2("Progress");
   kv("Time through programme", F.timePct != null ? F.timePct + "%" : "-"); kv(F.nvq ? "Criteria evidenced" : "KSBs evidenced", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)");
-  kv("Evidence this period", F.evidencePeriod + " (" + F.evidenceTotal + " in total)"); kv("Progress", A.progressRag); kv("Assessor", A.progressComment); kv("Employer", A.employerComment);
-  h2("Off-the-job training");
-  kv("Planned / expected by now", (F.otj.planned != null ? F.otj.planned + " h" : "not set") + " / " + (F.otj.expected != null ? F.otj.expected + " h" : "-")); kv("Logged", F.otj.total + " h in total, " + F.otj.period + " h this period");
-  kv("In working hours", A.otjConfirmed ? "Confirmed by employer" : "Not confirmed"); kv("Comments", A.otjComment);
-  h2("English and maths"); kv("Maths", A.mathsStatus); kv("English", A.englishStatus); kv("Comments", A.fsComment);
-  h2("Knowledge and practice"); kv(F.nvq ? "Knowledge tests" : "EPA mocks", F.mock ? "Best " + F.mock.best + "%" : "None yet"); kv("Discussed", A.knowledgeComment);
-  h2("Safeguarding, Prevent, British values and EDI");
-  kv("Feels safe", A.feelsSafe); kv("Knows how to raise a concern", A.knowsReporting); kv("Topic discussed", A.topicDiscussed); kv("Health and safety", A.healthSafety); kv("Other", A.safeguardingComment);
-  h2("Support needs"); kv("Needs", A.supportNeeds); kv("Additional support", A.supportInPlace);
-  h2("Changes in circumstances"); kv("Changes", A.changes + (A.changesDetail ? ". " + A.changesDetail : ""));
-  h2("Apprentice and employer"); kv("Apprentice", A.apprenticeComment); kv("Next steps", A.nextSteps); kv("Careers advice", A.iag);
-  h2("End-point assessment"); kv("Readiness", A.epaReady); kv("Predicted grade", A.predictedGrade); kv("Preparation", A.epaComment);
-  h2("New SMART targets");
-  if (c.targets.length) c.targets.forEach((t, i) => kv((i + 1) + ". " + t.title, t.how + (t.due ? " By " + ukDate(t.due) + "." : "") + (t.support ? " Support: " + t.support + "." : ""))); else para("None.");
-  h2("Overall"); kv("Overall progress", A.overallRag); kv("Next review", ukDate(A.nextReview)); kv("Summary", A.summary);
-  h2("Signatures");
-  for (const k of ["apprentice", "employer", "assessor"]) {
-    const s = c.signatures[k]; if (!s) continue; room(30);
-    try { doc.addImage(s.image, "PNG", M, y, 60, 17); } catch { /* bad image */ }
-    doc.setFontSize(9); doc.setTextColor(102, 112, 133); doc.text(T(k[0].toUpperCase() + k.slice(1) + ": " + s.name + "  ·  " + new Date(s.at).toLocaleString("en-GB")), M + 66, y + 10); y += 22;
-  }
+  kv("Evidence this period", F.evidencePeriod + " (" + F.evidenceTotal + " in total)");
+  if (A.previous.length) A.previous.forEach((t) => kv("Previous target: " + t.title, (t.outcome || "Not recorded") + (t.comment ? ". " + t.comment : "")));
+  kv("Against the plan", A.progressRag); kv("Assessor", A.progressComment); kv("Employer", A.employerComment);
+  kv("Off-the-job hours", F.otj.total + " h logged (" + F.otj.period + " h this period)" + (F.otj.expected != null ? ", " + F.otj.expected + " h expected by now" : ""));
+  kv("In working hours", A.otjConfirmed ? "Confirmed by the employer" : "Not confirmed. " + (A.otjComment || ""));
+  kv("Maths", F.maths && F.maths.on ? A.mathsStatus : "Achieved or exempt"); kv("English", F.english && F.english.on ? A.englishStatus : "Achieved or exempt");
+  if (A.fsComment) kv("English and maths", A.fsComment); if (A.knowledgeComment) kv("Knowledge discussed", A.knowledgeComment);
+  h2("Wellbeing, safety and support");
+  kv("Feels safe", A.feelsSafe + (A.feelsSafe !== "Yes" && A.safeguardingComment ? ". " + A.safeguardingComment : "")); kv("Knows how to raise a concern", A.knowsReporting);
+  kv("Discussed (Prevent, British values, EDI)", A.topicDiscussed);
+  kv("Health and safety", or(A.hsStatus === "Something to record" ? A.healthSafety : A.hsStatus, A.healthSafety));
+  kv("Learning support", A.supportInPlace + (A.supportInPlace !== "Not needed" && A.supportNeeds ? ". " + A.supportNeeds : ""));
+  kv("Changes in circumstances", A.changes + (A.changes === "Yes" && A.changesDetail ? ". " + A.changesDetail : ""));
+  h2("Next steps");
+  kv("Apprentice", A.apprenticeComment); kv("Careers advice", or(A.iagGiven ? A.iagGiven + (A.iagGiven === "Yes" && A.nextSteps ? ". " + A.nextSteps : "") : "", A.iag, A.nextSteps));
+  kv("End-point assessment", A.epaReady + (A.predictedGrade && A.predictedGrade !== "Too early" ? " (predicted " + A.predictedGrade + ")" : ""));
+  if (c.targets.length) c.targets.forEach((t, i) => kv("Target " + (i + 1) + ": " + t.title, t.how + (t.due ? " By " + ukDate(t.due) + "." : "") + (t.support ? " Support: " + t.support + "." : ""))); else kv("Targets", "None.");
+  kv("Next review", ukDate(A.nextReview));
+  h2("Overall"); kv("Overall progress", A.overallRag); kv("Summary", A.summary);
+  /* Signed by all three; the signatures themselves stay in Nisia's record and aren't shown. */
+  kv("Signed by", ["apprentice", "employer", "assessor"].filter((k) => c.signatures[k]).map((k) => k[0].toUpperCase() + k.slice(1) + ": " + c.signatures[k].name + ", " + new Date(c.signatures[k].at).toLocaleDateString("en-GB")).join("\n"));
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(152, 162, 179); doc.text(T("Nisia · Milos · " + RULES.name + " · record " + (c.id || "") + " · content hash " + (c.hash || "").slice(0, 16) + " · page " + i + " of " + n), M, 292); }
   doc.save(("Progress review " + F.reviewNo + " " + F.learner + " " + c.reviewedAt).replace(/[^\w .-]/g, "") + ".pdf");

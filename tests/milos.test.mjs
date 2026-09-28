@@ -101,23 +101,32 @@ try {
   await page.click("#evBack"); await page.waitForTimeout(200);
   check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")));
   await page.click("#rev"); await page.waitForSelector(".rv");
-  const next = async () => { await page.click("#next"); await page.waitForTimeout(120); };
+  const next = async () => { await page.click("#next"); await page.waitForTimeout(150); };
   const texts = [];
-  await page.screenshot({ path: shots + "/m3-review-about.png" }); texts.push(await page.textContent(".rv-body"));
-  await next(); texts.push(await page.textContent(".rv-body")); await page.check('input[name=prev_0][value="Partly met"]'); await page.screenshot({ path: shots + "/m4-review-previous.png" });
-  await next(); texts.push(await page.textContent(".rv-body")); await next();
-  check("A required answer stops the review moving on", /Choose how they’re doing/.test(await page.textContent("#stepErr")));
-  await page.check('input[name=progressRag][value="Slightly behind"]'); await page.fill("textarea[name=progressComment]", "Good progress on cavity walls; drawings need work.");
-  await page.screenshot({ path: shots + "/m5-review-progress.png", fullPage: true });
-  await next(); texts.push(await page.textContent(".rv-body")); await page.check("input[name=otjConfirmed]");
-  for (let i = 0; i < 2; i++) { await next(); texts.push(await page.textContent(".rv-body")); }
+  check("The review is four screens", /1\/4/.test(await page.textContent(".rv-top")));
+  await page.screenshot({ path: shots + "/m3-review-progress.png", fullPage: true }); texts.push(await page.textContent(".rv-body"));
+  await next();
+  check("A required answer stops the review moving on", /previous target|each previous target/i.test(await page.textContent("#stepErr")));
+  await page.check('input[name=prev_0][value="Partly met"]'); await next();
+  check("Progress against the plan is required", /Choose how they’re doing/.test(await page.textContent("#stepErr")));
+  await page.check('input[name=progressRag][value="Slightly behind"]');
+  check("A note box opens only when needed (off-the-job not confirmed)", await page.isVisible("textarea[name=otjComment]"));
+  await page.check("input[name=otjConfirmed]");
+  check("…and closes once it's confirmed", !(await page.isVisible("textarea[name=otjComment]")));
+  await page.fill("textarea[name=progressComment]", "Good progress on cavity walls; drawings need work.");
   await next(); texts.push(await page.textContent(".rv-body"));
   await page.check('input[name=feelsSafe][value="Yes"]'); await page.check('input[name=knowsReporting][value="Yes"]');
-  for (let i = 0; i < 4; i++) { await next(); texts.push(await page.textContent(".rv-body")); }
-  await next(); texts.push(await page.textContent(".rv-body")); await page.screenshot({ path: shots + "/m6-review-targets.png", fullPage: true });
+  await page.check('input[name=topics][value="British values"]'); await page.check('input[name=hsStatus][value="No incidents or concerns"]');
+  await page.check('input[name=supportInPlace][value="Not needed"]'); await page.check('input[name=changes][value="Yes"]'); await next();
+  check("A change in circumstances needs a note", /what’s changed/i.test(await page.textContent("#stepErr")) && await page.isVisible("textarea[name=changesDetail]"));
+  await page.check('input[name=changes][value="None"]');
+  await page.screenshot({ path: shots + "/m4-review-wellbeing.png", fullPage: true });
+  await next(); texts.push(await page.textContent(".rv-body"));
+  await page.check('input[name=iagGiven][value="Yes"]'); await page.check('input[name=epaReady][value="On track"]');
+  await page.screenshot({ path: shots + "/m6-review-next.png", fullPage: true });
   const targetTitles = (await page.$$eval("input[name^=t_title_]", (els) => els.map((e) => e.value))).join(" | ");
-  await next(); await page.check('input[name=overallRag][value="Slightly behind"]');
   await next(); await page.screenshot({ path: shots + "/m7-review-sign.png", fullPage: true });
+  await page.check('input[name=overallRag][value="Slightly behind"]');
   await next();
   check("It can't be completed until all three have signed", /Still to sign: apprentice, employer, assessor/.test(await page.textContent("#signErr")));
   for (const k of ["apprentice", "employer", "assessor"]) {
@@ -125,16 +134,20 @@ try {
     await page.mouse.move(b.x + 20, b.y + 30); await page.mouse.down(); await page.mouse.move(b.x + 120, b.y + 60, { steps: 6 }); await page.mouse.move(b.x + 200, b.y + 25, { steps: 6 }); await page.mouse.up();
   }
   const all = texts.join(" ");
-  check("Evia's facts are filled in through the review", /Callum Hughes/.test(all) && /Log 10 learning hours/.test(all) && /21 of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Help with reading drawings/.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
+  check("Evia's facts are filled in through the review", /Log 10 learning hours/.test(all) && /21 of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
   check("Targets are suggested from the gaps Evia found", /Evidence for Cavity walling/.test(targetTitles) && /Build confidence: Reading drawings/.test(targetTitles) && /Maths practice/.test(targetTitles), targetTitles);
-  const [dl] = await Promise.all([page.waitForEvent("download"), next()]);
-  await page.waitForTimeout(500);
+  let downloaded = false; page.on("download", () => { downloaded = true; });
+  await next(); await page.waitForTimeout(600);
   const rev = posted.find((x) => x.table === "reviews"), sig = posted.find((x) => x.table === "review_signoffs"), tg = posted.find((x) => x.table === "targets");
-  check("The signed review is saved to Nisia with its facts, answers, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met === 21 && rev.body.content.answers.progressRag === "Slightly behind" &&
-    ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(rev && rev.body.content.answers).slice(0, 200));
+  const A = rev && rev.body.content.answers;
+  check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met === 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
+    A.feelsSafe === "Yes" && A.topicDiscussed === "British values" && A.changes === "None" && A.iagGiven === "Yes" && A.epaReady === "On track" && !!A.nextReview && A.previous[0].outcome === "Partly met" &&
+    ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(A).slice(0, 300));
   check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === "REV1" && !!tg && tg.body.length >= 2);
-  const pdfPath = shots + "/review.pdf"; await dl.saveAs(pdfPath);
-  check("The review downloads as a PDF", fs.statSync(pdfPath).size > 5000 && fs.readFileSync(pdfPath).slice(0, 4).toString() === "%PDF");
+  check("Completing it doesn't download a file: it's kept in Nisia", !downloaded);
+  const [revDl] = await Promise.all([page.waitForEvent("download"), page.evaluate(async (c) => { const m = await import("./review.js"); await m.downloadPdf({ ...c, id: "REV1", reviewedAt: c.answers.date }); }, rev.body.content)]);
+  const pdfPath = shots + "/review.pdf"; await revDl.saveAs(pdfPath);
+  check("A saved review still makes a PDF, with names but no signature images", fs.statSync(pdfPath).size > 3000 && fs.statSync(pdfPath).size < 60000 && fs.readFileSync(pdfPath).slice(0, 4).toString() === "%PDF");
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }
