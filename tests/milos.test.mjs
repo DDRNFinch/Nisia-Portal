@@ -46,7 +46,7 @@ function handle(route) {
   if (p === "/rest/v1/evia_records") return json([
     { collection: "snapshot", record_id: "current", data: SNAPSHOT },
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
-    { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
+    { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { feelsSafe: "Yes", knowsReporting: "Yes", changes: "No", hsIncident: "Yes", hsDetail: "Cut my hand on a brick, first aid given.", otjHappening: "Mostly", learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
   if (p === "/rest/v1/evidence" && q.method() === "POST") { posted.push({ table: "evidence", body }); return json(null, 201); }
   if (p === "/rest/v1/evidence_files" && q.method() === "POST") { posted.push({ table: "evidence_files", body }); return json(null, 201); }
@@ -149,13 +149,16 @@ try {
   await next();
   check("A required answer stops the review moving on", /previous target|each previous target/i.test(await page.textContent("#stepErr")));
   await page.check('input[name=prev_0][value="Partly met"]'); await next();
-  check("Progress against the plan is required", /Choose how they’re doing/.test(await page.textContent("#stepErr")));
+  check("Progress against the plan comes pre-chosen from Evia (the assessor can change it)", await page.isChecked('input[name=progressRag][value="Slightly behind"]') && !/Choose how they’re doing/.test(await page.textContent("#stepErr")));
   await page.check('input[name=progressRag][value="Slightly behind"]');
   check("A note box opens only when needed (off-the-job not confirmed)", await page.isVisible("textarea[name=otjComment]"));
   await page.check("input[name=otjConfirmed]");
   check("…and closes once it's confirmed", !(await page.isVisible("textarea[name=otjComment]")));
   await page.fill("textarea[name=progressComment]", "Good progress on cavity walls; drawings need work.");
   await next(); texts.push(await page.textContent(".rv-body"));
+  const prefilled = await page.evaluate(() => ({ safe: (document.querySelector("input[name=feelsSafe]:checked") || {}).value, tell: (document.querySelector("input[name=knowsReporting]:checked") || {}).value,
+    hs: (document.querySelector("input[name=hsStatus]:checked") || {}).value, hsText: (document.querySelector("textarea[name=healthSafety]") || {}).value, box: /Their answers in Evia/.test(document.querySelector(".rv-body").textContent) }));
+  check("Wellbeing is filled in from the learner's check-in in Evia, to confirm", prefilled.safe === "Yes" && prefilled.tell === "Yes" && prefilled.hs === "Something to record" && /Cut my hand/.test(prefilled.hsText) && prefilled.box, JSON.stringify(prefilled));
   await page.check('input[name=feelsSafe][value="Yes"]'); await page.check('input[name=knowsReporting][value="Yes"]');
   await page.check('input[name=topics][value="British values"]'); await page.check('input[name=hsStatus][value="No incidents or concerns"]');
   await page.check('input[name=supportInPlace][value="Not needed"]'); await page.check('input[name=changes][value="Yes"]'); await next();
@@ -176,10 +179,19 @@ try {
   }
   const all = texts.join(" ");
   check("Evia's facts are filled in through the review", /Log 10 learning hours/.test(all) && /21 of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
-  check("Targets are suggested from the gaps Evia found", /Evidence for Cavity walling/.test(targetTitles) && /Build confidence: Reading drawings/.test(targetTitles) && /Maths practice/.test(targetTitles), targetTitles);
+  check("Targets are suggested from the gaps Evia found", /Evidence for Cavity walling/.test(targetTitles) && /Build confidence: Reading drawings/.test(targetTitles) && /Maths: 70% in a test/.test(targetTitles) && /Catch up on off-the-job/.test(targetTitles), targetTitles);
   let downloaded = false; page.on("download", () => { downloaded = true; });
   await next(); await page.waitForTimeout(600);
   const rev = posted.find((x) => x.table === "reviews"), sig = posted.find((x) => x.table === "review_signoffs"), tg = posted.find((x) => x.table === "targets");
+  check("Targets are saved with what Evia measures, tied to the review", !!tg && tg.body.every((t) => t.review_id === rev.body.id) && tg.body.some((t) => t.measure && t.measure.kind === "ksb" && t.measure.target > 0) && tg.body.some((t) => t.measure && t.measure.kind === "otj"), JSON.stringify(tg && tg.body.map((t) => t.measure)));
+  const outcomes = await page.evaluate(async () => {
+    const { facts } = await import("./review.js");
+    const L = { row: { name: "A B", course_code: "bricklayer" }, enrolment: { start_date: "2025-09-01", end_date: "2027-08-31" }, otj: [], evidence: [], eviaTargets: [], eviaReviews: [],
+      reviews: [{ id: "RV0", reviewed_at: "2026-07-01T12:00:00Z", content: { targets: [{ title: "x" }] } }],
+      snapshot: { targets: [{ reviewId: "RV0", title: "Evidence for Mixing mortar", pct: 100, done: true, text: "Done" }, { reviewId: "RV0", title: "Log hours", pct: 55, text: "20 of 36 hours" }, { reviewId: "RV0", title: "Maths: 70%", pct: 10, text: "Best since set: 45%" }] } };
+    return facts(L).previousTargets.map((t) => t.source + ":" + t.pct);
+  });
+  check("Last review's targets arrive marked from Evia's tracking", outcomes.join() === "evia-tracked:100,evia-tracked:55,evia-tracked:10", outcomes.join());
   const A = rev && rev.body.content.answers;
   check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met === 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
     A.feelsSafe === "Yes" && A.topicDiscussed === "British values" && A.changes === "None" && A.iagGiven === "Yes" && A.epaReady === "On track" && !!A.nextReview && A.previous[0].outcome === "Partly met" &&

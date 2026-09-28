@@ -173,7 +173,7 @@ export function saveObservation({ enrolmentId, evidence, photos, assessment, pdf
 export const saveAssessment = ({ enrolmentId, row }) => enqueue({ kind: "assessment", enrolmentId, row: { id: uuid(), ...row } });
 export function saveReview({ enrolmentId, review, signoff, targets }) {
   const id = uuid();
-  return enqueue({ kind: "review", enrolmentId, review: { id, ...review }, signoff: { id: uuid(), ...signoff, review_id: id }, targets: targets.map((t) => ({ id: uuid(), ...t })) });
+  return enqueue({ kind: "review", enrolmentId, review: { id, ...review }, signoff: { id: uuid(), ...signoff, review_id: id }, targets: targets.map((t) => ({ id: uuid(), ...t, review_id: id })) });
 }
 
 /* Signing out: nothing about learners stays on the phone. */
