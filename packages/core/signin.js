@@ -31,7 +31,7 @@ function signInForm(root, o, email, err) {
     '<label class="field">Password<input id="pw" type="password" autocomplete="current-password" required></label>' +
     '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
     '<button class="btn primary wide" type="submit">Sign in</button>' +
-    '<p class="small muted" style="text-align:center">New here? Use the invite link you were sent.</p></form>');
+    '<button class="btn ghost" type="button" id="haveInvite">New here? I have an invite</button></form>');
   const f = root.querySelector("#f");
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +39,27 @@ function signInForm(root, o, email, err) {
     try { await signIn(f.email.value, f.pw.value); await auth(root, o); }
     catch (x) { signInForm(root, o, f.email.value, x.message); }
   };
+  root.querySelector("#haveInvite").onclick = () => pasteInvite(root, o);
   (email ? f.pw : f.email).focus();
+}
+
+/* For when the invite link opens without its code (some apps' browsers drop the part after #): paste it instead. */
+function pasteInvite(root, o, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">Your invite link or code<input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste the link, or type the code"></label>' +
+    '<p class="err" role="alert">' + esc(err || "") + '</p>' +
+    '<button class="btn primary wide" type="submit">Continue</button>' +
+    '<button class="btn ghost" type="button" id="back">Back to sign in</button></form>', "Paste the invite link you were sent, or just the code at the end of it.");
+  const f = root.querySelector("#f");
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const v = f.code.value.trim(), m = /invite=([A-Za-z0-9-]+)/.exec(v), code = (m ? m[1] : v).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length < 12) return pasteInvite(root, o, "That doesn’t look like a whole invite code. It’s 16 letters and numbers.");
+    acceptInvite(root, o, code);
+  };
+  root.querySelector("#back").onclick = () => signInForm(root, o);
+  f.code.focus();
 }
 
 function acceptInvite(root, o, code, err) {

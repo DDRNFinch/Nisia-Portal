@@ -100,6 +100,9 @@ try {
       memberships: [{ organisation_id: "o1", organisation: "Brookfield College", status: "active", member_id: "m1", roles: ["admin"] }] });
     await page.fill("#email", "s.mitchell@brookfield.example"); await page.fill("#pw", "wrong"); await page.click("button[type=submit]"); await page.waitForTimeout(300);
     check("A wrong password is refused", /don’t match/.test(await page.textContent(".err")));
+    await page.click("#haveInvite"); await page.fill("#code", "https://example.org/nisia-app/#invite=GOOD-INVITE-CODE-01");
+    check("An invite can be pasted on the sign-in page", /invite=/.test(await page.inputValue("#code")) && !!(await page.$("#back")));
+    await page.click("#back"); await page.waitForSelector("#email"); await page.fill("#email", "s.mitchell@brookfield.example");
     await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector("#c"); await page.fill("#c", "123456"); await page.click("button[type=submit]");
     await page.waitForSelector("text=Learners"); await page.screenshot({ path: shots + "/6-college-empty.png" });
