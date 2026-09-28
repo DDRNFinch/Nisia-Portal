@@ -1,7 +1,7 @@
 /* Milos, the assessor's app: Evia's look, Milos blue. Your learners (from Nisia), whose review is due, what Evia
    shows about each of them, their past reviews, connecting their Evia, and starting a review that's already filled
    in (review.js). Everything is read from Nisia under the college's own rules. */
-import { db, call, rpc, me, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
+import { db, AUTH_KEY, call, rpc, me, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth } from "../../packages/core/signin.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { loadPortfolio, groupByUnit, portfolioHtml, openEvidence, insightsHtml } from "./portfolio.js";
@@ -17,7 +17,7 @@ const AUTH = { title: "Milos", subtitle: "For assessors", onReady: () => home(tr
 async function start() {
   let have = null; try { have = await withTimeout(cached(), 5000); } catch (_) {}
   /* Learners on the phone: open them straight away, whatever the sign-in is doing; syncing checks it later. */
-  if (have && localStorage.getItem("nisia-auth")) return home(true);
+  if (have && localStorage.getItem(AUTH_KEY)) return home(true);
   try { await withTimeout(auth(root, AUTH), 15000); }
   catch (e) {
     root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Milos couldn’t reach Nisia: " + e.message : "You’re offline, and there are no learners on this phone yet. Connect to the internet once to download them.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>';

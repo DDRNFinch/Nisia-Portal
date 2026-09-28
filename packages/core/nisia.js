@@ -18,8 +18,11 @@ const timedFetch = (url, o = {}) => {
   const t = setTimeout(() => c.abort(), ms);
   return fetch(url, { ...o, signal: c.signal }).catch((e) => { throw e.name === "AbortError" ? new Error("Nisia didn’t answer in time. Check your signal and try again.") : e; }).finally(() => clearTimeout(t));
 };
+/* Each app keeps its own sign-in (they share a website): Milos sets window.NISIA_AUTH_KEY, so being signed in to
+   Milos as an assessor doesn't sign the portal in as them too, and signing out of one leaves the other alone. */
+export const AUTH_KEY = window.NISIA_AUTH_KEY || "nisia-auth";
 export const db = createClient(NISIA_URL, NISIA_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: "nisia-auth", lock: (_name, _timeout, fn) => fn() },
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: AUTH_KEY, lock: (_name, _timeout, fn) => fn() },
   global: { fetch: timedFetch },
 });
 
