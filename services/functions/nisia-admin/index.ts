@@ -59,6 +59,14 @@ Deno.serve(async (req) => {
         const { data: m } = await admin.from("organisation_members").select("organisation_id,user_id").eq("id", b.member_id).single();
         if (!m || !await canManage(m.organisation_id)) return fail("Not allowed.", 403);
         if (m.user_id === uid && !b.active) return fail("You can’t switch yourself off.");
+        if (!b.active) {
+          // A college always keeps at least one admin who can sign in.
+          const [ar] = await roleIds(admin, ["admin"]);
+          const { data: act } = await admin.from("organisation_members").select("id").eq("organisation_id", m.organisation_id).eq("active", true);
+          const { data: adm } = await admin.from("organisation_member_roles").select("organisation_member_id").eq("role_id", ar.id).in("organisation_member_id", (act ?? []).map((x) => x.id));
+          const admins = (adm ?? []).map((x) => x.organisation_member_id);
+          if (admins.length <= 1 && admins.includes(b.member_id)) return fail("This is the college’s only admin, so they can’t be switched off. Invite another admin first.");
+        }
         await admin.from("organisation_members").update(b.active ? { active: true, deactivated_at: null } : { active: false, deactivated_at: new Date().toISOString() }).eq("id", b.member_id);
         return reply({ ok: true });
       }

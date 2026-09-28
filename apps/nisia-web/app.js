@@ -30,6 +30,7 @@ const ICON = {
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2.5h5L16 6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
 const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7", "#8A5A44", "#4A5B6E"];
@@ -99,6 +100,8 @@ function shell(content) {
   root.querySelector("#menuBtn").onclick = () => root.querySelector("#side").classList.toggle("open");
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => go(b.dataset.go));
 }
+/* Coming back to the tab: bring the page up to date, unless a window is open over it. */
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.org && S.data && Date.now() - S.data.at > 30000 && !document.getElementById("modal")) render(); });
 function go(page, extra) {
   if (page === "colleges") { S.org = null; S.data = null; }
   S.page = page; Object.assign(S, extra || {}); window.scrollTo(0, 0); render();
@@ -116,10 +119,11 @@ async function home() {
 }
 async function render() {
   if (!S.org) return colleges();
+  /* Fresh from Nisia whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
   if (!S.data || S.data.org !== S.org) {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
-  }
+  } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
   ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage }[S.page] || overview)();
 }
 
@@ -133,7 +137,7 @@ async function loadCollege() {
     rpc("nisia_college_activity", { p_org: org }),
   ]);
   learners.forEach(assess);
-  S.data = { org, summary, learners, staff, activity, admin, quality };
+  S.data = { org, summary, learners, staff, activity, admin, quality, at: Date.now() };
 }
 function assess(l) {
   const s = Date.parse(l.start_date), e = Date.parse(l.end_date), now = Date.now();
@@ -281,6 +285,17 @@ async function pairing(l) {
     m.innerHTML = '<div class="modal-head"><h2>Connect ' + esc((l.name || "").split(" ")[0]) + '’s Evia</h2><button class="x" aria-label="Close">×</button></div>' +
       '<p class="muted">They scan this with their phone’s camera, or open Evia and type the code underneath.</p><div class="qr">' + qrSvg(pairLink(r.code)) + '</div><p class="big-code">' + esc(r.code.slice(0, 3) + "-" + r.code.slice(3)) + '</p><p class="small muted" style="text-align:center">Works once, for ' + r.expires_in_minutes + ' minutes. On a computer, open <a href="' + esc(EVIA_URL) + '" target="_blank" rel="noopener">' + esc(EVIA_URL.replace(/^https:\/\//, "")) + '</a>.</p>';
     m.querySelector(".x").onclick = closeModal;
+    /* A learner connecting for the first time: say so here as soon as Evia joins, and update the page behind. */
+    if (!l.paired) {
+      const until = Date.now() + r.expires_in_minutes * 60000, org = S.org;
+      const tick = async () => {
+        if (!document.body.contains(m) || Date.now() > until) return;
+        try { const now = (await rpc("nisia_college_learners", { p_org: org })).find((x) => x.learner_id === l.learner_id);
+          if (now && now.paired) { m.querySelector(".qr").outerHTML = '<p class="connected">' + ICON.check + ' Evia is connected</p>'; S.data = null; toast((l.name || "").split(" ")[0] + "’s Evia is connected"); return; } } catch (_) {}
+        setTimeout(tick, 5000);
+      };
+      setTimeout(tick, 5000);
+    }
   } catch (x) { m.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
 }
 
