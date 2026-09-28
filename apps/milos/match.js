@@ -79,12 +79,12 @@ export function draftFeedback(A, { first, decision, ticked, unitName, nvq }) {
     if (good.length) s.push("You explained " + list(good) + (A.photos ? ", and your " + A.photos + " photo" + (A.photos === 1 ? "" : "s") + " back it up." : "."));
     if (met.length) s.push("It meets " + list(met) + ".");
     const next = [gaps.length ? "mention " + list(gaps) : "", photoNote].filter(Boolean);
-    if (next.length) s.push("To make it even stronger next time, " + list(next) + ".");
+    if (next.length) s.push("Next time: " + list(next) + ". Adding a bit more each week builds a strong portfolio.");
     return s.join(" ");
   }
-  const s = ["Thanks" + (n ? " " + n : "") + ", this is a good start on " + unitName.toLowerCase() + "."];
+  const s = ["Thanks" + (n ? " " + n : "") + ", this is a good start on " + unitName.toLowerCase() + ". I'd like a bit more before I sign it off."];
   const add = [gaps.length ? "explain " + list(gaps) + " in your own words" : "", photoNote, A.words < 60 ? "a fuller write-up: say what you did, in order, and why" : ""].filter(Boolean);
-  s.push(add.length ? "Before I can sign it off, please add " + list(add) + "." : "Before I can sign it off, please add more detail on how you did the job and why.");
+  s.push(add.length ? "Please add " + list(add) + "." : "Please add more detail on how you did the job and why.");
   s.push("Evia's guided mode will take you through it step by step.");
   return s.join(" ");
 }

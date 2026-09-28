@@ -50,7 +50,7 @@ export function groupByUnit(L, P) {
   return groups.concat(other.items.length ? [other] : [], supporting.items.length ? [supporting] : []);
 }
 
-const status = (it) => !it.latest ? { cls: "accent", text: "New" } : it.latest.decision === "accepted" ? { cls: "good", text: "Accepted" } : { cls: "warn", text: "Changes needed" };
+const status = (it) => !it.latest ? { cls: "accent", text: "New" } : it.latest.decision === "accepted" ? { cls: "good", text: "Accepted" } : { cls: "warn", text: "More asked for" };
 export const statusPill = (it) => { const s = status(it); return '<span class="pill ' + s.cls + '">' + s.text + '</span>' + (it.latest && it.latest.pending || it.e.pending ? '<span class="pill idle" title="Saved on this phone, sent when there’s signal">Waiting to send</span>' : ""); };
 
 /* The unit list on the learner page. */
@@ -158,14 +158,15 @@ export async function openEvidence(ctx, item, onSaved) {
       (f && f.words.length ? '<button type="button" class="ev-found" data-focus="' + esc(k) + '">' + (f.likely ? "Evia thinks this is met: " : "Evia found: ") + esc(f.words.slice(0, 5).join(", ")) + '</button>' : "") + '</span></label>'; };
     const rest = (C.ksbs || []).map((k) => k[0]).filter((k) => !unitKsbs.includes(k) && !extra().includes(k));
     box.innerHTML = '<h2>Your assessment</h2>' +
-      (item.history.length ? '<div class="history">' + item.history.map((h) => '<p class="small"><span class="pill ' + (h.decision === "accepted" ? "good" : "warn") + '">' + (h.decision === "accepted" ? "Accepted" : "Changes needed") + '</span> ' + esc(ukDate(h.created_at)) + (h.feedback ? ' · ' + esc(h.feedback) : "") + '</p>').join("") + '</div>' : '<p class="note">New: not assessed yet.</p>') +
-      '<div class="seg2" role="radiogroup" aria-label="Decision"><button type="button" data-d="accepted" aria-pressed="' + (decision === "accepted") + '">Accept</button><button type="button" data-d="changes_required" aria-pressed="' + (decision === "changes_required") + '">Changes needed</button></div>' +
+      (item.history.length ? '<div class="history">' + item.history.map((h) => '<p class="small"><span class="pill ' + (h.decision === "accepted" ? "good" : "warn") + '">' + (h.decision === "accepted" ? "Accepted" : "More asked for") + '</span> ' + esc(ukDate(h.created_at)) + (h.feedback ? ' · ' + esc(h.feedback) : "") + '</p>').join("") + '</div>' : '<p class="note">New: not assessed yet.</p>') +
+      '<div class="seg2" role="radiogroup" aria-label="Decision"><button type="button" data-d="accepted" aria-pressed="' + (decision === "accepted") + '">Accept</button><button type="button" data-d="changes_required" aria-pressed="' + (decision === "changes_required") + '">Not yet: ask for more</button></div>' +
+      '<p class="small muted">Any real evidence can be signed off for the KSBs it shows. Use the feedback to say what to get next time.</p>' +
       '<p class="label">' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + ' this evidence meets</p><p class="small muted">Ticked from what the learner mapped. Untick any that aren’t met, or add others.</p>' +
       '<div class="ksbs">' + unitKsbs.map((k) => row(k, claimed.includes(k) ? "" : "not mapped by the learner")).join("") + extra().map((k) => row(k, claimed.includes(k) ? "mapped by the learner" : "added")).join("") + '</div>' +
       (rest.length ? '<label class="field">Add another<select id="addKsb"><option value="">Choose…</option>' + rest.map((k) => '<option value="' + esc(k) + '">' + esc(k + " " + ksbText(C, k)).slice(0, 110) + '</option>').join("") + '</select></label>' : "") +
       '<div class="field"><div class="between"><span>Feedback for the learner' + (decision === "accepted" ? ' <small>(optional)</small>' : "") + '</span>' + (A ? '<button type="button" class="btn ghost small-btn" id="fbRedo">Rewrite from Evia</button>' : "") + '</div>' +
       '<textarea id="fb" rows="5" placeholder="' + (decision === "accepted" ? "What was good about it" : "What they need to add or change") + '"></textarea>' + (A ? '<small class="muted">Drafted from what Evia found. Read it and change anything.</small>' : "") + '</div>' +
-      '<p class="err" role="alert"></p><button class="btn primary wide" id="save">' + (decision === "accepted" ? "Accept and sign off " + ticked.size + (ticked.size === 1 ? " KSB" : " KSBs") : "Send back for changes") + '</button>';
+      '<p class="err" role="alert"></p><button class="btn primary wide" id="save">' + (decision === "accepted" ? "Accept and sign off " + ticked.size + (ticked.size === 1 ? " KSB" : " KSBs") : "Ask for more before signing off") + '</button>';
     /* The feedback is drafted from Evia and follows the decision until the assessor edits it. */
     const fb = box.querySelector("#fb");
     if (box.dataset.fbEdited !== "1") box.dataset.fb = feedbackDraft();
@@ -235,7 +236,7 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed, asBl
   if (others.length) { head("Other files"); others.forEach((f) => text("• " + f.storage_path.split("/").pop() + " (" + f.mime_type + "), kept in Nisia", 9, "normal", 0.6)); }
   head("Assessment");
   if (item.latest) {
-    text((item.latest.decision === "accepted" ? (isObservation(e) ? "Observed and signed off" : "Accepted") : "Changes needed") + " on " + ukDate(item.latest.created_at) + (isObservation(e) && e.source_metadata.observedBy ? " by " + e.source_metadata.observedBy : ""), 10, "bold");
+    text((item.latest.decision === "accepted" ? (isObservation(e) ? "Observed and signed off" : "Accepted") : "More asked for") + " on " + ukDate(item.latest.created_at) + (isObservation(e) && e.source_metadata.observedBy ? " by " + e.source_metadata.observedBy : ""), 10, "bold");
     if (item.latest.feedback) text(item.latest.feedback, 10);
     if ((item.latest.ksbs || []).length) { text("KSBs signed off:", 10, "bold", 0.5); item.latest.ksbs.forEach((k) => text(k + "  " + ksbText(C, k), 9, "normal", 0.6)); }
   } else text("Not assessed yet.", 10);
@@ -263,4 +264,17 @@ export function insightsHtml(snap) {
     tile("Teach me", subj.length ? '<span class="in-v">' + subj.map((s) => '<span class="in-c">' + esc(s.name) + ' <b>' + s.done + '/' + s.total + '</b>' + (s.avg != null ? '<small> ' + s.avg + '%</small>' : "") + '</span>').join("") + '</span>' : '<span class="in-v muted">Not started</span>') +
     tile("Activity", '<span class="in-v"><span class="in-c">Streak <b>' + (snap.streak || 0) + ' wk</b></span><span class="in-c">Last evidence <b>' + (snap.daysSince == null ? "–" : snap.daysSince === 0 ? "today" : snap.daysSince + "d ago") + '</b></span>' + (snap.otj ? '<span class="in-c">This month <b>' + (Math.round((snap.otj.month || 0) * 10) / 10) + ' h</b></span>' : "") + '</span>') +
     '</div></section>';
+}
+
+/* Consistency over time: which of the last 12 weeks the learner added evidence (their own and observations). */
+export function consistencyHtml(evidence) {
+  const DAY = 864e5, now = new Date(); now.setHours(0, 0, 0, 0);
+  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weeks = Array.from({ length: 12 }, (_, i) => { const from = monday.getTime() - (11 - i) * 7 * DAY; return { from, n: 0 }; });
+  (evidence || []).forEach((e) => { const t = Date.parse(e.created_at); const w = weeks.find((x) => t >= x.from && t < x.from + 7 * DAY); if (w) w.n++; });
+  const active = weeks.filter((w) => w.n).length, runs = weeks.reduce((a, w) => { a.cur = w.n ? a.cur + 1 : 0; a.best = Math.max(a.best, a.cur); return a; }, { cur: 0, best: 0 });
+  const say = active >= 8 ? "Steady: evidence most weeks." : active >= 4 ? "Some weeks with evidence, some without." : active ? "Evidence in bursts: encourage a little every week." : "No evidence in the last 12 weeks.";
+  return '<section class="card consistency" aria-label="Evidence over the last 12 weeks"><div class="in-head"><b>Consistency</b><span class="sub">last 12 weeks</span></div>' +
+    '<div class="cs-strip">' + weeks.map((w) => '<i class="cs-w' + (w.n >= 3 ? " cs3" : w.n === 2 ? " cs2" : w.n === 1 ? " cs1" : "") + '" title="Week of ' + new Date(w.from).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ": " + w.n + (w.n === 1 ? " piece" : " pieces") + '"></i>').join("") + '</div>' +
+    '<p class="small"><b>' + active + ' of 12 weeks</b>' + (runs.best > 1 ? ' · longest run ' + runs.best + ' weeks' : "") + ' · ' + say + '</p></section>';
 }

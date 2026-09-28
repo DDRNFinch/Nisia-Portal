@@ -100,6 +100,7 @@ try {
   await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
     /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
+  check("Milos shows how steadily evidence has come in over 12 weeks", await page.$$eval(".consistency .cs-w", (w) => w.length) === 12 && /of 12 weeks/.test(await page.textContent(".consistency")));
   /* An observation, captured the way Evia captures evidence, then signed off. */
   await page.click("#obs"); await page.waitForSelector(".obs-units [data-u]");
   await page.click('.obs-units [data-u="0"]'); await page.waitForSelector("#obText");
@@ -133,7 +134,7 @@ try {
   await page.click("#hlOn"); const off = await page.evaluate(() => document.querySelectorAll("#acct mark").length === 0 && !document.querySelector(".ev-found"));
   await page.click("#hlOn");
   await page.click('[data-d="changes_required"]'); const fbChanges = await page.inputValue("#fb"); await page.click('[data-d="accepted"]');
-  check("…the highlight switch turns it off, and the draft follows the decision", off && /Before I can sign it off/.test(fbChanges), fbChanges);
+  check("…the highlight switch turns it off, and the draft follows the decision", off && /before I sign it off/.test(fbChanges), fbChanges);
   await page.uncheck('.ksb-row input[value="S5"]'); await page.check('.ksb-row input[value="B5"]'); await page.selectOption("#addKsb", "K2");
   await page.fill("#fb", "Good ties and a clean cavity.");
   await page.click("#save"); await page.waitForTimeout(500);
