@@ -9,7 +9,7 @@ import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { saveAssessment } from "./store.js";
 import { analyse, highlighted, statementMarked, draftFeedback } from "./match.js";
 
-const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
+const TYPE = { photo: "Photos", video: "Video", audio: "Voice note", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const unitOf = (e) => (e.source_metadata && e.source_metadata.unit) || e.title || "";
 const isObservation = (e) => (e.source_metadata && e.source_metadata.collection) === "observation";
@@ -96,17 +96,19 @@ export async function openEvidence(ctx, item, onSaved) {
   const { L, groups, me, college } = ctx, e = item.e, m = e.source_metadata || {}, C = COURSE_DATA[L.row.course_code] || { units: [], ksbs: [] };
   const group = groups.find((g) => g.items.includes(item)), siblings = group ? group.items : [item], at = siblings.indexOf(item);
   const claimed = (m.ksbs || []).filter(Boolean), latest = item.latest;
+  /* The learner's words: the write-up, and what Evia wrote down from any video or voice note they recorded. */
+  const words = [m.text, m.transcript ? "From the recording: " + m.transcript : ""].filter(Boolean).join("\n\n");
   const unitKsbs = group && group.ksbs.length ? group.ksbs : [];
   let ticked = new Set(latest ? latest.ksbs || [] : claimed), decision = latest ? latest.decision : "accepted";
   const extra = () => [...new Set([...claimed, ...ticked])].filter((k) => !unitKsbs.includes(k) && !suggested.includes(k));
   /* What Evia can see in the write-up (match.js): matched words, per KSB, and a draft of the feedback. */
   const photoCount = item.files.filter((f) => /^image\//.test(f.mime_type)).length || (m.photoIds || []).length || m.photoCount || 0;
-  const A = m.text && !isSupporting(e) ? analyse({ text: m.text, C, code: L.row.course_code, unit: m.unit || unitOf(e), ksbs: [...new Set([...unitKsbs, ...claimed])], photos: photoCount }) : null;
+  const A = words && !isSupporting(e) ? analyse({ text: words, C, code: L.row.course_code, unit: m.unit || unitOf(e), ksbs: [...new Set([...unitKsbs, ...claimed])], photos: photoCount }) : null;
   /* Other KSBs in the course whose words Evia also found in the write-up: suggested, never ticked, for the assessor
      to decide. Checked separately so "Show what Evia matched" still marks just this unit's words. */
   const unitOfKsb = (k) => { const i = C.units.findIndex(([, ks]) => ks.includes(k)); return i < 0 ? "" : "Unit " + (i + 1) + ": " + C.units[i][0]; };
   const others = A ? (C.ksbs || []).map((k) => k[0]).filter((k) => !unitKsbs.includes(k) && !claimed.includes(k)) : [];
-  const O = others.length ? analyse({ text: m.text, C, code: L.row.course_code, unit: m.unit || unitOf(e), ksbs: others, photos: photoCount }) : null;
+  const O = others.length ? analyse({ text: words, C, code: L.row.course_code, unit: m.unit || unitOf(e), ksbs: others, photos: photoCount }) : null;
   const suggested = O ? others.filter((k) => O.byKsb[k].words.length >= 2).sort((a, b) => O.byKsb[b].words.length - O.byKsb[a].words.length).slice(0, 5) : [];
   suggested.forEach((k) => { A.byKsb[k] = O.byKsb[k]; });
   let showHl = (() => { try { return localStorage.getItem("milos-highlight") !== "off"; } catch (_) { return true; } })(), focusKsb = null;
@@ -130,13 +132,13 @@ export async function openEvidence(ctx, item, onSaved) {
     '<p class="muted small">' + esc(L.row.name) + ' · ' + esc(C.name || L.row.course_code) + (C.std ? " (" + esc(C.std) + ")" : "") + '</p></div>' +
     '<dl class="paper-meta"><div><dt>Added</dt><dd>' + esc(ukDate(e.created_at)) + '</dd></div><div><dt>Type</dt><dd>' + esc(isObservation(e) ? "Observation" : TYPE[e.evidence_type] || e.evidence_type) + '</dd></div>' +
     (item.otherCourse ? '<div><dt>Course</dt><dd>' + esc(item.otherCourse) + '</dd></div>' : "") + '<div><dt>Status</dt><dd>' + statusPill(item) + '</dd></div></dl></header>' +
-    (m.text ? '<section><div class="between acct-head"><h3>' + esc(accountHead(e)) + '</h3>' + (A ? '<label class="hl-switch"><input type="checkbox" id="hlOn"' + (showHl ? " checked" : "") + '> Show what Evia matched</label>' : "") + '</div>' +
-      '<p class="paper-text" id="acct">' + esc(m.text) + '</p>' + (A ? '<p class="small muted" id="acctNote"></p>' : "") + '</section>' : "") +
+    (words ? '<section><div class="between acct-head"><h3>' + esc(accountHead(e)) + '</h3>' + (A ? '<label class="hl-switch"><input type="checkbox" id="hlOn"' + (showHl ? " checked" : "") + '> Show what Evia matched</label>' : "") + '</div>' +
+      '<p class="paper-text" id="acct">' + esc(words) + '</p>' + (A ? '<p class="small muted" id="acctNote"></p>' : "") + '</section>' : "") +
     (claimed.length ? '<section><h3>' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + (isObservation(e) ? " observed" : " the learner mapped") + '</h3><ul class="paper-ksbs">' + claimed.map((k) => '<li><b>' + esc(k) + '</b> ' + esc(ksbText(C, k)) + '</li>').join("") + '</ul></section>' : "") +
     '<section><h3>Photos and files</h3><div class="paper-media" id="media"><p class="small muted">Loading…</p></div></section>';
   const drawAcct = () => {
     const el = paper.querySelector("#acct"); if (!el || !A) return;
-    el.innerHTML = showHl ? highlighted(A, focusKsb) : esc(m.text);
+    el.innerHTML = showHl ? highlighted(A, focusKsb) : esc(words);
     const note = paper.querySelector("#acctNote");
     if (note) note.innerHTML = !showHl ? "" : focusKsb ? "Showing the words for <b>" + esc(focusKsb) + "</b>. <button class='linkish' id='hlAll'>Show all</button>"
       : "Covers " + A.covered.length + " of " + (A.covered.length + A.missing.length) + " things to mention" + (A.missing.length ? ". Not mentioned: " + esc(A.missing.slice(0, 5).join(", ")) : "") + ". A guide only: you decide.";
@@ -226,7 +228,8 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed, asBl
   text(L.row.name + " · " + (C.name || L.row.course_code) + (C.std ? " (" + C.std + ")" : ""), 10, "normal", 0.5);
   text("Added " + ukDate(e.created_at) + " · " + (isObservation(e) ? "Observation" : TYPE[e.evidence_type] || e.evidence_type), 10, "normal", 2);
   const m = e.source_metadata || {};
-  if (m.text) { head(accountHead(e)); text(m.text, 10); }
+  const words = [m.text, m.transcript ? "From the recording: " + m.transcript : ""].filter(Boolean).join("\n\n");
+  if (words) { head(accountHead(e)); text(words, 10); }
   if (claimed.length) { head((L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + (isObservation(e) ? " observed" : " the learner mapped")); claimed.forEach((k) => text(k + "  " + ksbText(C, k), 9, "normal", 0.6)); }
   const photos = media.filter((f) => f.url && /^image\//.test(f.mime_type));
   if (photos.length) {
