@@ -48,8 +48,14 @@ function handle(route) {
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
     { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
-  if (p === "/rest/v1/evidence") return json([{ id: "ev1", title: "Cavity walling", evidence_type: "photo", created_at: day(-10), source_metadata: { ksbs: ["K1", "S2"], text: "Built a cavity wall with ties every 450 mm." } }, { id: "ev2", title: "Setting out", evidence_type: "photo", created_at: day(-200), source_metadata: {} }]);
-  if (p === "/rest/v1/evidence_files") return json([{ storage_path: "O1/ev1/a.jpeg", mime_type: "image/jpeg" }, { storage_path: "O1/ev1/b.jpeg", mime_type: "image/jpeg" }]);
+  if (p === "/rest/v1/evidence") return json([
+    { id: "ev1", organisation_id: "O1", title: "Construct Cavity Walling", evidence_type: "photo", created_at: day(-10), source_metadata: { collection: "evidence", unit: "Construct Cavity Walling", ksbs: ["S11", "K22", "S5"], text: "Built a cavity wall with ties every 450 mm.", photoIds: ["p1", "p2"] } },
+    { id: "ev2", organisation_id: "O1", title: "Mixing mortar", evidence_type: "photo", created_at: day(-200), source_metadata: { collection: "evidence", unit: "Mixing mortar", ksbs: ["S14"] } },
+    { id: "ev3", organisation_id: "O1", title: "Structural carcassing", evidence_type: "photo", created_at: day(-5), source_metadata: { collection: "evidence", unit: "Structural carcassing", ksbs: [] } },
+    { id: "ev4", organisation_id: "O1", title: "Site induction.pdf", evidence_type: "document", created_at: day(-3), client_reference: "supporting:s1", source_metadata: { collection: "supporting", ksbs: [] } }]);
+  if (p === "/rest/v1/assessments" && q.method() === "GET") return json([{ id: "A0", evidence_id: "ev2", decision: "accepted", feedback: null, ksbs: ["S14", "K20"], created_at: day(-190), assessor_member_id: "M1" }]);
+  if (p === "/rest/v1/assessments" && q.method() === "POST") { posted.push({ table: "assessments", body }); return json({ id: "A1", ...body, created_at: new Date().toISOString() }, 201); }
+  if (p === "/rest/v1/evidence_files") return json([{ evidence_id: "ev1", storage_path: "O1/ev1/a.jpeg", mime_type: "image/jpeg" }, { evidence_id: "ev1", storage_path: "O1/ev1/b.jpeg", mime_type: "image/jpeg" }]);
   if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
   if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
   if (p === "/rest/v1/otj_entries") return json([{ activity_date: day(-20).slice(0, 10), hours: 7.5 }, { activity_date: day(-150).slice(0, 10), hours: 112.5 }]);
@@ -75,11 +81,25 @@ try {
   await page.click("[data-id=L1]"); await page.waitForSelector("#rev");
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
-  check("The learner page shows Evia's coverage, hours and evidence", /36%/.test(lt) && /120 h/.test(lt) && /Cavity walling/.test(lt));
-  await page.click("[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.waitForTimeout(400);
+  check("The learner page shows Evia's coverage and hours", /36%/.test(lt) && /120 h/.test(lt));
+  await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
+  const units = await page.$$eval(".pf-unit .pf-name > b", (els) => els.map((x) => x.textContent));
+  check("The portfolio lists the course's units in Evia's order, then other units and supporting evidence", units[0] === "Mixing mortar" && units[7] === "Construct Cavity Walling" && units.at(-2) === "Other units" && units.at(-1) === "Supporting evidence");
+  check("New evidence is highlighted and counted; assessed evidence shows as signed off", /3 new to assess/.test(await page.textContent("#pfBox")) && !!(await page.$("[data-ev=ev1].is-new")) && /Accepted/.test(await page.textContent("[data-ev=ev2]")) && /2\/8/.test(await page.textContent(".pf-unit:first-child .pf-met")));
+  await page.click("[data-ev=ev1]"); await page.waitForSelector(".paper-media img"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2b-evidence.png" });
-  check("The assessor opens a piece of evidence: what they wrote, KSBs and photos", /ties every 450/.test(await page.textContent(".sheet")) && (await page.$$(".media img")).length === 2 && /K1/.test(await page.textContent(".sheet")));
-  await page.click(".sheet .x");
+  const ticks = await page.$$eval(".ksb-row input", (els) => els.filter((x) => x.checked).map((x) => x.value));
+  check("Evidence opens as a document: the learner's account, their KSBs and photos, with their KSBs ticked", /ties every 450/.test(await page.textContent(".paper")) && (await page.$$(".paper-media img")).length === 2 && ticks.join() === "S11,K22,S5");
+  await page.uncheck('.ksb-row input[value="S5"]'); await page.check('.ksb-row input[value="B5"]'); await page.selectOption("#addKsb", "K2");
+  await page.fill("#fb", "Good ties and a clean cavity.");
+  await page.click("#save"); await page.waitForTimeout(500);
+  const saved = posted.find((x) => x.table === "assessments");
+  check("The assessor signs it off with their own KSB choice (one unticked, one ticked, one added from another unit)", !!saved && saved.body.decision === "accepted" && saved.body.ksbs.sort().join() === "B5,K2,K22,S11" && saved.body.assessor_member_id && /Good ties/.test(saved.body.feedback));
+  check("The next new piece opens after saving", !!(await page.$(".paper")) && /Structural carcassing/.test(await page.textContent(".paper h1")));
+  const [evDl] = await Promise.all([page.waitForEvent("download"), page.click("#evPdf")]);
+  check("A piece of evidence downloads as a PDF", /\.pdf$/.test(evDl.suggestedFilename()));
+  await page.click("#evBack"); await page.waitForTimeout(200);
+  check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")));
   await page.click("#rev"); await page.waitForSelector(".rv");
   const next = async () => { await page.click("#next"); await page.waitForTimeout(120); };
   const texts = [];

@@ -255,6 +255,7 @@ function addLearner() {
   }); };
 }
 /* One piece of evidence, as the learner saved it in Evia: what they wrote, the KSBs, and the photos or files. */
+const assessedPill = (a) => !a ? '<span class="pill">Not yet</span>' : a.decision === "accepted" ? '<span class="pill good">Accepted</span>' : '<span class="pill warn">Changes needed</span>';
 const EV_TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up" };
 async function showEvidence(e) {
   if (!e) return;
@@ -262,7 +263,9 @@ async function showEvidence(e) {
     '<p class="small muted">' + esc([e.unit && e.unit !== e.title ? e.unit : "", EV_TYPE[e.type] || e.type, ukDate(e.at)].filter(Boolean).join(" · ")) + '</p>' +
     ((e.ksbs || []).length ? '<div class="chips">' + e.ksbs.map((k) => '<span class="pill">' + esc(k) + '</span>').join("") + '</div>' : "") +
     (e.text ? '<div class="quote"><span class="label">What they wrote</span><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(e.text) + '</p></div>' : "") +
-    '<div class="media" id="media"><p class="small muted">Loading files…</p></div>');
+    '<div class="media" id="media"><p class="small muted">Loading files…</p></div>' +
+    (e.assessment ? '<div class="quote"><span class="label">Assessment</span><p style="margin:6px 0 0">' + assessedPill(e.assessment) + ' ' + esc(ukDate(e.assessment.at)) + (e.assessment.by ? " by " + esc(e.assessment.by) : "") + '</p>' +
+      (e.assessment.feedback ? '<p style="margin:6px 0 0">' + esc(e.assessment.feedback) + '</p>' : "") + ((e.assessment.ksbs || []).length ? '<p class="small" style="margin:6px 0 0"><b>KSBs signed off:</b> ' + esc(e.assessment.ksbs.join(", ")) + '</p>' : "") + '</div>' : '<p class="small muted">Not assessed yet. The assessor signs it off in Milos.</p>'));
   m.classList.add("wide-modal");
   const box = m.querySelector("#media");
   try {
@@ -350,9 +353,9 @@ async function learnerPage() {
         (d.reviews || []).map((r, i, a) => '<div class="target"><span class="tick done"></span><span>Progress review ' + (a.length - i) + '<br><span class="small muted">Signed by all three, ' + esc(ukDate(r.at)) + '</span></span><span class="pill good">' + esc(r.overall || "Signed") + '</span></div>').join("") + '</section>' +
     '</div>' +
     '<section class="panel"><div class="panel-head"><h2>Evidence</h2><span class="small muted">' + (d.evidence || []).length + ' from Evia · tap one to see it</span></div>' +
-      ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th></tr></thead><tbody>' + d.evidence.map((e) =>
+      ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th><th>Assessed</th></tr></thead><tbody>' + d.evidence.map((e) =>
         '<tr data-ev="' + e.id + '" tabindex="0"><td><b>' + esc(e.title) + '</b><br><span class="small muted">' + esc(EV_TYPE[e.type] || e.type) + '</span></td><td class="small">' + esc((e.ksbs || []).slice(0, 8).join(", ")) + '</td>' +
-        '<td class="small">' + (e.files ? e.files + (e.files === 1 ? " file" : " files") : e.photos_expected ? '<span class="muted">Waiting for WiFi</span>' : "–") + '</td><td class="small num">' + esc(ukDate(e.at)) + '</td></tr>').join("") + '</tbody></table></div>'
+        '<td class="small">' + (e.files ? e.files + (e.files === 1 ? " file" : " files") : e.photos_expected ? '<span class="muted">Waiting for WiFi</span>' : "–") + '</td><td class="small num">' + esc(ukDate(e.at)) + '</td><td>' + assessedPill(e.assessment) + '</td></tr>').join("") + '</tbody></table></div>'
         : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>' +
     '<div class="grid cols-2">' +
       '<section class="panel"><div class="panel-head"><h2>Recent activity in Evia</h2></div><div class="feed">' + (feed.length ? feed.map((f) => (f.ev ? '<button type="button" class="feed-item tap" data-ev="' + f.ev + '">' : '<div class="feed-item">') + '<span class="ficon">' + ICON[f.ic] + '</span><span>' + esc(f.t) + '</span><span class="small muted" style="white-space:nowrap">' + esc(lastActive(f.at)) + '</span>' + (f.ev ? '</button>' : '</div>')).join("") : '<p class="muted small">Nothing yet.</p>') + '</div></section>' +

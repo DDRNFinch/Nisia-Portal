@@ -32,6 +32,53 @@
 .sig canvas{width:100%;height:auto;aspect-ratio:900/260;border:1.5px dashed #c7d0db;border-radius:14px;background:#fff;touch-action:none}
 .target{display:flex;flex-direction:column;gap:10px}
 details summary{cursor:pointer}
+/* Portfolio: units in the course's order, new evidence highlighted. */
+.pf{display:flex;flex-direction:column;gap:10px}
+.pf-unit{padding:0;overflow:hidden}
+.pf-unit summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 16px}
+.pf-unit summary::-webkit-details-marker{display:none}
+.pf-unit.has-new{border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+.pf-no{flex:0 0 30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-text);font-weight:800;font-size:14px}
+.pf-no:empty{background:#f2f4f7}
+.pf-name{flex:1;min-width:0;display:flex;flex-direction:column}
+.pf-name .sub{font-size:13px;color:var(--muted)}
+.new-txt{color:var(--accent-text)}
+.pf-met{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.pf-met small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.pf-items{border-top:1px solid var(--line)}
+.pf-item{display:grid;grid-template-columns:1fr auto 18px;gap:12px;align-items:center;width:100%;padding:12px 16px 12px 58px;border:0;border-top:1px solid var(--line);background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.pf-item:first-child{border-top:0}
+.pf-item:hover{background:#fcfcfd}
+.pf-item.is-new{background:linear-gradient(90deg,var(--accent-soft),transparent 60%)}
+.pf-item .name{font-weight:700}.pf-item .sub{display:block;font-size:12.5px;color:var(--muted)}
+.pf-item .chev{color:var(--faint);font-size:20px}
+@media(max-width:520px){.pf-item{padding-left:16px}}
+/* One piece of evidence: the document, and the assessment beside it (below it on phones). */
+.ev-body{max-width:1180px;display:grid;grid-template-columns:minmax(0,1fr) 360px;align-items:start;gap:18px}
+@media(max-width:900px){.ev-body{grid-template-columns:1fr}}
+.paper{background:#fff;border:1px solid var(--hair);box-shadow:0 2px 10px rgba(16,24,40,.08);border-radius:6px;padding:34px 36px;display:flex;flex-direction:column;gap:18px;min-width:0}
+@media(max-width:520px){.paper{padding:20px 16px}}
+.paper-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+.paper-head h1{font-size:24px}
+.paper-meta{margin:0;display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:13px}
+.paper-meta div{display:contents}.paper-meta dt{color:var(--muted)}.paper-meta dd{margin:0;font-weight:700}
+.paper h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+.paper-text{white-space:pre-wrap;line-height:1.6}
+.paper-ksbs{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.paper-media{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.paper-media img,.paper-media video{width:100%;border-radius:8px;background:#f2f4f7;display:block}
+.paper-media img{aspect-ratio:4/3;object-fit:cover}
+.paper-media audio,.paper-media .btn,.paper-media p{grid-column:1/-1}
+.assess{position:sticky;top:0;display:flex;flex-direction:column;gap:12px}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border-radius:14px;background:#f2f4f7}
+.seg2 button{min-height:42px;border:0;border-radius:11px;background:none;font-weight:700;color:var(--muted)}
+.seg2 button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.seg2 button[data-d=changes_required][aria-pressed=true]{color:var(--warn)}
+.ksbs{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto}
+.ksb-row{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid #e4e8ee;border-radius:12px;font-size:13.5px;line-height:1.35;cursor:pointer}
+.ksb-row:has(input:checked){background:var(--accent-soft);border-color:var(--accent-line)}
+.ksb-row input{margin:2px 0 0;width:18px;height:18px;flex:0 0 auto;accent-color:var(--accent)}
+.history{display:flex;flex-direction:column;gap:6px}
 .due-m{display:none;margin-top:4px}
 @media(max-width:720px){.due-m{display:block}}
 </style>

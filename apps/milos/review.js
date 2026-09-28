@@ -21,7 +21,7 @@ export async function loadLearner(row) {
     db.from("enrolments").select("*").eq("id", e).single(),
     db.from("evia_records").select("collection, record_id, data, deleted_at, updated_at").eq("enrolment_id", e).is("deleted_at", null).in("collection", ["snapshot", "targets", "reviews", "learner", "lessonResults", "tests", "confidence"]),
     db.from("reviews").select("*").eq("enrolment_id", e).order("reviewed_at", { ascending: true }),
-    db.from("evidence").select("id, title, evidence_type, created_at, source_metadata").eq("enrolment_id", e).order("created_at", { ascending: false }),
+    db.from("evidence").select("id, organisation_id, title, evidence_type, created_at, source_metadata, client_reference").eq("enrolment_id", e).order("created_at", { ascending: false }),
     db.from("otj_entries").select("activity_date, hours, description, activity_type").eq("enrolment_id", e),
   ]);
   for (const r of [enr, recs, reviews, evidence, otj]) if (r.error) throw new Error(r.error.message);

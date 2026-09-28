@@ -4,6 +4,7 @@
 import { db, call, rpc, me, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth } from "../../packages/core/signin.js";
 import { loadLearner, reviewDue, dueText, facts, openReview, downloadPdf } from "./review.js";
+import { loadPortfolio, groupByUnit, portfolioHtml, openEvidence } from "./portfolio.js";
 
 const root = document.getElementById("app");
 let who = null, rows = [], filter = "all";
@@ -91,42 +92,21 @@ async function learner(r) {
     '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
     '<h2>Reviews</h2><div class="card list">' + (L.reviews.length ? L.reviews.slice().reverse().map((v, i) =>
       '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Download PDF</span><span class="chev">›</span></button>').join("") : '<p class="empty">No reviews yet.</p>') + '</div>' +
-    '<div class="between"><h2>Evidence</h2><span class="small muted">' + L.evidence.length + ' from Evia</span></div><div class="card list" id="evList"></div>';
-  const evList = root.querySelector("#evList");
-  const drawEvidence = (all) => {
-    evList.innerHTML = L.evidence.length ? (all ? L.evidence : L.evidence.slice(0, 8)).map((e) =>
-      '<button class="item" style="--cols:1" data-ev="' + e.id + '"><span class="name-cell"><span class="name">' + esc(e.title) + '</span><span class="sub">' + esc(TYPE[e.evidence_type] || e.evidence_type) + ((e.source_metadata && e.source_metadata.ksbs || []).length ? " · " + esc(e.source_metadata.ksbs.slice(0, 6).join(", ")) : "") + '</span></span><span class="small">' + esc(ago(e.created_at)) + '</span><span class="chev">›</span></button>').join("") +
-      (!all && L.evidence.length > 8 ? '<button class="btn ghost" id="evAll">Show all ' + L.evidence.length + '</button>' : "") : '<p class="empty">Nothing from Evia yet.</p>';
-    evList.querySelectorAll("[data-ev]").forEach((b) => b.onclick = () => showEvidence(L.evidence.find((x) => x.id === b.dataset.ev)));
-    const more = evList.querySelector("#evAll"); if (more) more.onclick = () => drawEvidence(true);
+    '<div id="pfBox"><p class="muted">Loading the portfolio…</p></div>';
+  let onlyNew = false, groups = [];
+  const pfBox = root.querySelector("#pfBox");
+  const drawPortfolio = () => {
+    pfBox.innerHTML = portfolioHtml(groups, onlyNew);
+    pfBox.querySelector("#pfFilter").onclick = () => { onlyNew = !onlyNew; drawPortfolio(); };
+    pfBox.querySelectorAll("[data-ev]").forEach((b) => b.onclick = () => {
+      const item = groups.flatMap((g) => g.items).find((it) => it.e.id === b.dataset.ev);
+      openEvidence({ L, groups, me: { name: who.name, member_id: r.org.member_id }, college: r.org.organisation }, item, () => { drawPortfolio(); toast("Saved to Nisia"); });
+    });
   };
-  drawEvidence(false);
+  loadPortfolio(L).then((P) => { groups = groupByUnit(L, P); drawPortfolio(); }).catch((e) => { pfBox.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
   root.querySelector("#rev").onclick = () => openReview(L, { name: who.name, member_id: r.org.member_id }, () => { toast("Review saved and downloaded"); home(); });
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = async () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); try { await downloadPdf({ ...v.content, id: v.id, reviewedAt: v.reviewed_at.slice(0, 10) }); } catch (e) { toast(e.message); } });
-}
-/* One piece of evidence: what the learner wrote, the KSBs it covers, and the photos, videos or files (from WiFi uploads). */
-const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
-async function showEvidence(e) {
-  const m = e.source_metadata || {}, o = document.createElement("div"); o.className = "overlay";
-  o.innerHTML = '<section class="sheet" role="dialog" aria-modal="true"><div class="sheet-head"><div style="flex:1"><p class="label">' + esc(m.unit || TYPE[e.evidence_type] || "") + '</p><h2>' + esc(e.title) + '</h2><p class="small muted">' + esc(ukDate(e.created_at)) + '</p></div><button class="x" aria-label="Close">×</button></div>' +
-    ((m.ksbs || []).length ? '<div class="checks">' + m.ksbs.map((k) => '<span class="pill accent">' + esc(k) + '</span>').join("") + '</div>' : "") +
-    (m.text ? '<div class="card flat"><p class="label">What they wrote</p><p style="white-space:pre-wrap">' + esc(m.text) + '</p></div>' : "") +
-    '<div class="media" id="media"><p class="muted small">Loading files…</p></div></section>';
-  o.onclick = (x) => { if (x.target === o) o.remove(); }; o.querySelector(".x").onclick = () => o.remove(); document.body.appendChild(o);
-  const box = o.querySelector("#media");
-  try {
-    const { data: files, error } = await db.from("evidence_files").select("storage_path, mime_type").eq("evidence_id", e.id).order("created_at");
-    if (error) throw error;
-    if (!files.length) { box.innerHTML = '<p class="small muted">' + ((m.photoIds || []).length ? "Photos haven’t arrived yet. Evia sends them when the learner’s phone is on WiFi." : "No files with this one.") + '</p>'; return; }
-    const { data: urls, error: ue } = await db.storage.from("evidence").createSignedUrls(files.map((f) => f.storage_path), 3600);
-    if (ue) throw ue;
-    box.innerHTML = files.map((f, i) => { const u = urls[i] && urls[i].signedUrl; if (!u) return "";
-      return /^image\//.test(f.mime_type) ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="Photo ' + (i + 1) + ' of ' + files.length + '" loading="lazy"></a>'
-        : /^video\//.test(f.mime_type) ? '<video src="' + esc(u) + '" controls playsinline preload="metadata"></video>'
-        : /^audio\//.test(f.mime_type) ? '<audio src="' + esc(u) + '" controls></audio>'
-        : '<a class="btn" href="' + esc(u) + '" target="_blank" rel="noopener">Open file ' + (i + 1) + '</a>'; }).join("");
-  } catch (x) { box.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
 }
 async function pairing(r) {
   const o = document.createElement("div"); o.className = "overlay"; o.innerHTML = '<section class="sheet" role="dialog" aria-modal="true"><p class="muted">Getting a code…</p></section>';
