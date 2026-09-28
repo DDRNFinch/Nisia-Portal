@@ -342,7 +342,7 @@ async function learnerPage() {
     '<div class="lhead">' + avatar(l.name) + '<div style="flex:1;min-width:220px"><h1>' + esc(l.name) + '</h1>' +
       '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">Assessor: ' + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
       '<div style="margin-top:8px"><span class="sync ' + (!l.paired || l.quiet == null || l.quiet > 3 ? "stale" : "") + '">' + (l.paired ? "Last update from Evia: " + lastActive(d.snapshot_at || l.last_activity) : "Evia not connected yet") + '</span></div></div>' +
-      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="assign">Assessor and tutor</button>' : "") + '</div></div>' +
+      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="assign">Assessor and tutor</button><button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
     (l.reasons.length ? '<div class="panel" style="border-color:' + stripeFor(l.state) + ';display:flex;gap:10px;flex-direction:column"><span class="label">Why this learner is flagged</span>' + l.reasons.map((r) => '<span>• ' + esc(r) + '</span>').join("") + '</div>' : "") +
     '<section class="stats" aria-label="Learner summary">' +
       '<div class="stat"><span class="label">Through the course</span><span class="big num">' + (l.through ?? "–") + '%</span><span class="sub">' + esc(ukDate(l.start_date)) + ' to ' + esc(ukDate(l.end_date)) + '</span></div>' +
@@ -380,6 +380,7 @@ async function learnerPage() {
   root.querySelectorAll("[data-review]").forEach((r) => { const open = () => showReview(r.dataset.review); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelectorAll("#main [data-ev]").forEach((r) => { const open = () => showEvidence(d.evidence.find((x) => x.id === r.dataset.ev)); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelector("#pair").onclick = () => pairing(l);
+  const ed = root.querySelector("#editL"); if (ed) ed.onclick = () => editLearner(l);
   const as = root.querySelector("#assign");
   if (as) as.onclick = () => {
     const m = modal("Assessor and tutor for " + first, '<form id="f" style="display:flex;flex-direction:column;gap:14px">' + staffPicker((l.assessors || []).map((a) => a.member_id)) + '<p class="err"></p><button class="btn primary wide" type="submit">Save</button></form>');
@@ -428,13 +429,50 @@ function staffPage() {
     (D.staff.length ? D.staff.map((s) => '<tr class="static"><td><div class="person">' + avatar(s.name || s.email) + '<div><b>' + esc(s.name || s.email) + '</b><br><span class="small muted">' + esc(s.email) + '</span></div></div></td>' +
       '<td>' + s.roles.map((r) => '<span class="tag">' + esc(r) + '</span>').join(" ") + '</td><td class="num">' + s.learners + '</td>' +
       '<td>' + (s.active ? '<span class="pill good">Active</span>' : '<span class="pill idle">Switched off</span>') + '</td>' +
-      '<td><button class="btn ghost" data-toggle="' + s.member_id + '">' + (s.active ? "Switch off" : "Switch on") + '</button></td></tr>').join("")
+      '<td><button class="btn ghost" data-edit="' + s.member_id + '">Edit</button></td></tr>').join("")
       : '<tr class="static"><td colspan="5" class="empty">No staff yet. Invite your assessors and tutors.</td></tr>') + '</tbody></table></div>');
   root.querySelector("#inv").onclick = () => inviteForm(S.org, "invite_staff");
-  root.querySelectorAll("[data-toggle]").forEach((b) => b.onclick = () => {
-    const s = D.staff.find((x) => x.member_id === b.dataset.toggle);
-    busy(b, "Saving…", async () => { try { await call("nisia-admin", { action: "set_staff_active", member_id: s.member_id, active: !s.active }); S.data = null; S.page = "staff"; render(); } catch (x) { toast(x.message); } });
-  });
+  root.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editStaff(D.staff.find((x) => x.member_id === b.dataset.edit)));
+}
+const ROLE_NAMES = [["assessor", "Assessor"], ["tutor", "Tutor"], ["admin", "College admin"], ["quality", "Quality (view only)"], ["employer", "Employer"]];
+function editStaff(s) {
+  const m = modal("Edit " + (s.name || s.email),
+    '<form id="f" novalidate style="display:flex;flex-direction:column;gap:14px">' +
+    '<label class="field">Name<input name="name" value="' + esc(s.name || "") + '" autocomplete="off"></label>' +
+    '<div class="field"><span>Email</span><p class="small muted" style="margin:0">' + esc(s.email) + ' (their sign-in; to change it, invite them again with the new email)</p></div>' +
+    '<div class="field"><span>Roles</span><div class="choice">' + ROLE_NAMES.map(([v, t]) => '<label><input type="checkbox" name="roles" value="' + v + '"' + (s.roles.includes(v) ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div>' +
+    '<label class="choice-row"><input type="checkbox" name="active"' + (s.active ? " checked" : "") + '> Can sign in (untick to switch them off; their records stay)</label>' +
+    '<p class="err"></p><button class="btn primary wide" type="submit">Save</button></form>');
+  const f = m.querySelector("#f");
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
+    try {
+      await call("nisia-admin", { action: "update_staff", member_id: s.member_id, name: f.name.value, roles: [...f.querySelectorAll("[name=roles]:checked")].map((x) => x.value), active: f.active.checked });
+      closeModal(); toast("Saved"); S.data = null; S.page = "staff"; render();
+    } catch (x) { f.querySelector(".err").textContent = x.message; }
+  }); };
+}
+async function editLearner(l) {
+  const m = modal("Edit " + l.name, '<p class="muted">Loading…</p>');
+  let en = {};
+  try { const { data, error } = await db.from("enrolments").select("employer_contact_name, employer_contact_email").eq("id", l.enrolment_id).single(); if (error) throw error; en = data || {}; } catch (_) { /* the form still works */ }
+  m.innerHTML = '<div class="modal-head"><h2>Edit ' + esc(l.name) + '</h2><button class="x" aria-label="Close">×</button></div>' +
+    '<form class="form-grid" id="f" novalidate>' +
+    '<label class="field full">Full name<input name="name" value="' + esc(l.name) + '" autocomplete="off"></label>' +
+    '<label class="field full">Course<select name="course">' + COURSES.map((c) => '<option value="' + c.id + '"' + (c.id === l.course_code ? " selected" : "") + '>' + esc(c.name) + '</option>').join("") + '</select></label>' +
+    '<label class="field">Start date<input name="start_date" type="date" value="' + esc(l.start_date || "") + '"></label>' +
+    '<label class="field">Planned end date<input name="end_date" type="date" value="' + esc(l.end_date || "") + '"></label>' +
+    '<label class="field">Planned off-the-job hours<input name="planned_otj_hours" type="number" min="0" value="' + esc(l.planned_otj_hours ?? "") + '"></label>' +
+    '<label class="field">Employer<input name="employer_name" value="' + esc(l.employer_name || "") + '" autocomplete="off"></label>' +
+    '<label class="field">Employer contact<input name="employer_contact_name" value="' + esc(en.employer_contact_name || "") + '" autocomplete="off"></label>' +
+    '<label class="field">Employer contact’s email<input name="employer_contact_email" type="email" value="' + esc(en.employer_contact_email || "") + '" autocomplete="off"></label>' +
+    '<p class="small muted full">Evia picks up the new course and dates the next time the learner connects it.</p>' +
+    '<p class="err full"></p><button class="btn primary wide full" type="submit">Save</button></form>';
+  m.querySelector(".x").onclick = closeModal;
+  const f = m.querySelector("#f");
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
+    try { await call("nisia-admin", { action: "update_learner", learner_id: l.learner_id, ...formData(f) }); closeModal(); toast("Saved"); S.data = null; S.page = "learner"; render(); }
+    catch (x) { f.querySelector(".err").textContent = x.message; }
+  }); };
 }
 function inviteForm(org, action, collegeName) {
   const admin = action === "invite_college_admin";

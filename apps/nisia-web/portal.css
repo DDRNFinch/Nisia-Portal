@@ -362,3 +362,4 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .sigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .sig-box{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px}
 .sig-box img{width:100%;height:auto;aspect-ratio:900/260;object-fit:contain;background:#fff;border-radius:6px}
+.choice-row{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.35}.choice-row input{width:18px;height:18px;margin-top:1px;accent-color:var(--accent)}

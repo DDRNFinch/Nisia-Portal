@@ -66,6 +66,8 @@ function fakeSupabase(persona) {
       if (body.action === "add_learner") { S.learners.push({ learner_id: "l" + S.learners.length, enrolment_id: "e" + S.learners.length, name: body.name, email: body.email || "x@learners.nisia.invalid", course_code: body.course, start_date: body.start_date, end_date: body.end_date, status: "active", employer_name: body.employer_name, planned_otj_hours: body.planned_otj_hours, assessors: S.staff.filter((s) => body.staff_member_ids.includes(s.member_id)).map((s) => ({ member_id: s.member_id, name: s.name })), paired: false, evidence: 0, otj_hours: 0, last_activity: null }); return json({ learner_id: "l0", enrolment_id: "e0" }); }
       if (body.action === "pairing_code") return json({ code: "ABC2345", qr: "NISI:PAIR:2:ABC2345", expires_in_minutes: 30 });
       if (body.action === "invite_staff") return json({ invite_code: "STAFFINVITECODE1" });
+      if (body.action === "update_staff") { const m = S.staff.find((x) => x.member_id === body.member_id); Object.assign(m, { name: body.name, roles: body.roles, active: body.active }); return json({ ok: true }); }
+      if (body.action === "update_learner") { const l = S.learners.find((x) => x.learner_id === body.learner_id); Object.assign(l, { name: body.name, course_code: body.course, start_date: body.start_date, end_date: body.end_date, employer_name: body.employer_name }); S.lastLearnerEdit = body; return json({ ok: true }); }
     }
     return json({ error: "not faked: " + p }, 404);
   } };
@@ -134,17 +136,24 @@ try {
     await page.click("tr[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
     check("Staff open a piece of evidence and see the write-up and photos", /Ties every 450/.test(await page.textContent(".modal")) && (await page.$$(".media img")).length === 1);
     await page.click(".modal .x");
+    await page.click("#editL"); await page.waitForSelector(".modal [name=employer_name]");
+    await page.fill(".modal [name=name]", "Callum J Hughes"); await page.fill(".modal [name=employer_name]", "Hughes Builders Ltd"); await page.fill(".modal [name=end_date]", "2027-12-31");
+    await page.click(".modal button[type=submit]"); await page.waitForTimeout(500);
+    check("College admin edits a learner's details", fake.S.lastLearnerEdit && fake.S.lastLearnerEdit.name === "Callum J Hughes" && fake.S.lastLearnerEdit.end_date === "2027-12-31" && /Callum J Hughes/.test(await page.textContent("#main")));
     await page.click("nav [data-go=reviews]"); await page.waitForSelector("#done [data-review]");
     await page.click("#done [data-review]"); await page.waitForSelector(".review-doc"); await page.screenshot({ path: shots + "/11c-review.png" });
     check("A completed review opens in Nisia, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);
     await page.click(".modal .x");
-    await page.click("nav [data-go=staff]"); await page.waitForSelector("#inv"); await page.click("#inv");
+    await page.click("nav [data-go=staff]"); await page.waitForSelector("[data-edit=m2]");
+    await page.click("[data-edit=m2]"); await page.fill(".modal [name=name]", "Mark T Ellis"); await page.check('.modal [name=roles][value="tutor"]');
+    await page.click(".modal button[type=submit]"); await page.waitForTimeout(500);
+    check("College admin edits a member of staff (name and roles), and switching off is inside that window", fake.S.staff[0].name === "Mark T Ellis" && fake.S.staff[0].roles.join() === "assessor,tutor" && fake.S.staff[0].active === true && !(await page.$("[data-toggle]"))); await page.waitForSelector("#inv"); await page.click("#inv");
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");
     await page.waitForSelector(".linkbox");
     check("College admin invites staff", /#invite=STAFFINVITECODE1$/.test(await page.inputValue(".linkbox input")));
     await page.click(".x"); await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
-    check("On a phone the menu opens the learners list", /Callum Hughes/.test(await page.textContent("table")));
+    check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));
     check("No script errors (college portal)", !errors.length, errors.join(" | "));
     await ctx.close();
   }

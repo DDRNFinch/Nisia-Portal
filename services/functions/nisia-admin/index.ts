@@ -2,7 +2,7 @@
 // invites and pairing codes). Every action checks the caller's own permission first, with their own token
 // (so the college rules and the authenticator-app requirement apply), and only then uses the service client.
 //   Master admin:  create_college, update_college, invite_college_admin
-//   College admin: invite_staff, add_learner, set_staff_active, assign_staff
+//   College admin: invite_staff, add_learner, set_staff_active, assign_staff, update_staff, update_learner
 //   Staff with access to the learner (and the college admin): pairing_code
 import { CORS, reply, fail, service, asCaller, makeCode, sha256, createInvite, roleIds } from "../_shared/nisia.ts";
 
@@ -68,6 +68,49 @@ Deno.serve(async (req) => {
           if (admins.length <= 1 && admins.includes(b.member_id)) return fail("This is the college’s only admin, so they can’t be switched off. Invite another admin first.");
         }
         await admin.from("organisation_members").update(b.active ? { active: true, deactivated_at: null } : { active: false, deactivated_at: new Date().toISOString() }).eq("id", b.member_id);
+        return reply({ ok: true });
+      }
+      case "update_staff": {
+        // Name, roles and on/off for one member of staff. A college always keeps an admin who's switched on.
+        const { data: m } = await admin.from("organisation_members").select("id, organisation_id, user_id, active").eq("id", b.member_id).single();
+        if (!m || !await canManage(m.organisation_id)) return fail("Not allowed.", 403);
+        const name = String(b.name ?? "").trim(), roles: string[] = (Array.isArray(b.roles) ? b.roles : []).filter((r: string) => STAFF_ROLES.includes(r));
+        const active = b.active !== false;
+        if (!name) return fail("Enter their name.");
+        if (!roles.length) return fail("Pick at least one role.");
+        if (m.user_id === uid && (!active || !roles.includes("admin"))) return fail("You can’t switch yourself off or remove your own admin role.");
+        const [ar] = await roleIds(admin, ["admin"]);
+        if (!active || !roles.includes("admin")) {
+          const { data: act } = await admin.from("organisation_members").select("id").eq("organisation_id", m.organisation_id).eq("active", true);
+          const { data: adm } = await admin.from("organisation_member_roles").select("organisation_member_id").eq("role_id", ar.id).in("organisation_member_id", (act ?? []).map((x) => x.id));
+          const others = (adm ?? []).map((x) => x.organisation_member_id).filter((id) => id !== m.id);
+          if (!others.length && (adm ?? []).some((x) => x.organisation_member_id === m.id)) return fail("This is the college’s only admin. Make someone else an admin first.");
+        }
+        await admin.from("profiles").upsert({ id: m.user_id, display_name: name });
+        const wanted = await roleIds(admin, roles), staffRoles = await roleIds(admin, STAFF_ROLES);
+        await admin.from("organisation_member_roles").delete().eq("organisation_member_id", m.id).in("role_id", staffRoles.map((r) => r.id));
+        const { error: re } = await admin.from("organisation_member_roles").insert(wanted.map((r) => ({ organisation_member_id: m.id, role_id: r.id })));
+        if (re) throw re;
+        if (active !== m.active) await admin.from("organisation_members").update(active ? { active: true, deactivated_at: null } : { active: false, deactivated_at: new Date().toISOString() }).eq("id", m.id);
+        return reply({ ok: true });
+      }
+      case "update_learner": {
+        // The learner's name and their enrolment: course, dates, planned hours and employer.
+        const { data: l } = await admin.from("learners").select("id, organisation_id, organisation_member_id, organisation_members!inner(user_id)").eq("id", b.learner_id).single();
+        if (!l || !await canManage(l.organisation_id)) return fail("Not allowed.", 403);
+        const name = String(b.name ?? "").trim();
+        if (!name) return fail("Enter the learner’s name.");
+        if (!b.start_date || !b.end_date) return fail("Enter the start and planned end dates.");
+        if (b.end_date <= b.start_date) return fail("The end date must be after the start date.");
+        const { data: course } = await admin.from("courses").select("id").eq("source_system", "evia").eq("source_id", b.course).maybeSingle();
+        if (!course) return fail("Pick a course.");
+        const { data: e } = await admin.from("enrolments").select("id").eq("learner_id", l.id).order("created_at", { ascending: false }).limit(1).single();
+        await admin.from("profiles").upsert({ id: (l as any).organisation_members.user_id, display_name: name });
+        const { error: ee } = await admin.from("enrolments").update({
+          course_id: course.id, start_date: b.start_date, end_date: b.end_date, planned_otj_hours: b.planned_otj_hours ? Number(b.planned_otj_hours) : null,
+          employer_name: b.employer_name || null, employer_contact_name: b.employer_contact_name || null, employer_contact_email: b.employer_contact_email || null,
+        }).eq("id", e!.id);
+        if (ee) throw ee;
         return reply({ ok: true });
       }
       case "assign_staff": {
