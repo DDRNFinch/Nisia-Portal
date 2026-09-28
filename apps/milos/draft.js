@@ -33,7 +33,7 @@ export function suggestRag(F) {
   let rag = gap >= -10 ? "On track" : gap >= -25 ? "Slightly behind" : "At risk";
   if (rag === "On track" && (otjBehind || quiet)) rag = "Slightly behind";
   else if (rag === "Slightly behind" && otjBehind && quiet) rag = "At risk";
-  const why = [F.ksb.pct + "% of " + (F.nvq ? "criteria" : "KSBs") + " evidenced at " + F.timePct + "% through"];
+  const why = [F.ksb.pct + "% of " + (F.nvq ? "criteria" : "KSBs") + " signed off at " + F.timePct + "% through"];
   if (otjBehind) why.push("off-the-job hours behind");
   if (quiet) why.push("no evidence for over four weeks");
   return { rag, why: why.join(", ") };
@@ -45,7 +45,7 @@ export function progressText(L, F) {
   /* Where they are. */
   if (F.timePct != null) {
     const gap = F.ksb.pct - F.timePct;
-    out.push(n + " is " + F.timePct + "% of the way through the programme and has evidence for " + F.ksb.met + " of " + F.ksb.total + " " + word + " (" + F.ksb.pct + "%), " +
+    out.push(n + " is " + F.timePct + "% of the way through the programme and has " + F.ksb.met + " of " + F.ksb.total + " " + word + " signed off (" + F.ksb.pct + "%)" + (F.ksb.waiting ? ", and " + F.ksb.waiting + " more mapped in their evidence but not signed off yet" : "") + ", " +
       (gap >= 5 ? "which is ahead of where they need to be." : gap >= -10 ? "which is in line with where they should be." : gap >= -25 ? "which is a little behind for this point in the programme." : "which is well behind for this point in the programme."));
   }
   /* This period. */

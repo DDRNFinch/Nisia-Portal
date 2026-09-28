@@ -55,7 +55,15 @@ export function facts(L, now = Date.now()) {
   const otjTotal = round1(L.otj.reduce((n, x) => n + Number(x.hours || 0), 0));
   const otjPeriod = round1(L.otj.filter((x) => Date.parse(x.activity_date) >= periodStart - DAY).reduce((n, x) => n + Number(x.hours || 0), 0));
   const otjExpected = planned != null && timePct != null ? Math.round(planned * timePct / 100) : null;
-  const ksb = snap.ksb || { met: 0, total: course.ksbs.length, pct: 0 };
+  /* A KSB counts once the assessor has signed it off (the latest decision on each piece of evidence). What the
+     learner has mapped but isn't signed off yet is "waiting". Without the assessments to hand, Evia's figures. */
+  let ksb = snap.ksb || { met: 0, total: course.ksbs.length, pct: 0 };
+  if (L.P && course.ksbs.length) {
+    const signed = new Set(), mapped = new Set();
+    L.evidence.forEach((e) => { const a = (L.P.assessed[e.id] || [])[0]; ((e.source_metadata || {}).ksbs || []).forEach((k) => mapped.add(k)); if (a && a.decision === "accepted") (a.ksbs || []).forEach((k) => signed.add(k)); });
+    const codes = course.ksbs.map((k) => k[0]), met = codes.filter((k) => signed.has(k)).length;
+    ksb = { met, total: codes.length, pct: Math.round(met / codes.length * 100), waiting: codes.filter((k) => mapped.has(k) && !signed.has(k)).length };
+  }
   const missingUnits = (snap.units || []).filter((u) => (u.missing || []).length).map((u) => ({ name: u.name, missing: u.missing.length, codes: u.missing.slice(0, 6), total: u.total, started: u.started, strength: u.strength || null }));
   const subject = (id) => ((snap.teach && snap.teach.subjects) || []).find((s) => s.id === id) || null;
   const test = (type) => (snap.tests || []).find((t) => t.type === type) || null;
@@ -71,7 +79,7 @@ export function facts(L, now = Date.now()) {
     learner: row.name, course: course.name + (course.std ? " (" + course.std + ")" : ""), courseCode: row.course_code, nvq: !!course.nvq,
     employer: en.employer_name || "", employerContact: en.employer_contact_name || "", start: en.start_date, end: en.end_date, status: en.status,
     reviewNo: L.reviews.length + 1, periodStart: isoDay(periodStart), periodEnd: isoDay(now), lastReview: last ? isoDay(last.reviewed_at) : null,
-    timePct, ksb: { met: ksb.met || 0, total: ksb.total || course.ksbs.length, pct: ksb.pct || 0 }, missingUnits,
+    timePct, ksb: { met: ksb.met || 0, total: ksb.total || course.ksbs.length, pct: ksb.pct || 0, waiting: ksb.waiting || 0 }, missingUnits,
     evidenceTotal: L.evidence.length, evidencePeriod: L.evidence.filter((x) => Date.parse(x.created_at) >= periodStart).length,
     writeupCoverage: snap.writeupCoverage ?? null, lastActive: snap.lastUpload || (L.evidence[0] && L.evidence[0].created_at) || null,
     otj: { planned, expected: otjExpected, total: otjTotal, period: otjPeriod, onTrack: otjExpected == null ? null : otjTotal >= otjExpected * 0.9 },
@@ -192,7 +200,7 @@ export function openReview(L, me, onDone) {
       case "progress": return '<details class="card flat about"' + (R.date ? "" : " open") + '><summary><b>About this review</b> <span class="small muted">' + esc(ukDate(R.date)) + ' · ' + esc(R.method) + ' · review ' + F.reviewNo + ' (' + esc(ukDate(F.periodStart)) + ' to ' + esc(ukDate(F.periodEnd)) + ')</span></summary>' +
           '<div class="grid2">' + input("date", "Date", R.date, "date") + '<div class="field">How<select name="method">' + ["In person", "Online", "At the workplace"].map((o) => '<option' + (R.method === o ? " selected" : "") + '>' + o + '</option>').join("") + '</select></div>' + input("employerName", "Employer’s name", R.employerName) + input("employerRole", "Their role", R.employerRole) + '</div>' +
           '<div class="field">Who took part (apprentice and employer must)<div class="checks">' + [["apprentice", "Apprentice"], ["employer", "Employer"], ["assessor", "Assessor"], ["tutor", "Tutor"]].map(([k, t]) => '<label class="check"><input type="checkbox" name="att_' + k + '"' + (R.attendees[k] ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div></details>' +
-        fromEvia(fact("Time through", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Criteria evidenced" : "KSBs evidenced", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)", F.timePct != null ? (F.ksb.pct >= F.timePct - 10 ? "On track for time" : "Behind for time") : "") +
+        fromEvia(fact("Time through", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Criteria signed off" : "KSBs signed off", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)", F.timePct != null ? (F.ksb.pct >= F.timePct - 10 ? "On track for time" : "Behind for time") : "") +
           fact("Evidence this period", F.evidencePeriod, F.evidenceTotal + " in total") + fact("Off-the-job hours", F.otj.total + " h", F.otj.expected != null ? F.otj.expected + " h expected by now" : "") +
           (F.maths.on ? fact("Maths", F.maths.test ? "Best " + F.maths.test.best + "%" : subj(F.maths.teach)) : "") + (F.english.on ? fact("English", F.english.test ? "Best " + F.english.test.best + "%" : subj(F.english.teach)) : "") +
           fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—")) +

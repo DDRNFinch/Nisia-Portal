@@ -130,13 +130,13 @@ async function learner(r, keepScroll) {
   D = await withPending(r, D);
   if (view !== r) return;
   const L = D.L, P = D.P;
-  const F = facts(L), d = r.due;
+  const F = facts({ ...L, P }), d = r.due;
   const stat = (b, s, warn) => '<div class="card stat"><b' + (warn ? ' style="color:var(--warn)"' : "") + '>' + esc(b) + '</b><span>' + esc(s) + '</span></div>';
   root.querySelector("#main").innerHTML =
     '<div class="between"><div><p class="label">' + esc(F.course) + '</p><h1>' + esc(r.name) + '</h1><p class="muted small">' + esc(F.employer || "") + ' · ' + esc(ukDate(F.start)) + ' to ' + esc(ukDate(F.end)) + '</p></div>' + pill(d) + '</div>' +
     (F.hasEvia ? "" : '<p class="note">Evia isn’t connected yet, so the review can’t be filled in from it. Connect it below.</p>') +
     '<div class="grid3 compact">' +
-      stat(F.ksb.pct + "%", (F.nvq ? "criteria" : "KSBs") + " evidenced · " + (F.timePct ?? "–") + "% through", F.timePct != null && F.ksb.pct < F.timePct - 10) +
+      stat(F.ksb.pct + "%", (F.nvq ? "criteria" : "KSBs") + " signed off · " + (F.timePct ?? "–") + "% through", F.timePct != null && F.ksb.pct < F.timePct - 10) +
       stat(F.otj.total + " h", "off-the-job" + (F.otj.expected != null ? " · " + F.otj.expected + " h expected" : ""), F.otj.onTrack === false) +
       stat(F.evidencePeriod, "evidence since " + (F.lastReview ? "the last review" : "the start")) + '</div>' +
     insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +

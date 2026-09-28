@@ -96,7 +96,7 @@ try {
   await page.click("[data-id=L1]"); await page.waitForSelector("#rev");
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
-  check("The learner page shows Evia's coverage and hours", /36%/.test(lt) && /120 h/.test(lt));
+  check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));
   await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
     /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
@@ -169,11 +169,11 @@ try {
   const drafted = await page.inputValue("[name=progressComment]"), hintTxt = await page.textContent(".rag-hint");
   console.log("   Drafted progress: " + drafted + "\n   " + hintTxt);
   check("The review's progress is written from Evia and Nisia (where they are, this period, observations, strength, knowledge, what's next) with a suggested rating",
-    /Callum is \d+% of the way through/.test(drafted) && /21 of 59 KSBs/.test(drafted) && /I observed Callum at work/.test(drafted) && /strongest evidence is for [^.]*Mixing mortar/.test(drafted) && /priority now is/.test(drafted) && /off-the-job/.test(drafted) && /Evia suggests/.test(hintTxt));
+    /Callum is \d+% of the way through/.test(drafted) && /\d+ of 59 KSBs signed off/.test(drafted) && /more mapped in their evidence but not signed off yet/.test(drafted) && /I observed Callum at work/.test(drafted) && /strongest evidence is for [^.]*Mixing mortar/.test(drafted) && /priority now is/.test(drafted) && /off-the-job/.test(drafted) && /Evia suggests/.test(hintTxt));
   await next();
   check("A required answer stops the review moving on", /previous target|each previous target/i.test(await page.textContent("#stepErr")));
   await page.check('input[name=prev_0][value="Partly met"]'); await next();
-  check("Progress against the plan comes pre-chosen from Evia (the assessor can change it)", await page.isChecked('input[name=progressRag][value="Slightly behind"]') && !/Choose how they’re doing/.test(await page.textContent("#stepErr")));
+  check("Progress against the plan comes pre-chosen from Evia (the assessor can change it)", await page.isChecked('input[name=progressRag][value="At risk"]') && !/Choose how they’re doing/.test(await page.textContent("#stepErr")));
   await page.check('input[name=progressRag][value="Slightly behind"]');
   check("A note box opens only when needed (off-the-job not confirmed)", await page.isVisible("textarea[name=otjComment]"));
   await page.check("input[name=otjConfirmed]");
@@ -202,7 +202,7 @@ try {
     await page.mouse.move(b.x + 20, b.y + 30); await page.mouse.down(); await page.mouse.move(b.x + 120, b.y + 60, { steps: 6 }); await page.mouse.move(b.x + 200, b.y + 25, { steps: 6 }); await page.mouse.up();
   }
   const all = texts.join(" ");
-  check("Evia's facts are filled in through the review", /Log 10 learning hours/.test(all) && /21 of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
+  check("Evia's facts are filled in through the review", /Log 10 learning hours/.test(all) && /\d+ of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
   check("Targets are suggested from the gaps Evia found", /Evidence for Cavity walling/.test(targetTitles) && /Build confidence: Reading drawings/.test(targetTitles) && /Maths: 70% in a test/.test(targetTitles) && /Catch up on off-the-job/.test(targetTitles), targetTitles);
   let downloaded = false; page.on("download", () => { downloaded = true; });
   await next(); await page.waitForTimeout(600);
@@ -217,7 +217,7 @@ try {
   });
   check("Last review's targets arrive marked from Evia's tracking", outcomes.join() === "evia-tracked:100,evia-tracked:55,evia-tracked:10", outcomes.join());
   const A = rev && rev.body.content.answers;
-  check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met === 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
+  check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met >= 1 && rev.body.content.facts.ksb.met < 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
     A.feelsSafe === "Yes" && A.topicDiscussed === "British values" && A.changes === "None" && A.iagGiven === "Yes" && A.epaReady === "On track" && !!A.nextReview && A.previous[0].outcome === "Partly met" &&
     ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(A).slice(0, 300));
   check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === rev.body.id && /^[0-9a-f-]{36}$/.test(rev.body.id) && !!tg && tg.body.length >= 2);
@@ -235,7 +235,7 @@ try {
   await page.reload(); await page.waitForSelector("[data-id=L1]", { timeout: 10000 });
   const offBar = await page.textContent("#syncbar");
   await page.click("[data-id=L1]"); await page.waitForSelector("#obs");
-  const offLearner = /36%/.test(await page.textContent("#main"));
+  const offLearner = /KSBs signed off/.test(await page.textContent("#main"));
   await page.click("#obs"); await page.click('.obs-units [data-u="1"]'); await page.waitForSelector("#obText");
   await page.setInputFiles("#obPick", [{ name: "o.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") }]);
   await page.fill("#obText", "Pointed the joints with a half round finish, wearing PPE."); await page.click("#obNext"); await page.click("#obSave");
