@@ -3,7 +3,7 @@
    Master admin (the developer): every college, its seats and licence; create colleges and invite their admins.
    College portal: overview, learners, reviews, staff, courses and licence. Assessors and tutors see their own
    learners here and work in Milos. */
-import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg } from "../../packages/core/nisia.js";
+import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, MARK } from "../../packages/core/signin.js";
 
 const root = document.getElementById("app");
@@ -279,7 +279,7 @@ async function pairing(l) {
   try {
     const r = await call("nisia-admin", { action: "pairing_code", learner_id: l.learner_id });
     m.innerHTML = '<div class="modal-head"><h2>Connect ' + esc((l.name || "").split(" ")[0]) + '’s Evia</h2><button class="x" aria-label="Close">×</button></div>' +
-      '<p class="muted">In Evia they tap <b>Scan the QR code</b>, or type the code underneath.</p><div class="qr">' + qrSvg(r.qr) + '</div><p class="big-code">' + esc(r.code.slice(0, 3) + "-" + r.code.slice(3)) + '</p><p class="small muted" style="text-align:center">Works once, for ' + r.expires_in_minutes + ' minutes.</p>';
+      '<p class="muted">They scan this with their phone’s camera, or open Evia and type the code underneath.</p><div class="qr">' + qrSvg(pairLink(r.code)) + '</div><p class="big-code">' + esc(r.code.slice(0, 3) + "-" + r.code.slice(3)) + '</p><p class="small muted" style="text-align:center">Works once, for ' + r.expires_in_minutes + ' minutes. On a computer, open <a href="' + esc(EVIA_URL) + '" target="_blank" rel="noopener">' + esc(EVIA_URL.replace(/^https:\/\//, "")) + '</a>.</p>';
     m.querySelector(".x").onclick = closeModal;
   } catch (x) { m.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
 }

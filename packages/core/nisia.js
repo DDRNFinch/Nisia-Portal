@@ -59,6 +59,9 @@ export const signOut = () => db.auth.signOut();
 export const me = () => rpc("nisia_me");
 
 /* The courses Evia teaches (the ids match Evia's course packs). */
+/* Where learners open Evia. The pairing QR is a link to it, so a phone's camera opens Evia with the code filled in. */
+export const EVIA_URL = "https://ddrnfinch.github.io/nisia-app/evia/";
+export const pairLink = (code) => EVIA_URL + "?pair=" + code;
 export const COURSES = [
   { id: "bricklayer", name: "Bricklayer (ST0095)" },
   { id: "site", name: "Site Carpenter (ST0264)" },
