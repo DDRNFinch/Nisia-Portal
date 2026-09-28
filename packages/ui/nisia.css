@@ -110,3 +110,7 @@ a{color:var(--accent-text)}
 .toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;padding:11px 18px;border-radius:14px;background:var(--ink);color:#fff;font-weight:700;font-size:14px;box-shadow:var(--shadow)}
 .linkbox{display:flex;gap:8px}
 .linkbox input{flex:1;min-width:0;min-height:44px;padding:8px 12px;border:1px solid #dfe4ea;border-radius:12px;font-family:ui-monospace,monospace;font-size:13px}
+.media{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.media img,.media video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;background:#f2f4f7;display:block}
+.media audio,.media .btn,.media p{grid-column:1/-1}
+[hidden]{display:none!important}

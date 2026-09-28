@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#2C85F7">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Milos">
 <title>Milos</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%232C85F7' stroke-width='4'/%3E%3Cellipse cx='15' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3Cellipse cx='25' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="../../packages/ui/nisia.css">
@@ -39,5 +43,6 @@ details summary{cursor:pointer}
 <script src="../../packages/vendor/qrcode-generator-1.4.4.js"></script>
 <script src="../../packages/vendor/jspdf-2.umd.min.js"></script>
 <script type="module" src="app.js"></script>
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

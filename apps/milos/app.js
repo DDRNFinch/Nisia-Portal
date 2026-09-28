@@ -16,10 +16,21 @@ function toast(msg) {
   const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
 }
+/* Installing Milos as an app: Chrome and Edge offer it directly; on iPhone and iPad it's Share, then Add to Home Screen. */
+let installer = null;
+const installed = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installer = e; const b = document.getElementById("install"); if (b) b.hidden = false; });
+addEventListener("appinstalled", () => { installer = null; const b = document.getElementById("install"); if (b) b.hidden = true; toast("Milos is installed"); });
+async function install() {
+  if (installer) { installer.prompt(); await installer.userChoice; installer = null; document.getElementById("install").hidden = true; return; }
+  toast(isIOS ? "In Safari, tap Share, then Add to Home Screen." : "Open your browser’s menu and choose Install Milos (or Add to Home screen).");
+}
 function shell(body, back) {
   root.innerHTML = '<div class="shell"><header class="top">' + (back ? '<button class="btn ghost" id="backBtn">‹ Learners</button>' : '<div class="brand"><span class="av" aria-hidden="true"><i></i><i></i></span><div>Milos<small>' + esc(who && who.name || "") + '</small></div></div>') +
-    '<span class="spacer"></span><button class="btn ghost" id="signout">Sign out</button></header><main class="main" id="main">' + body + '</main></div>';
+    '<span class="spacer"></span><button class="btn" id="install"' + (installed() || (!installer && !isIOS) ? " hidden" : "") + '>Install app</button><button class="btn ghost" id="signout">Sign out</button></header><main class="main" id="main">' + body + '</main></div>';
   root.querySelector("#signout").onclick = () => signOut();
+  root.querySelector("#install").onclick = install;
   const b = root.querySelector("#backBtn"); if (b) b.onclick = home;
 }
 const pill = (d) => !d ? "" : d.overdue ? '<span class="pill bad">' + esc(dueText(d)) + '</span>' : d.soon ? '<span class="pill warn">' + esc(dueText(d)) + '</span>' : '<span class="pill good">' + esc(dueText(d)) + '</span>';
@@ -80,11 +91,42 @@ async function learner(r) {
     '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
     '<h2>Reviews</h2><div class="card list">' + (L.reviews.length ? L.reviews.slice().reverse().map((v, i) =>
       '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Download PDF</span><span class="chev">›</span></button>').join("") : '<p class="empty">No reviews yet.</p>') + '</div>' +
-    '<h2>Latest evidence</h2><div class="card list">' + (L.evidence.length ? L.evidence.slice(0, 8).map((e) =>
-      '<div class="item" style="--cols:2"><span class="name-cell"><span class="name">' + esc(e.title) + '</span><span class="sub">' + esc(e.evidence_type) + ((e.source_metadata && e.source_metadata.ksbs || []).length ? " · " + esc(e.source_metadata.ksbs.slice(0, 6).join(", ")) : "") + '</span></span><span class="small">' + esc(ago(e.created_at)) + '</span><span></span><span></span></div>').join("") : '<p class="empty">Nothing from Evia yet.</p>') + '</div>';
+    '<div class="between"><h2>Evidence</h2><span class="small muted">' + L.evidence.length + ' from Evia</span></div><div class="card list" id="evList"></div>';
+  const evList = root.querySelector("#evList");
+  const drawEvidence = (all) => {
+    evList.innerHTML = L.evidence.length ? (all ? L.evidence : L.evidence.slice(0, 8)).map((e) =>
+      '<button class="item" style="--cols:1" data-ev="' + e.id + '"><span class="name-cell"><span class="name">' + esc(e.title) + '</span><span class="sub">' + esc(TYPE[e.evidence_type] || e.evidence_type) + ((e.source_metadata && e.source_metadata.ksbs || []).length ? " · " + esc(e.source_metadata.ksbs.slice(0, 6).join(", ")) : "") + '</span></span><span class="small">' + esc(ago(e.created_at)) + '</span><span class="chev">›</span></button>').join("") +
+      (!all && L.evidence.length > 8 ? '<button class="btn ghost" id="evAll">Show all ' + L.evidence.length + '</button>' : "") : '<p class="empty">Nothing from Evia yet.</p>';
+    evList.querySelectorAll("[data-ev]").forEach((b) => b.onclick = () => showEvidence(L.evidence.find((x) => x.id === b.dataset.ev)));
+    const more = evList.querySelector("#evAll"); if (more) more.onclick = () => drawEvidence(true);
+  };
+  drawEvidence(false);
   root.querySelector("#rev").onclick = () => openReview(L, { name: who.name, member_id: r.org.member_id }, () => { toast("Review saved and downloaded"); home(); });
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = async () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); try { await downloadPdf({ ...v.content, id: v.id, reviewedAt: v.reviewed_at.slice(0, 10) }); } catch (e) { toast(e.message); } });
+}
+/* One piece of evidence: what the learner wrote, the KSBs it covers, and the photos, videos or files (from WiFi uploads). */
+const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
+async function showEvidence(e) {
+  const m = e.source_metadata || {}, o = document.createElement("div"); o.className = "overlay";
+  o.innerHTML = '<section class="sheet" role="dialog" aria-modal="true"><div class="sheet-head"><div style="flex:1"><p class="label">' + esc(m.unit || TYPE[e.evidence_type] || "") + '</p><h2>' + esc(e.title) + '</h2><p class="small muted">' + esc(ukDate(e.created_at)) + '</p></div><button class="x" aria-label="Close">×</button></div>' +
+    ((m.ksbs || []).length ? '<div class="checks">' + m.ksbs.map((k) => '<span class="pill accent">' + esc(k) + '</span>').join("") + '</div>' : "") +
+    (m.text ? '<div class="card flat"><p class="label">What they wrote</p><p style="white-space:pre-wrap">' + esc(m.text) + '</p></div>' : "") +
+    '<div class="media" id="media"><p class="muted small">Loading files…</p></div></section>';
+  o.onclick = (x) => { if (x.target === o) o.remove(); }; o.querySelector(".x").onclick = () => o.remove(); document.body.appendChild(o);
+  const box = o.querySelector("#media");
+  try {
+    const { data: files, error } = await db.from("evidence_files").select("storage_path, mime_type").eq("evidence_id", e.id).order("created_at");
+    if (error) throw error;
+    if (!files.length) { box.innerHTML = '<p class="small muted">' + ((m.photoIds || []).length ? "Photos haven’t arrived yet. Evia sends them when the learner’s phone is on WiFi." : "No files with this one.") + '</p>'; return; }
+    const { data: urls, error: ue } = await db.storage.from("evidence").createSignedUrls(files.map((f) => f.storage_path), 3600);
+    if (ue) throw ue;
+    box.innerHTML = files.map((f, i) => { const u = urls[i] && urls[i].signedUrl; if (!u) return "";
+      return /^image\//.test(f.mime_type) ? '<a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="Photo ' + (i + 1) + ' of ' + files.length + '" loading="lazy"></a>'
+        : /^video\//.test(f.mime_type) ? '<video src="' + esc(u) + '" controls playsinline preload="metadata"></video>'
+        : /^audio\//.test(f.mime_type) ? '<audio src="' + esc(u) + '" controls></audio>'
+        : '<a class="btn" href="' + esc(u) + '" target="_blank" rel="noopener">Open file ' + (i + 1) + '</a>'; }).join("");
+  } catch (x) { box.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
 }
 async function pairing(r) {
   const o = document.createElement("div"); o.className = "overlay"; o.innerHTML = '<section class="sheet" role="dialog" aria-modal="true"><p class="muted">Getting a code…</p></section>';

@@ -45,8 +45,11 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
+    if (p === "/rest/v1/evidence_files") return json([{ storage_path: "o1/ev1/a.jpeg", mime_type: "image/jpeg" }]);
+    if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
+    if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
     if (p === "/rest/v1/rpc/nisia_college_activity") return json([{ week_start: "2026-09-21", evidence: 3, hours: 6 }]);
-    if (p === "/rest/v1/rpc/nisia_learner_detail") return json({ snapshot: { ksb: { met: 12, total: 59, pct: 20 }, units: [{ name: "Unit 201", total: 10, missing: ["K1", "K2"] }], otj: { total: 14 } }, snapshot_at: new Date().toISOString(), evia_targets: [{ title: "Upload the cavity wall photos", due: "2026-10-10" }], targets: [], reviews: [], evidence: [{ kind: "evidence", title: "Laid a cavity wall", type: "photo", at: new Date().toISOString() }], hours: [{ kind: "hours", title: "Teach me: cavity walls", hours: 1.5, at: new Date().toISOString().slice(0, 10) }], weekly: [0, 0, 1, 2, 0, 3, 1, 0, 2, 4, 1, 1] });
+    if (p === "/rest/v1/rpc/nisia_learner_detail") return json({ snapshot: { ksb: { met: 12, total: 59, pct: 20 }, units: [{ name: "Unit 201", total: 10, missing: ["K1", "K2"] }], otj: { total: 14 } }, snapshot_at: new Date().toISOString(), evia_targets: [{ title: "Upload the cavity wall photos", due: "2026-10-10" }], targets: [], reviews: [], evidence: [{ kind: "evidence", id: "ev1", title: "Laid a cavity wall", type: "photo", at: new Date().toISOString(), ksbs: ["K1", "S2"], text: "Ties every 450 mm.", files: 1, photos_expected: 1 }], hours: [{ kind: "hours", title: "Teach me: cavity walls", hours: 1.5, at: new Date().toISOString().slice(0, 10) }], weekly: [0, 0, 1, 2, 0, 3, 1, 0, 2, 4, 1, 1] });
     if (p === "/functions/v1/nisia-setup" && body.action === "accept") return String(body.code).toUpperCase().replace(/[^A-Z0-9]/g, "") === "GOODINVITECODE01" ? json({ ok: true, email: persona.email }) : json({ error: "This invite has already been used, or doesn’t exist. Ask for a new one." }, 400);
     if (p === "/functions/v1/nisia-admin") {
       if (body.action === "create_college") { S.colleges.push({ id: "c" + S.colleges.length, name: body.name, status: "active", seats: +body.seats, seats_used: 0, staff: 0, learners: 0, contact_name: body.admin_name, contact_email: body.admin_email, licence_ends: body.licence_ends || null }); return json({ organisation_id: "c0", invite_code: "COLLEGEADMINCODE" }); }
@@ -119,6 +122,9 @@ try {
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
     await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });
     check("A learner's page shows what Evia sends", /Upload the cavity wall photos/.test(await page.textContent("#main")));
+    await page.click("tr[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
+    check("Staff open a piece of evidence and see the write-up and photos", /Ties every 450/.test(await page.textContent(".modal")) && (await page.$$(".media img")).length === 1);
+    await page.click(".modal .x");
     await page.click("nav [data-go=staff]"); await page.waitForSelector("#inv"); await page.click("#inv");
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");
     await page.waitForSelector(".linkbox");

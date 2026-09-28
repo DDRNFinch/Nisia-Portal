@@ -48,7 +48,10 @@ function handle(route) {
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
     { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
-  if (p === "/rest/v1/evidence") return json([{ id: "ev1", title: "Cavity walling", evidence_type: "photo", created_at: day(-10), source_metadata: { ksbs: ["K1", "S2"] } }, { id: "ev2", title: "Setting out", evidence_type: "photo", created_at: day(-200), source_metadata: {} }]);
+  if (p === "/rest/v1/evidence") return json([{ id: "ev1", title: "Cavity walling", evidence_type: "photo", created_at: day(-10), source_metadata: { ksbs: ["K1", "S2"], text: "Built a cavity wall with ties every 450 mm." } }, { id: "ev2", title: "Setting out", evidence_type: "photo", created_at: day(-200), source_metadata: {} }]);
+  if (p === "/rest/v1/evidence_files") return json([{ storage_path: "O1/ev1/a.jpeg", mime_type: "image/jpeg" }, { storage_path: "O1/ev1/b.jpeg", mime_type: "image/jpeg" }]);
+  if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
+  if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
   if (p === "/rest/v1/otj_entries") return json([{ activity_date: day(-20).slice(0, 10), hours: 7.5 }, { activity_date: day(-150).slice(0, 10), hours: 112.5 }]);
   if (q.method() === "POST" && p.startsWith("/rest/v1/")) { posted.push({ table: p.slice(9), body }); return json(p === "/rest/v1/reviews" ? { id: "REV1" } : null, 201); }
   return json({ error: "not faked " + p }, 404);
@@ -73,6 +76,10 @@ try {
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
   check("The learner page shows Evia's coverage, hours and evidence", /36%/.test(lt) && /120 h/.test(lt) && /Cavity walling/.test(lt));
+  await page.click("[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.waitForTimeout(400);
+  await page.screenshot({ path: shots + "/m2b-evidence.png" });
+  check("The assessor opens a piece of evidence: what they wrote, KSBs and photos", /ties every 450/.test(await page.textContent(".sheet")) && (await page.$$(".media img")).length === 2 && /K1/.test(await page.textContent(".sheet")));
+  await page.click(".sheet .x");
   await page.click("#rev"); await page.waitForSelector(".rv");
   const next = async () => { await page.click("#next"); await page.waitForTimeout(120); };
   const texts = [];

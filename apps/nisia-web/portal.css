@@ -340,3 +340,13 @@ tbody tr.static{cursor:default}
 label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .signin .box,.signin form{display:flex;flex-direction:column;gap:14px}
 .signin .qr{align-self:center}
+/* Evidence */
+.media{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.media img,.media video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;background:var(--surface-2,#eef1f4);display:block}
+.media audio,.media .btn,.media p{grid-column:1/-1}
+.modal.wide-modal{width:min(760px,100%);max-width:760px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.quote{padding:12px 14px;border-radius:12px;background:var(--surface-2,#f4f6f8);border:1px solid var(--line)}
+.feed-item.tap{width:100%;border:0;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:10px}
+.feed-item.tap:hover{background:var(--surface-2,#f4f6f8)}
+.table-wrap.flat{border:0;box-shadow:none}
