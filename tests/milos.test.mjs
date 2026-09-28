@@ -52,7 +52,7 @@ function handle(route) {
   if (p === "/rest/v1/evidence_files" && q.method() === "POST") { posted.push({ table: "evidence_files", body }); return json(null, 201); }
   if (p.startsWith("/storage/v1/object/evidence/") && q.method() === "POST") { posted.push({ table: "storage", body: p }); return json({ Key: p }); }
   if (p === "/rest/v1/evidence") return json([
-    { id: "ev1", organisation_id: "O1", title: "Construct Cavity Walling", evidence_type: "photo", created_at: day(-10), source_metadata: { collection: "evidence", unit: "Construct Cavity Walling", ksbs: ["S11", "K22", "S5"], text: "Built a cavity wall with ties every 450 mm.", photoIds: ["p1", "p2"] } },
+    { id: "ev1", organisation_id: "O1", title: "Construct Cavity Walling", evidence_type: "photo", created_at: day(-10), source_metadata: { collection: "evidence", unit: "Construct Cavity Walling", ksbs: ["S11", "K22", "S5"], text: "Built a cavity wall in stretcher bond with ties every 450 mm, fitted the insulation batts and fire stopping around the openings, and kept the cavity clean. I checked the drawings and specification first and wore my PPE the whole time.", photoIds: ["p1", "p2"] } },
     { id: "ev2", organisation_id: "O1", title: "Mixing mortar", evidence_type: "photo", created_at: day(-200), source_metadata: { collection: "evidence", unit: "Mixing mortar", ksbs: ["S14"] } },
     { id: "ev3", organisation_id: "O1", title: "Structural carcassing", evidence_type: "photo", created_at: day(-5), source_metadata: { collection: "evidence", unit: "Structural carcassing", ksbs: [] } },
     { id: "ev5", organisation_id: "O1", title: "Jointing Styles", evidence_type: "photo", created_at: day(-2), client_reference: "observation:ev5", source_metadata: { collection: "observation", unit: "Jointing Styles", observedBy: "Mark Ellis", observedOn: day(-2).slice(0, 10), ksbs: ["S12", "K17"], text: "Pointed the joints." } },
@@ -127,6 +127,13 @@ try {
   await page.screenshot({ path: shots + "/m2b-evidence.png" });
   const ticks = await page.$$eval(".ksb-row input", (els) => els.filter((x) => x.checked).map((x) => x.value));
   check("Evidence opens as a document: the learner's account, their KSBs and photos, with their KSBs ticked", /ties every 450/.test(await page.textContent(".paper")) && (await page.$$(".paper-media img")).length === 2 && ticks.join() === "S11,K22,S5");
+  const hl = await page.evaluate(() => ({ marks: document.querySelectorAll("#acct mark.ev-hl").length, found: [...document.querySelectorAll(".ev-found")].map((b) => b.textContent), fb: document.querySelector("#fb").value, note: (document.querySelector("#acctNote") || {}).textContent }));
+  check("Evidence: Evia's matched words are highlighted in the write-up and against each KSB, with feedback drafted to edit", hl.marks >= 3 && hl.found.length >= 1 && /Callum/.test(hl.fb) && /Covers \d+ of \d+ things to mention/.test(hl.note), JSON.stringify(hl).slice(0, 400));
+  await page.locator("#paper section").first().screenshot({ path: shots + "/m2d-highlight.png" }).catch(() => {}); await page.locator("#assess").screenshot({ path: shots + "/m2e-assess.png" }).catch(() => {});
+  await page.click("#hlOn"); const off = await page.evaluate(() => document.querySelectorAll("#acct mark").length === 0 && !document.querySelector(".ev-found"));
+  await page.click("#hlOn");
+  await page.click('[data-d="changes_required"]'); const fbChanges = await page.inputValue("#fb"); await page.click('[data-d="accepted"]');
+  check("…the highlight switch turns it off, and the draft follows the decision", off && /Before I can sign it off/.test(fbChanges), fbChanges);
   await page.uncheck('.ksb-row input[value="S5"]'); await page.check('.ksb-row input[value="B5"]'); await page.selectOption("#addKsb", "K2");
   await page.fill("#fb", "Good ties and a clean cavity.");
   await page.click("#save"); await page.waitForTimeout(500);

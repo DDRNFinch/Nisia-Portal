@@ -7,6 +7,7 @@ import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { saveAssessment } from "./store.js";
+import { analyse, highlighted, statementMarked, draftFeedback } from "./match.js";
 
 const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -98,6 +99,12 @@ export async function openEvidence(ctx, item, onSaved) {
   const unitKsbs = group && group.ksbs.length ? group.ksbs : [];
   let ticked = new Set(latest ? latest.ksbs || [] : claimed), decision = latest ? latest.decision : "accepted";
   const extra = () => [...new Set([...claimed, ...ticked])].filter((k) => !unitKsbs.includes(k));
+  /* What Evia can see in the write-up (match.js): matched words, per KSB, and a draft of the feedback. */
+  const photoCount = item.files.filter((f) => /^image\//.test(f.mime_type)).length || (m.photoIds || []).length || m.photoCount || 0;
+  const A = m.text && !isSupporting(e) ? analyse({ text: m.text, C, code: L.row.course_code, unit: m.unit || unitOf(e), ksbs: [...new Set([...unitKsbs, ...claimed])], photos: photoCount }) : null;
+  let showHl = (() => { try { return localStorage.getItem("milos-highlight") !== "off"; } catch (_) { return true; } })(), focusKsb = null;
+  const first = String(L.row.name || "").split(" ")[0];
+  const feedbackDraft = () => A ? draftFeedback(A, { first, decision, ticked, unitName: group ? group.name : unitOf(e), nvq: L.row.course_code === "trowel3" }) : "";
 
   const o = document.createElement("div"); o.className = "rv"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true");
   o.innerHTML = '<div class="rv-top"><button class="btn ghost" id="evBack">‹ Portfolio</button><span class="spacer" style="flex:1"></span>' +
@@ -116,9 +123,21 @@ export async function openEvidence(ctx, item, onSaved) {
     '<p class="muted small">' + esc(L.row.name) + ' · ' + esc(C.name || L.row.course_code) + (C.std ? " (" + esc(C.std) + ")" : "") + '</p></div>' +
     '<dl class="paper-meta"><div><dt>Added</dt><dd>' + esc(ukDate(e.created_at)) + '</dd></div><div><dt>Type</dt><dd>' + esc(isObservation(e) ? "Observation" : TYPE[e.evidence_type] || e.evidence_type) + '</dd></div>' +
     (item.otherCourse ? '<div><dt>Course</dt><dd>' + esc(item.otherCourse) + '</dd></div>' : "") + '<div><dt>Status</dt><dd>' + statusPill(item) + '</dd></div></dl></header>' +
-    (m.text ? '<section><h3>' + esc(accountHead(e)) + '</h3><p class="paper-text">' + esc(m.text) + '</p></section>' : "") +
+    (m.text ? '<section><div class="between acct-head"><h3>' + esc(accountHead(e)) + '</h3>' + (A ? '<label class="hl-switch"><input type="checkbox" id="hlOn"' + (showHl ? " checked" : "") + '> Show what Evia matched</label>' : "") + '</div>' +
+      '<p class="paper-text" id="acct">' + esc(m.text) + '</p>' + (A ? '<p class="small muted" id="acctNote"></p>' : "") + '</section>' : "") +
     (claimed.length ? '<section><h3>' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + (isObservation(e) ? " observed" : " the learner mapped") + '</h3><ul class="paper-ksbs">' + claimed.map((k) => '<li><b>' + esc(k) + '</b> ' + esc(ksbText(C, k)) + '</li>').join("") + '</ul></section>' : "") +
     '<section><h3>Photos and files</h3><div class="paper-media" id="media"><p class="small muted">Loading…</p></div></section>';
+  const drawAcct = () => {
+    const el = paper.querySelector("#acct"); if (!el || !A) return;
+    el.innerHTML = showHl ? highlighted(A, focusKsb) : esc(m.text);
+    const note = paper.querySelector("#acctNote");
+    if (note) note.innerHTML = !showHl ? "" : focusKsb ? "Showing the words for <b>" + esc(focusKsb) + "</b>. <button class='linkish' id='hlAll'>Show all</button>"
+      : "Covers " + A.covered.length + " of " + (A.covered.length + A.missing.length) + " things to mention" + (A.missing.length ? ". Not mentioned: " + esc(A.missing.slice(0, 5).join(", ")) : "") + ". A guide only: you decide.";
+    const all = paper.querySelector("#hlAll"); if (all) all.onclick = () => { focusKsb = null; drawAcct(); draw(); };
+  };
+  const hl = paper.querySelector("#hlOn");
+  if (hl) hl.onchange = () => { showHl = hl.checked; focusKsb = null; try { localStorage.setItem("milos-highlight", showHl ? "on" : "off"); } catch (_) {} drawAcct(); draw(); };
+  drawAcct();
   let media = [];
   try {
     media = await signed(item.files);
@@ -133,8 +152,10 @@ export async function openEvidence(ctx, item, onSaved) {
   /* The assessment. */
   const box = o.querySelector("#assess");
   const draw = () => {
-    const row = (k, from) => '<label class="ksb-row"><input type="checkbox" value="' + esc(k) + '"' + (ticked.has(k) ? " checked" : "") + '><span><b>' + esc(k) + '</b> ' + esc(ksbText(C, k)) +
-      (from ? ' <em class="small muted">' + from + '</em>' : "") + '</span></label>';
+    const row = (k, from) => { const f = A && showHl && A.byKsb[k];
+      return '<label class="ksb-row' + (f && f.likely ? " ev-likely" : "") + (focusKsb === k ? " ev-focus" : "") + '"><input type="checkbox" value="' + esc(k) + '"' + (ticked.has(k) ? " checked" : "") + '><span><b>' + esc(k) + '</b> ' + (f ? statementMarked(ksbText(C, k), f.words) : esc(ksbText(C, k))) +
+      (from ? ' <em class="small muted">' + from + '</em>' : "") +
+      (f && f.words.length ? '<button type="button" class="ev-found" data-focus="' + esc(k) + '">' + (f.likely ? "Evia thinks this is met: " : "Evia found: ") + esc(f.words.slice(0, 5).join(", ")) + '</button>' : "") + '</span></label>'; };
     const rest = (C.ksbs || []).map((k) => k[0]).filter((k) => !unitKsbs.includes(k) && !extra().includes(k));
     box.innerHTML = '<h2>Your assessment</h2>' +
       (item.history.length ? '<div class="history">' + item.history.map((h) => '<p class="small"><span class="pill ' + (h.decision === "accepted" ? "good" : "warn") + '">' + (h.decision === "accepted" ? "Accepted" : "Changes needed") + '</span> ' + esc(ukDate(h.created_at)) + (h.feedback ? ' · ' + esc(h.feedback) : "") + '</p>').join("") + '</div>' : '<p class="note">New: not assessed yet.</p>') +
@@ -142,10 +163,16 @@ export async function openEvidence(ctx, item, onSaved) {
       '<p class="label">' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + ' this evidence meets</p><p class="small muted">Ticked from what the learner mapped. Untick any that aren’t met, or add others.</p>' +
       '<div class="ksbs">' + unitKsbs.map((k) => row(k, claimed.includes(k) ? "" : "not mapped by the learner")).join("") + extra().map((k) => row(k, claimed.includes(k) ? "mapped by the learner" : "added")).join("") + '</div>' +
       (rest.length ? '<label class="field">Add another<select id="addKsb"><option value="">Choose…</option>' + rest.map((k) => '<option value="' + esc(k) + '">' + esc(k + " " + ksbText(C, k)).slice(0, 110) + '</option>').join("") + '</select></label>' : "") +
-      '<label class="field">Feedback for the learner' + (decision === "accepted" ? ' <small>(optional)</small>' : "") + '<textarea id="fb" placeholder="' + (decision === "accepted" ? "What was good about it" : "What they need to add or change") + '"></textarea></label>' +
+      '<div class="field"><div class="between"><span>Feedback for the learner' + (decision === "accepted" ? ' <small>(optional)</small>' : "") + '</span>' + (A ? '<button type="button" class="btn ghost small-btn" id="fbRedo">Rewrite from Evia</button>' : "") + '</div>' +
+      '<textarea id="fb" rows="5" placeholder="' + (decision === "accepted" ? "What was good about it" : "What they need to add or change") + '"></textarea>' + (A ? '<small class="muted">Drafted from what Evia found. Read it and change anything.</small>' : "") + '</div>' +
       '<p class="err" role="alert"></p><button class="btn primary wide" id="save">' + (decision === "accepted" ? "Accept and sign off " + ticked.size + (ticked.size === 1 ? " KSB" : " KSBs") : "Send back for changes") + '</button>';
-    const fb = box.querySelector("#fb"); fb.value = box.dataset.fb || "";
-    fb.oninput = () => { box.dataset.fb = fb.value; };
+    /* The feedback is drafted from Evia and follows the decision until the assessor edits it. */
+    const fb = box.querySelector("#fb");
+    if (box.dataset.fbEdited !== "1") box.dataset.fb = feedbackDraft();
+    fb.value = box.dataset.fb || "";
+    fb.oninput = () => { box.dataset.fb = fb.value; box.dataset.fbEdited = "1"; };
+    const redo = box.querySelector("#fbRedo"); if (redo) redo.onclick = () => { if (box.dataset.fbEdited === "1" && fb.value.trim() && !confirm("Replace your feedback with a fresh draft from Evia?")) return; box.dataset.fbEdited = ""; draw(); };
+    box.querySelectorAll("[data-focus]").forEach((b) => b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); focusKsb = focusKsb === b.dataset.focus ? null : b.dataset.focus; drawAcct(); draw(); paper.querySelector("#acct").scrollIntoView({ behavior: "smooth", block: "center" }); });
     box.querySelectorAll("[data-d]").forEach((b) => b.onclick = () => { decision = b.dataset.d; draw(); });
     box.querySelectorAll(".ksb-row input").forEach((c) => c.onchange = () => { c.checked ? ticked.add(c.value) : ticked.delete(c.value); draw(); });
     const add = box.querySelector("#addKsb"); if (add) add.onchange = () => { if (add.value) { ticked.add(add.value); draw(); } };
