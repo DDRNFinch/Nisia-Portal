@@ -86,13 +86,13 @@ async function learner(r) {
   root.querySelector("#main").innerHTML =
     '<div class="between"><div><p class="label">' + esc(F.course) + '</p><h1>' + esc(r.name) + '</h1><p class="muted small">' + esc(F.employer || "") + ' · ' + esc(ukDate(F.start)) + ' to ' + esc(ukDate(F.end)) + '</p></div>' + pill(d) + '</div>' +
     (F.hasEvia ? "" : '<p class="note">Evia isn’t connected yet, so the review can’t be filled in from it. Connect it below.</p>') +
-    '<div class="grid3">' +
+    '<div class="grid3 compact">' +
       stat(F.ksb.pct + "%", (F.nvq ? "criteria" : "KSBs") + " evidenced · " + (F.timePct ?? "–") + "% through", F.timePct != null && F.ksb.pct < F.timePct - 10) +
       stat(F.otj.total + " h", "off-the-job" + (F.otj.expected != null ? " · " + F.otj.expected + " h expected" : ""), F.otj.onTrack === false) +
       stat(F.evidencePeriod, "evidence since " + (F.lastReview ? "the last review" : "the start")) + '</div>' +
     '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
     '<h2>Reviews</h2><div class="card list">' + (L.reviews.length ? L.reviews.slice().reverse().map((v, i) =>
-      '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Signed</span><span class="chev">›</span></button>').join("") : '<p class="empty">No reviews yet.</p>') + '</div>' +
+      '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Signed</span><span class="chev">›</span></button>').join("") : '<p class="small muted" style="padding:10px 4px">None yet. The first one is started with the button above.</p>') + '</div>' +
     '<div id="pfBox"><p class="muted">Loading the portfolio…</p></div>';
   let onlyNew = false, groups = [];
   const pfBox = root.querySelector("#pfBox");

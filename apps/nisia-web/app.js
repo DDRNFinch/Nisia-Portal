@@ -6,6 +6,7 @@
 import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, MARK } from "../../packages/core/signin.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
+import { COURSE_DATA } from "../../packages/core/courses.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -256,6 +257,26 @@ function addLearner() {
   }); };
 }
 /* One piece of evidence, as the learner saved it in Evia: what they wrote, the KSBs, and the photos or files. */
+/* The learner's portfolio, unit by unit in the course's order as in Evia and Milos: what's been added, and what the
+   assessor has accepted. Each piece opens with its photos and the assessor's decision. */
+const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function portfolioPanel(l, evidence, first) {
+  const C = COURSE_DATA[l.course_code] || { units: [] };
+  const groups = C.units.map(([name, ksbs], i) => ({ no: i + 1, name, ksbs, items: [] })), other = { name: "Other units", ksbs: [], items: [] }, sup = { name: "Supporting evidence", ksbs: [], items: [] };
+  evidence.forEach((e) => {
+    if (e.collection === "supporting") return sup.items.push(e);
+    const g = groups.find((u) => norm(u.name) === norm(e.unit || e.title)); (g || other).items.push(e);
+  });
+  const all = groups.concat(other.items.length ? [other] : [], sup.items.length ? [sup] : []);
+  const waiting = evidence.filter((e) => !e.assessment).length;
+  return '<section class="panel"><div class="panel-head"><h2>Portfolio</h2><span class="small muted">' + evidence.length + ' from Evia' + (waiting ? ' · ' + waiting + ' waiting for the assessor' : "") + '</span></div>' +
+    (evidence.length ? '<div class="pf-list">' + all.map((g) => {
+      const met = new Set(); g.items.forEach((e) => { if (e.assessment && e.assessment.decision === "accepted") (e.assessment.ksbs || []).forEach((k) => met.add(k)); });
+      return '<div class="pf-unit' + (g.items.length ? "" : " pf-none") + '"><div class="pf-row"><span class="pf-no">' + (g.no || "") + '</span><b>' + esc(g.name) + '</b><span class="small muted">' +
+        (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + '</span>' + (g.ksbs.length ? '<span class="small num pf-met">' + g.ksbs.filter((k) => met.has(k)).length + '/' + g.ksbs.length + ' KSBs signed off</span>' : "") + '</div>' +
+        g.items.map((e) => '<div class="pf-ev" role="button" tabindex="0" data-ev="' + e.id + '"><span>' + esc(g.no ? ukDate(e.at) : e.title) + '<span class="small muted"> · ' + esc(EV_TYPE[e.type] || e.type) + (e.files ? " · " + e.files + (e.files === 1 ? " file" : " files") : "") + '</span></span>' + assessedPill(e.assessment) + '</div>').join("") + '</div>';
+    }).join("") + '</div>' : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>';
+}
 /* A completed review, as the college sees it (signatures included), with a PDF copy. */
 async function showReview(id) {
   const m = modal("Progress review", '<p class="muted">Loading…</p>'); m.classList.add("wide-modal");
@@ -316,13 +337,6 @@ async function pairing(l) {
 }
 
 /* ---------- One learner ---------- */
-function sparkline(values) {
-  const W = 300, H = 70, p = 6, max = Math.max(4, ...values), n = Math.max(2, values.length);
-  const x = (i) => p + i * (W - 2 * p) / (n - 1), y = (v) => H - p - (H - 2 * p) * v / max;
-  const pts = values.map((v, i) => x(i) + "," + y(v)).join(" "), last = values.length - 1;
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Evidence per week, last 12 weeks"><line x1="' + p + '" x2="' + (W - p) + '" y1="' + y(0) + '" y2="' + y(0) + '" stroke="var(--line)"/>' +
-    '<polygon points="' + p + ',' + y(0) + ' ' + pts + ' ' + x(last) + ',' + y(0) + '" fill="var(--accent-soft)"/><polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><circle cx="' + x(last) + '" cy="' + y(values[last] || 0) + '" r="4" fill="var(--accent)"/></svg>';
-}
 async function learnerPage() {
   const l = S.data.learners.find((x) => x.learner_id === S.learner);
   if (!l) return go("learners");
@@ -331,7 +345,6 @@ async function learnerPage() {
   try { d = await rpc("nisia_learner_detail", { p_learner: l.learner_id }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   const snap = d.snapshot || null, first = (l.name || "").split(" ")[0];
   const ksbPct = l.ksb_pct ?? (snap && snap.ksb ? snap.ksb.pct : null);
-  const units = snap && snap.units ? snap.units.map((u) => ({ name: u.name, pct: u.total ? Math.round((u.total - (u.missing || []).length) / u.total * 100) : 0 })) : [];
   const targets = (d.targets || []).map((t) => ({ t: t.title, s: t.status === "completed" ? "done" : t.due && Date.parse(t.due) < Date.now() ? "late" : "open", due: t.due, from: "Review" }))
     .concat((d.evia_targets || []).map((t) => ({ t: t.title, s: t.metAt ? "done" : t.due && Date.parse(t.due) < Date.now() ? "late" : "open", due: t.due, from: "Evia" })));
   const feed = (d.evidence || []).map((e) => ({ ev: e.id, ic: "photo", t: "Added " + (e.type === "written" ? "a write-up" : e.type === "document" ? "a document" : e.type === "video" ? "a video" : e.type === "audio" ? "a recording" : "photos") + " to " + e.title, at: e.at }))
@@ -342,7 +355,7 @@ async function learnerPage() {
     '<div class="lhead">' + avatar(l.name) + '<div style="flex:1;min-width:220px"><h1>' + esc(l.name) + '</h1>' +
       '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">Assessor: ' + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
       '<div style="margin-top:8px"><span class="sync ' + (!l.paired || l.quiet == null || l.quiet > 3 ? "stale" : "") + '">' + (l.paired ? "Last update from Evia: " + lastActive(d.snapshot_at || l.last_activity) : "Evia not connected yet") + '</span></div></div>' +
-      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="assign">Assessor and tutor</button><button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
+      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
     (l.reasons.length ? '<div class="panel" style="border-color:' + stripeFor(l.state) + ';display:flex;gap:10px;flex-direction:column"><span class="label">Why this learner is flagged</span>' + l.reasons.map((r) => '<span>• ' + esc(r) + '</span>').join("") + '</div>' : "") +
     '<section class="stats" aria-label="Learner summary">' +
       '<div class="stat"><span class="label">Through the course</span><span class="big num">' + (l.through ?? "–") + '%</span><span class="sub">' + esc(ukDate(l.start_date)) + ' to ' + esc(ukDate(l.end_date)) + '</span></div>' +
@@ -351,13 +364,7 @@ async function learnerPage() {
       '<div class="stat"><span class="label">Evidence items</span><span class="big num">' + (l.evidence || 0) + '</span><span class="sub">' + (l.evidence_4w || 0) + ' in the last 4 weeks</span></div>' +
       '<div class="stat"><span class="label">Last active</span><span class="big num" style="' + (l.quiet != null && l.quiet > 14 ? "color:var(--bad)" : "") + '">' + (l.quiet == null ? "–" : l.quiet <= 0 ? "Today" : l.quiet + "d") + '</span><span class="sub">' + (l.reviewIn == null ? "" : l.reviewIn < 0 ? "Review overdue" : "Review due in " + l.reviewIn + " days") + '</span></div>' +
     '</section>' +
-    '<div class="grid cols-2">' +
-      '<section class="panel"><div class="panel-head"><h2>Coverage by unit</h2><span class="small muted">% of each unit’s KSBs with evidence</span></div>' +
-        (units.length ? '<div class="units">' + units.map((u) => '<div class="unit"><span>' + esc(u.name) + '</span><div class="ubar"><span style="width:' + u.pct + '%;' + (u.pct < 10 ? "background:var(--bad)" : "") + '"></span></div><span class="num small" style="text-align:right">' + u.pct + '%</span></div>').join("") + '</div>' : '<p class="muted small">This fills in once ' + esc(first) + '’s Evia is connected.</p>') + '</section>' +
-      '<div class="grid" style="align-content:start">' +
-        '<section class="panel"><div class="panel-head"><h2>Evidence per week</h2><span class="small muted">Last 12 weeks</span></div><div class="chart">' + sparkline((d.weekly || []).map(Number)) + '</div></section>' +
-        '<section class="panel"><div class="panel-head"><h2>Learning hours</h2></div>' + pbar(l.otjPct, l.through) + '<p class="small muted" style="margin-top:8px">' + otj + (planned ? ' of ' + planned : "") + ' hours logged.' + (planned ? " The dark mark shows where " + esc(first) + " should be by now." : " Add planned hours to see this against plan.") + '</p></section>' +
-      '</div></div>' +
+    portfolioPanel(l, d.evidence || [], first) +
     '<div class="grid cols-2">' +
       '<section class="panel"><div class="panel-head"><h2>Targets</h2><span class="small muted">Set in Evia and at reviews</span></div>' +
         (targets.length ? targets.map((g) => '<div class="target"><span class="tick ' + (g.s === "done" ? "done" : g.s === "late" ? "late" : "") + '"></span><span>' + esc(g.t) + '<br><span class="small muted">' + g.from + '</span></span><span class="small ' + (g.s === "late" ? "" : "muted") + '" style="' + (g.s === "late" ? "color:var(--bad);font-weight:600" : "") + '">' + (g.s === "done" ? "Done" : g.s === "late" ? "Overdue" : g.due ? "Due " + esc(ukDate(g.due)) : "") + '</span></div>').join("") : '<p class="muted small">No targets yet.</p>') + '</section>' +
@@ -365,31 +372,13 @@ async function learnerPage() {
         '<div class="target"><span class="tick' + (l.reviewIn != null && l.reviewIn < 0 ? " late" : "") + '"></span><span><b>Next progress review</b><br><span class="small muted">' + (l.reviewIn == null ? "" : l.reviewIn < 0 ? "Overdue by " + -l.reviewIn + " days" : "Due in " + l.reviewIn + " days") + ' · filled in from Evia in Milos</span></span><span class="pill ' + (l.reviewIn != null && l.reviewIn < 0 ? "bad" : "warn") + '">' + (l.reviewIn != null && l.reviewIn < 0 ? "Overdue" : "Upcoming") + '</span></div>' +
         (d.reviews || []).map((r, i, a) => '<div class="target tap" role="button" tabindex="0" data-review="' + r.id + '"><span class="tick done"></span><span>Progress review ' + (a.length - i) + '<br><span class="small muted">Signed by all three, ' + esc(ukDate(r.at)) + '</span></span><span class="pill good">' + esc(r.overall || "Signed") + '</span></div>').join("") + '</section>' +
     '</div>' +
-    '<section class="panel"><div class="panel-head"><h2>Evidence</h2><span class="small muted">' + (d.evidence || []).length + ' from Evia · tap one to see it</span></div>' +
-      ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th><th>Assessed</th></tr></thead><tbody>' + d.evidence.map((e) =>
-        '<tr data-ev="' + e.id + '" tabindex="0"><td><b>' + esc(e.title) + '</b><br><span class="small muted">' + esc(EV_TYPE[e.type] || e.type) + '</span></td><td class="small">' + esc((e.ksbs || []).slice(0, 8).join(", ")) + '</td>' +
-        '<td class="small">' + (e.files ? e.files + (e.files === 1 ? " file" : " files") : e.photos_expected ? '<span class="muted">Waiting for WiFi</span>' : "–") + '</td><td class="small num">' + esc(ukDate(e.at)) + '</td><td>' + assessedPill(e.assessment) + '</td></tr>').join("") + '</tbody></table></div>'
-        : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>' +
-    '<div class="grid cols-2">' +
-      '<section class="panel"><div class="panel-head"><h2>Recent activity in Evia</h2></div><div class="feed">' + (feed.length ? feed.map((f) => (f.ev ? '<button type="button" class="feed-item tap" data-ev="' + f.ev + '">' : '<div class="feed-item">') + '<span class="ficon">' + ICON[f.ic] + '</span><span>' + esc(f.t) + '</span><span class="small muted" style="white-space:nowrap">' + esc(lastActive(f.at)) + '</span>' + (f.ev ? '</button>' : '</div>')).join("") : '<p class="muted small">Nothing yet.</p>') + '</div></section>' +
-      '<section class="panel"><div class="panel-head"><h2>What Nisia sees</h2>' + ICON.shield.replace("<svg", '<svg width="20" height="20" style="color:var(--accent)"') + '</div><div class="privacy">' +
-        '<div><span class="label" style="color:var(--good)">From Evia</span><ul><li>Evidence, photos and write-ups</li><li>Learning hours</li><li>Targets and reviews</li><li>Lessons, tests and confidence</li><li>When Evia was last used</li></ul></div>' +
-        '<div><span class="label">Kept safe</span><ul><li>Stored in the UK (London)</li><li>Only this college’s staff, and only their own learners</li><li>Photos upload on WiFi</li></ul></div></div></section>' +
-    '</div>');
+    '<section class="panel"><div class="panel-head"><h2>Recent activity in Evia</h2></div><div class="feed">' + (feed.length ? feed.map((f) => (f.ev ? '<button type="button" class="feed-item tap" data-ev="' + f.ev + '">' : '<div class="feed-item">') + '<span class="ficon">' + ICON[f.ic] + '</span><span>' + esc(f.t) + '</span><span class="small muted" style="white-space:nowrap">' + esc(lastActive(f.at)) + '</span>' + (f.ev ? '</button>' : '</div>')).join("") : '<p class="muted small">Nothing yet.</p>') + '</div></section>' +
+    '');
   root.querySelector("[data-go=learners].back").onclick = () => go("learners");
   root.querySelectorAll("[data-review]").forEach((r) => { const open = () => showReview(r.dataset.review); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelectorAll("#main [data-ev]").forEach((r) => { const open = () => showEvidence(d.evidence.find((x) => x.id === r.dataset.ev)); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelector("#pair").onclick = () => pairing(l);
   const ed = root.querySelector("#editL"); if (ed) ed.onclick = () => editLearner(l);
-  const as = root.querySelector("#assign");
-  if (as) as.onclick = () => {
-    const m = modal("Assessor and tutor for " + first, '<form id="f" style="display:flex;flex-direction:column;gap:14px">' + staffPicker((l.assessors || []).map((a) => a.member_id)) + '<p class="err"></p><button class="btn primary wide" type="submit">Save</button></form>');
-    const f = m.querySelector("#f");
-    f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button"), "Saving…", async () => {
-      try { await call("nisia-admin", { action: "assign_staff", learner_id: l.learner_id, member_ids: [...f.querySelectorAll("[name=staff]:checked")].map((x) => x.value) }); closeModal(); toast("Saved"); S.data = null; S.page = "learner"; render(); }
-      catch (x) { f.querySelector(".err").textContent = x.message; }
-    }); };
-  };
 }
 
 /* ---------- Reviews ---------- */
@@ -465,12 +454,18 @@ async function editLearner(l) {
     '<label class="field">Employer<input name="employer_name" value="' + esc(l.employer_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact<input name="employer_contact_name" value="' + esc(en.employer_contact_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact’s email<input name="employer_contact_email" type="email" value="' + esc(en.employer_contact_email || "") + '" autocomplete="off"></label>' +
+    '<div class="field full"><span>Assessor and tutor</span>' + staffPicker((l.assessors || []).map((x) => x.member_id)) + '</div>' +
     '<p class="small muted full">Evia picks up the new course and dates the next time the learner connects it.</p>' +
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Save</button></form>';
   m.querySelector(".x").onclick = closeModal;
   const f = m.querySelector("#f");
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
-    try { await call("nisia-admin", { action: "update_learner", learner_id: l.learner_id, ...formData(f) }); closeModal(); toast("Saved"); S.data = null; S.page = "learner"; render(); }
+    try {
+      const d = formData(f); delete d.staff;
+      await call("nisia-admin", { action: "update_learner", learner_id: l.learner_id, ...d });
+      if (f.querySelector("[name=staff]")) await call("nisia-admin", { action: "assign_staff", learner_id: l.learner_id, member_ids: [...f.querySelectorAll("[name=staff]:checked")].map((x) => x.value) });
+      closeModal(); toast("Saved"); S.data = null; S.page = "learner"; render();
+    }
     catch (x) { f.querySelector(".err").textContent = x.message; }
   }); };
 }

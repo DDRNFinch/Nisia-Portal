@@ -6,7 +6,7 @@
    the record matches the data); people write the rest. Saved once, when signed, with a hash of its content; a draft
    is kept on this device until then. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "./courses.js";
+import { COURSE_DATA } from "../../packages/core/courses.js";
 import { reviewPdf } from "../../packages/core/reviewdoc.js";
 
 export const RULES = { id: "apprenticeship-funding-2025-26", intervalWeeks: 12, name: "Apprenticeship funding rules 2025 to 2026" };

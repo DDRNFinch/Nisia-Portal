@@ -67,6 +67,7 @@ function fakeSupabase(persona) {
       if (body.action === "pairing_code") return json({ code: "ABC2345", qr: "NISI:PAIR:2:ABC2345", expires_in_minutes: 30 });
       if (body.action === "invite_staff") return json({ invite_code: "STAFFINVITECODE1" });
       if (body.action === "update_staff") { const m = S.staff.find((x) => x.member_id === body.member_id); Object.assign(m, { name: body.name, roles: body.roles, active: body.active }); return json({ ok: true }); }
+      if (body.action === "assign_staff") { const l = S.learners.find((x) => x.learner_id === body.learner_id); l.assessors = S.staff.filter((x) => body.member_ids.includes(x.member_id)).map((x) => ({ member_id: x.member_id, name: x.name })); S.lastAssign = body; return json({ ok: true }); }
       if (body.action === "update_learner") { const l = S.learners.find((x) => x.learner_id === body.learner_id); Object.assign(l, { name: body.name, course_code: body.course, start_date: body.start_date, end_date: body.end_date, employer_name: body.employer_name }); S.lastLearnerEdit = body; return json({ ok: true }); }
     }
     return json({ error: "not faked: " + p }, 404);
@@ -133,13 +134,13 @@ try {
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
     await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });
     check("A learner's page shows what Evia sends", /Upload the cavity wall photos/.test(await page.textContent("#main")));
-    await page.click("tr[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
+    await page.click(".pf-ev[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
     check("Staff open a piece of evidence and see the write-up and photos", /Ties every 450/.test(await page.textContent(".modal")) && (await page.$$(".media img")).length === 1);
     await page.click(".modal .x");
     await page.click("#editL"); await page.waitForSelector(".modal [name=employer_name]");
     await page.fill(".modal [name=name]", "Callum J Hughes"); await page.fill(".modal [name=employer_name]", "Hughes Builders Ltd"); await page.fill(".modal [name=end_date]", "2027-12-31");
     await page.click(".modal button[type=submit]"); await page.waitForTimeout(500);
-    check("College admin edits a learner's details", fake.S.lastLearnerEdit && fake.S.lastLearnerEdit.name === "Callum J Hughes" && fake.S.lastLearnerEdit.end_date === "2027-12-31" && /Callum J Hughes/.test(await page.textContent("#main")));
+    check("College admin edits a learner's details (assessor and tutor in the same window)", fake.S.lastAssign && fake.S.lastAssign.member_ids.join() === "m2" && fake.S.lastLearnerEdit && fake.S.lastLearnerEdit.name === "Callum J Hughes" && fake.S.lastLearnerEdit.end_date === "2027-12-31" && /Callum J Hughes/.test(await page.textContent("#main")));
     await page.click("nav [data-go=reviews]"); await page.waitForSelector("#done [data-review]");
     await page.click("#done [data-review]"); await page.waitForSelector(".review-doc"); await page.screenshot({ path: shots + "/11c-review.png" });
     check("A completed review opens in Nisia, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);

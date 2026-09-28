@@ -4,7 +4,7 @@
    the learner's mapping is ticked to start with, and can be unticked or added to. Each decision is a new row in
    Nisia's assessments (the latest one stands), so the history is kept. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "./courses.js";
+import { COURSE_DATA } from "../../packages/core/courses.js";
 
 const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -59,7 +59,7 @@ export function portfolioHtml(groups, onlyNew) {
       const fresh = g.items.filter((it) => !it.latest).length, met = new Set();
       g.items.forEach((it) => { if (it.latest && it.latest.decision === "accepted") (it.latest.ksbs || []).forEach((k) => met.add(k)); });
       const covered = g.ksbs.filter((k) => met.has(k)).length;
-      return '<details class="card pf-unit' + (fresh ? " has-new" : "") + '"' + (fresh || onlyNew ? " open" : "") + '><summary>' +
+      return '<details class="card pf-unit' + (fresh ? " has-new" : "") + (g.items.length ? "" : " pf-none") + '"' + (fresh || onlyNew ? " open" : "") + '><summary>' +
         '<span class="pf-no">' + (g.no || "") + '</span><span class="pf-name"><b>' + esc(g.name) + '</b><span class="sub">' +
         (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + (fresh ? ' · <b class="new-txt">' + fresh + ' new</b>' : "") + '</span></span>' +
         (g.ksbs.length ? '<span class="pf-met" title="KSBs signed off">' + covered + '/' + g.ksbs.length + '<small>signed off</small></span>' : "") + '</summary>' +

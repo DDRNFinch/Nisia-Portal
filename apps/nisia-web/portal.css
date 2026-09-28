@@ -363,3 +363,15 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .sig-box{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:14px}
 .sig-box img{width:100%;height:auto;aspect-ratio:900/260;object-fit:contain;background:#fff;border-radius:6px}
 .choice-row{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.35}.choice-row input{width:18px;height:18px;margin-top:1px;accent-color:var(--accent)}
+/* Portfolio, unit by unit */
+.pf-list{display:flex;flex-direction:column;gap:6px}
+.pf-unit{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pf-unit.pf-none{border-style:dashed;opacity:.7}
+.pf-row{display:flex;align-items:center;gap:10px;padding:10px 12px;flex-wrap:wrap}
+.pf-row b{flex:1;min-width:140px}
+.pf-no{flex:0 0 26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);font-weight:700;font-size:13px}
+.pf-no:empty{display:none}
+.pf-met{color:var(--ink-3,#667085)}
+.pf-ev{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px 9px 48px;border-top:1px solid var(--line);cursor:pointer}
+.pf-ev:hover,.pf-ev:focus-visible{background:var(--surface-2)}
+@media(max-width:560px){.pf-ev{padding-left:12px}}
