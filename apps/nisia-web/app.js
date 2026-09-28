@@ -305,6 +305,8 @@ async function showEvidence(e) {
   try {
     const { data: files, error } = await db.from("evidence_files").select("storage_path, mime_type").eq("evidence_id", e.id).order("created_at");
     if (error) throw error;
+    const blocked = !files.length && (Array.isArray(e.files) ? e.files.length : +e.files || 0) > 0;
+    if (blocked) { box.innerHTML = '<p class="err">' + (who && who.platform_admin && !(who.memberships || []).some((x) => x.organisation_id === S.org) ? "Only the college’s own staff can open learners’ files. Sign in with your college account to see them." : "This piece has files, but your account can’t open them. Check you’re signed in as active college staff.") + '</p>'; return; }
     if (!files.length) { box.innerHTML = '<p class="small muted">' + (e.photos_expected ? "The photos haven’t arrived yet. Evia sends them when the learner’s phone is on WiFi." : "No files with this one.") + '</p>'; return; }
     const { data: urls, error: ue } = await db.storage.from("evidence").createSignedUrls(files.map((f) => f.storage_path), 3600);
     if (ue) throw ue;
