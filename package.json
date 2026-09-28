@@ -1,20 +1,18 @@
 {
-  "name": "nisia-portal",
+  "name": "nisia",
+  "version": "0.0.1",
+  "description": "Nisia: apprenticeship platform for learners, assessors, tutors and employers",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "workspaces": [
+      "packages/*",
+      "apps/*",
+      "services/*"
+    ]
   },
-  "dependencies": {
-    "@supabase/supabase-js": "2.112.4",
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "qrcode": "1.5.4"
-  },
-  "devDependencies": {}
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
 }
