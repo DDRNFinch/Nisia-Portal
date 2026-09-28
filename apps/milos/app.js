@@ -6,6 +6,7 @@ import { auth } from "../../packages/core/signin.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { loadPortfolio, groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
+import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, status, learnerData, refreshLearner, withPending, clear, flush } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
 
@@ -139,7 +140,7 @@ async function learner(r, keepScroll) {
       stat(F.otj.total + " h", "off-the-job" + (F.otj.expected != null ? " · " + F.otj.expected + " h expected" : ""), F.otj.onTrack === false) +
       stat(F.evidencePeriod, "evidence since " + (F.lastReview ? "the last review" : "the start")) + '</div>' +
     insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +
-    '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="obs">New observation</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
+    '<div class="row"><button class="btn primary" id="rev">' + (localStorage.getItem("milos-draft-" + r.enrolment_id) ? "Carry on with the review" : "Start progress review " + F.reviewNo) + '</button><button class="btn" id="obs">New observation</button><button class="btn" id="pack">IQA / EPA pack</button><button class="btn" id="pair">' + (r.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button></div>' +
     '<h2>Reviews</h2><div class="card list">' + (L.reviews.length ? L.reviews.slice().reverse().map((v, i) =>
       '<button class="item" style="--cols:2" data-rev="' + v.id + '"><span class="name-cell"><span class="name">Review ' + (L.reviews.length - i) + '</span><span class="sub">' + esc(ukDate(v.reviewed_at)) + '</span></span><span class="small">' + esc((v.content && v.content.answers && v.content.answers.overallRag) || "") + '</span><span class="small">Signed</span><span class="chev">›</span></button>').join("") : '<p class="small muted" style="padding:10px 4px">None yet. The first one is started with the button above.</p>') + '</div>' +
     '<div id="pfBox"><p class="muted">Loading the portfolio…</p></div>';
@@ -157,6 +158,7 @@ async function learner(r, keepScroll) {
   if (y) scrollTo(0, y);
   root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { name: who.name, member_id: r.org.member_id }, (sent) => { toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); learner(r); });
   root.querySelector("#pair").onclick = () => pairing(r);
+  root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, { name: who.name, member_id: r.org.member_id }), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me: { name: who.name, member_id: r.org.member_id } }, (sent) => { toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: v.reviewed_at.slice(0, 10) }); });
 }

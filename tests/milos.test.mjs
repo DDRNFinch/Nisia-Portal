@@ -145,6 +145,15 @@ try {
   check("A piece of evidence downloads as a PDF", /\.pdf$/.test(evDl.suggestedFilename()));
   await page.click("#evBack"); await page.waitForTimeout(200);
   check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")));
+  /* The pack for the IQA and end-point assessor. */
+  await page.click("#pack"); await page.waitForSelector(".pack");
+  const pk = await page.evaluate(() => ({ rows: document.querySelectorAll(".pk-row").length, k22: (([...document.querySelectorAll(".pk-row")].find((r) => r.querySelector(".pk-code").textContent === "K22") || {}).textContent || ""), items: document.querySelectorAll(".pk-item").length, sum: document.querySelector(".pk-sum").textContent, months: document.querySelectorAll(".pk-months span").length }));
+  await page.screenshot({ path: shots + "/m2f-pack.png", fullPage: true });
+  check("The IQA / EPA pack lists every KSB with the evidence that covers it and who signed it off, and each piece of evidence", pk.rows === 59 && /Signed off/.test(pk.k22) && /E\d/.test(pk.k22) && pk.items >= 3 && /signed off/.test(pk.sum) && pk.months >= 1, JSON.stringify(pk).slice(0, 300));
+  const [pkDl] = await Promise.all([page.waitForEvent("download"), page.click("#pkPdf")]);
+  check("…and downloads as a PDF with a sampling record for the IQA", /portfolio-pack.*\.pdf$/.test(pkDl.suggestedFilename()), pkDl.suggestedFilename());
+  await pkDl.saveAs(shots + "/m2g-pack.pdf").catch(() => {});
+  await page.click("#pkBack");
   await page.click("#rev"); await page.waitForSelector(".rv");
   const next = async () => { await page.click("#next"); await page.waitForTimeout(150); };
   const texts = [];
