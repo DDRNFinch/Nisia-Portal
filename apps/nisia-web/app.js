@@ -297,7 +297,7 @@ async function showEvidence(e) {
   const m = modal(e.title,
     '<p class="small muted">' + esc([e.unit && e.unit !== e.title ? e.unit : "", EV_TYPE[e.type] || e.type, ukDate(e.at)].filter(Boolean).join(" · ")) + '</p>' +
     ((e.ksbs || []).length ? '<div class="chips">' + e.ksbs.map((k) => '<span class="pill">' + esc(k) + '</span>').join("") + '</div>' : "") +
-    (e.text ? '<div class="quote"><span class="label">What they wrote</span><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(e.text) + '</p></div>' : "") +
+    (e.text ? '<div class="quote"><span class="label">' + (e.collection === "observation" ? "What the assessor observed" : "What they wrote") + '</span><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(e.text) + '</p></div>' : "") +
     '<div class="media" id="media"><p class="small muted">Loading files…</p></div>' +
     (e.assessment ? '<div class="quote"><span class="label">Assessment</span><p style="margin:6px 0 0">' + assessedPill(e.assessment) + ' ' + esc(ukDate(e.assessment.at)) + (e.assessment.by ? " by " + esc(e.assessment.by) : "") + '</p>' +
       (e.assessment.feedback ? '<p style="margin:6px 0 0">' + esc(e.assessment.feedback) + '</p>' : "") + ((e.assessment.ksbs || []).length ? '<p class="small" style="margin:6px 0 0"><b>KSBs signed off:</b> ' + esc(e.assessment.ksbs.join(", ")) + '</p>' : "") + '</div>' : '<p class="small muted">Not assessed yet. The assessor signs it off in Milos.</p>'));

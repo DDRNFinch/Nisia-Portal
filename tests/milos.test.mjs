@@ -32,7 +32,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
 
 const posted = [];
 function handle(route) {
-  const q = route.request(), u = new URL(q.url()), p = u.pathname, body = q.postData() ? JSON.parse(q.postData()) : null;
+  const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
   if (q.method() === "OPTIONS") return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
   const one = /vnd\.pgrst\.object/.test(q.headers()["accept"] || "");
@@ -48,6 +48,9 @@ function handle(route) {
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
     { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
+  if (p === "/rest/v1/evidence" && q.method() === "POST") { posted.push({ table: "evidence", body }); return json(null, 201); }
+  if (p === "/rest/v1/evidence_files" && q.method() === "POST") { posted.push({ table: "evidence_files", body }); return json(null, 201); }
+  if (p.startsWith("/storage/v1/object/evidence/") && q.method() === "POST") { posted.push({ table: "storage", body: p }); return json({ Key: p }); }
   if (p === "/rest/v1/evidence") return json([
     { id: "ev1", organisation_id: "O1", title: "Construct Cavity Walling", evidence_type: "photo", created_at: day(-10), source_metadata: { collection: "evidence", unit: "Construct Cavity Walling", ksbs: ["S11", "K22", "S5"], text: "Built a cavity wall with ties every 450 mm.", photoIds: ["p1", "p2"] } },
     { id: "ev2", organisation_id: "O1", title: "Mixing mortar", evidence_type: "photo", created_at: day(-200), source_metadata: { collection: "evidence", unit: "Mixing mortar", ksbs: ["S14"] } },
@@ -85,6 +88,25 @@ try {
   await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
     /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
+  /* An observation, captured the way Evia captures evidence, then signed off. */
+  await page.click("#obs"); await page.waitForSelector(".obs-units [data-u]");
+  await page.click('.obs-units [data-u="0"]'); await page.waitForSelector("#obText");
+  const obsPrompts = await page.textContent(".obs");
+  await page.setInputFiles("#obPick", [0, 1].map((i) => ({ name: "p" + i + ".png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") })));
+  await page.waitForSelector(".obs-photos figure:nth-child(2)");
+  await page.fill("#obText", "Callum mixed mortar at a 4:1 ratio using the silo, gauging each batch, and wore his PPE throughout. He explained the safety signage to the labourer.");
+  const mentionOn = await page.$$eval("#obMention .chip.on", (c) => c.map((x) => x.textContent));
+  await page.screenshot({ path: shots + "/m2c-observation.png", fullPage: true });
+  await page.click("#obNext"); await page.waitForSelector("#obSave");
+  const obsTicks = await page.$$eval(".ksb-row input", (els) => els.filter((x) => x.checked).map((x) => x.value));
+  await page.uncheck('.ksb-row input[value="B1"]'); await page.fill("#obFb", "Well-gauged mortar.");
+  await page.click("#obSave"); await page.waitForSelector(".obs", { state: "detached", timeout: 8000 }); await page.waitForSelector(".pf-unit");
+  const ev = posted.find((x) => x.table === "evidence"), a = posted.filter((x) => x.table === "assessments").pop();
+  check("An observation is captured like Evia (unit prompts, photos, things to mention ticking off), then signed off and saved to Nisia",
+    /Things to capture/.test(obsPrompts) && /silos/.test(obsPrompts) && mentionOn.some((t) => /ratio/.test(t)) && mentionOn.some((t) => /safety signage/.test(t)) &&
+    obsTicks.join() === "S14,K20,S1,K1,S6,K12,S20,B1" && ev && ev.body.source_metadata.collection === "observation" && ev.body.created_by_member_id === "M2" && ev.body.source_metadata.unit === "Mixing mortar" &&
+    posted.filter((x) => x.table === "storage").length === 2 && posted.filter((x) => x.table === "evidence_files" && x.body.evidence_id === ev.body.id).length === 2 &&
+    a && a.body.evidence_id === ev.body.id && a.body.decision === "accepted" && !a.body.ksbs.includes("B1") && a.body.ksbs.length === 7, JSON.stringify({ mentionOn, obsTicks, ev: ev && ev.body, a: a && a.body }));
   const units = await page.$$eval(".pf-unit .pf-name > b", (els) => els.map((x) => x.textContent));
   check("The portfolio lists the course's units in Evia's order, then other units and supporting evidence", units[0] === "Mixing mortar" && units[7] === "Construct Cavity Walling" && units.at(-2) === "Other units" && units.at(-1) === "Supporting evidence");
   check("New evidence is highlighted and counted; assessed evidence shows as signed off", /3 new to assess/.test(await page.textContent("#pfBox")) && !!(await page.$("[data-ev=ev1].is-new")) && /Accepted/.test(await page.textContent("[data-ev=ev2]")) && /2\/8/.test(await page.textContent(".pf-unit:first-child .pf-met")));
@@ -95,7 +117,7 @@ try {
   await page.uncheck('.ksb-row input[value="S5"]'); await page.check('.ksb-row input[value="B5"]'); await page.selectOption("#addKsb", "K2");
   await page.fill("#fb", "Good ties and a clean cavity.");
   await page.click("#save"); await page.waitForTimeout(500);
-  const saved = posted.find((x) => x.table === "assessments");
+  const saved = posted.filter((x) => x.table === "assessments" && x.body.evidence_id === "ev1").pop();
   check("The assessor signs it off with their own KSB choice (one unticked, one ticked, one added from another unit)", !!saved && saved.body.decision === "accepted" && saved.body.ksbs.sort().join() === "B5,K2,K22,S11" && saved.body.assessor_member_id && /Good ties/.test(saved.body.feedback));
   check("The next new piece opens after saving", !!(await page.$(".paper")) && /Structural carcassing/.test(await page.textContent(".paper h1")));
   const [evDl] = await Promise.all([page.waitForEvent("download"), page.click("#evPdf")]);

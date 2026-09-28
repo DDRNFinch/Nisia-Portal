@@ -10,6 +10,8 @@ import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 const TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up", note: "Note" };
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const unitOf = (e) => (e.source_metadata && e.source_metadata.unit) || e.title || "";
+const isObservation = (e) => (e.source_metadata && e.source_metadata.collection) === "observation";
+const accountHead = (e) => isObservation(e) ? "Assessor’s observation" + (e.source_metadata.observedBy ? " (" + e.source_metadata.observedBy + (e.source_metadata.observedOn ? ", " + ukDate(e.source_metadata.observedOn) : "") + ")" : "") : "Learner’s account";
 const isSupporting = (e) => (e.source_metadata && e.source_metadata.collection) === "supporting" || /^supporting:/.test(e.client_reference || "");
 
 /* Everything the portfolio needs beyond loadLearner: files per piece of evidence, and the assessments. */
@@ -63,11 +65,11 @@ export function portfolioHtml(groups, onlyNew, snap) {
       return '<details class="card pf-unit' + (fresh ? " has-new" : "") + (g.items.length ? "" : " pf-none") + '"' + (fresh || onlyNew ? " open" : "") + '><summary>' +
         '<span class="pf-no">' + (g.no || "") + '</span><span class="pf-name"><b>' + esc(g.name) + '</b><span class="sub">' +
         (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + (fresh ? ' · <b class="new-txt">' + fresh + ' new</b>' : "") + '</span></span>' +
-        (g.no ? strengthBars(unitStrength(snap, g.name, g.items.map((it) => ({ photos: it.files.filter((f) => /^image\//.test(f.mime_type)).length || ((it.e.source_metadata || {}).photoIds || []).length, text: (it.e.source_metadata || {}).text })))) : "") +
+        (g.no ? strengthBars(unitStrength(snap, g.name, g.items.map((it) => ({ photos: it.files.filter((f) => /^image\//.test(f.mime_type)).length || ((it.e.source_metadata || {}).photoIds || []).length || (it.e.source_metadata || {}).photoCount || 0, text: (it.e.source_metadata || {}).text })))) : "") +
         (g.ksbs.length ? '<span class="pf-met" title="KSBs signed off">' + covered + '/' + g.ksbs.length + '<small>signed off</small></span>' : "") + '</summary>' +
         (items.length ? '<div class="pf-items">' + items.map((it) => '<button class="pf-item' + (!it.latest ? " is-new" : "") + '" data-ev="' + it.e.id + '">' +
           '<span class="name-cell"><span class="name">' + esc(g.key === "supporting" || g.key === "other" ? it.e.title : ukDate(it.e.created_at)) + '</span>' +
-          '<span class="sub">' + esc([g.key === "supporting" || g.key === "other" ? ukDate(it.e.created_at) : "", it.otherCourse, TYPE[it.e.evidence_type] || it.e.evidence_type, it.files.length ? it.files.length + (it.files.length === 1 ? " file" : " files") : ""].filter(Boolean).join(" · ")) + '</span></span>' +
+          '<span class="sub">' + esc([g.key === "supporting" || g.key === "other" ? ukDate(it.e.created_at) : "", it.otherCourse, isObservation(it.e) ? "Observation" + (it.e.source_metadata.observedBy ? " by " + it.e.source_metadata.observedBy : "") : TYPE[it.e.evidence_type] || it.e.evidence_type, it.files.length ? it.files.length + (it.files.length === 1 ? " file" : " files") : ""].filter(Boolean).join(" · ")) + '</span></span>' +
           statusPill(it) + '<span class="chev">›</span></button>').join("") + '</div>' : "") + '</details>';
     }).join("") + '</div>';
 }
@@ -104,10 +106,10 @@ export async function openEvidence(ctx, item, onSaved) {
   const paper = o.querySelector("#paper");
   paper.innerHTML = '<header class="paper-head"><div><p class="label">' + esc(college || "") + '</p><h1>' + esc(isSupporting(e) ? e.title : unitOf(e)) + '</h1>' +
     '<p class="muted small">' + esc(L.row.name) + ' · ' + esc(C.name || L.row.course_code) + (C.std ? " (" + esc(C.std) + ")" : "") + '</p></div>' +
-    '<dl class="paper-meta"><div><dt>Added</dt><dd>' + esc(ukDate(e.created_at)) + '</dd></div><div><dt>Type</dt><dd>' + esc(TYPE[e.evidence_type] || e.evidence_type) + '</dd></div>' +
+    '<dl class="paper-meta"><div><dt>Added</dt><dd>' + esc(ukDate(e.created_at)) + '</dd></div><div><dt>Type</dt><dd>' + esc(isObservation(e) ? "Observation" : TYPE[e.evidence_type] || e.evidence_type) + '</dd></div>' +
     (item.otherCourse ? '<div><dt>Course</dt><dd>' + esc(item.otherCourse) + '</dd></div>' : "") + '<div><dt>Status</dt><dd>' + statusPill(item) + '</dd></div></dl></header>' +
-    (m.text ? '<section><h3>Learner’s account</h3><p class="paper-text">' + esc(m.text) + '</p></section>' : "") +
-    (claimed.length ? '<section><h3>' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + ' the learner mapped</h3><ul class="paper-ksbs">' + claimed.map((k) => '<li><b>' + esc(k) + '</b> ' + esc(ksbText(C, k)) + '</li>').join("") + '</ul></section>' : "") +
+    (m.text ? '<section><h3>' + esc(accountHead(e)) + '</h3><p class="paper-text">' + esc(m.text) + '</p></section>' : "") +
+    (claimed.length ? '<section><h3>' + (L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + (isObservation(e) ? " observed" : " the learner mapped") + '</h3><ul class="paper-ksbs">' + claimed.map((k) => '<li><b>' + esc(k) + '</b> ' + esc(ksbText(C, k)) + '</li>').join("") + '</ul></section>' : "") +
     '<section><h3>Photos and files</h3><div class="paper-media" id="media"><p class="small muted">Loading…</p></div></section>';
   let media = [];
   try {
@@ -175,10 +177,10 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed }) {
   text(college || "", 9, "normal", 0.5);
   text(isSupporting(e) ? e.title : unitOf(e), 18, "bold", 1);
   text(L.row.name + " · " + (C.name || L.row.course_code) + (C.std ? " (" + C.std + ")" : ""), 10, "normal", 0.5);
-  text("Added " + ukDate(e.created_at) + " · " + (TYPE[e.evidence_type] || e.evidence_type), 10, "normal", 2);
+  text("Added " + ukDate(e.created_at) + " · " + (isObservation(e) ? "Observation" : TYPE[e.evidence_type] || e.evidence_type), 10, "normal", 2);
   const m = e.source_metadata || {};
-  if (m.text) { head("Learner’s account"); text(m.text, 10); }
-  if (claimed.length) { head("KSBs the learner mapped"); claimed.forEach((k) => text(k + "  " + ksbText(C, k), 9, "normal", 0.6)); }
+  if (m.text) { head(accountHead(e)); text(m.text, 10); }
+  if (claimed.length) { head((L.row.course_code === "trowel3" ? "Criteria" : "KSBs") + (isObservation(e) ? " observed" : " the learner mapped")); claimed.forEach((k) => text(k + "  " + ksbText(C, k), 9, "normal", 0.6)); }
   const photos = media.filter((f) => f.url && /^image\//.test(f.mime_type));
   if (photos.length) {
     head("Photos");
