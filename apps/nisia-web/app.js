@@ -12,6 +12,7 @@ import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
 const MILOS = new URL("milos/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
+const SYMI = new URL("symi/", BASE.replace(/apps\/nisia-web\/$/, "")).href, PAROS = new URL("paros/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
 const DAY = 864e5;
 let who = null;
 const S = { page: "overview", org: null, learner: null, filter: "all", q: "", data: null };
@@ -96,7 +97,9 @@ function shell(content) {
       '<div class="brand">' + MARK + '<div><div class="brand-name">Nisia</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
       '<nav class="nav" aria-label="Main">' + (S.org && who.platform_admin ? '<button type="button" data-go="colleges">' + ICON.back + 'All colleges</button><div class="nav-sep"></div>' : "") +
         navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + '</button>').join("") +
-        (S.org && m.roles.some((r) => r === "assessor" || r === "tutor") ? '<div class="nav-sep"></div><a class="btn ghost" href="' + esc(MILOS) + '" style="justify-content:flex-start">Open Milos ›</a>' : "") + '</nav>' +
+        (S.org && m.roles.some((r) => r === "assessor" || r === "tutor") ? '<div class="nav-sep"></div><a class="btn ghost" href="' + esc(MILOS) + '" style="justify-content:flex-start">Open Milos ›</a>' : "") +
+        (S.org && m.roles.includes("tutor") ? '<a class="btn ghost" href="' + esc(SYMI) + '" style="justify-content:flex-start">Open Symi ›</a>' : "") +
+        (S.org && m.roles.includes("employer") ? '<a class="btn ghost" href="' + esc(PAROS) + '" style="justify-content:flex-start">Open Paros ›</a>' : "") + '</nav>' +
       '<div class="college"><span class="label">Signed in</span><b>' + esc(who.name || "") + '</b><span class="small muted">' + esc(who.platform_admin && !S.org ? "Master admin" : (m && m.roles.filter((r) => r !== "learner").join(", ")) || "") + '</span><button class="btn ghost small" type="button" id="signOut" style="align-self:flex-start;padding-left:0">Sign out</button></div>' +
     '</aside><main class="main" id="main">' + content + '</main></div>';
   root.querySelector("#signOut").onclick = () => signOut();
@@ -229,8 +232,8 @@ function learnersPage() {
   if (S.adding) { S.adding = false; if (add && !add.disabled) addLearner(); }
 }
 function staffPicker(chosen) {
-  const people = (S.data.staff || []).filter((s) => s.active && (s.roles.includes("assessor") || s.roles.includes("tutor")));
-  if (!people.length) return '<p class="small muted">Invite an assessor or tutor on the Staff page first; you can assign them later.</p>';
+  const people = (S.data.staff || []).filter((s) => s.active && (s.roles.includes("assessor") || s.roles.includes("tutor") || s.roles.includes("employer")));
+  if (!people.length) return '<p class="small muted">Invite an assessor, tutor or employer on the Staff page first; you can assign them later.</p>';
   return '<div class="choice">' + people.map((s) => '<label><input type="checkbox" name="staff" value="' + s.member_id + '"' + (chosen.includes(s.member_id) ? " checked" : "") + '> ' + esc(s.name || s.email) + ' <span class="small muted">' + esc(s.roles.filter((r) => r !== "admin").join(", ")) + '</span></label>').join("") + '</div>';
 }
 function addLearner() {
@@ -245,7 +248,7 @@ function addLearner() {
     '<label class="field">Employer<input name="employer_name" autocomplete="off"></label>' +
     '<label class="field">Employer contact<input name="employer_contact_name" autocomplete="off"></label>' +
     '<label class="field full">Employer contact’s email<input name="employer_contact_email" type="email" autocomplete="off"></label>' +
-    '<div class="field full"><span>Assessor and tutor</span>' + staffPicker([]) + '</div>' +
+    '<div class="field full"><span>Assessor, tutor and employer</span>' + staffPicker([]) + '</div>' +
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Add learner (uses 1 seat)</button></form>');
   const f = m.querySelector("#f");
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Adding…", async () => {
@@ -356,7 +359,7 @@ async function learnerPage() {
   shell(
     '<button class="btn ghost back" type="button" data-go="learners">' + ICON.back + 'All learners</button>' +
     '<div class="lhead">' + avatar(l.name) + '<div style="flex:1;min-width:220px"><h1>' + esc(l.name) + '</h1>' +
-      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">Assessor: ' + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
+      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">' + ((a.roles || []).includes("employer") && !(a.roles || []).some((x) => x === "assessor" || x === "tutor") ? "Employer: " : (a.roles || []).includes("tutor") && !(a.roles || []).includes("assessor") ? "Tutor: " : "Assessor: ") + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
       '<div style="margin-top:8px"><span class="sync ' + (!l.paired || l.quiet == null || l.quiet > 3 ? "stale" : "") + '">' + (l.paired ? "Last update from Evia: " + lastActive(d.snapshot_at || l.last_activity) : "Evia not connected yet") + '</span></div></div>' +
       '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
     (l.reasons.length ? '<div class="panel" style="border-color:' + stripeFor(l.state) + ';display:flex;gap:10px;flex-direction:column"><span class="label">Why this learner is flagged</span>' + l.reasons.map((r) => '<span>• ' + esc(r) + '</span>').join("") + '</div>' : "") +
@@ -457,7 +460,7 @@ async function editLearner(l) {
     '<label class="field">Employer<input name="employer_name" value="' + esc(l.employer_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact<input name="employer_contact_name" value="' + esc(en.employer_contact_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact’s email<input name="employer_contact_email" type="email" value="' + esc(en.employer_contact_email || "") + '" autocomplete="off"></label>' +
-    '<div class="field full"><span>Assessor and tutor</span>' + staffPicker((l.assessors || []).map((x) => x.member_id)) + '</div>' +
+    '<div class="field full"><span>Assessor, tutor and employer</span>' + staffPicker((l.assessors || []).map((x) => x.member_id)) + '</div>' +
     '<p class="small muted full">Evia picks up the new course and dates the next time the learner connects it.</p>' +
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Save</button></form>';
   m.querySelector(".x").onclick = closeModal;
@@ -477,7 +480,7 @@ function inviteForm(org, action, collegeName) {
   const m = modal(admin ? "Invite a college admin" + (collegeName ? " to " + collegeName : "") : "Invite staff",
     '<form id="f" novalidate style="display:flex;flex-direction:column;gap:14px">' +
     '<label class="field">Name<input name="name" autocomplete="off"></label><label class="field">Email<input name="email" type="email" autocomplete="off"></label>' +
-    (admin ? "" : '<div class="field"><span>Roles</span><div class="choice">' + [["assessor", "Assessor"], ["tutor", "Tutor"], ["admin", "College admin"], ["quality", "Quality (view only)"]].map(([v, t], i) => '<label><input type="checkbox" name="roles" value="' + v + '"' + (i === 0 ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div>') +
+    (admin ? "" : '<div class="field"><span>Roles</span><div class="choice">' + [["assessor", "Assessor"], ["tutor", "Tutor"], ["employer", "Employer (Paros)"], ["admin", "College admin"], ["quality", "Quality (view only)"]].map(([v, t], i) => '<label><input type="checkbox" name="roles" value="' + v + '"' + (i === 0 ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div>') +
     '<p class="err"></p><button class="btn primary wide" type="submit">Create invite link</button></form>');
   const f = m.querySelector("#f");
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button"), "Creating…", async () => {

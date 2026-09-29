@@ -15,7 +15,7 @@ type Row = {
 };
 type Message = { title: string; body: string; tag: string; open: string; app: "evia" | "milos" };
 
-const STAFF = new Set(["evidence_submitted", "reviews_due"]);
+const STAFF = new Set(["evidence_submitted", "reviews_due", "witness_testimony_staff", "behaviour_rated_staff"]);
 const DAILY_CAP = 4;
 const plural = (n: number, one: string, many = one + "s") => n + " " + (n === 1 ? one : many);
 const list = (xs: (string | null)[]) => {

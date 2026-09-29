@@ -1,0 +1,67 @@
+/* Symi on Nisia: the header button, the bar on the register, the classroom check-in screen and signing in. */
+.sn-chip{display:inline-flex;align-items:center;gap:7px}
+.sn-chip i{width:8px;height:8px;border-radius:50%;background:#c3c8d0;box-shadow:0 0 0 3px rgba(195,200,208,.25)}
+.sn-chip.on i{background:#4da979;box-shadow:0 0 0 3px rgba(77,169,121,.2)}
+
+.sn-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0 4px;padding:12px 14px;border-radius:16px;background:#eaf8f0;color:#1d3b2c;font-size:14px;line-height:1.35}
+.sn-bar button{flex:none}
+.sn-bar .sn-ok{font-weight:700;color:#2f7d56}
+.sn-tick{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:#eaf8f0;color:#2f7d56;font-size:12px;font-weight:700;white-space:nowrap}
+.sn-tag{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:#eef2f7;color:#5b6675;font-size:11px;font-weight:700;vertical-align:1px}
+
+/* The check-in screen: made for a classroom projector, readable from the back. */
+.sn-checkin{position:fixed;inset:0;z-index:20000;display:flex;flex-direction:column;background:#0f1a24;color:#fff;padding:max(20px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));font-family:inherit}
+.sn-checkin header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.sn-checkin header small{letter-spacing:.14em;color:#8fd9b4;font-weight:800;font-size:13px}
+.sn-checkin header h2{margin:4px 0 0;font-size:clamp(22px,3.2vw,40px);line-height:1.1}
+.sn-close,.sn-x{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:inherit;font-size:26px;line-height:1;cursor:pointer;flex:none}
+.sn-body{flex:1;display:flex;align-items:center;justify-content:center;gap:clamp(24px,5vw,72px);min-height:0}
+.sn-qr{background:#fff;border-radius:28px;padding:clamp(14px,2vw,26px);line-height:0;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.sn-qr canvas,.sn-qr img,.sn-qr svg{display:block;max-width:100%;height:auto}
+.sn-side{max-width:360px}
+.sn-side ol{margin:0 0 18px;padding-left:1.2em;font-size:clamp(18px,2vw,24px);line-height:1.6}
+.sn-or{margin:0;color:#9fb0c0;font-size:15px}
+.sn-code{margin:4px 0 18px;font-size:clamp(40px,5vw,64px);font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.sn-timer{display:flex;align-items:center;gap:10px;color:#cfe0ea;font-size:16px}
+.sn-timer svg{width:34px;height:34px;transform:rotate(-90deg)}
+.sn-timer circle{fill:none;stroke:rgba(255,255,255,.18);stroke-width:4}
+.sn-timer .sn-left{stroke:#63c495;stroke-dasharray:97.4;stroke-linecap:round;transition:stroke-dashoffset .25s linear}
+.sn-note{margin:18px 0 0;color:#9fb0c0;font-size:14px;line-height:1.45}
+.sn-checkin footer{border-top:1px solid rgba(255,255,255,.12);padding-top:14px}
+.sn-count{margin:0 0 10px;font-weight:800;font-size:18px}
+.sn-names{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;max-height:22vh;overflow:auto}
+.sn-names li{padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#b8c6d2;font-size:15px}
+.sn-names li.on{background:#63c495;color:#0f1a24;font-weight:800}
+.sn-names small{font-weight:700;opacity:.8}
+.sn-wait,.sn-err{margin:auto;text-align:center;font-size:18px}
+.sn-err p{margin:0 0 16px}
+@media (max-width:760px){.sn-body{flex-direction:column;gap:18px}.sn-side{text-align:center}.sn-side ol{display:none}.sn-timer{justify-content:center}}
+@media (prefers-reduced-motion:reduce){.sn-timer .sn-left{transition:none}}
+
+/* Sheets and signing in (Nisia's shared sign-in, in Symi's colours). */
+.sn-sheet-layer,.sn-auth{position:fixed;inset:0;z-index:19000;background:rgba(15,26,36,.45);display:flex;align-items:flex-end;justify-content:center}
+.sn-sheet{position:relative;width:min(560px,100%);background:#fff;border-radius:26px 26px 0 0;padding:26px 22px max(22px,env(safe-area-inset-bottom));box-shadow:0 -20px 60px rgba(0,0,0,.18)}
+.sn-sheet h2{margin:0 0 8px}
+.sn-sheet .sn-x,.sn-auth>.sn-x{position:absolute;top:14px;right:14px;background:#eef2f7;color:#1d2733}
+.sn-muted{color:#5b6675;line-height:1.45}
+.sn-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.sn-auth{align-items:stretch;background:#f6f8f7;overflow:auto}
+.sn-auth-root{width:100%}
+.sn-auth .auth{min-height:100%;display:flex;align-items:center;justify-content:center;padding:40px 18px}
+.sn-auth .box{display:flex;flex-direction:column;gap:14px;width:min(420px,100%)}
+.sn-auth form.box{background:#fff;border:1px solid #e3e8ee;border-radius:22px;padding:22px;box-shadow:0 18px 50px rgba(20,40,60,.08)}
+.sn-auth .hello{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.sn-auth .hello h1{margin:0;font-size:32px}
+.sn-auth .av.lg{width:74px;height:74px;border-radius:50%;background:#fff;border:5px solid #63c495;display:flex;align-items:center;justify-content:center;gap:10px}
+.sn-auth .av.lg i{width:9px;height:17px;border-radius:9px;border:3px solid #4da979}
+.sn-auth .say,.sn-auth .muted{color:#5b6675;margin:0}
+.sn-auth .field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;color:#1d2733}
+.sn-auth .field input{font:inherit;font-weight:500;font-size:16px;padding:13px 14px;border-radius:14px;border:1px solid #d5dce4;background:#fff}
+.sn-auth .field input:focus{outline:3px solid rgba(99,196,149,.35);border-color:#63c495}
+.sn-auth .field small{font-weight:500;color:#5b6675}
+.sn-auth .err{color:#b3261e;margin:0;min-height:1em;font-size:14px}
+.sn-auth .btn{font:inherit;font-weight:800;border-radius:14px;padding:13px 16px;border:0;cursor:pointer}
+.sn-auth .btn.primary{background:#63c495;color:#fff}
+.sn-auth .btn.ghost{background:transparent;color:#2f7d56}
+.sn-auth .qr{display:flex;justify-content:center}.sn-auth .qr img,.sn-auth .qr svg{width:200px;height:200px}
+.sn-auth .secret{text-align:center;font-size:13px;color:#5b6675;word-break:break-all}

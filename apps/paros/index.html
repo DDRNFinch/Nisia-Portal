@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0E9384">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Paros">
+<title>Paros</title>
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../packages/ui/nisia.css">
+<link rel="stylesheet" href="../milos/milos.css">
+<link rel="stylesheet" href="paros.css">
+</head>
+<body>
+<div id="app"><div class="auth"><p class="muted" id="booting">Loading Paros…</p></div></div>
+<noscript><p style="padding:20px">Paros needs JavaScript switched on.</p></noscript>
+<script>window.NISIA_AUTH_KEY = "paros-auth";</script>
+<script src="../../packages/vendor/supabase-2.45.4.js"></script>
+<script type="module" src="app.js"></script>
+<script>
+/* The offline copy (sw.js): Paros opens without signal from the last download. */
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").then((reg) => {
+  const offer = (w) => { if (!w || !navigator.serviceWorker.controller || document.getElementById("upd")) return;
+    const b = document.createElement("div"); b.id = "upd"; b.className = "update-bar"; b.setAttribute("role", "status");
+    b.innerHTML = '<span>A new version of Paros is ready.</span><button class="btn primary">Update</button>';
+    b.querySelector("button").onclick = () => { b.querySelector("button").disabled = true; w.postMessage("update"); };
+    document.body.appendChild(b); };
+  if (reg.waiting) offer(reg.waiting);
+  reg.addEventListener("updatefound", () => { const w = reg.installing; w.addEventListener("statechange", () => { if (w.state === "installed") offer(w); }); });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloading || !document.getElementById("upd")) return; reloading = true; location.reload(); });
+}).catch(() => {}));
+</script>
+</body>
+</html>

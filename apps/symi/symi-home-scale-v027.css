@@ -1,0 +1,28 @@
+/* Symi 0.27: keep the home assistant at the same visual scale as Milos/Evia. */
+body.samos-home-centred .staff-face-panel .home-evia-space{
+  height:160px!important;
+  min-height:160px!important;
+}
+body.samos-home-centred .staff-face-panel .home-evia-stage{
+  width:156px!important;
+  height:156px!important;
+  min-width:156px!important;
+  min-height:156px!important;
+  max-width:156px!important;
+  max-height:156px!important;
+}
+body.samos-home-centred .staff-face-panel .home-evia-stage>#eviaFace.evia-face{
+  width:122px!important;
+  height:122px!important;
+  min-width:122px!important;
+  min-height:122px!important;
+  max-width:122px!important;
+  max-height:122px!important;
+  flex:0 0 122px!important;
+}
+body.samos-home-centred .staff-face-copy{margin-top:2px!important}
+@media(max-height:620px){
+  body.samos-home-centred .staff-face-panel .home-evia-space{height:148px!important;min-height:148px!important}
+  body.samos-home-centred .staff-face-panel .home-evia-stage{width:144px!important;height:144px!important;min-width:144px!important;min-height:144px!important;max-width:144px!important;max-height:144px!important}
+  body.samos-home-centred .staff-face-panel .home-evia-stage>#eviaFace.evia-face{width:114px!important;height:114px!important;min-width:114px!important;min-height:114px!important;max-width:114px!important;max-height:114px!important;flex-basis:114px!important}
+}

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f6f8">
+  <meta name="application-name" content="Symi">
+  <meta name="samos-build" content="0.28.0">
+  <meta name="symi-build" content="0.28.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Symi">
+  <link rel="manifest" href="manifest.json?v=0.28.0">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=0.28.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=0.28.0">
+  <link rel="stylesheet" href="style.css?v=0.28.0">
+  <link rel="stylesheet" href="staff-style.css?v=0.28.0">
+  <link rel="stylesheet" href="samos-theme.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-week-calendar-v023.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-standard-ui-v024.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-calendar-manager-v025.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-home-polish-v025.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-home-scale-v027.css?v=0.28.0">
+  <link rel="stylesheet" href="symi-nisia.css?v=0.28.0">
+  <title>Symi</title>
+</head>
+<body class="staff-mode samos-home-centred">
+  <main>
+    <header class="app-header">
+      <div class="app-brand">
+        <b class="brand-word" id="samosBrand" aria-label="Symi">Sym<span class="app-brand-i">i</span></b>
+        <small class="assessor-label">Classroom assistant</small>
+        <nav class="header-utility-actions" aria-label="Symi help and profile">
+          <button type="button" id="helpButton">Help/Symi</button>
+          <button type="button" id="profileButton">Profile</button>
+        </nav>
+      </div>
+      <div class="header-actions">
+        <button id="installApp" class="install-button" type="button" hidden>Install</button>
+      </div>
+    </header>
+
+    <section class="progress-panel staff-face-panel" id="samosFacePanel" aria-label="Symi classroom assistant">
+      <div class="home-evia-space">
+        <div class="home-evia-stage">
+          <button class="evia-face" id="eviaFace" type="button" aria-label="Open Symi classroom assistant">
+            <div class="evia-eyes"><span class="evia-eye eye-left"></span><span class="evia-eye eye-right"></span></div>
+          </button>
+        </div>
+      </div>
+      <div class="staff-face-copy"><span>Tap me to get started</span></div>
+    </section>
+
+    <section id="staffApp" aria-live="polite"></section>
+  </main>
+
+  <section class="evia-overlay" id="samosOverlay" aria-hidden="true" aria-label="Symi classroom assistant">
+    <div class="evia-wizard" role="dialog" aria-modal="true" aria-labelledby="samosPrompt">
+      <div class="evia-toolbar">
+        <button id="samosBack" type="button" aria-label="Back">&#8592;</button>
+        <button id="samosClose" type="button" aria-label="Close Symi">&#215;</button>
+      </div>
+      <div class="evia-stage">
+        <div class="evia-face" aria-hidden="true">
+          <div class="evia-eyes"><span class="evia-eye eye-left"></span><span class="evia-eye eye-right"></span></div>
+        </div>
+      </div>
+      <div class="evia-copy" aria-live="polite">
+        <p class="evia-greeting">Sym<span class="app-brand-i">i</span></p>
+        <h2 id="samosPrompt">What are you teaching?</h2>
+        <p id="samosHint">Start with a course. The SOW, register, learners, lessons and resources all sit inside it.</p>
+      </div>
+      <div id="samosContent"></div>
+    </div>
+  </section>
+
+  <dialog id="learnerDialog" class="samos-dialog">
+    <form method="dialog" id="learnerForm" class="staff-form">
+      <div class="dialog-head"><div><small>CLASSROOM</small><h2>Add learner</h2></div><button value="cancel" class="dialog-close" aria-label="Close">×</button></div>
+      <section class="staff-card">
+        <label>Learner name<input id="learnerNameInput" maxlength="60" required autocomplete="name" placeholder="Full name"></label>
+        <label>Optional learner ID<input id="learnerIdInput" maxlength="30" placeholder="College / learner ID"></label>
+      </section>
+      <button type="submit" class="blue-button full">Save learner</button>
+    </form>
+  </dialog>
+
+  <dialog id="registerDialog" class="samos-dialog">
+    <form method="dialog" id="registerForm" class="staff-form">
+      <div class="dialog-head"><div><small>ATTENDANCE</small><h2 id="registerDialogTitle">New register</h2></div><button value="cancel" class="dialog-close" aria-label="Close">×</button></div>
+      <section class="staff-card">
+        <label>Register name<input id="registerNameInput" maxlength="50" required placeholder="e.g. Level 2 Bricklaying"></label>
+        <div class="form-grid">
+          <label>Day<select id="registerDayInput"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></label>
+          <label>Room<input id="registerRoomInput" maxlength="30" placeholder="e.g. Workshop 2"></label>
+          <label>Start<input type="time" id="registerStartInput" value="09:00"></label>
+          <label>Finish<input type="time" id="registerEndInput" value="16:00"></label>
+        </div>
+      </section>
+      <div class="inline-actions"><button type="button" class="soft-button danger-hidden" id="deleteRegisterBtn">Delete register</button><button type="submit" class="blue-button">Save register</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="assignDialog" class="samos-dialog">
+    <form method="dialog" id="assignForm" class="staff-form">
+      <div class="dialog-head"><div><small>REGISTER</small><h2>Add learners</h2></div><button value="cancel" class="dialog-close" aria-label="Close">×</button></div>
+      <section class="staff-card"><div id="assignLearnerList" class="assign-list"></div></section>
+      <button type="submit" class="blue-button full">Add selected learners</button>
+    </form>
+  </dialog>
+
+  <dialog id="resourceDialog" class="samos-dialog">
+    <form method="dialog" id="resourceForm" class="staff-form">
+      <div class="dialog-head"><div><small>RESOURCE</small><h2>Create resource</h2></div><button value="cancel" class="dialog-close" aria-label="Close">×</button></div>
+      <section class="staff-card">
+        <label>Type<select id="resourceTypeInput"><option value="lesson-plan">Lesson plan</option><option value="powerpoint">PowerPoint</option><option value="other">Other resource</option></select></label>
+        <label>Title<input id="resourceTitleInput" maxlength="80" required placeholder="Resource title"></label>
+        <label>Notes<textarea id="resourceNotesInput" rows="6" placeholder="Add teaching notes, objectives or content"></textarea></label>
+      </section>
+      <button type="submit" class="blue-button full">Save resource</button>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog" class="samos-dialog">
+    <form method="dialog" id="profileForm" class="staff-form">
+      <div class="dialog-head"><div><small>SYMI</small><h2>Profile</h2></div><button value="cancel" class="dialog-close" aria-label="Close">×</button></div>
+      <section class="staff-card">
+        <label>Your name<input id="teacherNameInput" maxlength="40" placeholder="Optional"></label>
+        <label>Centre / department<input id="centreInput" maxlength="60" placeholder="Optional"></label>
+      </section>
+      <button type="submit" class="blue-button full">Save profile</button>
+    </form>
+  </dialog>
+
+  <input id="resourceFileInput" type="file" hidden accept=".ppt,.pptx,.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.txt">
+  <input id="samosPackageInput" type="file" hidden accept=".samos,.json,application/json">
+  <input id="courseFileInput" type="file" hidden accept=".samoscourse,.txt,.csv,.json,text/plain,text/csv,application/json">
+  <input id="presentationImageInput" type="file" hidden accept="image/*">
+
+  <dialog id="shareDialog" class="samos-dialog share-dialog">
+    <div class="dialog-head"><div><small>OFFLINE SHARE</small><h2 id="shareDialogTitle">Share</h2></div><button class="dialog-close" type="button" data-close-share aria-label="Close">×</button></div>
+    <div id="shareDialogBody"></div>
+  </dialog>
+
+  <dialog id="scanDialog" class="samos-dialog scan-dialog">
+    <div class="dialog-head"><div><small>OFFLINE QR</small><h2 id="scanDialogTitle">Scan / import QR</h2></div><button class="dialog-close" type="button" data-close-scan aria-label="Close">×</button></div>
+    <div id="scanDialogBody"></div>
+  </dialog>
+
+  <section id="quizPlayer" class="classroom-player quiz-player" aria-hidden="true"></section>
+  <section id="presentationPlayer" class="classroom-player presentation-player" aria-hidden="true"></section>
+  <div class="save-toast" id="saveToast" role="status">Saved</div>
+
+  <script>window.SAMOS_BUILD='0.28.0';window.SYMI_BUILD='0.28.0';</script>
+  <script src="evia-animations.js?v=0.28.0"></script>
+  <script src="qr-engine.js?v=0.28.0"></script>
+  <script src="app.js?v=0.28.0"></script>
+  <script src="naxos-controller.js?v=0.28.0"></script>
+  <script src="symi-brand-v017.js?v=0.28.0"></script>
+  <script src="symi-otj-share-v017.js?v=0.28.0"></script>
+  <script src="symi-course-hub-v018.js?v=0.28.0"></script>
+  <script src="symi-teaching-v019.js?v=0.28.0"></script>
+  <script src="symi-attendance-cap-v020.js?v=0.28.0"></script>
+  <script src="symi-data-hub-v021.js?v=0.28.0"></script>
+  <script src="symi-course-first-v021.js?v=0.28.0"></script>
+  <script src="symi-week-calendar-v023.js?v=0.28.0"></script>
+  <script src="symi-standard-ui-v024.js?v=0.28.0"></script>
+  <script src="symi-home-polish-v025.js?v=0.28.0"></script>
+  <script src="symi-updater-v027.js?v=0.28.0"></script>
+  <!-- Nisia: sign-in, learners, check-in and college hours (Symi's own sign-in, separate from Milos and the portal). -->
+  <script>window.NISIA_AUTH_KEY='symi-auth';</script>
+  <script src="../../packages/vendor/supabase-2.45.4.js"></script>
+  <script type="module" src="nisia-link.js?v=0.28.0"></script>
+</body>
+</html>
