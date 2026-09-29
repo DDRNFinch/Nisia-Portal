@@ -116,7 +116,7 @@ export async function openEvidence(ctx, item, onSaved) {
   const feedbackDraft = () => A ? draftFeedback(A, { first, decision, ticked, unitName: group ? group.name : unitOf(e), nvq: L.row.course_code === "trowel3" }) : "";
 
   const o = document.createElement("div"); o.className = "rv"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true");
-  o.innerHTML = '<div class="rv-top"><button class="btn ghost" id="evBack">‹ Portfolio</button><span class="spacer" style="flex:1"></span>' +
+  o.innerHTML = '<div class="rv-top"><button class="btn ghost" id="evBack">‹ Back</button><span class="spacer" style="flex:1"></span>' +
     (siblings.length > 1 ? '<button class="btn ghost" id="evPrev"' + (at <= 0 ? " disabled" : "") + ' aria-label="Previous">‹</button><span class="small muted">' + (at + 1) + ' of ' + siblings.length + '</span><button class="btn ghost" id="evNext"' + (at >= siblings.length - 1 ? " disabled" : "") + ' aria-label="Next">›</button>' : "") +
     '<button class="btn" id="evPdf">Download PDF</button></div>' +
     '<div class="rv-body ev-body"><article class="paper" id="paper"></article><section class="card assess" id="assess"></section></div>';

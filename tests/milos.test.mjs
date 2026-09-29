@@ -80,7 +80,7 @@ function handle(route) {
 }
 const browser = await pw.chromium.launch();
 try {
-  const ctx = await browser.newContext({ viewport: { width: 400, height: 860 }, acceptDownloads: true, locale: "en-GB" });
+  const ctx = await browser.newContext({ viewport: { width: 400, height: Number(process.env.MILOS_TALL) || 860 }, deviceScaleFactor: process.env.MILOS_TALL ? 2 : 1, acceptDownloads: true, locale: "en-GB" });
   const page = await ctx.newPage(), errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
@@ -93,16 +93,27 @@ try {
   await page.screenshot({ path: shots + "/m1-home.png", fullPage: true });
   const homeText = await page.textContent("#main");
   check("Milos lists only the assessor's own learners, with the review overdue", /Callum Hughes/.test(homeText) && !/Not Mine/.test(homeText) && /Overdue by/.test(homeText));
-  await page.click("[data-id=L1]"); await page.waitForSelector("#rev");
+  /* The other tabs: learners with search, one queue of new evidence across learners, and reviews by when they're due. */
+  await page.click("[data-tab=learners]"); await page.waitForSelector("#q"); await page.fill("#q", "hug"); await page.waitForTimeout(300);
+  await page.screenshot({ path: shots + "/m1b-learners.png", fullPage: true });
+  const found = await page.$$eval("#list [data-id]", (b) => b.length), ringShown = !!(await page.$("#list .m-ring"));
+  await page.fill("#q", "zzz"); await page.waitForTimeout(300); const none = /Nobody matches/.test(await page.textContent("#main")); await page.fill("#q", "");
+  await page.click("[data-tab=assess]"); await page.waitForSelector("[data-q]"); await page.screenshot({ path: shots + "/m1c-assess.png", fullPage: true });
+  const queue = await page.$$eval("[data-q]", (b) => b.map((x) => x.textContent)), badge = await page.textContent("[data-tab=assess] .m-badge");
+  await page.click("[data-tab=reviews]"); await page.waitForTimeout(200); await page.screenshot({ path: shots + "/m1d-reviews.png", fullPage: true });
+  const revText = await page.textContent("#main");
+  check("Learners search, one To assess queue across learners, and reviews by when they're due", found === 1 && ringShown && none && queue.length === 3 && badge === "3" && queue.some((t) => /Construct Cavity Walling/.test(t)) && /Overdue/.test(revText) && /Callum Hughes/.test(revText), JSON.stringify({ found, ringShown, none, queue, badge }));
+  await page.click("[data-tab=today]"); await page.waitForSelector("[data-id=L1]");
+  await page.click("[data-id=L1]"); await page.waitForSelector("#rev"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
   check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));
-  await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
+  await page.click("#tab-portfolio"); await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
     /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
   check("Milos shows how steadily evidence has come in over 12 weeks", await page.$$eval(".consistency .cs-w", (w) => w.length) === 12 && /of 12 weeks/.test(await page.textContent(".consistency")));
   /* An observation, captured the way Evia captures evidence, then signed off. */
-  await page.click("#obs"); await page.waitForSelector(".obs-units [data-u]");
+  await page.click("#tab-overview"); await page.click("#obs"); await page.waitForSelector(".obs-units [data-u]");
   await page.click('.obs-units [data-u="0"]'); await page.waitForSelector("#obText");
   const obsPrompts = await page.textContent(".obs");
   await page.setInputFiles("#obPick", [0, 1].map((i) => ({ name: "p" + i + ".png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") })));
@@ -113,7 +124,7 @@ try {
   await page.click("#obNext"); await page.waitForSelector("#obSave");
   const obsTicks = await page.$$eval(".ksb-row input", (els) => els.filter((x) => x.checked).map((x) => x.value));
   await page.uncheck('.ksb-row input[value="B1"]'); await page.fill("#obFb", "Well-gauged mortar.");
-  await page.click("#obSave"); await page.waitForSelector(".obs", { state: "detached", timeout: 8000 }); await page.waitForSelector(".pf-unit");
+  await page.click("#obSave"); await page.waitForSelector(".obs", { state: "detached", timeout: 8000 }); await page.waitForSelector(".pf-unit", { state: "attached" });
   const ev = posted.find((x) => x.table === "evidence"), a = posted.filter((x) => x.table === "assessments").pop();
   check("An observation is captured like Evia (unit prompts, photos, things to mention ticking off), then signed off and saved to Nisia",
     /Things to capture/.test(obsPrompts) && /silos/.test(obsPrompts) && mentionOn.some((t) => /ratio/.test(t)) && mentionOn.some((t) => /safety signage/.test(t)) &&
@@ -124,7 +135,7 @@ try {
   const units = await page.$$eval(".pf-unit .pf-name > b", (els) => els.map((x) => x.textContent));
   check("The portfolio lists the course's units in Evia's order, then other units and supporting evidence", units[0] === "Mixing mortar" && units[7] === "Construct Cavity Walling" && units.at(-2) === "Other units" && units.at(-1) === "Supporting evidence");
   check("New evidence is highlighted and counted; assessed evidence shows as signed off", /3 new to assess/.test(await page.textContent("#pfBox")) && !!(await page.$("[data-ev=ev1].is-new")) && /Accepted/.test(await page.textContent("[data-ev=ev2]")) && /2\/8/.test(await page.textContent(".pf-unit:first-child .pf-met")));
-  await page.click("[data-ev=ev1]"); await page.waitForSelector(".paper-media img"); await page.waitForTimeout(300);
+  await page.click("#tab-portfolio"); await page.click("[data-ev=ev1]"); await page.waitForSelector(".paper-media img"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2b-evidence.png" });
   const ticks = await page.$$eval(".ksb-row input", (els) => els.filter((x) => x.checked).map((x) => x.value));
   check("Evidence opens as a document: the learner's account, their KSBs and photos, with their KSBs ticked", /ties every 450/.test(await page.textContent(".paper")) && (await page.$$(".paper-media img")).length === 2 && ticks.join() === "S11,K22,S5");
@@ -153,7 +164,7 @@ try {
   await page.click("#evBack"); await page.waitForTimeout(200);
   check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")));
   /* The pack for the IQA and end-point assessor. */
-  await page.click("#pack"); await page.waitForSelector(".pack");
+  await page.click("#tab-overview"); await page.click("#pack"); await page.waitForSelector(".pack");
   const pk = await page.evaluate(() => ({ rows: document.querySelectorAll(".pk-row").length, k22: (([...document.querySelectorAll(".pk-row")].find((r) => r.querySelector(".pk-code").textContent === "K22") || {}).textContent || ""), items: document.querySelectorAll(".pk-item").length, sum: document.querySelector(".pk-sum").textContent, months: document.querySelectorAll(".pk-months span").length }));
   await page.screenshot({ path: shots + "/m2f-pack.png", fullPage: true });
   check("The IQA / EPA pack lists every KSB with the evidence that covers it and who signed it off, and each piece of evidence", pk.rows === 59 && /Signed off/.test(pk.k22) && /E\d/.test(pk.k22) && pk.items >= 3 && /signed off/.test(pk.sum) && pk.months >= 1, JSON.stringify(pk).slice(0, 300));
@@ -248,7 +259,7 @@ try {
   await page.click("#obs"); await page.click('.obs-units [data-u="1"]'); await page.waitForSelector("#obText");
   await page.setInputFiles("#obPick", [{ name: "o.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") }]);
   await page.fill("#obText", "Pointed the joints with a half round finish, wearing PPE."); await page.click("#obNext"); await page.click("#obSave");
-  await page.waitForSelector(".obs", { state: "detached" }); await page.waitForSelector("#pfBox .pf-unit");
+  await page.waitForSelector(".obs", { state: "detached" }); await page.waitForSelector("#pfBox .pf-unit", { state: "attached" });
   const waitingShown = /waiting to send/i.test(await page.textContent("#syncbar")) && /Waiting to send/.test(await page.textContent("#pfBox"));
   const nothingSent = posted.length === before;
   check("Offline, Milos opens from the phone with the learners and their progress, and an observation waits on the phone", /Offline/.test(offBar) && offLearner && waitingShown && nothingSent, JSON.stringify({ offBar, offLearner, waitingShown, nothingSent }));

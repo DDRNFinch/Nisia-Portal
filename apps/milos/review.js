@@ -299,7 +299,8 @@ export function openReview(L, me, onDone) {
   function draw() {
     const [id, title] = STEPS[step];
     root.innerHTML = '<header class="rv-top"><button class="x" aria-label="Close and keep the draft">×</button><div class="rv-prog" aria-hidden="true"><i style="width:' + Math.round((step + 1) / STEPS.length * 100) + '%"></i></div><span class="small muted">' + (step + 1) + '/' + STEPS.length + '</span></header>' +
-      '<form class="rv-body" novalidate><p class="label">Progress review ' + F.reviewNo + ' · ' + esc(F.learner) + '</p><h2>' + esc(title) + '</h2>' + body(id) + '<p class="err" id="stepErr"></p></form>' +
+      '<form class="rv-body" novalidate><div class="rv-steps" aria-hidden="true">' + ["Progress", "Wellbeing", "Next steps", "Sign"].map((t, i) => '<span class="' + (i < step ? "done" : i === step ? "on" : "") + '">' + (i < step ? "✓ " : "") + t + '</span>').join("") + '</div>' +
+      '<p class="label">Progress review ' + F.reviewNo + ' · ' + esc(F.learner) + '</p><h2>' + esc(title) + '</h2>' + body(id) + '<p class="err" id="stepErr"></p></form>' +
       '<footer class="rv-foot">' + (step ? '<button class="btn" type="button" id="back">Back</button>' : "") + '<button class="btn primary" type="button" id="next">' + (id === "sign" ? "Complete review" : "Next") + '</button></footer>';
     root.querySelector(".x").onclick = () => { read(); close(); };
     const b = root.querySelector("#back"); if (b) b.onclick = () => { read(); step--; draw(); };
