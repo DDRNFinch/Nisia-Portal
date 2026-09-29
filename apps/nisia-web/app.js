@@ -13,6 +13,8 @@ const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
 const MILOS = new URL("milos/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
 const SYMI = new URL("symi/", BASE.replace(/apps\/nisia-web\/$/, "")).href, PAROS = new URL("paros/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
+/* Every Nisia app, for everyone signed in to the portal (each app checks who can use it). */
+const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "Assessors", "#2C85F7"], ["Symi", SYMI, "Tutors, in the classroom", "#63C495"], ["Paros", PAROS, "Employers", "#0E9384"]];
 const DAY = 864e5;
 let who = null;
 const S = { page: "overview", org: null, learner: null, filter: "all", q: "", data: null };
@@ -97,9 +99,7 @@ function shell(content) {
       '<div class="brand">' + MARK + '<div><div class="brand-name">Nisia</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
       '<nav class="nav" aria-label="Main">' + (S.org && who.platform_admin ? '<button type="button" data-go="colleges">' + ICON.back + 'All colleges</button><div class="nav-sep"></div>' : "") +
         navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + '</button>').join("") +
-        (S.org && m.roles.some((r) => r === "assessor" || r === "tutor") ? '<div class="nav-sep"></div><a class="btn ghost" href="' + esc(MILOS) + '" style="justify-content:flex-start">Open Milos ›</a>' : "") +
-        (S.org && m.roles.includes("tutor") ? '<a class="btn ghost" href="' + esc(SYMI) + '" style="justify-content:flex-start">Open Symi ›</a>' : "") +
-        (S.org && m.roles.includes("employer") ? '<a class="btn ghost" href="' + esc(PAROS) + '" style="justify-content:flex-start">Open Paros ›</a>' : "") + '</nav>' +
+        '<div class="nav-sep"></div><span class="nav-label">Apps</span>' + APPS.map(([name, href, who, dot]) => '<a class="nav-app" href="' + esc(href) + '" target="_blank" rel="noopener"><i style="background:' + dot + '" aria-hidden="true"></i><span><b>' + name + '</b><small>' + who + '</small></span></a>').join("") + '</nav>' +
       '<div class="college"><span class="label">Signed in</span><b>' + esc(who.name || "") + '</b><span class="small muted">' + esc(who.platform_admin && !S.org ? "Master admin" : (m && m.roles.filter((r) => r !== "learner").join(", ")) || "") + '</span><button class="btn ghost small" type="button" id="signOut" style="align-self:flex-start;padding-left:0">Sign out</button></div>' +
     '</aside><main class="main" id="main">' + content + '</main></div>';
   root.querySelector("#signOut").onclick = () => signOut();

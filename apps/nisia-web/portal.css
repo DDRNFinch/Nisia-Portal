@@ -380,3 +380,11 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .sbar{display:block;width:6px;border-radius:3px;transform:skewX(-7deg);background:#e2e6eb}
 .sbar-1{height:7px}.sbar-2{height:13px}.sbar-3{height:19px}
 .sbars-weak .sbar.on{background:#e8a33d}.sbars-good .sbar.on{background:#e7b900}.sbars-strong .sbar.on{background:#2f9e62}
+/* The Nisia apps, under the menu. */
+.nav-label{padding:4px 10px 2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3,#7a8594)}
+.nav-app{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;color:var(--ink-2);text-decoration:none}
+.nav-app:hover{background:var(--surface-2);color:var(--ink)}
+.nav-app i{width:10px;height:10px;border-radius:50%;flex:none}
+.nav-app span{display:flex;flex-direction:column;line-height:1.25}
+.nav-app b{font-weight:600;color:var(--ink)}
+.nav-app small{font-size:12px;color:var(--ink-3,#7a8594)}
