@@ -136,7 +136,15 @@ async function send(j) {
   if (j.kind === "assessment") await step("assessment", () => insert("assessments", j.row));
   if (j.kind === "review") {
     await step("review", () => insert("reviews", j.review));
-    await step("signoff", () => insert("review_signoffs", j.signoff));
+    /* Signed as the role the member actually has (a college admin doing reviews has no assessor role). Reviews saved
+       before this carry "assessor", so any role Nisia turns down is swapped for the next one. */
+    await step("signoff", async () => {
+      const roles = [j.signoff.signer_role, "assessor", "tutor", "admin"].filter((x, i, a) => x && a.indexOf(x) === i);
+      for (let i = 0; ; i++) {
+        try { await insert("review_signoffs", { ...j.signoff, signer_role: roles[i] }); return; }
+        catch (e) { if (i === roles.length - 1 || !/row-level security/i.test(e.message)) throw e; }
+      }
+    });
     if (j.targets.length) await step("targets", () => insert("targets", j.targets));
   }
 }

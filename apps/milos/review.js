@@ -73,8 +73,12 @@ export function facts(L, now = Date.now()) {
   const tracked = (snap.targets || []).filter((t) => last && t.reviewId === last.id);
   const prevMilos = tracked.length ? tracked.map((t) => ({ source: "evia-tracked", title: t.title, due: t.due, pct: t.pct, text: t.text, met: t.done }))
     : last && last.content && Array.isArray(last.content.targets) ? last.content.targets.map((t) => ({ source: "review", title: t.title, due: t.due })) : [];
-  const prevEvia = L.eviaTargets.filter((t) => !t.metAt && (t.course === row.course_code || !t.course)).map((t) => ({ source: "evia", title: t.title, due: t.due ? isoDay(t.due) : "", met: false }))
-    .concat(L.eviaTargets.filter((t) => t.metAt && Date.parse(t.metAt) >= periodStart).map((t) => ({ source: "evia", title: t.title, due: t.due ? isoDay(t.due) : "", met: true })));
+  /* Evia's own targets, with how far along each one is as Evia measures it, so each comes marked Met, Partly met or
+     Not met. Old-style targets Evia no longer shows the learner are left out. */
+  const live = (snap.targets || []).filter((t) => !t.reviewId || !last || t.reviewId !== last.id);
+  const prevEvia = live.length ? live.filter((t) => !t.done || !t.doneAt || t.doneAt >= periodStart).map((t) => ({ source: "evia-tracked", title: t.title, due: t.due, pct: t.pct, text: t.text, met: t.done }))
+    : L.eviaTargets.filter((t) => t.store !== "legacy" && (t.course === row.course_code || !t.course) && (!t.metAt || Date.parse(t.metAt) >= periodStart))
+      .map((t) => ({ source: "evia", title: t.title, due: t.due ? isoDay(t.due) : "", met: !!t.metAt, pct: t.metAt ? 100 : null }));
   return {
     learner: row.name, course: course.name + (course.std ? " (" + course.std + ")" : ""), courseCode: row.course_code, nvq: !!course.nvq,
     employer: en.employer_name || "", employerContact: en.employer_contact_name || "", start: en.start_date, end: en.end_date, status: en.status,
@@ -117,7 +121,7 @@ export function suggestTargets(F) {
 }
 
 /* Outcome of a target Evia tracked. */
-const outcomeOf = (t) => t.met || t.pct >= 100 ? "Met" : t.pct >= 40 ? "Partly met" : t.pct != null ? "Not met" : "";
+export const outcomeOf = (t) => t.met || t.pct >= 100 ? "Met" : t.pct >= 40 ? "Partly met" : t.pct != null ? "Not met" : "";
 /* The learner's check-in in Evia (reviews.js "How things are"), turned into the review's answers. */
 const EDI_TOPICS = [[/equality|diversity/i, "Equality and diversity"], [/prevent|safeguard/i, "Prevent"], [/british values/i, "British values"], [/wellbeing|rights/i, "Mental health and wellbeing"]];
 function fromCheckIn(F) {
@@ -171,6 +175,9 @@ export function openReview(L, me, onDone) {
   /* Written from Evia; a draft left empty is filled in too. The summary follows the targets, so it's written last. */
   if (!String(R.progressComment || "").trim()) R.progressComment = [progressText(L, F), otjText(F)].filter(Boolean).join(" ");
   if (!String(R.fsComment || "").trim()) R.fsComment = fsText(F);
+  /* Previous targets always come fresh from Evia, keeping any the assessor has already marked. */
+  { const had = Object.fromEntries((R.previous || []).filter((t) => t.outcome && t.picked).map((t) => [t.title, t]));
+    R.previous = F.previousTargets.map((t) => had[t.title] ? { ...t, outcome: had[t.title].outcome, comment: had[t.title].comment, picked: true } : { ...t, outcome: outcomeOf(t), comment: t.text ? "Evia: " + t.text : "" }); }
   if (!String(R.summary || "").trim()) R.summary = summaryText(L, F, R);
   const rag = suggestRag(F);
   const redo = { progressComment: () => [progressText(L, F), otjText(F)].filter(Boolean).join(" "), fsComment: () => fsText(F), summary: () => summaryText(L, F, R) };
@@ -252,7 +259,7 @@ export function openReview(L, me, onDone) {
     if (f.querySelector("[name=topics]")) R.topicDiscussed = [...f.querySelectorAll("[name=topics]:checked")].map((x) => x.value).join(", ");
     if (f.elements.otjConfirmed) R.otjConfirmed = f.elements.otjConfirmed.checked;
     ["apprentice", "employer", "assessor", "tutor"].forEach((k) => { if (f.elements["att_" + k]) R.attendees[k] = f.elements["att_" + k].checked; });
-    R.previous.forEach((t, i) => { const o = v("prev_" + i); if (o !== undefined) t.outcome = o; });
+    R.previous.forEach((t, i) => { const o = v("prev_" + i); if (o !== undefined && o !== t.outcome) { t.outcome = o; t.picked = true; } });
     R.targets.forEach((t, i) => { ["title", "how", "due", "support"].forEach((k) => { const x = v("t_" + k + "_" + i); if (x !== undefined) t[k] = x; }); });
     save();
   }
@@ -332,7 +339,7 @@ export function openReview(L, me, onDone) {
       /* Saved on this phone, then sent to Nisia now or once there's signal (store.js). */
       const sent = await saveReview({ enrolmentId: en.id,
         review: { organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, review_type: "progress", content, reviewed_at: new Date(R.date + "T12:00:00").toISOString() },
-        signoff: { organisation_id: en.organisation_id, member_id: me.member_id, signer_role: "assessor" },
+        signoff: { organisation_id: en.organisation_id, member_id: me.member_id, signer_role: ["assessor", "tutor", "admin"].find((x) => (me.roles || []).includes(x)) || "assessor" },
         targets: content.targets.map((t) => ({ organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, title: t.title, description: [t.how, t.support ? "Support: " + t.support : ""].filter(Boolean).join("\n"), due_date: t.due || null, status: "open", measure: t.measure || null })) });
       localStorage.removeItem(DRAFT(L.row.enrolment_id));
       close(); onDone && onDone(sent);

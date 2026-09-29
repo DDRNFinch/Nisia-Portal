@@ -156,7 +156,7 @@ async function learner(r, keepScroll) {
   };
   groups = groupByUnit(L, P); drawPortfolio();
   if (y) scrollTo(0, y);
-  root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { name: who.name, member_id: r.org.member_id }, (sent) => { toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); learner(r); });
+  root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { name: who.name, member_id: r.org.member_id, roles: r.org.roles || [] }, (sent) => { toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); learner(r); });
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, { name: who.name, member_id: r.org.member_id }), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me: { name: who.name, member_id: r.org.member_id } }, (sent) => { toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });

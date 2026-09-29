@@ -215,6 +215,15 @@ try {
       snapshot: { targets: [{ reviewId: "RV0", title: "Evidence for Mixing mortar", pct: 100, done: true, text: "Done" }, { reviewId: "RV0", title: "Log hours", pct: 55, text: "20 of 36 hours" }, { reviewId: "RV0", title: "Maths: 70%", pct: 10, text: "Best since set: 45%" }] } };
     return facts(L).previousTargets.map((t) => t.source + ":" + t.pct);
   });
+  const first = await page.evaluate(async () => {
+    const { facts } = await import("./review.js");
+    const L = { row: { name: "A B", course_code: "bricklayer" }, enrolment: { start_date: "2025-09-01", end_date: "2027-08-31" }, otj: [], evidence: [], eviaReviews: [], reviews: [],
+      eviaTargets: [{ store: "legacy", title: "Gather 15 learning hours", course: "bricklayer" }],
+      snapshot: { targets: [{ title: "Log 10 off-the-job hours", pct: 100, done: true, doneAt: Date.now(), text: "Done" }, { title: "Stay active 4 weeks in a row", pct: 50, text: "2 of 4 weeks" }, { title: "Try an EPA quick quiz", pct: 0, text: "Not done yet" }] } };
+    const { outcomeOf } = await import("./review.js");
+    return facts(L).previousTargets.map((t) => t.title + ":" + (outcomeOf ? outcomeOf(t) : t.pct));
+  });
+  check("Before any Milos review, Evia's own targets arrive marked Met, Partly met or Not met (old-style ones left out)", first.join() === "Log 10 off-the-job hours:Met,Stay active 4 weeks in a row:Partly met,Try an EPA quick quiz:Not met", first.join());
   check("Last review's targets arrive marked from Evia's tracking", outcomes.join() === "evia-tracked:100,evia-tracked:55,evia-tracked:10", outcomes.join());
   const A = rev && rev.body.content.answers;
   check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met >= 1 && rev.body.content.facts.ksb.met < 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
