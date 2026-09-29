@@ -11,6 +11,7 @@ import { openObservation } from "./observe.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, status, learnerData, refreshLearner, withPending, clear, flush } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
+import * as push from "./push.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos");
@@ -31,6 +32,7 @@ const IC = {
   pack: svg('<path d="M3.5 7.5l8.5-4 8.5 4-8.5 4z"/><path d="M3.5 12l8.5 4 8.5-4M3.5 16.5l8.5 4 8.5-4"/>'),
   phone: svg('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'),
   sync: svg('<path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3"/><path d="M18 3v3.7h-3.7M6 21v-3.7h3.7"/>'),
+  bell: svg('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
   install: svg('<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5"/><path d="M4.5 16v2.5A2 2 0 0 0 6.5 20.5h11a2 2 0 0 0 2-2V16"/>'),
   out: svg('<path d="M14.5 4.5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-3"/><path d="M10 16.5L5.5 12 10 7.5M5.5 12h10"/>'),
   clip: svg('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>'),
@@ -137,16 +139,40 @@ function sheet(html, label, wide) {
   o.onclick = (e) => { if (e.target === o) o.remove(); }; o.querySelector(".x").onclick = () => o.remove();
   document.body.appendChild(o); return o;
 }
+/* ---------- Notifications ---------- */
+const PUSH_WHAT = "New evidence to assess, and on Mondays the reviews to book. Weekdays only, 7:30am to 9pm.";
+function pushRow() {
+  const st = push.state();
+  return '<button type="button" class="m-row" id="acPush"' + (push.WHY[st] ? " disabled" : "") + '><span class="m-ic">' + IC.bell + '</span><span class="m-row-main"><b>Notifications' + (st === "on" ? " · on" : "") + '</b><span class="sub">' +
+    esc(push.WHY[st] || (st === "on" ? PUSH_WHAT + " Tap to turn off." : PUSH_WHAT)) + '</span></span>' + (st === "on" ? '<span class="pill good">On</span>' : "") + '</button>';
+}
+/* A tapped notification opens its tab: To assess, or Reviews. */
+function pushOpen(what) {
+  if (!["assess", "reviews", "today", "learners"].includes(what) || !who) return;
+  tab = what; filter = "all"; home(); scrollTo(0, 0);
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "milos-open") pushOpen(e.data.open); });
+let openFirst = "";
+try { const q = new URLSearchParams(location.search); openFirst = q.get("open") || ""; if (openFirst) { q.delete("open"); history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash); } } catch (_) {}
+
 function account() {
   const st = status(), orgs = [...new Set(rows.map((r) => r.org && r.org.organisation).filter(Boolean))];
   const o = sheet('<div class="m-acct"><span class="m-me lg" aria-hidden="true">' + esc(initials(who && who.name)) + '</span><div><h2>' + esc(who && who.name || "Assessor") + '</h2><p class="muted small">' + esc(orgs.join(", ") || "Milos") + '</p></div></div>' +
     '<div class="card m-list">' +
       '<button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Sync with Nisia</b><span class="sub">' + esc(st.syncedAt ? "Last synced " + hhmm(st.syncedAt) : "Not synced yet") + (st.waiting ? " · " + st.waiting + " waiting to send" : "") + '</span></span></button>' +
+      pushRow() +
       (installed() ? "" : '<button type="button" class="m-row" id="install"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>') +
       '<button type="button" class="m-row" id="signout"><span class="m-ic bad">' + IC.out + '</span><span class="m-row-main"><b>Sign out</b><span class="sub">Removes your learners from this phone</span></span></button>' +
     '</div><p class="small muted center">Milos keeps your learners on this phone so it works without signal. Anything you do goes to Nisia when there’s signal.</p>', "Account");
   o.querySelector("#acSync").onclick = () => { o.remove(); manualSync(); };
   const i = o.querySelector("#install"); if (i) i.onclick = () => { o.remove(); install(); };
+  const pb = o.querySelector("#acPush");
+  if (pb) pb.onclick = async () => {
+    pb.disabled = true;
+    try { if (push.state() === "on") { await push.off(); toast("Notifications off"); } else toast(await push.on() ? "Notifications on" : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Notifications not turned on"); }
+    catch (e) { toast("Couldn’t reach Nisia. Try again with signal."); }
+    o.remove(); account();
+  };
   o.querySelector("#signout").onclick = async () => {
     const w = status().waiting;
     if (w && !confirm(w + (w === 1 ? " thing hasn’t" : " things haven’t") + " been sent to Nisia yet, and signing out deletes them from this phone. Sign out anyway?")) return;
@@ -179,7 +205,11 @@ const empty = (h, p) => '<section class="card m-empty">' + EYES + '<h2>' + h + '
 async function home(fresh) {
   view = "home";
   const have = await cached().catch(() => null);
-  if (have) { who = have.who; rows = have.rows; await drawTab(); if (fresh && navigator.onLine) quietSync(); return; }
+  if (have) {
+    who = have.who; rows = have.rows;
+    if (openFirst) { tab = ["assess", "reviews", "today", "learners"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
+    await drawTab(); if (fresh && navigator.onLine) { quietSync(); push.refresh(); } return;
+  }
   frame({ title: "Milos", body: '<div class="m-loading">' + EYES + '<p class="muted">Downloading your learners from Nisia…</p></div>' });
   try { const out = await sync(); if (!out) throw new Error("You’re offline. Connect once to download your learners."); who = out.who; rows = out.rows; IDX = null; await drawTab(); }
   catch (e) { root.querySelector("#main").innerHTML = '<div class="card"><p class="err">' + esc(e.message) + '</p><button class="btn primary" id="retry">Try again</button></div>'; root.querySelector("#retry").onclick = () => home(true); }
@@ -224,8 +254,16 @@ function drawToday(X) {
       (quiet.length ? card({ label: "Gone quiet", go: "learners", gf: "quiet", big: '<p class="m-big">' + quiet.length + '</p>', sub: "No Evia activity for 14 days or more. A nudge helps.",
         inner: '<div class="m-minis">' + quiet.slice(0, 3).map((r) => mini(r, '<span class="small muted">' + esc(r.last_activity ? ago(r.last_activity) : "Never") + '</span>')).join("") + '</div>' }) : "") +
       (unpaired.length ? card({ label: "Evia not connected", go: "learners", gf: "unpaired", big: '<p class="m-big">' + unpaired.length + '</p>', sub: "Reviews can’t be filled in from Evia until it’s connected. Open the learner and tap Connect Evia." }) : "")) +
-    (canInstall() ? '<button type="button" class="card m-install" id="installCard"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>' : "") });
+    (canInstall() ? '<button type="button" class="card m-install" id="installCard"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>' : "") +
+    (rows.length && push.state() === "off" && !push.asked() ? '<button type="button" class="card m-install" id="pushCard"><span class="m-ic">' + IC.bell + '</span><span class="m-row-main"><b>Turn on notifications</b><span class="sub">Know when learners add evidence. Weekdays only, never in the evening.</span></span></button>' : "") });
   const ic = root.querySelector("#installCard"); if (ic) ic.onclick = install;
+  const pc = root.querySelector("#pushCard");
+  if (pc) pc.onclick = async () => {
+    pc.disabled = true;
+    let ok = false; try { ok = await push.on(); } catch (_) {}
+    toast(ok ? "Notifications on. Change this in Account." : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Not turned on. You can do it later in Account.");
+    drawTab();
+  };
 }
 
 /* Learners: search, a few filters, and each learner with how far along they are. */

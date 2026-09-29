@@ -4,7 +4,7 @@
    VERSION is stamped with the commit when the site is published. */
 const VERSION = "dev";
 const CACHE = "milos-" + VERSION;
-const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "manifest.webmanifest",
+const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "push.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../../packages/core/nisia.js", "../../packages/core/signin.js", "../../packages/core/courses.js", "../../packages/core/reviewdoc.js",
   "../../packages/core/strength.js", "../../packages/core/prompts.js", "../../packages/ui/nisia.css",
@@ -20,4 +20,22 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || u.origin !== location.origin) return;
   e.respondWith(caches.open(CACHE).then((c) => c.match(e.request, { ignoreSearch: true }).then((hit) => hit ||
     (e.request.mode === "navigate" ? c.match("./") : null)).then((hit) => hit || fetch(e.request))));
+});
+
+/* Notifications from Nisia (the assessor turned them on). Tapping one opens Milos on the right tab: the open Milos if
+   there is one, otherwise a new one. */
+self.addEventListener("push", (e) => {
+  let m = {};
+  try { m = e.data ? e.data.json() : {}; } catch (_) { m = { title: "Milos", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(m.title || "Milos", { body: m.body || "", tag: m.tag || undefined, renotify: !!m.tag,
+    icon: "icons/icon-192.png", badge: "icons/icon-192.png", lang: "en-GB", data: { open: m.open || "" } }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const open = (e.notification.data && e.notification.data.open) || "";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+    const w = wins.find((x) => x.url.startsWith(self.registration.scope));
+    if (w) return w.focus().then(() => w.postMessage({ type: "milos-open", open }));
+    return self.clients.openWindow(self.registration.scope + (open ? "?open=" + encodeURIComponent(open) : ""));
+  }));
 });

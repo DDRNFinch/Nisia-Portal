@@ -269,6 +269,44 @@ try {
   check("Back online, Sync now sends it: the observation, its photo, its PDF for the learner's Evia, and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 2 && !!as2 && as2.body.evidence_id === ev2.body.id);
   check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
+
+  /* Notifications: Milos offers them once on Today, saves the device to Nisia, shows Nisia's push, and a tapped one
+     opens To assess. (Headless Chromium has no push service or notification permission: stand-ins, as a phone gives.) */
+  {
+    const c2 = await browser.newContext({ viewport: { width: 400, height: 860 }, locale: "en-GB" }), p2 = await c2.newPage(), e2 = [];
+    p2.on("pageerror", (e) => e2.push(e.message));
+    await p2.addInitScript(() => {
+      const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (_) {} };
+      const fake = { endpoint: "https://web.push.apple.com/test-milos", keys: { p256dh: "BPk", auth: "au" } };
+      const mk = () => ({ endpoint: fake.endpoint, toJSON: () => fake, unsubscribe: async () => { ls("__sub", null); return true; } });
+      try { Object.defineProperty(Notification, "permission", { get: () => ls("__perm") || "default", configurable: true }); Notification.requestPermission = async () => { ls("__perm", "granted"); return "granted"; }; } catch (_) {}
+      if (window.PushManager) { PushManager.prototype.getSubscription = async function () { return ls("__sub") ? mk() : null; }; PushManager.prototype.subscribe = async function (o) { window.__key = o && o.applicationServerKey && o.applicationServerKey.length; ls("__sub", "1"); return mk(); }; }
+    });
+    await p2.route(/supabase\.co/, handle);
+    await p2.goto(url);
+    await p2.fill("#email", "m.ellis@x"); await p2.fill("#pw", "Str0ng-pass!"); await p2.click("button[type=submit]");
+    await p2.waitForSelector("#c"); await p2.fill("#c", "123456"); await p2.click("button[type=submit]");
+    await p2.waitForSelector("#pushCard");
+    const n0 = posted.length;
+    await p2.click("#pushCard"); await p2.waitForTimeout(1200);
+    const tok = posted.slice(n0).find((x) => x.table.startsWith("device_tokens"));
+    const saved = !!tok && tok.body.app === "milos" && tok.body.user_id === "u-mark" && tok.body.token === "https://web.push.apple.com/test-milos" && await p2.evaluate(() => window.__key === 65);
+    const gone = !(await p2.$("#pushCard"));
+    await p2.click("#meBtn"); await p2.waitForSelector("#acPush");
+    const acct = /Notifications · on/.test(await p2.textContent("#acPush"));
+    /* A push from Nisia, delivered to the service worker as the push service would (its display call is caught). */
+    const cdp = await c2.newCDPSession(p2), regs = []; cdp.on("ServiceWorker.workerRegistrationUpdated", (e) => regs.push(...e.registrations));
+    await cdp.send("ServiceWorker.enable"); await p2.waitForTimeout(800);
+    const reg = regs.find((r) => !r.isDeleted && /milos/.test(r.scopeURL)), worker = c2.serviceWorkers().find((w) => /milos/.test(w.url()));
+    if (worker) await worker.evaluate(() => { self.__shown = []; self.registration.showNotification = async (title, o) => { self.__shown.push(Object.assign({ title }, o)); }; });
+    if (reg) await cdp.send("ServiceWorker.deliverPushMessage", { origin: new URL(url).origin, registrationId: reg.registrationId, data: JSON.stringify({ title: "Callum Hughes added 2 pieces of evidence", body: "Mixing mortar and Setting out. Ready to assess in Milos.", tag: "evidence-E1", open: "assess" }) });
+    await p2.waitForTimeout(1200);
+    const shown = !!worker && await worker.evaluate(() => self.__shown.some((x) => /Callum Hughes added 2/.test(x.title) && x.data.open === "assess"));
+    await p2.goto(url + "?open=assess"); await p2.waitForSelector("nav [data-tab=assess].on", { timeout: 8000 }).catch(() => {});
+    const opens = !!(await p2.$("nav [data-tab=assess].on")) && !/open=/.test(await p2.evaluate(() => location.search));
+    check("Notifications: Milos offers them on Today, saves the device to Nisia, shows Nisia's push, and a tapped one opens To assess", saved && gone && acct && shown && opens && !e2.length, JSON.stringify({ saved, gone, acct, shown, opens, reg: !!reg, worker: !!worker }) + " " + e2.join(" | "));
+    await c2.close();
+  }
 } catch (e) { check("Test run finished", false, e.message); }
 await browser.close(); server.close();
 const failed = results.filter((x) => !x).length;
