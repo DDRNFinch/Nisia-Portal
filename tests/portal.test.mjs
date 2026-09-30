@@ -98,7 +98,7 @@ try {
     check("Invite → sign-in → add Nisia to an authenticator app", /authenticator app/.test(await page.textContent(".signin-form")) && !/invite=/.test(page.url()));
     await page.fill("#c", "111111"); await page.click("button[type=submit]"); await page.waitForTimeout(300);
     check("A wrong authenticator code is refused", /didn’t work/.test(await page.textContent(".err")));
-    await page.fill("#c", "123 456"); await page.click("button[type=submit]");
+    await page.fill("#c", "123 456");
     await page.waitForSelector("text=Colleges"); await page.screenshot({ path: shots + "/3-master-admin-empty.png" });
     await page.click("#new"); await page.fill("[name=name]", "Brookfield College"); await page.fill("[name=seats]", "30");
     await page.fill("[name=admin_name]", "Sarah Mitchell"); await page.fill("[name=admin_email]", "s.mitchell@brookfield.example"); await page.click("#f button[type=submit]");
@@ -122,7 +122,7 @@ try {
     check("An invite can be pasted on the sign-in page", /invite=/.test(await page.inputValue("#code")) && !!(await page.$("#back")));
     await page.click("#back"); await page.waitForSelector("#email"); await page.fill("#email", "s.mitchell@brookfield.example");
     await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
-    await page.waitForSelector("#c"); await page.fill("#c", "123456"); await page.click("button[type=submit]");
+    await page.waitForSelector("#c"); await page.fill("#c", "123456"); /* goes by itself once 6 digits are in */
     await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/6-college-empty.png" });
     await page.click("nav [data-go=learners]"); await page.click("#add"); await page.fill("[name=name]", "Callum Hughes"); await page.selectOption("[name=course]", "bricklayer");
     await page.fill("[name=start_date]", "2025-09-01"); await page.fill("[name=end_date]", "2027-08-31"); await page.fill("[name=employer_name]", "Hughes & Sons Builders");
@@ -159,6 +159,13 @@ try {
     await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));
+    /* Signing out and back in: the email is remembered, so it's just the password (then the code, which goes by itself). */
+    await page.evaluate(() => document.getElementById("signOut").click());
+    await page.waitForSelector("#pw", { timeout: 8000 });
+    const back = await page.evaluate(() => ({ email: document.getElementById("email").value, focus: document.activeElement && document.activeElement.id, notMe: !!document.getElementById("notMe") }));
+    check("Signing back in on the same device: the email is filled in and the cursor is on the password", back.email === "s.mitchell@brookfield.example" && back.focus === "pw" && back.notMe, JSON.stringify(back));
+    await page.click("#notMe"); const cleared = await page.evaluate(() => document.getElementById("email").value === "" && !localStorage.getItem("nisia-last-email"));
+    check("…and “Not you?” forgets it", cleared);
     check("No script errors (college portal)", !errors.length, errors.join(" | "));
     await ctx.close();
   }

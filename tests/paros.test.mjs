@@ -66,7 +66,7 @@ try {
   await page.route(/supabase\.co/, handle);
   await page.goto(url);
   await page.fill("#email", "dave@x"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
-  await page.waitForSelector("#c"); await page.fill("#c", "123456"); await page.click("button[type=submit]");
+  await page.waitForSelector("#c"); await page.fill("#c", "123456"); /* goes by itself once 6 digits are in */
   await page.waitForSelector("[data-id=E1]");
   const shots = path.join(root, "tests", "shots"); fs.mkdirSync(shots, { recursive: true });
   await page.waitForTimeout(3000); await page.screenshot({ path: shots + "/p1-today.png", fullPage: true });

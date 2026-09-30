@@ -72,7 +72,7 @@ try {
 
   await page.click("#nisiaButton");
   await page.fill(".sn-auth #email", "p.shah@x"); await page.fill(".sn-auth #pw", "Str0ng-pass!"); await page.click(".sn-auth button[type=submit]");
-  await page.waitForSelector(".sn-auth #c"); await page.fill(".sn-auth #c", "123456"); await page.click(".sn-auth button[type=submit]");
+  await page.waitForSelector(".sn-auth #c"); await page.fill(".sn-auth #c", "123456");
   await page.waitForFunction(() => document.querySelector("#nisiaButton.on"), null, { timeout: 8000 });
   await page.waitForTimeout(800);
   const st = await page.evaluate(() => window.SamosApp.getState());

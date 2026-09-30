@@ -3,6 +3,17 @@
    or type its 6-digit code (every other time) → onReady(). */
 import { db, call, state, signIn, startAuthenticator, verifyCode, esc } from "./nisia.js";
 
+/* The email last used on this device, so signing back in is just the password and the code. Kept after signing out
+   (it's only the address); "Not you?" forgets it. */
+const EMAIL_KEY = "nisia-last-email";
+const lastEmail = () => { try { return localStorage.getItem(EMAIL_KEY) || ""; } catch (_) { return ""; } };
+const keepEmail = (e) => { try { if (e) localStorage.setItem(EMAIL_KEY, e.trim().toLowerCase()); else localStorage.removeItem(EMAIL_KEY); } catch (_) {} };
+/* The authenticator code goes by itself once all 6 digits are in (typed, pasted or filled in by the phone). */
+function autoSend(f) {
+  let sent = "";
+  f.c.addEventListener("input", () => { const v = f.c.value.replace(/\D/g, ""); if (v.length === 6 && v !== sent) { sent = v; f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event("submit", { cancelable: true })); } });
+}
+
 const PW_RULE = "At least 10 characters, with upper and lower case letters, a number and a symbol.";
 
 export function inviteCode() {
@@ -32,21 +43,25 @@ const frame = (o, body, say) => o.split
   '<div><h1>' + esc(o.title) + '</h1><p class="muted">' + esc(o.subtitle || "") + '</p></div>' + (say ? '<p class="say">' + say + '</p>' : "") + '</div>' + body + '</div></div>';
 
 function signInForm(root, o, email, err) {
+  const known = email === undefined ? lastEmail() : "";
+  email = email || known;
   root.innerHTML = frame(o,
     '<form class="box" id="f" novalidate>' +
-    '<label class="field">Email<input id="email" type="email" autocomplete="username" value="' + esc(email || "") + '" required></label>' +
-    '<label class="field">Password<input id="pw" type="password" autocomplete="current-password" required></label>' +
+    '<label class="field">Email<input id="email" name="email" type="email" autocomplete="username" value="' + esc(email || "") + '" required></label>' +
+    '<label class="field">Password<input id="pw" name="password" type="password" autocomplete="current-password" required></label>' +
     '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
     '<button class="btn primary wide" type="submit">Sign in</button>' +
+    (known ? '<button class="btn ghost" type="button" id="notMe">Not you? Use a different email</button>' : "") +
     '<button class="btn ghost" type="button" id="haveInvite">New here? I have an invite</button></form>');
   const f = root.querySelector("#f");
   f.onsubmit = async (e) => {
     e.preventDefault();
     const b = f.querySelector("button"); b.disabled = true; b.textContent = "Signing in…";
-    try { await signIn(f.email.value, f.pw.value); await auth(root, o); }
+    try { await signIn(f.email.value, f.pw.value); keepEmail(f.email.value); await auth(root, o); }
     catch (x) { signInForm(root, o, f.email.value, x.message); }
   };
   root.querySelector("#haveInvite").onclick = () => pasteInvite(root, o);
+  const nm = root.querySelector("#notMe"); if (nm) nm.onclick = () => { keepEmail(""); signInForm(root, o, ""); };
   (email ? f.pw : f.email).focus();
 }
 
@@ -83,6 +98,7 @@ function acceptInvite(root, o, code, err) {
     try {
       const r = await call("nisia-setup", { action: "accept", code, name: f.name.value, password: f.pw.value });
       history.replaceState(null, "", location.pathname + location.search);
+      keepEmail(r.email);
       if (f.pw.value) { await signIn(r.email, f.pw.value); return auth(root, o); }
       signInForm(root, o, r.email);
     } catch (x) { acceptInvite(root, o, code, x.message); }
@@ -101,10 +117,12 @@ async function setupAuthenticator(root, o, err) {
     '<button class="btn ghost" type="button" id="out">Use a different account</button></form>',
     "One more step, to keep learners’ records safe. Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator or your phone’s passwords app).");
   const f = root.querySelector("#f");
+  autoSend(f);
   f.onsubmit = async (e) => {
     e.preventDefault();
+    if (f.dataset.busy) return; f.dataset.busy = "1";
     try { await verifyCode(a.factorId, f.c.value); o.onReady(); }
-    catch (x) { f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
+    catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
   };
   root.querySelector("#out").onclick = async () => { await db.auth.signOut(); auth(root, o); };
   f.c.focus();
@@ -116,10 +134,12 @@ function askCode(root, o, factorId) {
     '<p class="err" role="alert"></p><button class="btn primary wide" type="submit">Continue</button>' +
     '<button class="btn ghost" type="button" id="out">Use a different account</button></form>');
   const f = root.querySelector("#f");
+  autoSend(f);
   f.onsubmit = async (e) => {
     e.preventDefault();
+    if (f.dataset.busy) return; f.dataset.busy = "1";
     try { await verifyCode(factorId, f.c.value); o.onReady(); }
-    catch (x) { f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
+    catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
   };
   root.querySelector("#out").onclick = async () => { await db.auth.signOut(); auth(root, o); };
   f.c.focus();
