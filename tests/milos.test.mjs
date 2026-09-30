@@ -31,6 +31,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
+let GONE = false; /* the learner deleted ev3 in Evia after Milos downloaded it */
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -48,6 +49,7 @@ function handle(route) {
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
     { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { feelsSafe: "Yes", knowsReporting: "Yes", changes: "No", hsIncident: "Yes", hsDetail: "Cut my hand on a brick, first aid given.", otjHappening: "Mostly", learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
+  if (GONE && p === "/rest/v1/evidence" && u.searchParams.get("id") === "eq.ev3") return json([]);
   if (p === "/rest/v1/evidence" && q.method() === "POST") { posted.push({ table: "evidence", body }); return json(null, 201); }
   if (p === "/rest/v1/evidence_files" && q.method() === "POST") { posted.push({ table: "evidence_files", body }); return json(null, 201); }
   if (p.startsWith("/storage/v1/object/evidence/") && q.method() === "POST") { posted.push({ table: "storage", body: p }); return json({ Key: p }); }
@@ -57,7 +59,8 @@ function handle(route) {
     { id: "ev3", organisation_id: "O1", title: "Structural carcassing", evidence_type: "photo", created_at: day(-5), source_metadata: { collection: "evidence", unit: "Structural carcassing", ksbs: [] } },
     { id: "ev5", organisation_id: "O1", title: "Jointing Styles", evidence_type: "photo", created_at: day(-2), client_reference: "observation:ev5", source_metadata: { collection: "observation", unit: "Jointing Styles", observedBy: "Mark Ellis", observedOn: day(-2).slice(0, 10), ksbs: ["S12", "K17"], text: "Pointed the joints." } },
     { id: "ev4", organisation_id: "O1", title: "Site induction.pdf", evidence_type: "document", created_at: day(-3), client_reference: "supporting:s1", source_metadata: { collection: "supporting", ksbs: [] } }]);
-  if (p === "/rest/v1/assessments" && q.method() === "GET") return json([{ id: "A0", evidence_id: "ev2", decision: "accepted", feedback: null, ksbs: ["S14", "K20"], created_at: day(-190), assessor_member_id: "M1" }, { id: "A5", evidence_id: "ev5", decision: "accepted", feedback: null, ksbs: ["S12", "K17"], created_at: day(-2), assessor_member_id: "M2" }]);
+  if (p === "/rest/v1/assessments" && q.method() === "GET") return json(posted.filter((x) => x.table === "assessments").map((x) => x.body).concat([{ id: "A0", evidence_id: "ev2", decision: "accepted", feedback: null, ksbs: ["S14", "K20"], created_at: day(-190), assessor_member_id: "M1" }, { id: "A5", evidence_id: "ev5", decision: "accepted", feedback: null, ksbs: ["S12", "K17"], created_at: day(-2), assessor_member_id: "M2" }]));
+  if (GONE && p === "/rest/v1/assessments" && q.method() === "POST" && body.evidence_id === "ev3") return json({ code: "42501", message: 'new row violates row-level security policy for table "assessments"' }, 403);
   if (p === "/rest/v1/assessments" && q.method() === "POST") { posted.push({ table: "assessments", body }); return json({ id: "A1", ...body, created_at: new Date().toISOString() }, 201); }
   if (p === "/rest/v1/evidence_files") return json([{ evidence_id: "ev1", storage_path: "O1/ev1/a.jpeg", mime_type: "image/jpeg" }, { evidence_id: "ev1", storage_path: "O1/ev1/b.jpeg", mime_type: "image/jpeg" }]);
   if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
@@ -161,8 +164,18 @@ try {
   check("The next new piece opens after saving", !!(await page.$(".paper")) && /Structural carcassing/.test(await page.textContent(".paper h1")));
   const [evDl] = await Promise.all([page.waitForEvent("download"), page.click("#evPdf")]);
   check("A piece of evidence downloads as a PDF", /\.pdf$/.test(evDl.suggestedFilename()));
+  /* The learner deletes this piece in Evia, but the phone's copy still has it and the assessor marks it. */
+  GONE = true;
+  await page.click('[data-d="changes_required"]'); await page.fill("#fb", "Needs a photo of the finished wall."); await page.click("#save");
+  await page.waitForSelector("#noteOk", { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(600);
+  const gone = await page.evaluate(() => ({ note: (document.querySelector(".m-sync-note") || {}).textContent || "", bar: document.getElementById("syncbar").textContent }));
+  check("An assessment of evidence the learner has deleted is dropped with a clear note, not left waiting to send for ever",
+    /deleted a piece of evidence in Evia/.test(gone.note) && !/waiting to send/.test(gone.bar) && !/row-level security/.test(gone.bar), JSON.stringify(gone));
+  await page.evaluate(() => document.getElementById("noteOk").click()); await page.waitForTimeout(150);
+  check("…and OK clears the note", !(await page.$(".m-sync-note")));
+  GONE = false;
   await page.click("#evBack"); await page.waitForTimeout(200);
-  check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")));
+  check("Back on the portfolio, the signed-off piece shows as accepted", /Accepted/.test(await page.textContent("[data-ev=ev1]")) && /2 new to assess/.test(await page.textContent("#pfBox")), (await page.textContent("#pfBox")).slice(0, 300));
   /* The pack for the IQA and end-point assessor. */
   await page.click("#tab-overview"); await page.click("#pack"); await page.waitForSelector(".pack");
   const pk = await page.evaluate(() => ({ rows: document.querySelectorAll(".pk-row").length, k22: (([...document.querySelectorAll(".pk-row")].find((r) => r.querySelector(".pk-code").textContent === "K22") || {}).textContent || ""), items: document.querySelectorAll(".pk-item").length, sum: document.querySelector(".pk-sum").textContent, months: document.querySelectorAll(".pk-months span").length }));

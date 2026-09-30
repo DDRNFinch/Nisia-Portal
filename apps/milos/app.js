@@ -9,7 +9,7 @@ import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
-import { cached, sync, onStatus, status, learnerData, refreshLearner, withPending, clear, flush } from "./store.js";
+import { cached, sync, onStatus, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
 import * as push from "./push.js";
 
@@ -109,12 +109,17 @@ function drawSync(st) {
   const msg = st.syncing ? "Syncing with Nisia…" : (!st.online ? "Offline · " : "") + (st.syncedAt ? "Synced " + hhmm(st.syncedAt) : "Not downloaded yet");
   bar.className = "m-sync" + (!st.online ? " off" : "") + (st.error && !st.syncing ? " err" : "") + (st.syncing ? " busy" : "");
   bar.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="msg">' + esc(msg) + (st.waiting ? ' · <b>' + st.waiting + ' waiting to send</b>' : "") +
-    (st.error && !st.syncing && st.online ? '<small>' + esc(st.error) + '</small>' : "") + '</span><button type="button" class="m-sync-btn" id="syncNow"' + (st.syncing || !st.online ? " disabled" : "") + '>' + (st.syncing ? "Syncing…" : "Sync now") + '</button>';
+    (st.error && !st.syncing && st.online ? '<small>' + esc(st.error) + '</small>' : "") +
+    (st.notice ? '<small class="m-sync-note">' + esc(st.notice) + ' <button type="button" class="m-note-ok" id="noteOk">OK</button></small>' : "") + '</span><button type="button" class="m-sync-btn" id="syncNow"' + (st.syncing || !st.online ? " disabled" : "") + '>' + (st.syncing ? "Syncing…" : "Sync now") + '</button>';
   bar.querySelector("#syncNow").onclick = () => manualSync();
+  const ok = bar.querySelector("#noteOk"); if (ok) ok.onclick = dismissNotice;
   const m = document.getElementById("navSync");
   if (m) { m.classList.toggle("busy", !!st.syncing); const b = m.querySelector(".m-badge"); if (st.waiting && !b) m.insertAdjacentHTML("beforeend", '<b class="m-badge">' + st.waiting + '</b>'); else if (b) { if (st.waiting) b.textContent = st.waiting; else b.remove(); } }
 }
 onStatus(drawSync);
+/* An assessment dropped because the learner deleted the evidence: redraw, so the piece doesn't still look assessed. */
+let lastNotice = null;
+onStatus((st) => { if (st.notice && st.notice !== lastNotice) { lastNotice = st.notice; setTimeout(redraw, 50); } else if (!st.notice) lastNotice = null; });
 async function manualSync() {
   if (status().syncing) return;
   try {

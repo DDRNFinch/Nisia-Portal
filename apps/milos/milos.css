@@ -400,3 +400,5 @@ body.milos .auth form.box{background:#fff;border:1px solid var(--hair);border-ra
 /* Inter's spaces are narrow in the heavy weights. */
 body.milos h1,body.milos h2,body.milos h3,body.milos b,body.milos strong,.m-big,.btn{word-spacing:.08em}
 .m-title{letter-spacing:-.032em}
+.m-sync small.m-sync-note{color:var(--ink,#172033);font-weight:500;margin-top:4px}
+.m-note-ok{margin-left:6px;padding:2px 10px;border-radius:999px;border:1px solid var(--line,#e3e7ee);background:#fff;font:inherit;font-weight:700;color:var(--accent-text);cursor:pointer}

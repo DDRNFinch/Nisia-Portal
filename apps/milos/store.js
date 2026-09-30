@@ -31,6 +31,7 @@ export const onStatus = (fn) => { listeners.add(fn); fn(state); return () => lis
 const set = (o) => { state = { ...state, ...o }; listeners.forEach((f) => f(state)); };
 addEventListener("online", () => { set({ online: true }); sync().catch(() => {}); });
 addEventListener("offline", () => set({ online: false }));
+export const dismissNotice = () => set({ notice: null });
 const countWaiting = async () => set({ waiting: (await all("outbox")).length });
 
 /* ---------- What's kept ---------- */
@@ -103,9 +104,13 @@ export function sync() {
     try {
       const { data } = await db.auth.getSession();
       if (!data.session) throw Object.assign(new Error("Sign in again to sync."), { signedOut: true });
-      await flush();
+      /* Download even if something couldn't be sent, so the phone's copy stays current (evidence the learner deleted
+         goes); what couldn't be sent stays waiting, and says why. */
+      let unsent = null;
+      try { await flush(); } catch (e) { unsent = e; }
       const out = await download();
       set({ syncedAt: new Date().toISOString(), online: true });
+      if (unsent) throw unsent;
       return out;
     } catch (e) { set({ error: e.message || String(e) }); throw e; }
     finally { set({ syncing: false }); countWaiting(); running = null; }
@@ -133,7 +138,15 @@ async function send(j) {
     }
     await step("assessment", () => insert("assessments", j.assessment));
   }
-  if (j.kind === "assessment") await step("assessment", () => insert("assessments", j.row));
+  if (j.kind === "assessment") await step("assessment", async () => {
+    try { await insert("assessments", j.row); }
+    catch (e) {
+      /* The learner deleted this evidence in Evia before the assessment got to Nisia: there's nothing left to assess. */
+      const { data, error } = await db.from("evidence").select("id").eq("id", j.row.evidence_id).maybeSingle();
+      if (!error && !data) throw Object.assign(new Error("evidence gone"), { gone: true });
+      throw e;
+    }
+  });
   if (j.kind === "review") {
     await step("review", () => insert("reviews", j.review));
     /* Signed as the role the member actually has (a college admin doing reviews has no assessor role). Reviews saved
@@ -152,8 +165,23 @@ let flushing = null;
 export function flush() {
   if (flushing) return flushing;
   flushing = (async () => {
-    const jobs = (await all("outbox")).sort((a, b) => a.at.localeCompare(b.at)), sent = new Set();
-    try { for (const j of jobs) { if (!navigator.onLine) break; await send(j); await del("outbox", j.id); sent.add(j.enrolmentId); } }
+    const jobs = (await all("outbox")).sort((a, b) => a.at.localeCompare(b.at)), sent = new Set(), gone = [];
+    let failed = null;
+    /* Each job on its own: one that can't go (yet) doesn't hold up the others. */
+    try {
+      for (const j of jobs) {
+        if (!navigator.onLine) break;
+        try { await send(j); await del("outbox", j.id); sent.add(j.enrolmentId); }
+        catch (e) {
+          if (!e.gone) { failed = failed || e; continue; }
+          await del("outbox", j.id); sent.add(j.enrolmentId);
+          const D = await get("learners", j.enrolmentId).catch(() => null), who = D && D.L && D.L.row && D.L.row.name;
+          gone.push((who || "The learner") + " deleted a piece of evidence in Evia before your assessment of it was sent, so the assessment has been removed.");
+        }
+      }
+      if (gone.length) set({ notice: gone.join(" ") });
+      if (failed) throw failed;
+    }
     finally {
       /* What's just gone to Nisia is fetched back, so the phone's copy of those learners includes it. */
       for (const id of sent) { const D = await get("learners", id); if (D) await refreshLearner(D.L.row).catch((e) => console.warn("Milos: refresh", e.message)); }
