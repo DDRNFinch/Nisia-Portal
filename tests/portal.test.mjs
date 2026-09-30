@@ -46,6 +46,15 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     if (p === "/rest/v1/rpc/nisia_set_safeguarding") { S.dsl = body; return json(null); }
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
+    if (p === "/rest/v1/rpc/nisia_admin_usage") { S.usageDays = body.p_days; return json({ from: "2026-09-01",
+      apps: [{ app: "evia", device_days: 120, connected: 90 }, { app: "milos", device_days: 30, connected: 30 }],
+      features: [{ app: "evia", feature: "saved.evidence", uses: 60, device_days: 48 }, { app: "evia", feature: "teach.lesson", uses: 140, device_days: 70 }, { app: "evia", feature: "evidence.guide", uses: 40, device_days: 36 }, { app: "milos", feature: "tab.assess", uses: 50, device_days: 25 }],
+      weeks: [0, 1, 2, 3, 4, 5].map((i) => ({ week: new Date(Date.UTC(2026, 7, 17 + i * 7)).toISOString().slice(0, 10), app: "evia", device_days: 10 + i * 4 })),
+      platforms: [{ app: "evia", platform: "ios-app", version: "evia7-v211", device_days: 80 }, { app: "evia", platform: "android-app", version: "evia7-v210", device_days: 40 }],
+      courses: [{ course: "bricklayer", device_days: 70 }, { course: "site", device_days: 50 }] }); }
+    if (p === "/rest/v1/rpc/nisia_college_impact") { const now = body.p_to > new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10); (S.impact = S.impact || []).push(body);
+      return json(now ? { from: body.p_from, to: body.p_to, weeks: 12.9, learners: 20, engaged: 17, evidence: 180, assessed: 150, accepted: 132, turnaround_days: 2.5, waiting_over_7_days: 3, hours: 1210, planned_hours: 1300, reviews: 18, reviews_overdue: 1, attendance: 240, attendance_minutes: 43200, devices: 900, evia: { "saved.evidence": 180, "saved.lessons-done": 310, "saved.tests": 75, "chat.question": 420 } }
+        : { from: body.p_from, to: body.p_to, weeks: 12.9, learners: 18, engaged: 12, evidence: 120, assessed: 110, accepted: 90, turnaround_days: 4.1, waiting_over_7_days: 9, hours: 900, planned_hours: 1170, reviews: 14, reviews_overdue: 4, attendance: 200, attendance_minutes: 36000, devices: 600, evia: { "saved.evidence": 120 } }); }
     if (p === "/rest/v1/reviews") {
       const sig = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
       const content = { facts: { learner: "Callum Hughes", course: "Bricklayer", employer: "Hughes & Sons", reviewNo: 1, start: "2025-09-01", end: "2027-08-31", periodStart: "2025-09-01", periodEnd: "2025-11-24", timePct: 12, ksb: { met: 5, total: 59, pct: 8 }, evidencePeriod: 3, evidenceTotal: 3, otj: { total: 40, period: 40, expected: 38 }, maths: { on: false }, english: { on: false } },
@@ -127,6 +136,12 @@ try {
     await page.click("#tcPair"); await page.waitForSelector(".big-code");
     check("…and the test learner's Evia connects with a pairing code", /ABC-2345/.test(await page.textContent(".big-code")));
     await page.click(".modal .x");
+    await page.click("nav [data-go=usage]"); await page.waitForSelector("[data-app=evia]"); await page.screenshot({ path: shots + "/5c-usage.png", fullPage: true });
+    const usage = await page.textContent("#main");
+    check("Master admin's Usage page: features ranked by reach, and what nobody used", fake.S.usageDays === 30 && /Teach me lesson[\s\S]*Evidence saved/.test(usage) && /58%/.test(usage) && /Not used/.test(usage) && /Record a video/.test(usage), usage.slice(0, 300));
+    await page.click("[data-days='90']"); await page.waitForSelector("[data-days='90'][aria-pressed=true]"); await page.click("[data-app=milos]"); await page.waitForSelector("[data-app=milos][aria-pressed=true]");
+    check("…the period and the app can be changed", fake.S.usageDays === 90 && /Tab: assess/.test(await page.textContent("#main")));
+    await page.click("nav [data-go=colleges]"); await page.waitForSelector("#testPanel");
     fake.S.sessionGone = true; /* Nisia has already ended this sign-in (expired, or ended elsewhere) */
     await page.click("#signOut"); await page.waitForSelector("#email", { timeout: 5000 }).catch(() => {});
     check("Master admin signs out, even when Nisia has already ended the sign-in: back to the sign-in page, signed out", !!(await page.$("#email")) && !(await page.evaluate(() => localStorage.getItem("nisia-auth"))), await page.evaluate(() => document.body.innerText.slice(0, 200)));
@@ -191,6 +206,14 @@ try {
     await page.click(".x"); await page.click("[data-go=licence]"); await page.waitForSelector("#dsl");
     await page.fill("#dsl [name=name]", "Jo Smith"); await page.fill("#dsl [name=phone]", "01234 567890"); await page.click("#dsl button[type=submit]"); await page.waitForTimeout(400);
     check("College admin sets the safeguarding lead (it goes to Evia)", fake.S.dsl && fake.S.dsl.p_name === "Jo Smith" && fake.S.dsl.p_phone === "01234 567890");
+    await page.click("nav [data-go=impact]"); await page.waitForSelector(".icards"); await page.screenshot({ path: shots + "/12b-impact.png", fullPage: true });
+    const imp = await page.textContent("#main");
+    check("College Impact report: this period against the one before", fake.S.impact.length === 2 && fake.S.impact.some((a) => fake.S.impact.some((b) => a.p_to === b.p_from)) && /85%/.test(imp) && /▲ 18 pts/.test(imp) && /▼ 1\.6 days/.test(imp) && /Teach me lessons finished\s*310/.test(imp), imp.slice(400, 1400) + " " + JSON.stringify(fake.S.impact));
+    await page.click("[data-period=year]"); await page.waitForSelector("[data-period=year][aria-pressed=true]");
+    check("…the period can be changed (this academic year starts on 1 August)", fake.S.impact.slice(2).some((a) => /-08-01$/.test(a.p_from) && a.p_to > a.p_from), JSON.stringify(fake.S.impact));
+    await page.emulateMedia({ media: "print" }); await page.pdf({ path: shots + "/12c-impact.pdf" }).catch(() => {});
+    check("…and it prints as a report without the menu", await page.evaluate(() => getComputedStyle(document.getElementById("side")).display === "none" && getComputedStyle(document.querySelector(".no-print")).display === "none"));
+    await page.emulateMedia({ media: "screen" });
     await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));

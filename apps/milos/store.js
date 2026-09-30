@@ -6,6 +6,7 @@
      and sent the next time there's signal; each job is sent a step at a time and picks up where it stopped.
    - Signing out clears it all from the phone. */
 import { db, rpc, me } from "../../packages/core/nisia.js";
+import { hit } from "../../packages/core/usage.js";
 import { loadLearner, reviewDue } from "./review.js";
 import { loadPortfolio } from "./portfolio.js";
 
@@ -198,6 +199,7 @@ export function flush() {
 }
 /* Saves a job here, then tries to send it now. Resolves true if it's already in Nisia, false if it's waiting. */
 async function enqueue(j) {
+  hit("save." + j.kind + (j.kind === "assessment" && j.row ? "." + j.row.decision : ""));
   j.id = uuid(); j.at = new Date().toISOString(); j.done = {};
   await put("outbox", j); countWaiting();
   if (!navigator.onLine) return false;

@@ -5,6 +5,7 @@
    learners here and work in Milos. */
 import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, MARK } from "../../packages/core/signin.js";
+import { startUsage, hit } from "../../packages/core/usage.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
@@ -39,6 +40,7 @@ const ICON = {
   photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2.5h5L16 6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
 const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7", "#8A5A44", "#4A5B6E"];
@@ -87,9 +89,10 @@ document.addEventListener("click", async (e) => {
 /* ---------- Shell ---------- */
 function mine(org) { return (who.memberships || []).find((m) => m.organisation_id === org) || { roles: who.platform_admin ? ["admin"] : [], organisation: "" }; }
 function navFor() {
-  if (!S.org) return [["colleges", "Colleges", "home"]];
+  if (!S.org) return [["colleges", "Colleges", "home"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"]]
+    .concat(admin || quality ? [["impact", "Impact", "chart"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
 function shell(content) {
@@ -110,8 +113,10 @@ function shell(content) {
 }
 /* Coming back to the tab: bring the page up to date, unless a window is open over it. */
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.org && S.data && Date.now() - S.data.at > 30000 && !document.getElementById("modal")) render(); });
+startUsage("portal", new URL(import.meta.url).searchParams.get("v") || "");
 function go(page, extra) {
-  if (page === "colleges") { S.org = null; S.data = null; }
+  hit("page." + page);
+  if (page === "colleges" || page === "usage") { S.org = null; S.data = null; }
   S.page = page; Object.assign(S, extra || {}); window.scrollTo(0, 0); render();
 }
 const loading = () => shell('<p class="loading">Loading…</p>');
@@ -126,13 +131,13 @@ async function home() {
   render();
 }
 async function render() {
-  if (!S.org) return colleges();
+  if (!S.org) return S.page === "usage" ? usagePage() : colleges();
   /* Fresh from Nisia whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
   if (!S.data || S.data.org !== S.org) {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage }[S.page] || overview)();
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage }[S.page] || overview)();
 }
 
 /* ---------- College data, and each learner's status ---------- */
@@ -533,6 +538,158 @@ function wireSafeguarding() {
       S.data.summary.safeguarding = { name: d.name.trim(), phone: d.phone.trim(), email: d.email.trim() }; f.querySelector(".err").textContent = ""; toast("Saved. Evia will update for every learner."); }
     catch (x) { f.querySelector(".err").textContent = x.message; }
   }); };
+}
+
+/* ---------- Master admin: usage ----------
+   Which features are used in each app, from the apps' daily counts (no names, no identifiers; the test college is
+   left out). "Device-days" is one phone or computer using the app on one day: the fairest measure of how many people
+   use a feature. The list under each app shows what nobody used in the period: the candidates to improve or retire. */
+const APP_NAMES = { evia: "Evia", milos: "Milos", portal: "Portal", symi: "Symi", paros: "Paros" };
+const KNOWN = {
+  evia: ["evidence.guide", "evidence.free", "evidence.record", "evidence.catch-up", "evidence.check", "evidence.send-to-portfolio", "chat.open", "chat.question",
+    "chat.log-hours", "chat.confidence", "chat.upskill", "chat.evidence", "chat.quick-review", "chat.review-prep", "chat.targets", "chat.epa", "teach.lesson",
+    "teach.confidence", "epa.open", "epa.exam", "epa.discussion", "skills.open", "confidence.open", "hours.logs", "hours.pdf", "review.open", "review.reminder",
+    "review.pdf", "college.check-in", "college.connect", "games.leaderboard", "rewards.item", "look.shape", "look.colour", "settings.accessibility",
+    "data.backup", "data.restore", "profile.open"],
+  milos: ["tab.today", "tab.learners", "tab.assess", "tab.reviews", "learner.overview", "learner.portfolio", "learner.reviews", "sync.manual", "save.assessment.accepted", "save.review"],
+  portal: ["page.overview", "page.learners", "page.learner", "page.reviews", "page.staff", "page.licence", "page.impact", "page.colleges", "page.usage", "impact.pdf"],
+  symi: ["check-in.code", "register.sent", "learners.pull"],
+  paros: ["tab.today", "tab.apprentices", "tab.hours", "tab.feedback", "apprentice"],
+};
+const WORDS = { "evidence.guide": "Guided evidence", "evidence.free": "Free-range evidence", "evidence.record": "Record a video", "evidence.catch-up": "Catch-up evidence",
+  "evidence.check": "Evidence check", "evidence.send-to-portfolio": "Send to portfolio", "chat.open": "Opened Evia chat", "chat.question": "Asked Evia a question",
+  "chat.log-hours": "Chat: log hours", "chat.quick-review": "Chat: quick review", "chat.review-prep": "Chat: review prep", "teach.lesson": "Teach me lesson",
+  "teach.confidence": "Teach me confidence check", "epa.exam": "EPA mock exam", "epa.discussion": "EPA discussion practice", "hours.logs": "Learning hours log",
+  "hours.pdf": "Learning hours PDF", "review.open": "Progress review", "review.reminder": "Review reminder", "college.check-in": "Class check-in",
+  "college.connect": "Connect to college", "saved.evidence": "Evidence saved", "saved.hours": "Learning hours entries", "saved.lessons-done": "Lessons finished",
+  "saved.tests": "Tests taken", "chat.confidence": "Chat: confidence", "chat.upskill": "Chat: upskill", "chat.evidence": "Chat: evidence",
+  "chat.targets": "Chat: targets", "chat.epa": "Chat: EPA", "epa.open": "EPA guide", "skills.open": "Skills practice", "confidence.open": "Confidence check",
+  "review.pdf": "Review PDF", "games.leaderboard": "Leaderboard", "rewards.item": "Rewards", "look.shape": "Evia's shape", "look.colour": "Colours",
+  "settings.accessibility": "Accessibility settings", "data.backup": "Backup", "data.restore": "Restore a backup", "profile.open": "Profile", "impact.pdf": "Impact report PDF",
+  "apprentice": "Opened an apprentice", "save.review": "Review saved", "save.assessment.accepted": "Work signed off", "sync.manual": "Pressed sync", "check-in.code": "Showed check-in code", "register.sent": "Register sent", "learners.pull": "Updated learner list" };
+const word = (k) => WORDS[k] || cap(k.replace(/^(tab|page|screen|learner)\./, (m, a) => ({ tab: "Tab: ", page: "Page: ", screen: "Screen: ", learner: "Learner: " }[a])).replace(/^saved\./, "Saved: ").replace(/[._-]/g, " ").replace(/:\s*/, ": "));
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function trend(rows, color) {
+  const W = 460, H = 150, pl = 30, pb = 24, pt = 10, pr = 8, max = Math.max(4, ...rows.map((r) => r.n)), n = Math.max(rows.length, 2);
+  const x = (i) => pl + (W - pl - pr) * i / (n - 1), y = (v) => pt + (H - pt - pb) * (1 - v / max);
+  const pts = rows.map((r, i) => x(i) + "," + y(r.n)).join(" ");
+  return '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Device-days per week">' +
+    [0, max / 2, max].map((v) => '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text x="' + (pl - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + Math.round(v) + '</text>').join("") +
+    (rows.length ? '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>' + rows.map((r, i) => '<circle cx="' + x(i) + '" cy="' + y(r.n) + '" r="3.5" fill="' + color + '"><title>' + r.n + '</title></circle>' + (i % 3 === 0 || i === rows.length - 1 ? '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(new Date(r.week).toLocaleDateString("en-GB", { day: "numeric", month: "short" })) + '</text>' : "")).join("") : "") +
+    '</svg></div>';
+}
+async function usagePage() {
+  shell('<p class="loading">Loading usage…</p>');
+  S.days = S.days || 30; S.uapp = S.uapp || "evia";
+  let u;
+  try { u = await rpc("nisia_admin_usage", { p_days: S.days }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const apps = Object.keys(APP_NAMES), byApp = Object.fromEntries((u.apps || []).map((a) => [a.app, a])), A = S.uapp, dd = (byApp[A] || {}).device_days || 0;
+  const feats = (u.features || []).filter((f) => f.app === A).sort((a, b) => b.device_days - a.device_days || b.uses - a.uses);
+  const used = new Set(feats.map((f) => f.feature)), unused = (KNOWN[A] || []).filter((k) => !used.has(k));
+  const weeks = (u.weeks || []).filter((w) => w.app === A).map((w) => ({ week: w.week, n: w.device_days }));
+  const plats = (u.platforms || []).filter((p) => p.app === A);
+  const platTotals = {}; plats.forEach((p) => platTotals[p.platform] = (platTotals[p.platform] || 0) + p.device_days);
+  const versions = {}; plats.forEach((p) => versions[p.version] = (versions[p.version] || 0) + p.device_days);
+  const share = (n) => dd ? Math.round(n / dd * 100) : 0;
+  const bars = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => '<div class="pbar-row"><span class="small" style="min-width:110px">' + esc(k) + '</span><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(n) + '%;background:var(--accent)"></div></div><span class="num">' + share(n) + '%</span></div>').join("") || '<p class="muted small">Nothing yet.</p>';
+  shell(
+    '<div class="topbar"><div><div class="label">Master admin</div><h1>Usage</h1></div><div class="actions"><div class="seg" role="group" aria-label="Period">' +
+      [7, 30, 90, 365].map((d) => '<button type="button" data-days="' + d + '" aria-pressed="' + (S.days === d) + '">' + (d === 365 ? "12 months" : d + " days") + '</button>').join("") + '</div></div></div>' +
+    '<section class="stats" aria-label="Apps">' + apps.map((a) => { const r = byApp[a] || { device_days: 0, connected: 0 };
+      return '<button type="button" class="stat stat-btn" data-app="' + a + '" aria-pressed="' + (a === A) + '"><span class="label">' + APP_NAMES[a] + '</span><span class="big num">' + r.device_days + '</span><span class="sub">device-days' + (a === "evia" && r.device_days ? " · " + Math.round(r.connected / r.device_days * 100) + "% with a college" : "") + '</span></button>'; }).join("") + '</section>' +
+    '<div class="grid cols-2">' +
+      '<section class="panel"><div class="panel-head"><h2>' + APP_NAMES[A] + ': features used</h2><span class="small muted">Last ' + (S.days === 365 ? "12 months" : S.days + " days") + ' · real colleges only</span></div>' +
+        (feats.length ? '<div class="table-wrap flat"><table><thead><tr><th>Feature</th><th>Reach</th><th>Uses</th></tr></thead><tbody>' + feats.map((f) =>
+          '<tr class="static"><td>' + esc(word(f.feature)) + '<br><span class="small muted">' + esc(f.feature) + '</span></td><td style="min-width:160px"><div class="pbar-row"><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(f.device_days) + '%;background:var(--accent)"></div></div><span class="num">' + share(f.device_days) + '%</span></div></td><td class="num">' + f.uses + '</td></tr>').join("") + '</tbody></table></div>'
+          : '<p class="muted">No counts from ' + APP_NAMES[A] + ' yet. Apps send the day’s counts the next time they open, so allow a day or two.</p>') +
+        '<p class="small muted" style="margin-top:8px">Reach: the share of ' + APP_NAMES[A] + '’s device-days that used the feature at least once.</p></section>' +
+      '<div class="grid" style="align-content:start">' +
+        '<section class="panel"><div class="panel-head"><h2>Not used</h2><span class="small muted">' + unused.length + ' of ' + (KNOWN[A] || []).length + '</span></div>' +
+          (unused.length ? '<div class="chips">' + unused.map((k) => '<span class="chip">' + esc(word(k)) + '</span>').join("") + '</div><p class="small muted" style="margin-top:8px">Nobody used these in the period: improve them, make them easier to find, or retire them.</p>' : '<p class="muted small">Every feature was used.</p>') + '</section>' +
+        '<section class="panel"><div class="panel-head"><h2>Weekly use</h2><span class="small muted">device-days, last 12 weeks</span></div>' + trend(weeks, "var(--accent)") + '</section>' +
+        '<section class="panel"><div class="panel-head"><h2>Devices</h2></div>' + bars(platTotals) + '<h3 class="label" style="margin:14px 0 8px">Versions</h3>' + bars(versions) + '</section>' +
+        (A === "evia" ? '<section class="panel"><div class="panel-head"><h2>Courses</h2></div>' + (u.courses || []).map((c) => '<div class="course"><span>' + esc(c.course === "?" || !c.course ? "No course chosen" : courseName(c.course)) + '</span><b class="num">' + c.device_days + '</b></div>').join("") + '</section>' : "") +
+      '</div></div>' +
+    '<p class="small muted" style="margin-top:14px">Counts only: no names, no work, no identifiers. Learners can switch it off in Evia’s profile. Copies running on this computer (localhost) never send.</p>');
+  root.querySelectorAll("[data-days]").forEach((b) => b.onclick = () => { S.days = +b.dataset.days; usagePage(); });
+  root.querySelectorAll("[data-app]").forEach((b) => b.onclick = () => { S.uapp = b.dataset.app; usagePage(); });
+}
+
+/* ---------- College: impact ----------
+   How the college's apprentices, staff and employers are using Nisia and Evia, for a period set against the one
+   before it: engagement, evidence, marking turnaround, learning hours against plan, reviews and attendance, and what
+   learners did in Evia. For quality meetings, Ofsted and the employer-facing story; prints as a report. */
+const PERIODS = [["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"], ["365", "Last 12 months"]];
+const iso = (t) => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+function periodDates(k) {
+  const to = new Date(); to.setHours(0, 0, 0, 0); to.setDate(to.getDate() + 1);
+  let from;
+  if (k === "year") { from = new Date(to.getFullYear() - (to.getMonth() < 7 ? 1 : 0), 7, 1); }
+  else { from = new Date(to); from.setDate(from.getDate() - Number(k)); }
+  const len = to - from, prevFrom = new Date(from.getTime() - len);
+  return { from: iso(from), to: iso(to), prevFrom: iso(prevFrom), prevTo: iso(from) };
+}
+async function impactPage() {
+  const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.period || "90", P = periodDates(k);
+  shell('<p class="loading">Working out the impact report…</p>');
+  let now, before;
+  try {
+    [now, before] = await Promise.all([
+      rpc("nisia_college_impact", { p_org: S.org, p_from: P.from, p_to: P.to }),
+      rpc("nisia_college_impact", { p_org: S.org, p_from: P.prevFrom, p_to: P.prevTo })]);
+  } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const pct = (a, b) => b ? Math.round(a / b * 100) : null;
+  const months = (r) => Math.max(0.25, r.weeks / 4.345);
+  const m = (r) => ({
+    engaged: pct(r.engaged, r.learners),
+    evidencePm: r.learners ? Math.round(r.evidence / r.learners / months(r) * 10) / 10 : null,
+    turnaround: r.turnaround_days != null ? Number(r.turnaround_days) : null,
+    accepted: pct(r.accepted, r.assessed),
+    hoursPct: pct(Number(r.hours), Number(r.planned_hours)),
+    hoursPl: r.learners ? Math.round(Number(r.hours) / r.learners * 10) / 10 : null,
+  });
+  const a = m(now), b = m(before);
+  /* The change on the period before: green when it's better (lower is better for turnaround). */
+  const delta = (x, y, unit, lowerBetter) => {
+    if (x == null || y == null) return '<span class="delta">No earlier figure</span>';
+    const d = Math.round((x - y) * 10) / 10;
+    if (!d) return '<span class="delta">Same as the period before</span>';
+    const good = lowerBetter ? d < 0 : d > 0;
+    return '<span class="delta ' + (good ? "up" : "down") + '">' + (d > 0 ? "▲ " : "▼ ") + Math.abs(d) + (unit || "") + ' on the period before</span>';
+  };
+  const card = (label, big, sub, dl) => '<div class="icard"><span class="label">' + label + '</span><span class="big num">' + big + '</span><span class="sub">' + sub + '</span>' + (dl || "") + '</div>';
+  const e = now.evia || {}, eb = before.evia || {}, n = (o, key) => Number(o[key] || 0);
+  const EVIA = [["saved.evidence", "Pieces of evidence captured"], ["evidence.guide", "Guided evidence sessions"], ["saved.lessons-done", "Teach me lessons finished"],
+    ["saved.tests", "Tests and mock exams taken"], ["saved.hours", "Learning hours entries"], ["chat.question", "Questions answered by Evia"], ["review.open", "Progress reviews opened"], ["college.check-in", "Class check-ins"]];
+  const hrs = (mins) => Math.round(mins / 6) / 10;
+  shell(
+    '<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Impact</h1><p class="small muted print-only">' + esc(ukDate(P.from)) + ' to ' + esc(ukDate(iso(Date.parse(P.to) - DAY))) + ', compared with the period before</p></div>' +
+      '<div class="actions no-print"><div class="seg" role="group" aria-label="Period">' + PERIODS.map(([id, t]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (k === id) + '">' + t + '</button>').join("") + '</div>' +
+      '<button class="btn" type="button" id="print">Download PDF</button></div></div>' +
+    '<p class="muted no-print" style="margin:-4px 0 14px">' + esc(ukDate(P.from)) + ' to ' + esc(ukDate(iso(Date.parse(P.to) - DAY))) + ', compared with the ' + Math.round(now.weeks) + ' weeks before.</p>' +
+    '<h2 class="ihead">Apprentices</h2><section class="icards">' +
+      card("Engaged", a.engaged != null ? a.engaged + "%" : "–", now.engaged + " of " + now.learners + " apprentices added evidence or hours, or used Evia", delta(a.engaged, b.engaged, " pts")) +
+      card("Evidence", now.evidence, (a.evidencePm != null ? a.evidencePm + " pieces a month per apprentice" : "pieces from apprentices"), delta(a.evidencePm, b.evidencePm, " a month")) +
+      card("Learning hours", Number(now.hours), (a.hoursPct != null ? a.hoursPct + "% of the " + Number(now.planned_hours) + " planned for the period" : "hours logged"), delta(a.hoursPct, b.hoursPct, " pts")) +
+      card("Hours per apprentice", a.hoursPl != null ? a.hoursPl : "–", "off-the-job hours in the period", delta(a.hoursPl, b.hoursPl, "h")) +
+    '</section>' +
+    '<h2 class="ihead">Assessment and reviews</h2><section class="icards">' +
+      card("Marking turnaround", a.turnaround != null ? a.turnaround + "<small> days</small>" : "–", "median from upload to first assessment", delta(a.turnaround, b.turnaround, " days", true)) +
+      card("Signed off first time", a.accepted != null ? a.accepted + "%" : "–", now.accepted + " of " + now.assessed + " assessments accepted", delta(a.accepted, b.accepted, " pts")) +
+      card("Waiting over 7 days", now.waiting_over_7_days, "pieces from the period not yet assessed", "") +
+      card("Progress reviews", now.reviews, now.reviews_overdue ? now.reviews_overdue + (now.reviews_overdue === 1 ? " apprentice" : " apprentices") + " overdue a review (12 weeks)" : "none overdue", delta(now.reviews, before.reviews, "")) +
+    '</section>' +
+    '<h2 class="ihead">Classroom</h2><section class="icards">' +
+      card("Attendance", now.attendance, "confirmed class attendances", delta(now.attendance, before.attendance, "")) +
+      card("Classroom hours", hrs(now.attendance_minutes), "hours of teaching attended", delta(hrs(now.attendance_minutes), hrs(before.attendance_minutes), "h")) +
+    '</section>' +
+    '<h2 class="ihead">Evia at work</h2><section class="panel"><div class="table-wrap flat"><table><thead><tr><th>In Evia</th><th>This period</th><th>Period before</th></tr></thead><tbody>' +
+      '<tr class="static"><td>Days apprentices used Evia</td><td class="num">' + now.devices + '</td><td class="num muted">' + before.devices + '</td></tr>' +
+      EVIA.map(([key, t]) => '<tr class="static"><td>' + t + '</td><td class="num">' + n(e, key) + '</td><td class="num muted">' + n(eb, key) + '</td></tr>').join("") + '</tbody></table></div>' +
+      '<p class="small muted" style="margin-top:8px">From Evia’s anonymous counts, for connected apprentices who haven’t switched them off. No names or work are sent.</p></section>' +
+    '<p class="small muted" style="margin-top:14px">Made by Nisia on ' + esc(ukDate(iso(Date.now()))) + '. Apprentices on programme at any point in the period. Evidence counts pieces the apprentice added themselves.</p>');
+  root.querySelectorAll("[data-period]").forEach((btn) => btn.onclick = () => { S.period = btn.dataset.period; impactPage(); });
+  root.querySelector("#print").onclick = () => { hit("impact.pdf"); window.print(); };
 }
 
 /* ---------- Master admin: colleges ---------- */

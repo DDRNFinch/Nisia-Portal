@@ -5,6 +5,7 @@
    signal (store.js). Everything is read from Nisia under the college's own rules. */
 import { db, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, inviteCode } from "../../packages/core/signin.js";
+import { startUsage, hit } from "../../packages/core/usage.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
@@ -129,6 +130,7 @@ onSynced((out) => {
 let lastNotice = null;
 onStatus((st) => { if (st.notice && st.notice !== lastNotice) { lastNotice = st.notice; setTimeout(redraw, 50); } else if (!st.notice) lastNotice = null; });
 async function manualSync() {
+  hit("sync.manual");
   if (status().syncing) return;
   try {
     const out = await sync();
@@ -232,7 +234,9 @@ async function quietSync() {
   try { const out = await sync(); if (!out) return; who = out.who; rows = out.rows; IDX = null; if (view === "home") drawTab(); }
   catch (e) { if (e.signedOut) { await clear(); signOut(); } }
 }
+startUsage("milos", new URL(import.meta.url).searchParams.get("v") || "");
 async function drawTab() {
+  hit("tab." + tab);
   const X = await index();
   if (view !== "home") return;
   const y = scrollY, same = tab === lastTab;
@@ -395,7 +399,7 @@ async function learner(r, keep) {
   };
   drawPortfolio();
   root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => {
-    lTab = b.dataset.lt;
+    lTab = b.dataset.lt; hit("learner." + lTab);
     root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
     root.querySelectorAll("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== lTab; });
   });

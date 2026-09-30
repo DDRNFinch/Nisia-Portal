@@ -3,6 +3,7 @@
    testimonies and behaviour ratings. Nisia decides what an employer can see (paros_learners, paros_learner): never the
    apprentice's own records in Evia. The last download is kept on the device, so Paros opens without signal. */
 import { db, rpc, me, signOut, esc, ukDate, ago, courseName } from "../../packages/core/nisia.js";
+import { startUsage, hit } from "../../packages/core/usage.js";
 import { auth } from "../../packages/core/signin.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 
@@ -116,7 +117,9 @@ const attPct = (r) => r.sessions ? Math.round(r.attended / r.sessions * 100) : n
 const reviewDue = (r) => { const from = Date.parse(r.last_review || r.start_date); if (isNaN(from)) return null; const due = from + 84 * 864e5, days = Math.ceil((due - Date.now()) / 864e5); return { due, days }; };
 const ratingDue = (r) => !r.last_rating || Date.now() - Date.parse(r.last_rating) > 8 * 7 * 864e5;
 
+startUsage("paros", new URL(import.meta.url).searchParams.get("v") || "");
 function draw() {
+  hit(view ? "apprentice" : "tab." + tab);
   if (view) return apprentice(view, true);
   ({ today: drawToday, apprentices: drawApprentices, hours: drawHours, feedback: drawFeedback })[tab]();
 }

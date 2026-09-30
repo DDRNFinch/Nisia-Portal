@@ -11,6 +11,8 @@
    Everything Nisia needs is sent from Symi's own records: its history rows and the lesson set for each session. */
 import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
 import { auth, inviteCode } from "../../packages/core/signin.js";
+import { startUsage, hit } from "../../packages/core/usage.js";
+startUsage("symi", window.SYMI_BUILD || "");
 
 const App = () => window.SamosApp;
 const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v ?? d; } catch (_) { return d; } };
@@ -72,6 +74,7 @@ function chip() {
 
 /* ---------- Learners from Nisia ---------- */
 async function pullLearners(say) {
+  if (say) hit("learners.pull");
   if (!signedIn || !navigator.onLine) return;
   const found = [];
   for (const o of tutorOrgs()) {
@@ -167,6 +170,7 @@ async function pollCheckIns(regId, key, sessionId, people) {
 
 let open = null;
 async function showCheckIn(regId) {
+  hit("check-in.code");
   const key = App().today();
   const layer = document.createElement("div");
   layer.className = "sn-checkin"; layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Check in");
@@ -273,7 +277,7 @@ async function sendFinished() {
         const { error } = await db.from("class_attendance").upsert(up, { onConflict: "session_id,enrolment_id" });
         if (error) throw new Error(error.message);
         await db.from("class_sessions").update({ status: "finished", finished_at: now }).eq("id", s.id);
-        sent[row.sessionKey] = now; write(K.sent, sent);
+        sent[row.sessionKey] = now; write(K.sent, sent); hit("register.sent");
       } catch (e) { console.warn("Symi: Nisia", row.sessionKey, e.message); }
     }
   } finally { sending = false; decorate(); }

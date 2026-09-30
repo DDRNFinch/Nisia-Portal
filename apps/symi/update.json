@@ -1,5 +1,5 @@
 {
-  "version": "0.28.2",
+  "version": "0.28.3",
   "title": "Signing out always works",
   "details": [
     "Signing out of Nisia always finishes, even if your sign-in had already run out",
