@@ -31,7 +31,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
-let GONE = false; /* the learner deleted ev3 in Evia after Milos downloaded it */
+let GONE = false, EXTRA = false; /* EXTRA: a learner added in Nisia while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -42,7 +42,7 @@ function handle(route) {
   if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-mark", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-mark", platform_admin: false, name: "Mark Ellis", memberships: [{ organisation_id: "O1", organisation: "Brookfield College", member_id: "M2", roles: ["assessor"] }] });
-  if (p === "/rest/v1/rpc/nisia_college_learners") return json([LEARNER, { ...LEARNER, learner_id: "L2", enrolment_id: "E2", name: "Not Mine", assessors: [{ member_id: "M9", name: "Someone else" }] }]);
+  if (p === "/rest/v1/rpc/nisia_college_learners") return json([LEARNER, { ...LEARNER, learner_id: "L2", enrolment_id: "E2", name: "Not Mine", assessors: [{ member_id: "M9", name: "Someone else" }] }].concat(EXTRA ? [{ ...LEARNER, learner_id: "L3", enrolment_id: "E3", name: "New Starter" }] : []));
   if (p === "/rest/v1/enrolments") return json(one ? { id: "E1", organisation_id: "O1", course_id: "C1", learner_id: "L1", start_date: start, end_date: end, status: "active", planned_otj_hours: 416, employer_name: "Hughes & Sons Builders", employer_contact_name: "Dave Hughes" } : []);
   if (p === "/rest/v1/evia_records") return json([
     { collection: "snapshot", record_id: "current", data: SNAPSHOT },
@@ -280,6 +280,14 @@ try {
   await page.click("#syncNow"); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
   const ev2 = posted.slice(before).find((x) => x.table === "evidence"), up2 = posted.slice(before).filter((x) => x.table === "storage").length, as2 = posted.slice(before).find((x) => x.table === "assessments");
   check("Back online, Sync now sends it: the observation, its photo, its PDF for the learner's Evia, and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 2 && !!as2 && as2.body.evidence_id === ev2.body.id);
+  /* Syncing by itself shows what's new without Sync now: a learner added in Nisia appears after a background sync. */
+  EXTRA = true;
+  if (await page.$("#backBtn")) await page.click("#backBtn");
+  await page.click("[data-tab=learners]"); await page.waitForSelector("#q");
+  await page.evaluate(() => dispatchEvent(new Event("online")));
+  const auto = await page.waitForFunction(() => /New Starter/.test(document.getElementById("main").textContent), null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check("A background sync updates the screen by itself (no Sync now): a learner added in Nisia appears", auto);
+  EXTRA = false;
   check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
 

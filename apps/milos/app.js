@@ -9,7 +9,7 @@ import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
-import { cached, sync, onStatus, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
+import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
 import * as push from "./push.js";
 
@@ -117,6 +117,14 @@ function drawSync(st) {
   if (m) { m.classList.toggle("busy", !!st.syncing); const b = m.querySelector(".m-badge"); if (st.waiting && !b) m.insertAdjacentHTML("beforeend", '<b class="m-badge">' + st.waiting + '</b>'); else if (b) { if (st.waiting) b.textContent = st.waiting; else b.remove(); } }
 }
 onStatus(drawSync);
+/* Whatever started a sync (opening, the timer, coming back to Milos, the signal returning), the screen shows what's
+   new. Not while something is open on top (an evidence piece being assessed, a review), so nothing moves mid-task. */
+onSynced((out) => {
+  if (!out) return;
+  who = out.who; rows = out.rows; IDX = null;
+  const busy = document.querySelector(".rv, .overlay") || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
+  if (!busy && root.querySelector("#main")) redraw();
+});
 /* An assessment dropped because the learner deleted the evidence: redraw, so the piece doesn't still look assessed. */
 let lastNotice = null;
 onStatus((st) => { if (st.notice && st.notice !== lastNotice) { lastNotice = st.notice; setTimeout(redraw, 50); } else if (!st.notice) lastNotice = null; });

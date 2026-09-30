@@ -110,6 +110,7 @@ export function sync() {
       try { await flush(); } catch (e) { unsent = e; }
       const out = await download();
       set({ syncedAt: new Date().toISOString(), online: true });
+      synced.forEach((f) => { try { f(out); } catch (err) { console.warn("Milos: after sync", err); } });
       if (unsent) throw unsent;
       return out;
     } catch (e) { set({ error: e.message || String(e) }); throw e; }
@@ -117,7 +118,13 @@ export function sync() {
   })();
   return running;
 }
-setInterval(() => { if (navigator.onLine && !document.hidden) sync().catch(() => {}); }, 15 * 60000);
+/* By itself: every 5 minutes while Milos is open, and on coming back to it (from another app, or the phone waking)
+   if it's been a minute. Each sync tells the screens (onSynced), so they show what's new without Sync now. */
+const synced = [];
+export const onSynced = (f) => synced.push(f);
+const due = (ms) => navigator.onLine && !document.hidden && (!state.syncedAt || Date.now() - Date.parse(state.syncedAt) > ms);
+setInterval(() => { if (due(4.5 * 60000)) sync().catch(() => {}); }, 5 * 60000);
+document.addEventListener("visibilitychange", () => { if (due(60000)) sync().catch(() => {}); });
 
 /* ---------- The outbox ---------- */
 const uuid = () => crypto.randomUUID();
