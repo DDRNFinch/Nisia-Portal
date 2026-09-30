@@ -88,6 +88,6 @@ export function termMatched(term, text) {
     alt = alt.trim(); const syn = SYNONYMS[alt];
     if (syn && syn.test(text)) return true;
     const words = alt.replace(/&/g, " ").split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !["and", "the", "for", "with"].includes(w));
-    return words.length > 0 && words.every((w) => text.includes(w.replace(/s$/, "").slice(0, 5)));
+    return words.length > 0 && words.every((w) => text.includes(/ions?$/.test(w) ? w.replace(/(at)?ions?$/, "").slice(0, 6) : w.replace(/s$/, "").slice(0, 5)));
   });
 }
