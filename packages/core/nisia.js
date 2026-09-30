@@ -72,7 +72,15 @@ export async function verifyCode(factorId, code) {
   const { error } = await db.auth.mfa.challengeAndVerify({ factorId, code: String(code).replace(/\D/g, "") });
   if (error) throw new Error(/invalid|expired/i.test(error.message) ? "That code didn’t work. Use the newest one in your authenticator app." : error.message);
 }
-export const signOut = () => db.auth.signOut();
+/* Signing out always finishes on this device. If Nisia has already ended the sign-in (it ran out, or was ended
+   elsewhere), it answers "session not found", and supabase-js 2.45 would then keep the old sign-in here. */
+export async function signOut() {
+  let error = null;
+  try { ({ error } = await db.auth.signOut()); } catch (e) { error = e; }
+  if (!error) return;
+  try { await db.auth._removeSession(); await db.auth._notifyAllSubscribers("SIGNED_OUT", null); }
+  catch (_) { try { localStorage.removeItem(AUTH_KEY); } catch (_) { /* nothing more to do */ } location.reload(); }
+}
 export const me = () => rpc("nisia_me");
 
 /* The courses Evia teaches (the ids match Evia's course packs). */

@@ -1,8 +1,8 @@
 {
-  "version": "0.28.1",
-  "title": "Invite links open sign-in",
+  "version": "0.28.2",
+  "title": "Signing out always works",
   "details": [
-    "An invite link from your college opens the Nisia sign-in straight away",
-    "Test accounts show a red Test account badge"
+    "Signing out of Nisia always finishes, even if your sign-in had already run out",
+    "An invite link from your college opens the Nisia sign-in straight away"
   ]
 }

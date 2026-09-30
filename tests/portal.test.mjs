@@ -35,7 +35,7 @@ function fakeSupabase(persona) {
     S.calls.push(p + (body.action ? ":" + body.action : ""));
     if (p === "/auth/v1/token") return body.password === persona.password ? json(session()) : json({ error: "invalid_grant", error_description: "Invalid login credentials", msg: "Invalid login credentials" }, 400);
     if (p === "/auth/v1/user") return json(user());
-    if (p === "/auth/v1/logout") return route.fulfill({ status: 204 });
+    if (p === "/auth/v1/logout") return S.sessionGone ? json({ code: 403, error_code: "session_not_found", msg: "Session not found" }, 403) : route.fulfill({ status: 204 });
     if (p === "/auth/v1/factors") { S.factors = [{ id: "f1", factor_type: "totp", status: "unverified", friendly_name: "Nisia" }]; return json({ id: "f1", type: "totp", totp: { qr_code: "data:image/svg+xml;utf-8,<svg xmlns='http://www.w3.org/2000/svg'/>", secret: "ABCDEF", uri: "otpauth://x" } }); }
     if (/\/auth\/v1\/factors\/f1$/.test(p) && req.method() === "DELETE") { S.factors = []; return json({ id: "f1" }); }
     if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
@@ -127,6 +127,9 @@ try {
     await page.click("#tcPair"); await page.waitForSelector(".big-code");
     check("…and the test learner's Evia connects with a pairing code", /ABC-2345/.test(await page.textContent(".big-code")));
     await page.click(".modal .x");
+    fake.S.sessionGone = true; /* Nisia has already ended this sign-in (expired, or ended elsewhere) */
+    await page.click("#signOut"); await page.waitForSelector("#email", { timeout: 5000 }).catch(() => {});
+    check("Master admin signs out, even when Nisia has already ended the sign-in: back to the sign-in page, signed out", !!(await page.$("#email")) && !(await page.evaluate(() => localStorage.getItem("nisia-auth"))), await page.evaluate(() => document.body.innerText.slice(0, 200)));
     check("No script errors (master admin)", !errors.length, errors.join(" | "));
     await ctx.close();
   }

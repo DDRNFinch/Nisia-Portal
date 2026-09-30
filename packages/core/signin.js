@@ -1,7 +1,7 @@
 /* Signing in, shared by the portal and Milos:
    an invite link (#invite=CODE) → name and password → sign in → add Nisia to an authenticator app (first time)
    or type its 6-digit code (every other time) → onReady(). */
-import { db, AUTH_KEY, call, state, signIn, startAuthenticator, verifyCode, esc } from "./nisia.js";
+import { db, AUTH_KEY, call, state, signIn, signOut, startAuthenticator, verifyCode, esc } from "./nisia.js";
 
 /* The email last used on this device, so signing back in is just the password and the code. Kept after signing out
    (it's only the address); "Not you?" forgets it. */
@@ -143,7 +143,7 @@ async function setupAuthenticator(root, o, err) {
     try { await verifyCode(a.factorId, f.c.value); o.onReady(); }
     catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
   };
-  root.querySelector("#out").onclick = async () => { await db.auth.signOut(); auth(root, o); };
+  root.querySelector("#out").onclick = async () => { await signOut(); auth(root, o); };
   f.c.focus();
 }
 
@@ -160,6 +160,6 @@ function askCode(root, o, factorId) {
     try { await verifyCode(factorId, f.c.value); o.onReady(); }
     catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
   };
-  root.querySelector("#out").onclick = async () => { await db.auth.signOut(); auth(root, o); };
+  root.querySelector("#out").onclick = async () => { await signOut(); auth(root, o); };
   f.c.focus();
 }
