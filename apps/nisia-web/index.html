@@ -14,6 +14,8 @@
 <body>
 <div id="app"><p style="padding:40px;font-family:sans-serif;color:#4A5B6E">Loading Nisia…</p></div>
 <noscript><p style="padding:20px">Nisia needs JavaScript switched on.</p></noscript>
+<!-- ?test: the master admin trying the portal as a test account, with its own sign-in (theirs stays in the other tab). -->
+<script>if (/[?&]test\b/.test(location.search)) window.NISIA_AUTH_KEY = "nisia-auth-test";</script>
 <script src="../../packages/vendor/supabase-2.45.4.js"></script>
 <script src="../../packages/vendor/qrcode-generator-1.4.4.js"></script>
 <script src="../../packages/vendor/jspdf-2.umd.min.js" defer></script>

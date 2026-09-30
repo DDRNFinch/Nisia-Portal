@@ -10,7 +10,7 @@
      tutor, and employers see them in Paros. Sent again later if there's no signal.
    Everything Nisia needs is sent from Symi's own records: its history rows and the lesson set for each session. */
 import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
-import { auth } from "../../packages/core/signin.js";
+import { auth, inviteCode } from "../../packages/core/signin.js";
 
 const App = () => window.SamosApp;
 const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v ?? d; } catch (_) { return d; } };
@@ -297,5 +297,6 @@ addEventListener("online", () => { if (signedIn) { pullLearners(false).catch(() 
 setInterval(() => { if (signedIn && !document.hidden) sendFinished(); }, 60000);
 (async () => {
   chip();
+  if (inviteCode()) return openSignIn();
   if (await checkSession()) { decorate(); try { await pullLearners(false); } catch (_) {} sendFinished(); }
 })();

@@ -1,10 +1,8 @@
 {
-  "version": "0.28.0",
-  "title": "Symi on Nisia",
+  "version": "0.28.1",
+  "title": "Invite links open sign-in",
   "details": [
-    "Sign in with your Nisia account: your learners come from Nisia",
-    "Show check-in code: learners check in with Evia by scanning a code that changes every 20 seconds",
-    "Finished registers become your learners' college hours in Evia, confirmed by you, and employers see them",
-    "Everything still works offline on this device, and your classes, lessons and history are kept"
+    "An invite link from your college opens the Nisia sign-in straight away",
+    "Test accounts show a red Test account badge"
   ]
 }

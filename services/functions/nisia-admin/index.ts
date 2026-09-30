@@ -4,9 +4,73 @@
 //   Master admin:  create_college, update_college, invite_college_admin
 //   College admin: invite_staff, add_learner, set_staff_active, assign_staff, update_staff, update_learner
 //   Staff with access to the learner (and the college admin): pairing_code
-import { CORS, reply, fail, service, asCaller, makeCode, sha256, createInvite, roleIds } from "../_shared/nisia.ts";
+//   Master admin, for testing: test_college (makes or tops up the test college), test_invite (a test account's invite)
+import { CORS, reply, fail, service, asCaller, makeCode, sha256, createInvite, roleIds, findUserByEmail } from "../_shared/nisia.ts";
 
 const STAFF_ROLES = ["admin", "assessor", "tutor", "quality", "employer"];
+
+/* The master admin's test college: fake staff for every role and a fake learner, to try each app as it's really used.
+   The staff are ordinary accounts (a password and an authenticator, set up from an invite); their emails are the
+   master admin's own with a +tag, so anything Nisia sends them arrives in the master admin's inbox. */
+const TEST_NAMES: Record<string, string> = { admin: "Test College Admin", assessor: "Test Assessor", tutor: "Test Tutor", quality: "Test Quality", employer: "Test Employer", learner: "Test Learner" };
+const testEmail = (mine: string, role: string) => { const [local, domain] = mine.toLowerCase().split("@"); return local.replace(/\+.*$/, "") + "+nisia-test-" + role + "@" + domain; };
+async function testCollege(admin: any, mine: string, uid: string) {
+  let { data: o } = await admin.from("organisations").select("id").eq("is_test", true).order("created_at").limit(1).maybeSingle();
+  if (!o) {
+    const r = await admin.from("organisations").insert({ name: "Nisia Test College", seats: 5, is_test: true, contact_name: "Master admin", contact_email: mine,
+      notes: "The master admin’s test college, for trying the apps. Not a real college." }).select("id").single();
+    if (r.error) throw r.error;
+    o = r.data;
+  }
+  const org = o.id as string;
+  const { data: members } = await admin.from("organisation_members").select("id, user_id, active, organisation_member_roles(roles(code))").eq("organisation_id", org);
+  const rolesOf = (m: any) => (m.organisation_member_roles ?? []).map((x: any) => x.roles?.code);
+  const byRole = (role: string) => (members ?? []).find((m: any) => m.active && rolesOf(m).includes(role));
+  // The learner: made here (learners connect Evia with a pairing code, so no invite).
+  let lm = byRole("learner"), learnerId: string, enrolmentId: string;
+  if (!lm) {
+    const email = testEmail(mine, "learner");
+    let u = await findUserByEmail(admin, email);
+    if (!u) { const c = await admin.auth.admin.createUser({ email, password: makeCode(24) + "!a1", email_confirm: true, user_metadata: { display_name: TEST_NAMES.learner } }); if (c.error) throw c.error; u = c.data.user; }
+    await admin.from("profiles").upsert({ id: u.id, display_name: TEST_NAMES.learner });
+    const m = await admin.from("organisation_members").insert({ organisation_id: org, user_id: u.id }).select("id").single();
+    if (m.error) throw m.error;
+    const [lr] = await roleIds(admin, ["learner"]);
+    await admin.from("organisation_member_roles").insert({ organisation_member_id: m.data.id, role_id: lr.id });
+    lm = { id: m.data.id };
+  }
+  let { data: l } = await admin.from("learners").select("id").eq("organisation_member_id", lm.id).maybeSingle();
+  if (!l) { const r = await admin.from("learners").insert({ organisation_id: org, organisation_member_id: lm.id }).select("id").single(); if (r.error) throw r.error; l = r.data; }
+  learnerId = l.id;
+  const { data: course } = await admin.from("courses").select("id").eq("source_system", "evia").eq("source_id", "bricklayer").single();
+  let { data: e } = await admin.from("enrolments").select("id").eq("learner_id", learnerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!e) {
+    const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    const r = await admin.from("enrolments").insert({ organisation_id: org, learner_id: learnerId, course_id: course.id, start_date: day(-180), end_date: day(550), planned_otj_hours: 300,
+      employer_name: "Test Employer Ltd", employer_contact_name: TEST_NAMES.employer, employer_contact_email: testEmail(mine, "employer") }).select("id").single();
+    if (r.error) throw r.error;
+    e = r.data;
+  }
+  enrolmentId = e.id;
+  // Whoever has joined as the test assessor, tutor and employer works with the test learner, in the tutor's class.
+  const linked = ["assessor", "tutor", "employer"].map(byRole).filter(Boolean).map((m: any) => m.id);
+  const { data: acc } = await admin.from("learner_access").select("organisation_member_id").eq("learner_id", learnerId);
+  const have = new Set((acc ?? []).map((x: any) => x.organisation_member_id));
+  const add = linked.filter((id: string) => !have.has(id));
+  if (add.length) await admin.from("learner_access").insert(add.map((id: string) => ({ organisation_id: org, learner_id: learnerId, organisation_member_id: id })));
+  const tutor = byRole("tutor");
+  if (tutor) {
+    let { data: cls } = await admin.from("classes").select("id").eq("organisation_id", org).eq("client_ref", "nisia-test-class").maybeSingle();
+    if (!cls) { const r = await admin.from("classes").insert({ organisation_id: org, tutor_member_id: tutor.id, client_ref: "nisia-test-class", title: "Test class: Bricklaying", course_id: course.id, room: "Workshop 1" }).select("id").single(); if (r.error) throw r.error; cls = r.data; }
+    else await admin.from("classes").update({ tutor_member_id: tutor.id }).eq("id", cls.id);
+    const { data: inClass } = await admin.from("class_learners").select("class_id").eq("class_id", cls.id).eq("enrolment_id", enrolmentId).maybeSingle();
+    if (!inClass) await admin.from("class_learners").insert({ class_id: cls.id, enrolment_id: enrolmentId, organisation_id: org });
+  }
+  const { data: pending } = await admin.from("invites").select("roles").eq("organisation_id", org).is("used_at", null).gt("expires_at", new Date().toISOString());
+  const invited = new Set((pending ?? []).flatMap((x: any) => x.roles ?? []));
+  return { organisation_id: org, learner_id: learnerId, enrolment_id: enrolmentId,
+    accounts: STAFF_ROLES.map((role) => ({ role, name: TEST_NAMES[role], email: testEmail(mine, role), joined: !!byRole(role), invited: invited.has(role) })) };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -161,6 +225,19 @@ Deno.serve(async (req) => {
           const msg = String((err as any)?.message ?? err);
           return fail(msg.includes("No seats") ? msg : "The learner couldn’t be added. " + msg);
         }
+      }
+      case "test_college": {
+        if (!await isPlatform()) return fail("Only the master admin can do this.", 403);
+        if (!who.user.email) return fail("Your account needs an email for the test accounts.");
+        return reply(await testCollege(admin, who.user.email, uid));
+      }
+      case "test_invite": {
+        if (!await isPlatform()) return fail("Only the master admin can do this.", 403);
+        if (!STAFF_ROLES.includes(b.role)) return fail("Pick a role.");
+        const t = await testCollege(admin, who.user.email!, uid), email = testEmail(who.user.email!, b.role);
+        await admin.from("invites").delete().eq("organisation_id", t.organisation_id).eq("email", email).is("used_at", null);
+        const code = await createInvite(admin, { kind: "staff", organisation_id: t.organisation_id, email, display_name: TEST_NAMES[b.role], roles: [b.role], created_by: uid });
+        return reply({ invite_code: code, email });
       }
       case "pairing_code": {
         // Anyone who can see the learner and isn't the learner (their assessor, tutor or college admin), or the master admin.

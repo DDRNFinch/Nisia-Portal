@@ -65,6 +65,11 @@ function fakeSupabase(persona) {
       if (body.action === "create_college") { S.colleges.push({ id: "c" + S.colleges.length, name: body.name, status: "active", seats: +body.seats, seats_used: 0, staff: 0, learners: 0, contact_name: body.admin_name, contact_email: body.admin_email, licence_ends: body.licence_ends || null }); return json({ organisation_id: "c0", invite_code: "COLLEGEADMINCODE" }); }
       if (body.action === "update_college") { const c = S.colleges.find((x) => x.id === body.organisation_id); c.seats = +body.seats; c.status = body.status; return json({ ok: true }); }
       if (body.action === "add_learner") { S.learners.push({ learner_id: "l" + S.learners.length, enrolment_id: "e" + S.learners.length, name: body.name, email: body.email || "x@learners.nisia.invalid", course_code: body.course, start_date: body.start_date, end_date: body.end_date, status: "active", employer_name: body.employer_name, planned_otj_hours: body.planned_otj_hours, assessors: S.staff.filter((s) => body.staff_member_ids.includes(s.member_id)).map((s) => ({ member_id: s.member_id, name: s.name })), paired: false, evidence: 0, otj_hours: 0, last_activity: null }); return json({ learner_id: "l0", enrolment_id: "e0" }); }
+      if (body.action === "test_college") {
+        if (!S.test) { S.test = { invited: {} }; S.colleges.push({ id: "t0", name: "Nisia Test College", status: "active", seats: 5, seats_used: 1, staff: 0, learners: 1, contact_name: "Master admin", contact_email: persona.email, licence_ends: null, is_test: true }); }
+        return json({ organisation_id: "t0", learner_id: "tl", enrolment_id: "te", accounts: ["admin", "quality", "assessor", "tutor", "employer"].map((role) => ({ role, name: "Test " + role, email: "admin+nisia-test-" + role + "@example.com", joined: role === "tutor", invited: !!S.test.invited[role] })) });
+      }
+      if (body.action === "test_invite") { S.test.invited[body.role] = true; return json({ invite_code: "TESTINVITECODE01", email: "admin+nisia-test-" + body.role + "@example.com" }); }
       if (body.action === "pairing_code") return json({ code: "ABC2345", qr: "NISI:PAIR:2:ABC2345", expires_in_minutes: 30 });
       if (body.action === "invite_staff") return json({ invite_code: "STAFFINVITECODE1" });
       if (body.action === "update_staff") { const m = S.staff.find((x) => x.member_id === body.member_id); Object.assign(m, { name: body.name, roles: body.roles, active: body.active }); return json({ ok: true }); }
@@ -108,7 +113,34 @@ try {
     await page.click(".x"); await page.waitForSelector("tr[data-id=c0]"); await page.screenshot({ path: shots + "/5-master-admin.png" });
     await page.click("tr[data-id=c0]"); await page.fill("#f [name=seats]", "40"); await page.click("#f button[type=submit]"); await page.waitForTimeout(400);
     check("Master admin changes a college's seats", fake.S.colleges[0].seats === 40 && /40/.test(await page.textContent("tr[data-id=c0]")));
+    // The test college: fake accounts for every role, kept apart from the real colleges.
+    await page.click("#tcMake"); await page.waitForSelector("#testPanel [data-setup=assessor]");
+    check("Master admin sets up the test college: every role listed, and it's left out of the real colleges' list and totals",
+      (await page.$$("#testPanel tbody tr")).length === 6 && !(await page.$("tr[data-id=t0]")) && /Colleges\s*1/.test(await page.textContent(".stats")) && /Ready/.test(await page.textContent("#testPanel")));
+    await page.click("#testPanel [data-setup=assessor]"); await page.waitForSelector(".modal .linkbox");
+    const tlink = await page.inputValue(".modal .linkbox input");
+    check("…a test assessor's invite opens in Milos, for the master admin's own +nisia-test address", /\/milos\/#invite=TESTINVITECODE01$/.test(tlink) && /admin\+nisia-test-assessor@example\.com/.test(await page.textContent(".modal")), tlink);
+    await page.click(".modal .x"); await page.waitForSelector("#testPanel [data-setup=admin]");
+    await page.click("#testPanel [data-setup=admin]"); await page.waitForSelector(".modal .linkbox");
+    check("…a test college admin's invite opens the portal in testing mode (?test)", /\/nisia-web\/\?test#invite=TESTINVITECODE01$/.test(await page.inputValue(".modal .linkbox input")));
+    await page.click(".modal .x"); await page.waitForSelector("#tcPair"); await page.screenshot({ path: shots + "/5b-test-college.png", fullPage: true });
+    await page.click("#tcPair"); await page.waitForSelector(".big-code");
+    check("…and the test learner's Evia connects with a pairing code", /ABC-2345/.test(await page.textContent(".big-code")));
+    await page.click(".modal .x");
     check("No script errors (master admin)", !errors.length, errors.join(" | "));
+    await ctx.close();
+  }
+  // 1b. A test account in the portal: ?test keeps its own sign-in (the master admin's stays put), with a Test badge.
+  {
+    const { page, ctx, errors } = await open({ id: "u-tadmin", email: "admin+nisia-test-admin@example.com", password: "Str0ng-pass!", name: "Test College Admin", factors: [{ id: "f1", factor_type: "totp", status: "verified" }],
+      memberships: [{ organisation_id: "t0", organisation: "Nisia Test College", status: "active", member_id: "tm1", roles: ["admin"] }] }, "?test");
+    await page.fill("#email", "admin+nisia-test-admin@example.com"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
+    await page.waitForSelector("#c"); await page.fill("#c", "123456");
+    await page.waitForSelector("#nisia-test-badge");
+    const keys = await page.evaluate(() => Object.keys(localStorage));
+    check("A test account signs in to the portal in testing mode: its own sign-in, and a Test account badge",
+      keys.includes("nisia-auth-test") && !keys.includes("nisia-auth") && /college admin/i.test(await page.textContent("#nisia-test-badge")), keys.join(","));
+    check("No script errors (test account)", !errors.length, errors.join(" | "));
     await ctx.close();
   }
   // 2. A college admin (already set up) adds a learner, which uses a seat, and shows the Evia QR.

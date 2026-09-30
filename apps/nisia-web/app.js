@@ -11,6 +11,8 @@ import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
+/* The portal opened for a test account (?test): its own sign-in, and it stays in test mode. */
+const TEST_PORTAL = BASE + "?test";
 const MILOS = new URL("milos/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
 const SYMI = new URL("symi/", BASE.replace(/apps\/nisia-web\/$/, "")).href, PAROS = new URL("paros/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
 /* Every Nisia app, for everyone signed in to the portal (each app checks who can use it). */
@@ -538,6 +540,8 @@ async function colleges() {
   shell('<p class="loading">Loading colleges…</p>');
   let list;
   try { list = await rpc("nisia_admin_colleges"); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const test = list.find((c) => c.is_test);
+  list = list.filter((c) => !c.is_test);
   const sold = list.reduce((n, c) => n + c.seats, 0), used = list.reduce((n, c) => n + c.seats_used, 0), learners = list.reduce((n, c) => n + c.learners, 0);
   shell(
     '<div class="topbar"><div><div class="label">Master admin</div><h1>Colleges</h1></div><div class="actions"><button class="btn primary" type="button" id="new">' + ICON.plus + 'New college</button></div></div>' +
@@ -550,9 +554,55 @@ async function colleges() {
     (list.length ? list.map((c) => '<tr data-id="' + c.id + '" tabindex="0"><td><div class="person">' + avatar(c.name) + '<b>' + esc(c.name) + '</b></div></td><td class="small">' + esc(c.contact_name || "") + (c.contact_email ? '<br><span class="muted">' + esc(c.contact_email) + '</span>' : "") + '</td>' +
       '<td style="min-width:170px"><div class="pbar-row"><div class="pbar" style="flex:1"><div class="fill" style="width:' + (c.seats ? Math.min(100, c.seats_used / c.seats * 100) : 0) + '%;background:' + (c.seats && c.seats_used >= c.seats ? "var(--bad)" : "var(--accent)") + '"></div></div><span class="num">' + c.seats_used + ' / ' + c.seats + '</span></div></td>' +
       '<td class="num">' + c.staff + '</td><td class="small">' + (c.licence_ends ? esc(ukDate(c.licence_ends)) : '<span class="muted">Not set</span>') + '</td><td>' + (c.status === "active" ? '<span class="pill good">Active</span>' : '<span class="pill bad">Suspended</span>') + '</td></tr>').join("")
-      : '<tr class="static"><td colspan="6" class="empty">No colleges yet. Add the first one.</td></tr>') + '</tbody></table></div>');
+      : '<tr class="static"><td colspan="6" class="empty">No colleges yet. Add the first one.</td></tr>') + '</tbody></table></div>' +
+    '<section class="panel test-panel" id="testPanel" aria-label="Testing"></section>');
+  testPanel(test);
   root.querySelector("#new").onclick = newCollege;
   root.querySelectorAll("tr[data-id]").forEach((r) => r.onclick = () => editCollege(list.find((c) => c.id === r.dataset.id)));
+}
+/* ---------- Testing: the master admin's test college ----------
+   Fake accounts for every role in a college of their own ("Nisia Test College"), so each app can be tried the way
+   it's really used, without touching a real college. The staff accounts are ordinary ones: a password and an
+   authenticator, set up once from an invite. Their emails are the master admin's with a +tag, so anything Nisia
+   sends them lands in the master admin's inbox. The test learner connects Evia with a pairing code. */
+const TEST_ROLES = { admin: ["College admin", "Portal", () => TEST_PORTAL], quality: ["Quality", "Portal", () => TEST_PORTAL], assessor: ["Assessor", "Milos", () => MILOS], tutor: ["Tutor", "Symi", () => SYMI], employer: ["Employer", "Paros", () => PAROS] };
+async function testPanel(test) {
+  const box = root.querySelector("#testPanel"); if (!box) return;
+  const head = '<div class="panel-head"><div><h2>Test college</h2><span class="small muted">Fake accounts for every role, to try each app as it’s really used. Real colleges aren’t touched.</span></div></div>';
+  if (!test) {
+    box.innerHTML = head + '<p class="hint">Makes “Nisia Test College” with a test learner on Bricklaying, then you set up a test college admin, assessor, tutor, quality person and employer.</p><div class="row-actions"><button class="btn primary" id="tcMake">Set up the test college</button></div>';
+    box.querySelector("#tcMake").onclick = (e) => busy(e.target, "Setting up…", async () => { try { await call("nisia-admin", { action: "test_college" }); colleges(); } catch (x) { toast(x.message); } });
+    return;
+  }
+  box.innerHTML = head + '<p class="loading">Checking the test accounts…</p>';
+  let t;
+  try { t = await call("nisia-admin", { action: "test_college" }); } catch (x) { box.innerHTML = head + '<p class="err">' + esc(x.message) + '</p>'; return; }
+  const row = (a) => { const [title, app] = TEST_ROLES[a.role];
+    return '<tr class="static"><td><b>' + esc(title) + '</b><br><span class="small muted">' + esc(a.email) + '</span></td><td>' + esc(app) + '</td><td>' +
+      (a.joined ? '<span class="pill good">Ready</span>' : a.invited ? '<span class="pill warn">Invite waiting</span>' : '<span class="pill idle">Not set up</span>') + '</td><td><div class="row-actions" style="justify-content:flex-end">' +
+      (a.joined ? '<a class="btn" href="' + esc(TEST_ROLES[a.role][2]()) + '" target="_blank" rel="noopener">Open ' + esc(app) + '</a><button class="btn ghost" data-phone="' + a.role + '">On a phone</button>'
+        : '<button class="btn primary" data-setup="' + a.role + '">' + (a.invited ? "New invite" : "Set up") + '</button>') + '</div></td></tr>'; };
+  box.innerHTML = head +
+    '<div class="table-wrap"><table><thead><tr><th>Account</th><th>App</th><th>Status</th><th></th></tr></thead><tbody>' + t.accounts.map(row).join("") +
+    '<tr class="static"><td><b>Learner</b><br><span class="small muted">Test Learner · Bricklaying</span></td><td>Evia</td><td><span class="pill good">Ready</span></td><td><div class="row-actions" style="justify-content:flex-end"><button class="btn primary" id="tcPair">Connect Evia</button></div></td></tr>' +
+    '</tbody></table></div>' +
+    '<div class="row-actions" style="justify-content:space-between;margin-top:10px"><span class="small muted">Sign in as each one with its email, the password you chose and your authenticator app. Test accounts show a red “Test account” badge.</span><button class="btn" id="tcOpen">Open the test college here</button></div>';
+  box.querySelectorAll("[data-setup]").forEach((b) => b.onclick = () => busy(b, "Making an invite…", async () => {
+    try { const r = await call("nisia-admin", { action: "test_invite", role: b.dataset.setup }); testInvite(b.dataset.setup, r); testPanel(test); } catch (x) { toast(x.message); }
+  }));
+  box.querySelectorAll("[data-phone]").forEach((b) => b.onclick = () => { const [title, app, url] = TEST_ROLES[b.dataset.phone], u = url();
+    modal(app + " on a phone", '<div style="display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center"><div style="width:220px">' + qrSvg(u, 5) + '</div><p class="hint">Scan with the phone’s camera, sign in as the test ' + esc(title.toLowerCase()) + ', then add it to the home screen to install it.</p>' + linkBox(u) + '</div>'); });
+  box.querySelector("#tcPair").onclick = () => pairing({ learner_id: t.learner_id, name: "Test Learner", paired: true });
+  box.querySelector("#tcOpen").onclick = () => { S.org = t.organisation_id; S.data = null; S.page = "overview"; render(); };
+}
+function testInvite(role, r) {
+  const [title, app, url] = TEST_ROLES[role], link = url() + "#invite=" + r.invite_code;
+  modal("Set up the test " + title.toLowerCase(),
+    '<div style="display:flex;flex-direction:column;gap:12px"><ol class="hint" style="margin:0;padding-left:20px;line-height:1.6">' +
+    '<li>Open the invite in ' + esc(app) + ' (here, or scan the code with your phone).</li><li>Name: anything. Choose a password and keep it somewhere safe.</li>' +
+    '<li>Sign in as <b>' + esc(r.email) + '</b>, then add it to your authenticator app. It shows as a separate account there.</li></ol>' +
+    '<div class="row-actions"><a class="btn primary" href="' + esc(link) + '" target="_blank" rel="noopener">Open in ' + esc(app) + '</a></div>' +
+    '<div style="width:200px;align-self:center">' + qrSvg(link, 4) + '</div>' + linkBox(link) + '</div>');
 }
 function newCollege() {
   const m = modal("New college",

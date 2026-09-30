@@ -1,11 +1,12 @@
 /* Signing in, shared by the portal and Milos:
    an invite link (#invite=CODE) → name and password → sign in → add Nisia to an authenticator app (first time)
    or type its 6-digit code (every other time) → onReady(). */
-import { db, call, state, signIn, startAuthenticator, verifyCode, esc } from "./nisia.js";
+import { db, AUTH_KEY, call, state, signIn, startAuthenticator, verifyCode, esc } from "./nisia.js";
 
 /* The email last used on this device, so signing back in is just the password and the code. Kept after signing out
    (it's only the address); "Not you?" forgets it. */
-const EMAIL_KEY = "nisia-last-email";
+/* Each app keeps its own, as each keeps its own sign-in (the portal's is the original key). */
+const EMAIL_KEY = AUTH_KEY === "nisia-auth" ? "nisia-last-email" : AUTH_KEY + "-last-email";
 const lastEmail = () => { try { return localStorage.getItem(EMAIL_KEY) || ""; } catch (_) { return ""; } };
 const keepEmail = (e) => { try { if (e) localStorage.setItem(EMAIL_KEY, e.trim().toLowerCase()); else localStorage.removeItem(EMAIL_KEY); } catch (_) {} };
 /* The authenticator code goes by itself once all 6 digits are in (typed, pasted or filled in by the phone). */
@@ -21,7 +22,25 @@ export function inviteCode() {
   return m ? m[1] : "";
 }
 
+/* The master admin's test accounts (their email with +nisia-test-…): a badge says so on every screen, so a test
+   account is never mistaken for a real one. */
+export const isTestEmail = (e) => /\+nisia-test-[a-z]+@/i.test(String(e || ""));
+async function testBadge() {
+  let email = "";
+  try { const { data } = await db.auth.getSession(); email = data.session && data.session.user.email; } catch (_) {}
+  const old = document.getElementById("nisia-test-badge");
+  if (!isTestEmail(email)) { if (old) old.remove(); return; }
+  const role = /\+nisia-test-([a-z]+)@/i.exec(email)[1], label = { admin: "college admin", quality: "quality" }[role] || role;
+  const b = old || document.createElement("div");
+  b.id = "nisia-test-badge"; b.setAttribute("role", "note");
+  b.style.cssText = "position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:99999;padding:5px 11px;border-radius:999px;background:#B42318;color:#fff;font:700 11px/1.3 system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none";
+  b.textContent = "Test account · " + label;
+  if (!old) document.body.appendChild(b);
+}
+db.auth.onAuthStateChange(() => { setTimeout(testBadge, 0); });
+
 export async function auth(root, o) {
+  if (!o.badged) { const ready = o.onReady; o = { ...o, badged: true, onReady: (...a) => { testBadge(); return ready(...a); } }; }
   const code = inviteCode();
   if (code) return acceptInvite(root, o, code);
   const s = await state();
