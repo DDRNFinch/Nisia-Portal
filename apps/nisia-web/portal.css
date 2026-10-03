@@ -417,3 +417,18 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
   .icard,.panel{box-shadow:none}
   .ihead{break-after:avoid}
 }
+
+/* Attendance */
+.att-stats{margin-bottom:14px}
+.att-stats .big{font-family:var(--display);font-size:28px;font-weight:700}
+.att-stats .big.bad{color:var(--bad)}
+.att-rules{margin-bottom:14px}
+.att-form{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end}
+.att-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.att-form label span{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink-2)}
+.att-form input{width:76px}
+.att-table tr.att-below td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.att-table .att-bad{color:var(--bad);font-weight:700}
+.att-table th,.att-table td{padding-left:10px;padding-right:10px}
+.att-table .person b{white-space:nowrap}
+.att-table th{white-space:normal;max-width:90px;line-height:1.25}

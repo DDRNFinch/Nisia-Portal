@@ -67,6 +67,13 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/evidence_files") return json([{ storage_path: "o1/ev1/a.jpeg", mime_type: "image/jpeg" }]);
     if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
     if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
+    if (p === "/rest/v1/rpc/nisia_attendance_report") { S.attReport = body; return json([
+      { enrolment_id: "e0", name: "Callum J Hughes", course: "Bricklayer", employer: "Build Co", sessions: 10, present: 7, late: 2, with_reason: 1, no_reason: 2, pct: 70, below_target: true, run: 2, last_absent: "2026-09-29" },
+      { enrolment_id: "e9", name: "Amira Khan", course: "Bricklayer", employer: "", sessions: 10, present: 10, late: 0, with_reason: 0, no_reason: 0, pct: 100, below_target: false, run: 0, last_absent: null }]); }
+    if (p === "/rest/v1/attendance_settings") {
+      if (req.method() === "GET") { const row = S.attSet || null; return /object/.test(req.headers()["accept"] || "") ? (row ? json(row) : json({ code: "PGRST116", message: "none" }, 406)) : json(row ? [row] : []); }
+      if (req.method() === "POST") { S.attSet = Array.isArray(body) ? body[0] : body; return json([S.attSet], 201); }
+    }
     if (p === "/rest/v1/rpc/nisia_college_activity") return json([{ week_start: "2026-09-21", evidence: 3, hours: 6 }]);
     if (p === "/rest/v1/rpc/nisia_learner_detail") return json({ snapshot: { ksb: { met: 12, total: 59, pct: 20 }, units: [{ name: "Unit 201", total: 10, missing: ["K1", "K2"] }], otj: { total: 14 } }, snapshot_at: new Date().toISOString(), evia_targets: [{ title: "Upload the cavity wall photos", due: "2026-10-10" }], targets: [], reviews: [], evidence: [{ kind: "evidence", id: "ev1", title: "Laid a cavity wall", type: "photo", at: new Date().toISOString(), ksbs: ["K1", "S2"], text: "Ties every 450 mm.", files: 1, photos_expected: 1 }], hours: [{ kind: "hours", title: "Teach me: cavity walls", hours: 1.5, at: new Date().toISOString().slice(0, 10) }], weekly: [0, 0, 1, 2, 0, 3, 1, 0, 2, 4, 1, 1] });
     if (p === "/functions/v1/nisia-setup" && body.action === "accept") return String(body.code).toUpperCase().replace(/[^A-Z0-9]/g, "") === "GOODINVITECODE01" ? json({ ok: true, email: persona.email }) : json({ error: "This invite has already been used, or doesn’t exist. Ask for a new one." }, 400);
@@ -214,6 +221,11 @@ try {
     await page.emulateMedia({ media: "print" }); await page.pdf({ path: shots + "/12c-impact.pdf" }).catch(() => {});
     check("…and it prints as a report without the menu", await page.evaluate(() => getComputedStyle(document.getElementById("side")).display === "none" && getComputedStyle(document.querySelector(".no-print")).display === "none"));
     await page.emulateMedia({ media: "screen" });
+    await page.click("nav [data-go=attendance]"); await page.waitForSelector(".att-table"); await page.screenshot({ path: shots + "/12d-attendance.png", fullPage: true });
+    const att = await page.textContent("#main");
+    check("Attendance: each learner against the college's target, those below it first, with unexplained absences in a row", /70%/.test(att) && /2 in a row/.test(att) && !!(await page.$("tr.att-below")) && /85%/.test(await page.textContent(".att-stats")) && !!fake.S.attReport, att.slice(0, 500));
+    await page.fill("#rules [name=late_minutes]", "15"); await page.fill("#rules [name=target_pct]", "95"); await page.click("#rules button[type=submit]"); await page.waitForSelector("#rules [name=late_minutes]");
+    check("…the college sets its own rules (late after, target, when admins hear)", fake.S.attSet && fake.S.attSet.late_minutes === 15 && fake.S.attSet.target_pct === 95 && fake.S.attSet.alert_after === 2 && fake.S.attSet.organisation_id, JSON.stringify(fake.S.attSet));
     await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));

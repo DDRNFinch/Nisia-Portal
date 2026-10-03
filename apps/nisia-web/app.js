@@ -91,7 +91,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"]]
+  return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -137,7 +137,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage }[S.page] || overview)();
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage }[S.page] || overview)();
 }
 
 /* ---------- College data, and each learner's status ---------- */
@@ -690,6 +690,69 @@ async function impactPage() {
     '<p class="small muted" style="margin-top:14px">Made by Nisia on ' + esc(ukDate(iso(Date.now()))) + '. Apprentices on programme at any point in the period. Evidence counts pieces the apprentice added themselves.</p>');
   root.querySelectorAll("[data-period]").forEach((btn) => btn.onclick = () => { S.period = btn.dataset.period; impactPage(); });
   root.querySelector("#print").onclick = () => { hit("impact.pdf"); window.print(); };
+}
+
+/* ---------- Attendance: Symi's registers, learner by learner ----------
+   Each learner over a period: sessions, here, late, absent with a reason, absent with none, and their attendance
+   against the college's target; those below it first, with how many unexplained absences in a row. Admins set the
+   college's own rules here: when a learner counts as late, the target, and how many unexplained absences in a row
+   tell the admins (Nisia tells the learner, their tutor, assessor and employer about each one the same day). */
+async function attendancePage() {
+  const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.attPeriod || "30", P = periodDates(k);
+  shell('<p class="loading">Working out attendance…</p>');
+  let rows, set;
+  try {
+    [rows, set] = await Promise.all([
+      rpc("nisia_attendance_report", { p_org: S.org, p_from: P.from, p_to: iso(Date.parse(P.to) - DAY) }),
+      db.from("attendance_settings").select("late_minutes, target_pct, alert_after").eq("organisation_id", S.org).maybeSingle().then((r) => { if (r.error) throw new Error(r.error.message); return r.data; })]);
+  } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  set = set || { late_minutes: 10, target_pct: 90, alert_after: 2 };
+  const seen = rows.filter((r) => r.sessions > 0), sum = (f) => seen.reduce((n, r) => n + (r[f] || 0), 0);
+  const all = sum("sessions"), here = sum("present"), pct = all ? Math.round(here / all * 100) : null, below = seen.filter((r) => r.below_target);
+  const learnerOf = (e) => (D.learners.find((l) => l.enrolment_id === e) || {}).learner_id;
+  const stat = (label, big, sub, cls) => '<div class="stat"><span class="label">' + label + '</span><span class="big num' + (cls ? " " + cls : "") + '">' + big + '</span><span class="small muted">' + sub + '</span></div>';
+  shell(
+    '<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Attendance</h1><p class="small muted print-only">' + esc(ukDate(P.from)) + ' to ' + esc(ukDate(iso(Date.parse(P.to) - DAY))) + '</p></div>' +
+      '<div class="actions no-print"><div class="seg" role="group" aria-label="Period">' + [["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"]].map(([id, t]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (k === id) + '">' + t + '</button>').join("") + '</div>' +
+      '<button class="btn" type="button" id="print">Download PDF</button></div></div>' +
+    '<section class="stats att-stats">' +
+      stat("Attendance", pct != null ? pct + "%" : "–", "college target " + set.target_pct + "%", pct != null && pct < set.target_pct ? "bad" : "") +
+      stat("Below target", below.length, below.length === 1 ? "learner" : "learners", below.length ? "bad" : "") +
+      stat("No reason given", sum("no_reason"), "absences with no reason") +
+      stat("With a reason", sum("with_reason"), "ill, holidays, appointments…") +
+      stat("Late", sum("late"), "after " + set.late_minutes + " minutes") +
+    '</section>' +
+    (D.admin ? '<section class="panel att-rules no-print"><div class="panel-head"><h2>Your college’s rules</h2><span class="small muted">Used by Symi, Evia and these reports</span></div>' +
+      '<form id="rules" class="att-form">' +
+        '<label>Late after<span><input class="input num" type="number" name="late_minutes" min="0" max="120" value="' + set.late_minutes + '"> minutes</span></label>' +
+        '<label>Attendance target<span><input class="input num" type="number" name="target_pct" min="50" max="100" value="' + set.target_pct + '"> %</span></label>' +
+        '<label>Tell admins after<span><input class="input num" type="number" name="alert_after" min="1" max="10" value="' + set.alert_after + '"> absences in a row with no reason</span></label>' +
+        '<button class="btn primary" type="submit">Save</button></form>' +
+      '<p class="small muted">Each absence with no reason is sent the same day to the learner, their tutor, assessor and employer.</p></section>' : "") +
+    '<div class="table-wrap"><table class="att-table"><thead><tr><th>Learner</th><th>Sessions</th><th>Here</th><th>Attendance</th><th>Late</th><th>Off, with reason</th><th>Off, no reason</th><th>In a row</th><th>Last off</th></tr></thead><tbody>' +
+    (rows.length ? rows.map((r) => '<tr data-learner="' + esc(learnerOf(r.enrolment_id) || "") + '" tabindex="0"' + (r.below_target ? ' class="att-below"' : "") + '><td><div class="person">' + avatar(r.name) + '<div><b>' + esc(r.name) + '</b>' + (r.employer ? '<br><span class="small muted">' + esc(r.employer) + '</span>' : "") + '</div></div></td>' +
+      '<td class="num">' + r.sessions + '</td><td class="num">' + r.present + '</td>' +
+      '<td style="min-width:150px">' + (r.sessions ? pbar(r.pct, set.target_pct) : '<span class="small muted">No registers yet</span>') + '</td>' +
+      '<td class="num">' + (r.late || "") + '</td><td class="num">' + (r.with_reason || "") + '</td><td class="num' + (r.no_reason ? " att-bad" : "") + '">' + (r.no_reason || "") + '</td>' +
+      '<td>' + (r.run >= set.alert_after ? '<span class="pill bad">' + r.run + ' in a row</span>' : r.run ? '<span class="pill warn">' + r.run + '</span>' : "") + '</td>' +
+      '<td class="small">' + (r.last_absent ? esc(ukDate(r.last_absent)) : "") + '</td></tr>').join("")
+      : '<tr class="static"><td colspan="9" class="empty">No learners yet.</td></tr>') +
+    '</tbody></table></div>' +
+    '<p class="small muted">From the registers tutors finish in Symi. The dark mark on each bar is the college’s target. A reason comes from a day booked off (in Evia, Symi, Milos or Paros) or the tutor’s mark.</p>');
+  root.querySelectorAll("[data-period]").forEach((b) => b.onclick = () => { S.attPeriod = b.dataset.period; attendancePage(); });
+  root.querySelector("#print").onclick = () => { hit("attendance.pdf"); window.print(); };
+  root.querySelectorAll("tr[data-learner]").forEach((r) => { if (!r.dataset.learner) return; const open = () => go("learner", { learner: r.dataset.learner }); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
+  const f = root.querySelector("#rules");
+  if (f) f.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = formData(f), row = { organisation_id: S.org, late_minutes: Number(v.late_minutes), target_pct: Number(v.target_pct), alert_after: Number(v.alert_after), updated_at: new Date().toISOString() };
+    if (!(row.late_minutes >= 0 && row.late_minutes <= 120) || !(row.target_pct >= 50 && row.target_pct <= 100) || !(row.alert_after >= 1 && row.alert_after <= 10)) return toast("Late 0–120 minutes, target 50–100%, alert after 1–10");
+    await busy(f.querySelector("button"), "Saving…", async () => {
+      const { error } = await db.from("attendance_settings").upsert(row, { onConflict: "organisation_id" });
+      if (error) return toast(error.message);
+      hit("attendance.rules"); toast("Saved. Symi and Evia use these from now on."); attendancePage();
+    });
+  };
 }
 
 /* ---------- Master admin: colleges ---------- */
