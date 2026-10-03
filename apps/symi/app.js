@@ -1451,6 +1451,8 @@
     today:()=>todayKey(),
     timing:(regId)=>{const reg=state.classes.find(c=>c.id===regId);return reg?sessionTimingState(reg,todayKey()).code:null},
     bounds:(regId,key=todayKey())=>{const reg=state.classes.find(c=>c.id===regId);return reg?sessionBounds(reg,key):null},
+    occursOn:(regId,key)=>{const reg=state.classes.find(c=>c.id===regId);return Boolean(reg&&!reg.archived&&registerOccursOn(reg,key)&&registerDateActive(reg,key))},
+    done:(regId,key=todayKey())=>{const reg=state.classes.find(c=>c.id===regId);return Boolean(reg&&completedSession(reg,key))},
     startTimer:(regId,learnerId)=>{
       const reg=state.classes.find(c=>c.id===regId),key=todayKey();if(!reg||completedSession(reg,key))return false;
       const t=sessionTimingState(reg,key);if(!['open-early','live','break'].includes(t.code))return false;

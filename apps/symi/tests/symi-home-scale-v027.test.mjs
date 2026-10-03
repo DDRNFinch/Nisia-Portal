@@ -10,7 +10,7 @@ test('Symi home assistant is reduced to the same visual scale as Milos/Evia',()=
   assert.match(css,/width:122px!important/);
   assert.match(css,/height:122px!important/);
   assert.match(css,/width:156px!important/);
-  assert.match(index,/symi-home-scale-v027\.css\?v=0\.28\.3/);
+  assert.match(index,/symi-home-scale-v027\.css\?v=0\.29\.0/);
   assert.ok(index.indexOf('symi-home-scale-v027.css')>index.indexOf('symi-home-polish-v025.css'));
   assert.match(sw,/symi-home-scale-v027\.css/);
 });

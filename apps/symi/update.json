@@ -1,8 +1,10 @@
 {
-  "version": "0.28.3",
-  "title": "Signing out always works",
+  "version": "0.29.0",
+  "title": "Registers you can rely on",
   "details": [
-    "Signing out of Nisia always finishes, even if your sign-in had already run out",
-    "An invite link from your college opens the Nisia sign-in straight away"
+    "One tap marks each learner here, late, or not here and why, in your own words",
+    "Days learners have booked off show on the register before anyone arrives, and you can book days off for them",
+    "The classroom check-in screen counts learners in as they arrive",
+    "The check-in code works with no signal: the next week's classes are got ready while you have one"
   ]
 }

@@ -40,6 +40,8 @@ function handle(route) {
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-priya", name: "Priya Shah", memberships: [{ organisation_id: "O1", organisation: "Walsall College", member_id: "MT", roles: ["tutor"] }] });
   if (p === "/rest/v1/rpc/nisia_college_learners") return json([learner(1, "Callum Hughes"), learner(2, "Amira Khan"), learner(3, "Not Mine", false)]);
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
+  if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Ill", booked_by: "Amira Khan", booked_by_role: "learner" }]);
+  if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
   if (p === "/rest/v1/classes") { posted.push({ t: "classes", m: q.method(), body }); return json({ id: "CLS1" }); }
   if (p === "/rest/v1/class_learners" && q.method() === "GET") return json([]);
   if (p === "/rest/v1/class_sessions" && q.method() === "POST") { posted.push({ t: "class_sessions", m: "POST", body }); return json({ id: "SES1", status: "open" }); }
@@ -59,8 +61,8 @@ try {
   await page.evaluate(() => {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.28.2");
+    const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
+    localStorage.setItem("symi-last-seen-release-v1", "0.29.0");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -77,8 +79,12 @@ try {
   await page.waitForTimeout(800);
   const st = await page.evaluate(() => window.SamosApp.getState());
   const callum = st.learners.find((l) => l.id === "x1"), amira = st.learners.find((l) => l.name === "Amira Khan");
-  check("Signed in, the tutor's own learners come from Nisia: matched to the register's learner by name, others added, nobody else's",
-    !!(callum && callum.nisia && callum.nisia.enrolmentId === "E1") && !!(amira && amira.nisia) && !st.learners.some((l) => l.name === "Not Mine") && !st.learners.find((l) => l.id === "x2").nisia);
+  check("Signed in, the tutor's own learners come from Nisia: matched to the register's learner by name, nobody else's",
+    !!(callum && callum.nisia && callum.nisia.enrolmentId === "E1") && !!(amira && amira.nisia && amira.id === "x3") && !st.learners.some((l) => l.name === "Not Mine") && !st.learners.find((l) => l.id === "x2").nisia);
+  await page.waitForSelector('[data-attendance-learner="x3"] .sn-mark');
+  const offMark = await page.textContent('[data-attendance-learner="x3"] .sn-mark'), barNow = await page.textContent(".sn-bar");
+  check("A day Amira booked off (in Evia) shows on the register before anyone arrives, and isn't counted as expected",
+    /Off · Ill/.test(offMark) && /0 of 1/.test(barNow) && /1 booked off/.test(barNow) && !(await page.$('[data-attendance-learner="x2"] .sn-mark')), JSON.stringify({ offMark, barNow }));
 
   await page.waitForSelector("[data-sn-show]");
   const barText = await page.textContent(".sn-bar");
@@ -90,7 +96,7 @@ try {
   const sess = posted.find((x) => x.t === "class_sessions"), cls = posted.find((x) => x.t === "classes"), cl = posted.find((x) => x.t === "class_learners" && x.m === "POST");
   check("Show check-in code: the class, its Nisia learners and today's session go to Nisia, and the code is the one Nisia checks (changing every 20 seconds)",
     /0 of 1 checked in/.test(barText) && ok && !!(await page.$(".sn-checkin .sn-qr canvas, .sn-checkin .sn-qr img, .sn-checkin .sn-qr svg")) && !!cls && cls.body.client_ref === "r1" && cls.body.tutor_member_id === "MT" &&
-    !!cl && cl.body.length === 1 && cl.body[0].enrolment_id === "E1" && !!sess && sess.body.class_id === "CLS1", JSON.stringify({ shown, exp: expected(w).short, cl: cl && cl.body }));
+    !!cl && cl.body.length === 2 && cl.body.some((x) => x.enrolment_id === "E1") && !!sess && sess.body.class_id === "CLS1", JSON.stringify({ shown, exp: expected(w).short, cl: cl && cl.body }));
   fs.mkdirSync(path.join(root, "tests", "shots"), { recursive: true });
   await page.screenshot({ path: path.join(root, "tests", "shots", "symi-checkin.png") });
 
@@ -103,13 +109,37 @@ try {
   const rowTick = !!(await page.$('[data-attendance-learner="x1"] .sn-tick')) && !(await page.$('[data-attendance-learner="x2"] .sn-tick'));
   check("A learner checking in with Evia is ticked on the screen and the register, and their timer starts (nobody else's)", running && /Callum Hughes/.test(ticked) && rowTick, JSON.stringify({ running, ticked, rowTick }));
 
+  /* One tap marks: Callum was late after all; Amira's reason is the dentist; the tutor books Amira next week off. */
+  await page.click('[data-attendance-learner="x1"] .sn-tick'); await page.click('.sn-marks [data-m="late"]'); await page.waitForTimeout(200);
+  await page.click('[data-attendance-learner="x3"] .sn-mark'); await page.fill(".sn-why input", "Dentist"); await page.click(".sn-why button"); await page.waitForTimeout(200);
+  const marksShown = { c: await page.textContent('[data-attendance-learner="x1"] .sn-mark'), a: await page.textContent('[data-attendance-learner="x3"] .sn-mark') };
+  check("One tap marks: late for Callum, and Amira absent with a reason in the tutor's own words", /Late/.test(marksShown.c) && /Absent · Dentist/.test(marksShown.a), JSON.stringify(marksShown));
+  await page.click('[data-attendance-learner="x3"] .sn-mark'); await page.click("[data-book]");
+  await page.click('.sn-reasons [data-k="holiday"]'); await page.click("[data-save]"); await page.waitForTimeout(400);
+  const book = posted.find((x) => x.t === "book");
+  check("The tutor books days off for a learner from the register (Nisia tells everyone)", !!book && book.body.p_enrolment === "E2" && book.body.p_kind === "holiday" && !(await page.$(".sn-sheet")), JSON.stringify(book));
+
+  /* No signal in the classroom: the code still shows, from the key kept on this device. */
+  await ctx.setOffline(true);
+  await page.click("[data-sn-show]");
+  await page.waitForSelector(".sn-checkin .sn-code:not(:empty)", { timeout: 8000 });
+  const w2 = Math.floor(Date.now() / 1000 / 20), shown2 = (await page.textContent(".sn-checkin .sn-code")).replace(/\s/g, "");
+  const offlineOk = [w2, w2 - 1].some((x) => expected(x).short === shown2) && await page.isVisible(".sn-signal");
+  const screen = await page.evaluate(() => ({ count: document.querySelector(".sn-count").textContent, off: [...document.querySelectorAll(".sn-names li.off")].map((x) => x.textContent).join() }));
+  check("With no signal the classroom code still works (the key was kept), says so, and shows who's booked off", offlineOk && /Amira Khan/.test(screen.off) && /1 of 1/.test(screen.count), JSON.stringify({ shown2, screen }));
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(root, "tests", "shots", "symi-checkin-offline.png") });
+  await page.click(".sn-checkin .sn-close"); await ctx.setOffline(false); await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(root, "tests", "shots", "symi-register-marks.png") });
+
   /* The tutor finishes the register. */
   await page.waitForTimeout(1500);
   await page.click("[data-finish-register]");
   await page.waitForFunction(() => /Sent to Nisia/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const att = posted.filter((x) => x.t === "class_attendance").map((x) => x.body).flat(), fin = posted.find((x) => x.t === "class_sessions" && x.m === "PATCH");
-  check("Finishing the register sends each Nisia learner's time to Nisia, confirmed by the tutor (only Nisia learners), and the session is closed",
-    att.length === 1 && att[0].enrolment_id === "E1" && att[0].session_id === "SES1" && att[0].status === "present" && att[0].confirmed_by_member_id === "MT" && !!att[0].confirmed_at &&
+  check("Finishing the register sends each Nisia learner's time, late mark and reason to Nisia, confirmed by the tutor (only Nisia learners), and the session is closed",
+    att.length === 2 && att[0].enrolment_id === "E1" && att[0].session_id === "SES1" && att[0].status === "present" && att[0].late === true && att[0].confirmed_by_member_id === "MT" && !!att[0].confirmed_at &&
+    att[1].enrolment_id === "E2" && att[1].status === "absent" && att[1].reason === "Dentist" && att[1].minutes === 0 &&
     !!fin && fin.body.status === "finished" && /Sent to Nisia/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, fin: fin && fin.body }));
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();

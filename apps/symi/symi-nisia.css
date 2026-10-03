@@ -35,8 +35,74 @@
 .sn-names small{font-weight:700;opacity:.8}
 .sn-wait,.sn-err{margin:auto;text-align:center;font-size:18px}
 .sn-err p{margin:0 0 16px}
-@media (max-width:760px){.sn-body{flex-direction:column;gap:18px}.sn-side{text-align:center}.sn-side ol{display:none}.sn-timer{justify-content:center}}
-@media (prefers-reduced-motion:reduce){.sn-timer .sn-left{transition:none}}
+/* The classroom screen comes alive: the code flips in, names pop in as learners arrive, the tally fills. */
+.sn-checkin{animation:snFade .35s ease both}
+.sn-checkin header{animation:snDown .5s cubic-bezier(.2,.9,.3,1.2) both}
+.sn-signal{margin:6px 0 0;padding:6px 12px;border-radius:999px;background:rgba(240,196,25,.16);color:#f6d76b;font-size:14px;font-weight:700;align-self:center}
+.sn-qr{animation:snRise .6s cubic-bezier(.2,.9,.3,1.2) .1s both}
+.sn-qr.sn-flip>*{animation:snFlip .45s ease both}
+.sn-side{animation:snRise .6s cubic-bezier(.2,.9,.3,1.2) .2s both}
+.sn-checkin footer{display:flex;align-items:center;gap:16px}
+.sn-tally{display:flex;align-items:center;gap:12px;flex:none}
+.sn-tally svg{width:52px;height:52px;transform:rotate(-90deg)}
+.sn-tally circle{fill:none;stroke:rgba(255,255,255,.14);stroke-width:5}
+.sn-tally .sn-fill{stroke:#63c495;stroke-dasharray:119.4;stroke-dashoffset:119.4;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.2,.9,.3,1.1)}
+.sn-count{margin:0;display:flex;flex-direction:column;line-height:1.15}
+.sn-count span{font-size:18px;font-weight:800}
+.sn-count b{display:inline-block;font-size:30px;font-variant-numeric:tabular-nums;margin-right:2px}
+.sn-count small{font-size:13px;color:#9fb0c0;font-weight:700}
+.sn-count em{font-style:normal;font-size:14px;color:#8fd9b4;font-weight:800;animation:snPop .5s cubic-bezier(.2,.9,.3,1.5) both}
+.sn-count.sn-bump b{animation:snBump .5s cubic-bezier(.2,.9,.3,1.6)}
+.sn-names{flex:1}
+.sn-names li{animation:snIn .4s ease both;animation-delay:calc(var(--i,0) * 25ms);transition:background .4s,color .4s}
+.sn-names li.sn-new{animation:snArrive .7s cubic-bezier(.2,.9,.3,1.5) both}
+.sn-names li.off{background:transparent;border:1px dashed rgba(255,255,255,.2);color:#8a9aa8}
+.sn-checkin.sn-all .sn-tally svg{animation:snGlow 1.6s ease-in-out infinite}
+.sn-spin{display:inline-block;width:18px;height:18px;margin-right:10px;vertical-align:-3px;border:3px solid rgba(255,255,255,.2);border-top-color:#63c495;border-radius:50%;animation:snSpin .8s linear infinite}
+@keyframes snFade{from{opacity:0}}
+@keyframes snDown{from{opacity:0;transform:translateY(-14px)}}
+@keyframes snRise{from{opacity:0;transform:translateY(24px) scale(.96)}}
+@keyframes snFlip{0%{opacity:.25;transform:scale(.97)}100%{opacity:1;transform:none}}
+@keyframes snIn{from{opacity:0;transform:translateY(6px)}}
+@keyframes snArrive{0%{opacity:0;transform:scale(.4)}60%{transform:scale(1.15)}100%{opacity:1;transform:none}}
+@keyframes snBump{40%{transform:scale(1.35);color:#8fd9b4}}
+@keyframes snPop{from{opacity:0;transform:scale(.6)}}
+@keyframes snGlow{50%{filter:drop-shadow(0 0 10px rgba(99,196,149,.8))}}
+@keyframes snSpin{to{transform:rotate(360deg)}}
+
+/* The register: a mark under each Nisia learner, one tap to change. */
+.sn-pill{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:#fff;color:#2f7d56;font-style:normal;font-size:12px;font-weight:800;vertical-align:1px}
+.sn-mark{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:5px 11px;border-radius:999px;border:1px dashed #c3ccd6;background:#fff;color:#5b6675;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;animation:snIn .3s ease both;transition:transform .15s}
+.sn-mark:active{transform:scale(.94)}
+.sn-mark.here{border:0;background:#eaf8f0;color:#2f7d56}
+.sn-mark.late{border:0;background:#fff4d6;color:#8a6100}
+.sn-mark.why{border:0;background:#eef2f7;color:#3d4a5a}
+.sn-mark.no{border:0;background:#fde8e6;color:#b3261e}
+.sn-tick[role=button]{cursor:pointer}
+.sn-marks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 6px}
+.sn-marks button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:18px;border:2px solid #e3e8ee;background:#fff;font:inherit;font-weight:800;font-size:14px;color:#1d2733;cursor:pointer;transition:transform .15s,border-color .2s,background .2s;animation:snRise .35s ease both}
+.sn-marks button:nth-child(2){animation-delay:.04s}.sn-marks button:nth-child(3){animation-delay:.08s}
+.sn-marks button i{font-style:normal;font-size:22px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef2f7}
+.sn-marks [data-m=here] i{background:#eaf8f0;color:#2f7d56}.sn-marks [data-m=late] i{background:#fff4d6;color:#8a6100}.sn-marks [data-m=absent] i{background:#fde8e6;color:#b3261e}
+.sn-marks button.on{border-color:#63c495;background:#f3fbf6}
+.sn-marks button:active,.sn-reasons button:active{transform:scale(.95)}
+.sn-label{margin:14px 0 8px;font-weight:800;font-size:14px;color:#1d2733}
+.sn-reasons{display:flex;flex-wrap:wrap;gap:8px}
+.sn-reasons button{padding:9px 14px;border-radius:999px;border:1px solid #d5dce4;background:#fff;font:inherit;font-weight:700;font-size:14px;color:#1d2733;cursor:pointer;transition:transform .15s,background .2s}
+.sn-reasons button.on{background:#1d2733;border-color:#1d2733;color:#fff}
+.sn-why{display:flex;gap:8px;margin-top:10px}
+.sn-why input,.sn-input,.sn-dates input{flex:1;min-width:0;font:inherit;font-size:16px;padding:11px 13px;border-radius:14px;border:1px solid #d5dce4;background:#fff}
+.sn-input{width:100%;box-sizing:border-box;margin-top:10px}
+.sn-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.sn-dates label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:13px;color:#5b6675}
+.sn-link{display:block;margin-top:12px;padding:6px 0;border:0;background:none;color:#2f7d56;font:inherit;font-weight:800;cursor:pointer}
+.sn-err-line{color:#b3261e;margin:8px 0 0;min-height:1em;font-size:14px}
+.sn-sheet{animation:snUp .35s cubic-bezier(.2,.9,.3,1.1) both;max-height:92vh;overflow:auto;box-sizing:border-box}
+.sn-sheet-layer{animation:snFade .25s ease both}
+@keyframes snUp{from{transform:translateY(40px);opacity:0}}
+
+@media (max-width:760px){.sn-body{flex-direction:column;gap:18px}.sn-side{text-align:center}.sn-side ol{display:none}.sn-timer{justify-content:center}.sn-checkin footer{flex-direction:column;align-items:stretch}}
+@media (prefers-reduced-motion:reduce){.sn-timer .sn-left,.sn-tally .sn-fill{transition:none}.sn-checkin,.sn-checkin *,.sn-mark,.sn-marks button,.sn-sheet,.sn-sheet-layer{animation:none!important}}
 
 /* Sheets and signing in (Nisia's shared sign-in, in Symi's colours). */
 .sn-sheet-layer,.sn-auth{position:fixed;inset:0;z-index:19000;background:rgba(15,26,36,.45);display:flex;align-items:flex-end;justify-content:center}

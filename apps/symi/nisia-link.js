@@ -8,6 +8,13 @@
    - Hours: when a register is finished (or Symi closes it at the end of the session), each Nisia learner's minutes go
      to Nisia with what was taught and its KSBs. They become the learner's college hours in Evia, confirmed by the
      tutor, and employers see them in Paros. Sent again later if there's no signal.
+   - Marks: each Nisia learner's row has one button for their mark: here, late, or not here and why (ill, holiday,
+     an appointment, at work, or the tutor's own words), or not here with no reason. Days a learner has booked off (in
+     Evia, Symi, Milos or Paros) show on the register before anyone arrives. A finished register can still be changed:
+     the change goes to Nisia and is kept there.
+   - No signal: the next week's sessions and their check-in keys are fetched ahead, so the classroom code works with
+     no signal. Learners' phones keep a scan and send it later; Nisia records it at the time it was on the screen.
+     Anything booked while offline is sent when the signal's back.
    Everything Nisia needs is sent from Symi's own records: its history rows and the lesson set for each session. */
 import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
 import { auth, inviteCode } from "../../packages/core/signin.js";
@@ -17,7 +24,15 @@ startUsage("symi", window.SYMI_BUILD || "");
 const App = () => window.SamosApp;
 const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v ?? d; } catch (_) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1" };
+const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1",
+  marks: "symi.nisia.marks.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
+const REASONS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
+const LIVE = ["open-early", "live", "break"];
+const pad = (n) => String(n).padStart(2, "0");
+const dayKey = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const addDays = (key, n) => { const d = new Date(key + "T12:00:00"); d.setDate(d.getDate() + n); return dayKey(d); };
+const online = () => navigator.onLine !== false;
+const first = (name) => String(name || "").split(" ")[0];
 const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", WINDOW = 20;
 const toast = (m) => { try { App().toast(m); } catch (_) {} };
 let who = read(K.who, null), signedIn = false;
@@ -41,7 +56,7 @@ function openSignIn() {
       who = await me(); write(K.who, who);
       if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Nisia account isn’t a tutor"); return chip(); }
       layer.remove(); signedIn = true; chip();
-      await pullLearners(true); sendFinished();
+      await pullLearners(true); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
     } catch (e) { layer.remove(); toast("Couldn’t reach Nisia: " + e.message); }
   } }).catch((e) => { layer.querySelector(".sn-auth-root").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
 }
@@ -139,8 +154,18 @@ async function ensureSession(regId, key) {
 
 /* ---------- The changing code ---------- */
 const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/* Kept on this device (for two weeks), so the code still shows with no signal. */
 async function hmacKey(sessionId) {
-  const k = await rpc("symi_session_key", { p_session: sessionId });
+  const keys = read(K.keys, {});
+  let k = keys[sessionId] && keys[sessionId].k;
+  if (online()) {
+    try { k = await rpc("symi_session_key", { p_session: sessionId }); keys[sessionId] = { k, on: App().today() }; }
+    catch (e) { if (!k) throw e; }
+    const old = addDays(App().today(), -14);
+    for (const [id, v] of Object.entries(keys)) if (!v || v.on < old) delete keys[id];
+    write(K.keys, keys);
+  }
+  if (!k) throw new Error("There’s no signal, and this class’s code isn’t on this device yet. Open Symi with a signal once before the class.");
   const raw = Uint8Array.from(atob(k), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
 }
@@ -152,14 +177,14 @@ export async function codeFor(sessionId, key, w) {
 /* ---------- Check-ins: tick the learner and start their timer ---------- */
 const checked = () => read(K.checked, {});
 async function pollCheckIns(regId, key, sessionId, people) {
-  const { data, error } = await db.from("class_attendance").select("enrolment_id, checked_in_at, late").eq("session_id", sessionId).not("checked_in_at", "is", null);
+  const { data, error } = await db.from("class_attendance").select("enrolment_id, checked_in_at, late, offline").eq("session_id", sessionId).not("checked_in_at", "is", null);
   if (error) throw new Error(error.message);
   const all = checked(), mine = all[regId + ":" + key] || {};
   const fresh = [];
   for (const row of data || []) {
     const p = people.find((x) => x.nisia.enrolmentId === row.enrolment_id);
     if (!p || mine[p.id]) continue;
-    mine[p.id] = { at: row.checked_in_at, late: row.late };
+    mine[p.id] = { at: row.checked_in_at, late: row.late, offline: !!row.offline, fresh: Date.now() };
     fresh.push(p);
     App().startTimer(regId, p.id);
   }
@@ -168,47 +193,207 @@ async function pollCheckIns(regId, key, sessionId, people) {
   return mine;
 }
 
+/* ---------- Booked absences, marks, and anything waiting for a signal ---------- */
+const absences = () => read(K.absences, []);
+const bookedFor = (enrolmentId, key) => absences().find((a) => a.enrolment_id === enrolmentId && a.starts_on <= key && a.ends_on >= key) || null;
+async function pullAbsences() {
+  if (!signedIn || !online()) return;
+  const t = App().today();
+  const list = await rpc("symi_absences", { p_from: addDays(t, -7), p_to: addDays(t, 42) });
+  write(K.absences, (list || []).concat(absences().filter((a) => a.local && read(K.outbox, []).length)));
+  decorate();
+}
+const marks = () => read(K.marks, {});
+const markOf = (regId, key, id) => (marks()[regId + ":" + key] || {})[id] || null;
+function setMark(regId, key, id, m) {
+  const all = marks(), one = all[regId + ":" + key] || {};
+  if (m) one[id] = { ...m, at: Date.now() }; else delete one[id];
+  all[regId + ":" + key] = one;
+  const old = addDays(App().today(), -60);
+  for (const k of Object.keys(all)) if (k.slice(-10) < old) delete all[k];
+  write(K.marks, all);
+}
+const markText = (m) => !m ? "" : m.kind === "here" ? "Here" : m.kind === "late" ? "Late" : m.reason ? "Absent · " + m.reason : "Absent · no reason";
+/* Sent now, or kept and sent when there's a signal. */
+async function call(fn, args) {
+  if (online()) { try { return await rpc(fn, args); } catch (e) { if (online()) throw e; } }
+  const o = read(K.outbox, []); o.push({ fn, args, at: Date.now() }); write(K.outbox, o);
+  return null;
+}
+async function flush() {
+  const o = read(K.outbox, []);
+  if (!o.length || !signedIn || !online()) return;
+  const left = [];
+  for (const x of o) { try { await rpc(x.fn, x.args); } catch (e) { console.warn("Symi: Nisia", x.fn, e.message); if (!online()) left.push(x); } }
+  write(K.outbox, left);
+  await pullAbsences().catch(() => {});
+}
+/* The next week's sessions and keys, so the code works in a classroom with no signal (once a day). */
+let preparing = false;
+async function prepareAhead(force) {
+  if (preparing || !signedIn || !online()) return;
+  const t = App().today();
+  if (!force && read(K.ready, "") === t) return;
+  preparing = true;
+  try {
+    const st = App().getState();
+    for (const reg of st.classes || []) {
+      if (reg.archived || !regLearners(st, reg).length) continue;
+      for (let i = 0; i <= 7; i++) {
+        const key = addDays(t, i);
+        if (!App().occursOn(reg.id, key) || App().done(reg.id, key)) continue;
+        try { const s = await ensureSession(reg.id, key); await hmacKey(s.id); } catch (e) { console.warn("Symi: getting ready", reg.name, key, e.message); }
+      }
+    }
+    write(K.ready, t);
+  } finally { preparing = false; decorate(); }
+}
+const readyOffline = (regId, key) => { const s = read(K.sessions, {})[regId + ":" + key]; return !!(s && read(K.keys, {})[s.id]); };
+
+/* One tap: here, late, or not here and why. */
+function markSheet(regId, learnerId) {
+  const st = App().getState(), reg = st.classes.find((c) => c.id === regId), key = App().today();
+  const l = reg && (reg.learners || []).find((x) => x.id === learnerId);
+  if (!l) return;
+  const n = nisiaOf(st, learnerId), m = markOf(regId, key, learnerId), booked = n && bookedFor(n.enrolmentId, key);
+  const ci = (checked()[regId + ":" + key] || {})[learnerId], done = App().done(regId, key);
+  const now = m ? m.kind : ci ? (ci.late ? "late" : "here") : "";
+  const why = m && m.kind === "absent" ? m.reason || "" : "";
+  const layer = sheet('<h2>' + esc(l.name) + '</h2>' +
+    '<p class="sn-muted">' + (ci ? 'Checked in with Evia at ' + new Date(ci.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (ci.offline ? ' (with no signal)' : '') + '. ' : '') +
+      (booked ? 'Booked off: <b>' + esc(booked.reason) + '</b>' + (booked.booked_by ? ' (' + esc(booked.booked_by) + ')' : '') + '. ' : '') +
+      (done ? 'This register is finished: a change goes to Nisia and is kept.' : '') + '</p>' +
+    '<div class="sn-marks">' +
+      '<button type="button" data-m="here" class="' + (now === "here" ? "on" : "") + '"><i aria-hidden="true">✓</i>Here</button>' +
+      '<button type="button" data-m="late" class="' + (now === "late" ? "on" : "") + '"><i aria-hidden="true">◷</i>Late</button>' +
+      '<button type="button" data-m="absent" class="' + (now === "absent" && !why ? "on" : "") + '"><i aria-hidden="true">✕</i>Absent, no reason</button></div>' +
+    '<p class="sn-label">Not here because…</p>' +
+    '<div class="sn-reasons">' + REASONS.map(([k, t]) => '<button type="button" data-r="' + k + '" class="' + (why === t ? "on" : "") + '">' + t + '</button>').join("") + '</div>' +
+    '<form class="sn-why"><input name="why" maxlength="200" placeholder="Or type the reason" value="' + esc(REASONS.some(([, t]) => t === why) ? "" : why) + '" aria-label="Reason"><button type="submit" class="blue-button">Save</button></form>' +
+    (m ? '<button type="button" class="sn-link" data-clear>Clear the mark</button>' : '') +
+    (n ? '<button type="button" class="sn-link" data-book>Book days off for ' + esc(first(l.name)) + '</button>' : ''));
+  const put = (mark, say) => {
+    setMark(regId, key, learnerId, mark);
+    const run = ((st.attendance || {})[regId + ":" + key] || {})[learnerId];
+    const running = !!(run && run.runningSince);
+    if (mark && (mark.kind === "here" || mark.kind === "late") && !running && LIVE.includes(App().timing(regId))) App().startTimer(regId, learnerId);
+    if (mark && mark.kind === "absent" && running) { const b = document.querySelector('[data-toggle-timer="' + learnerId + '"]'); if (b) b.click(); }
+    layer.remove();
+    if (done) resend(regId, key);
+    hit("register.mark");
+    toast(say); decorate();
+  };
+  layer.querySelectorAll("[data-m]").forEach((b) => { b.onclick = () => put({ kind: b.dataset.m }, first(l.name) + ": " + markText({ kind: b.dataset.m })); });
+  layer.querySelectorAll("[data-r]").forEach((b) => { b.onclick = () => {
+    if (b.dataset.r === "other") { layer.querySelector("[name=why]").focus(); return; }
+    put({ kind: "absent", reason: b.textContent, why: b.dataset.r }, first(l.name) + ": absent · " + b.textContent);
+  }; });
+  layer.querySelector(".sn-why").onsubmit = (e) => {
+    e.preventDefault();
+    const t = layer.querySelector("[name=why]").value.trim();
+    if (!t) { layer.querySelector("[name=why]").focus(); return; }
+    put({ kind: "absent", reason: t.slice(0, 200), why: "other" }, first(l.name) + ": absent · " + t);
+  };
+  const c = layer.querySelector("[data-clear]"); if (c) c.onclick = () => put(null, "Mark cleared");
+  const bk = layer.querySelector("[data-book]"); if (bk) bk.onclick = () => { layer.remove(); bookSheet(n.enrolmentId, l.name); };
+}
+/* Days off booked from Symi: everyone with the learner is told. */
+function bookSheet(enrolmentId, name) {
+  const t = App().today();
+  const layer = sheet('<h2>Book days off</h2><p class="sn-muted">' + esc(name) + '. They, their assessor and their employer are told, and it shows on every register those days.</p>' +
+    '<div class="sn-dates"><label>First day<input type="date" name="from" value="' + t + '"></label><label>Last day<input type="date" name="to" value="' + t + '"></label></div>' +
+    '<div class="sn-reasons">' + REASONS.map(([k, x]) => '<button type="button" data-k="' + k + '">' + x + '</button>').join("") + '</div>' +
+    '<input class="sn-input" name="reason" maxlength="200" placeholder="In their words (optional, or needed for Other)" aria-label="Reason">' +
+    '<p class="sn-err-line" role="alert"></p><div class="sn-actions"><button type="button" class="blue-button" data-save>Book</button></div>');
+  let kind = "";
+  layer.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => { kind = b.dataset.k; layer.querySelectorAll("[data-k]").forEach((x) => x.classList.toggle("on", x === b)); if (kind === "other") layer.querySelector("[name=reason]").focus(); }; });
+  layer.querySelector("[data-save]").onclick = async () => {
+    const from = layer.querySelector("[name=from]").value, to = layer.querySelector("[name=to]").value, reason = layer.querySelector("[name=reason]").value.trim(), err = layer.querySelector(".sn-err-line");
+    if (!from || !to || to < from) return (err.textContent = "Choose the first and last day.");
+    if (!kind) return (err.textContent = "Choose a reason.");
+    if (kind === "other" && !reason) return (err.textContent = "Say what the reason is.");
+    const btn = layer.querySelector("[data-save]"); btn.disabled = true;
+    try {
+      const r = await call("nisia_book_absence", { p_from: from, p_to: to, p_kind: kind, p_reason: reason || null, p_enrolment: enrolmentId });
+      const list = absences().filter((a) => !(a.local && a.enrolment_id === enrolmentId && a.starts_on === from));
+      list.push({ id: r && r.id || "local-" + Date.now(), local: !r, enrolment_id: enrolmentId, starts_on: from, ends_on: to, kind, reason: reason || REASONS.find(([k]) => k === kind)[1], booked_by: who && who.name || "", booked_by_role: "tutor" });
+      write(K.absences, list);
+      layer.remove(); hit("absence.book");
+      toast(r ? "Booked. " + first(name) + " and everyone with them has been told." : "Booked on this device. It goes to Nisia when there’s a signal.");
+      decorate();
+    } catch (e) { btn.disabled = false; err.textContent = e.message; }
+  };
+}
+
+/* ---------- The classroom screen ---------- */
 let open = null;
 async function showCheckIn(regId) {
   hit("check-in.code");
   const key = App().today();
   const layer = document.createElement("div");
   layer.className = "sn-checkin"; layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Check in");
-  layer.innerHTML = '<p class="sn-wait">Getting the check-in code from Nisia…</p>';
+  layer.innerHTML = '<p class="sn-wait"><span class="sn-spin" aria-hidden="true"></span>Getting the check-in code…</p>';
   document.body.appendChild(layer);
-  let s, hk;
+  let s, hk, offline = false;
   try { s = await ensureSession(regId, key); hk = await hmacKey(s.id); }
-  catch (e) { layer.innerHTML = '<div class="sn-err"><p>' + esc(e.message) + '</p><button type="button" class="blue-button" data-close>Close</button></div>'; layer.querySelector("[data-close]").onclick = () => layer.remove(); return; }
+  catch (e) {
+    /* No signal: the session and key fetched ahead still draw the code; learners' phones keep their scans. */
+    const saved = read(K.sessions, {})[regId + ":" + key];
+    try {
+      if (!saved) throw e;
+      hk = await hmacKey(saved.id);
+      s = { ...saved, people: regLearners(App().getState(), App().getState().classes.find((c) => c.id === regId)) }; offline = true;
+    } catch (e2) {
+      layer.innerHTML = '<div class="sn-err"><p>' + esc(online() ? e.message : e2.message) + '</p><button type="button" class="blue-button" data-close>Close</button></div>';
+      layer.querySelector("[data-close]").onclick = () => layer.remove(); return;
+    }
+  }
   const st = App().getState(), reg = st.classes.find((c) => c.id === regId), lesson = lessonFor(st, regId, key);
   layer.innerHTML =
-    '<header><div><small>CHECK IN · ' + esc(reg.name) + '</small><h2>' + esc(lesson && lesson.title || "Scan to check in") + '</h2></div><button type="button" class="sn-close" aria-label="Close">×</button></header>' +
+    '<header><div><small>CHECK IN · ' + esc(reg.name) + '</small><h2>' + esc(lesson && lesson.title || "Scan to check in") + '</h2></div>' +
+      '<p class="sn-signal" hidden>No signal here: scans are kept on phones and sent when they can.</p><button type="button" class="sn-close" aria-label="Close">×</button></header>' +
     '<div class="sn-body"><div class="sn-qr" aria-label="Check-in QR code"></div>' +
       '<div class="sn-side"><ol><li>Open <b>Evia</b> and tap her</li><li>Tap <b>Check in to class</b></li><li>Scan this code</li></ol>' +
         '<p class="sn-or">No camera? Type</p><p class="sn-code" aria-live="polite"></p>' +
         '<div class="sn-timer"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5"/><circle class="sn-left" cx="18" cy="18" r="15.5"/></svg><span>Changes in <b class="sn-secs">20</b>s</span></div>' +
         '<p class="sn-note">It changes so a photo of it can’t be used later. Checking in ticks you on this register; your tutor confirms the hours.</p></div></div>' +
-    '<footer><p class="sn-count"></p><ul class="sn-names"></ul></footer>';
+    '<footer><div class="sn-tally"><svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19"/><circle class="sn-fill" cx="22" cy="22" r="19"/></svg>' +
+      '<p class="sn-count" aria-live="polite"></p></div><ul class="sn-names"></ul></footer>';
   const qr = layer.querySelector(".sn-qr"), short = layer.querySelector(".sn-code"), secs = layer.querySelector(".sn-secs"), left = layer.querySelector(".sn-left");
-  let lastW = null, stop = false;
+  let lastW = null, stop = false, lastN = -1;
   const tick = async () => {
     if (stop) return;
     const now = Date.now() / 1000, w = Math.floor(now / WINDOW), remain = WINDOW - (now % WINDOW);
     if (w !== lastW) {
       lastW = w;
       const c = await codeFor(s.id, hk, w);
-      const size = Math.min(innerWidth * 0.52, innerHeight * 0.62, 460);
+      const size = Math.min(innerWidth * 0.52, innerHeight * 0.58, 460);
       if (window.SamosQR) window.SamosQR.render(qr, c.qr, Math.round(size)); else qr.textContent = c.qr;
       short.textContent = c.short.slice(0, 3) + " " + c.short.slice(3);
+      qr.classList.remove("sn-flip"); void qr.offsetWidth; qr.classList.add("sn-flip");
     }
     secs.textContent = Math.ceil(remain);
     left.style.strokeDashoffset = String(97.4 * (1 - remain / WINDOW));
   };
   const names = async () => {
     let mine = {};
-    try { mine = await pollCheckIns(regId, key, s.id, s.people); } catch (_) { mine = (checked()[regId + ":" + key]) || {}; }
-    const n = s.people.filter((p) => mine[p.id]).length;
-    layer.querySelector(".sn-count").textContent = n + " of " + s.people.length + " checked in";
-    layer.querySelector(".sn-names").innerHTML = s.people.map((p) => '<li class="' + (mine[p.id] ? "on" : "") + '">' + esc(p.name) + (mine[p.id] && mine[p.id].late ? ' <small>late</small>' : "") + '</li>').join("");
+    const signal = online();
+    try { if (!signal) throw new Error("offline"); mine = await pollCheckIns(regId, key, s.id, s.people); } catch (_) { mine = (checked()[regId + ":" + key]) || {}; }
+    layer.querySelector(".sn-signal").hidden = signal && !offline;
+    if (signal && offline) offline = false;
+    const off = s.people.filter((p) => !mine[p.id] && bookedFor(p.nisia.enrolmentId, key));
+    const due = s.people.length - off.length, n = s.people.filter((p) => mine[p.id]).length;
+    const count = layer.querySelector(".sn-count");
+    count.innerHTML = '<span><b>' + n + '</b> of ' + due + ' checked in</span>' + (off.length ? '<small>' + off.length + ' booked off</small>' : '') + (n >= due && due ? '<em>Everyone’s here</em>' : '');
+    if (n !== lastN) { count.classList.remove("sn-bump"); void count.offsetWidth; count.classList.add("sn-bump"); lastN = n; }
+    layer.querySelector(".sn-fill").style.strokeDashoffset = String(119.4 * (1 - (due ? Math.min(1, n / due) : 0)));
+    layer.classList.toggle("sn-all", n >= due && due > 0);
+    const order = [...s.people].sort((a, b) => (mine[a.id] ? 0 : off.includes(a) ? 2 : 1) - (mine[b.id] ? 0 : off.includes(b) ? 2 : 1) || ((mine[a.id] || {}).at || "").localeCompare((mine[b.id] || {}).at || ""));
+    layer.querySelector(".sn-names").innerHTML = order.map((p, i) => {
+      const x = mine[p.id], b = !x && bookedFor(p.nisia.enrolmentId, key), fresh = x && x.fresh && Date.now() - x.fresh < 6000;
+      return '<li class="' + (x ? "on" : b ? "off" : "") + (fresh ? " sn-new" : "") + '" style="--i:' + i + '">' + esc(p.name) +
+        (x && x.late ? ' <small>late</small>' : '') + (x && x.offline ? ' <small>no signal</small>' : '') + (b ? ' <small>' + esc(b.reason) + '</small>' : '') + '</li>';
+    }).join("");
   };
   const t1 = setInterval(tick, 250), t2 = setInterval(names, 3000);
   const close = () => { stop = true; clearInterval(t1); clearInterval(t2); layer.remove(); open = null; decorate(); };
@@ -218,7 +403,7 @@ async function showCheckIn(regId) {
   tick(); names();
 }
 
-/* ---------- The register: the check-in button and who's checked in ---------- */
+/* ---------- The register: the check-in button, who's checked in, and each learner's mark ---------- */
 let decorating = false, bgPoll = null;
 function decorate() {
   if (decorating) return; decorating = true;
@@ -229,36 +414,55 @@ function decorate() {
     const st = App().getState(), regId = App().activeRegisterId(), reg = st.classes.find((c) => c.id === regId);
     if (!reg) return;
     const key = App().today(), code = App().timing(regId), people = regLearners(st, reg), sent = read(K.sent, {})[regId + ":" + key];
-    const bar = document.createElement("div"); bar.className = "sn-bar";
+    const mine = checked()[regId + ":" + key] || {}, off = people.filter((p) => !mine[p.id] && bookedFor(p.nisia.enrolmentId, key));
+    const bar = document.createElement("div"); bar.className = "sn-bar"; bar.dataset.n = String(people.length);
+    const pills = (off.length ? '<em class="sn-pill">' + off.length + ' booked off</em>' : '') + (readyOffline(regId, key) ? '<em class="sn-pill" title="The code works here with no signal">Ready offline</em>' : '');
     if (!signedIn) bar.innerHTML = '<span>Sign in to Nisia so learners can check in with Evia and their hours count.</span><button type="button" class="soft-button" data-sn-connect>Connect to Nisia</button>';
     else if (!people.length) bar.innerHTML = '<span>None of this register’s learners are from Nisia. Add them with <b>+ Learner</b> so they can check in.</span>';
-    else if (["open-early", "live", "break"].includes(code)) {
-      const n = Object.keys(checked()[regId + ":" + key] || {}).length;
-      bar.innerHTML = '<span><b>' + n + ' of ' + people.length + '</b> checked in with Evia</span><button type="button" class="blue-button" data-sn-show>Show check-in code</button>';
-    } else if (code === "completed") bar.innerHTML = sent ? '<span class="sn-ok">Sent to Nisia. The hours are in your learners’ Evia.</span>' : '<span>Waiting to send to Nisia…</span>';
+    else if (LIVE.includes(code)) {
+      const n = Object.keys(mine).length;
+      bar.innerHTML = '<span><b>' + n + ' of ' + (people.length - off.length) + '</b> checked in with Evia ' + pills + '</span><button type="button" class="blue-button" data-sn-show>Show check-in code</button>';
+    } else if (code === "completed") bar.innerHTML = sent ? '<span class="sn-ok">Sent to Nisia. The hours are in your learners’ Evia. Tap a mark to change it.</span>' : '<span>Waiting to send to Nisia…</span>';
+    else if (["early", "not-today"].includes(code) && (off.length || readyOffline(regId, key))) bar.innerHTML = '<span>Today ' + pills + '</span>';
+    else if (code === "ended") bar.innerHTML = '<span>Session ended. Check the marks, then Finish.</span>';
     else return;
     host.insertBefore(bar, host.children[1] || null);
     const c = bar.querySelector("[data-sn-connect]"); if (c) c.onclick = openSignIn;
     const sh = bar.querySelector("[data-sn-show]"); if (sh) sh.onclick = () => showCheckIn(regId);
-    /* Checked in: a tick next to the name. */
-    const mine = checked()[regId + ":" + key] || {};
+    const marking = signedIn && ["early", "open-early", "live", "break", "ended", "completed"].includes(code);
     host.querySelectorAll("[data-attendance-learner]").forEach((row) => {
-      const x = mine[row.dataset.attendanceLearner]; const n = row.querySelector(".attendance-name strong");
-      if (x && n && !n.querySelector(".sn-tick")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tick" title="Checked in with Evia">✓ ' + new Date(x.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (x.late ? " · late" : "") + '</span>');
-      const p = people.find((q) => q.id === row.dataset.attendanceLearner);
-      if (p && n && !n.querySelector(".sn-tag")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tag">Nisia</span>');
+      const id = row.dataset.attendanceLearner, x = mine[id], n = row.querySelector(".attendance-name strong");
+      if (!n) return;
+      /* Checked in: a tick next to the name. */
+      if (x && !n.querySelector(".sn-tick")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tick" title="Checked in with Evia">✓ ' + new Date(x.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (x.late ? " · late" : "") + (x.offline ? " · no signal" : "") + '</span>');
+      const p = people.find((q) => q.id === id);
+      if (p && !n.querySelector(".sn-tag")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tag">Nisia</span>');
+      /* The mark: one button. */
+      row.querySelectorAll(".sn-mark").forEach((b) => b.remove());
+      if (!p || !marking) return;
+      const m = markOf(regId, key, id), b = bookedFor(p.nisia.enrolmentId, key);
+      const label = m ? markText(m) : x ? "" : b ? "Off · " + b.reason : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
+      if (!label && !m) return;
+      const cls = m ? (m.kind === "absent" ? (m.reason ? "why" : "no") : m.kind) : b ? "why" : label === "Mark" ? "" : "no";
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "sn-mark " + cls; btn.textContent = label; btn.setAttribute("aria-label", "Mark for " + p.name + ": " + label);
+      btn.onclick = (e) => { e.stopPropagation(); markSheet(regId, id); };
+      n.parentElement.appendChild(btn);
     });
+    /* Checked in learners: a mark button too (to change it), small. */
+    host.querySelectorAll(".sn-tick").forEach((t) => { t.setAttribute("role", "button"); t.tabIndex = 0; const id = t.closest("[data-attendance-learner]").dataset.attendanceLearner; t.onclick = () => markSheet(regId, id); });
     /* While the session's on, keep ticking learners in even with the code closed. */
     clearInterval(bgPoll); bgPoll = null;
     const s = read(K.sessions, {})[regId + ":" + key];
-    if (s && ["open-early", "live", "break"].includes(code) && !open) bgPoll = setInterval(() => { if (navigator.onLine && !document.hidden) pollCheckIns(regId, key, s.id, regLearners(App().getState(), reg)).catch(() => {}); }, 15000);
+    if (s && LIVE.includes(code) && !open) bgPoll = setInterval(() => { if (online() && !document.hidden) pollCheckIns(regId, key, s.id, regLearners(App().getState(), reg)).catch(() => {}); }, 15000);
   } finally { decorating = false; }
 }
 
 /* ---------- Finished registers → Nisia ---------- */
+function resend(regId, key) { const sent = read(K.sent, {}); delete sent[regId + ":" + key]; write(K.sent, sent); sendFinished(); }
 let sending = false;
 async function sendFinished() {
-  if (sending || !signedIn || !navigator.onLine) return;
+  if (sending || !signedIn || !online()) return;
   sending = true;
   try {
     const st = App().getState(), sent = read(K.sent, {}), cutoff = new Date(Date.now() - 42 * 864e5).toISOString().slice(0, 10);
@@ -271,9 +475,20 @@ async function sendFinished() {
       if (!rows.length) continue;
       try {
         const s = await ensureSession(row.classId, row.date);
-        const now = new Date().toISOString();
-        const up = rows.filter((x) => x.n.org === s.org).map((x) => ({ organisation_id: s.org, session_id: s.id, enrolment_id: x.n.enrolmentId,
-          minutes: Math.round((Number(x.d.attendedMs) || 0) / 60000), status: (Number(x.d.attendedMs) || 0) > 0 ? "present" : "absent", confirmed_at: now, confirmed_by_member_id: s.member }));
+        const now = new Date().toISOString(), mk = marks()[row.sessionKey] || {}, b = App().bounds(row.classId, row.date);
+        /* What Nisia already has: check-ins (some made with no signal, which this Symi may not have seen). */
+        const { data: there } = await db.from("class_attendance").select("enrolment_id, checked_in_at, late").eq("session_id", s.id);
+        const seen = new Map((there || []).map((a) => [a.enrolment_id, a]));
+        const up = rows.filter((x) => x.n.org === s.org).map((x) => {
+          const m = mk[x.id], a = seen.get(x.n.enrolmentId), inAt = a && a.checked_in_at ? Date.parse(a.checked_in_at) : null;
+          let ms = Number(x.d.attendedMs) || 0;
+          const here = m ? m.kind === "here" || m.kind === "late" : ms > 0 || !!inAt;
+          /* Checked in, but this Symi had no signal to start their timer: from check-in to the end of the session. */
+          if (here && !ms && inAt && b) ms = Math.max(0, b.end - Math.max(inAt, b.start));
+          return { organisation_id: s.org, session_id: s.id, enrolment_id: x.n.enrolmentId, minutes: here ? Math.round(ms / 60000) : 0,
+            status: here ? "present" : "absent", late: here && (m ? m.kind === "late" : !!(a && a.late)), reason: here ? null : (m && m.reason) || null,
+            confirmed_at: now, confirmed_by_member_id: s.member };
+        });
         const { error } = await db.from("class_attendance").upsert(up, { onConflict: "session_id,enrolment_id" });
         if (error) throw new Error(error.message);
         await db.from("class_sessions").update({ status: "finished", finished_at: now }).eq("id", s.id);
@@ -294,13 +509,16 @@ window.addEventListener("symi:render", () => {
 new MutationObserver(() => {
   const card = document.querySelector("#registerWorkspace .clean-register-card");
   const regId = card && App() && App().activeRegisterId(), mine = regId ? checked()[regId + ":" + App().today()] || {} : {};
-  const lost = card && Object.keys(mine).length && !card.querySelector(".sn-tick");
+  const bar = card && card.querySelector(".sn-bar");
+  const lost = card && ((Object.keys(mine).length && !card.querySelector(".sn-tick")) || (signedIn && bar && bar.dataset.n !== "0" && !card.querySelector(".sn-mark, .sn-tick") && App().timing(regId) !== "outside-dates"));
   if (card && (!card.querySelector(".sn-bar") || lost) && !queued) { queued = true; requestAnimationFrame(() => { queued = false; decorate(); }); }
 }).observe(document.body, { childList: true, subtree: true });
-addEventListener("online", () => { if (signedIn) { pullLearners(false).catch(() => {}); sendFinished(); } });
-setInterval(() => { if (signedIn && !document.hidden) sendFinished(); }, 60000);
+addEventListener("online", () => { if (signedIn) { pullLearners(false).catch(() => {}); flush().then(sendFinished); prepareAhead(); } decorate(); });
+addEventListener("offline", () => decorate());
+setInterval(() => { if (signedIn && !document.hidden) { sendFinished(); flush(); prepareAhead(); } }, 60000);
+setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() => {}); }, 5 * 60000);
 (async () => {
   chip();
   if (inviteCode()) return openSignIn();
-  if (await checkSession()) { decorate(); try { await pullLearners(false); } catch (_) {} sendFinished(); }
+  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
 })();
