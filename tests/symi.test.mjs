@@ -28,7 +28,7 @@ const KEY = Buffer.from("0123456789abcdef0123456789abcdef");
 const expected = (w) => { const sig = nc.createHmac("sha256", KEY).update("SES1:" + w).digest(); return { qr: "NISI:IN:1:SES1:" + w + ":" + sig.toString("base64url"), short: [...sig.subarray(0, 6)].map((x) => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[x % 31]).join("") }; };
 const learner = (id, name, mine = true) => ({ learner_id: "L" + id, member_id: "ML" + id, name, enrolment_id: "E" + id, course_code: "bricklayer", course_title: "Bricklayer", status: "active", assessors: [{ member_id: mine ? "MT" : "M9", name: "Tutor", roles: ["tutor"] }] });
 const posted = [];
-let checkins = [];
+let checkins = [], refuse = false;
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -46,6 +46,7 @@ function handle(route) {
   if (p === "/rest/v1/class_learners" && q.method() === "GET") return json([]);
   if (p === "/rest/v1/class_sessions" && q.method() === "POST") { posted.push({ t: "class_sessions", m: "POST", body }); return json({ id: "SES1", status: "open" }); }
   if (p === "/rest/v1/class_attendance" && q.method() === "GET") return json(checkins);
+  if (p === "/rest/v1/class_attendance" && q.method() === "POST" && refuse) { refuse = false; return json({ code: "42501", message: "new row violates row-level security policy" }, 403); }
   if (p.startsWith("/rest/v1/")) { posted.push({ t: p.slice(9), m: q.method(), body, s: u.search }); return route.fulfill({ status: 201, headers: { "access-control-allow-origin": "*" }, body: "" }); }
   return json({ error: "not faked " + p }, 404);
 }
@@ -134,7 +135,12 @@ try {
 
   /* The tutor finishes the register. */
   await page.waitForTimeout(1500);
+  refuse = true;
   await page.click("[data-finish-register]");
+  await page.waitForFunction(() => /Not sent to Nisia yet/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
+  const failBar = await page.textContent(".sn-bar");
+  check("If Nisia refuses a finished register, Symi says so and why (not 'waiting'), keeps it, and Try again sends it", /Not sent to Nisia yet/.test(failBar) && /row-level security/.test(failBar), failBar);
+  await page.click("[data-sn-retry]");
   await page.waitForFunction(() => /Sent to Nisia/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const att = posted.filter((x) => x.t === "class_attendance").map((x) => x.body).flat(), fin = posted.find((x) => x.t === "class_sessions" && x.m === "PATCH");
   check("Finishing the register sends each Nisia learner's time, late mark and reason to Nisia, confirmed by the tutor (only Nisia learners), and the session is closed",

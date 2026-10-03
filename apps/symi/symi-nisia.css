@@ -131,3 +131,6 @@
 .sn-auth .btn.ghost{background:transparent;color:#2f7d56}
 .sn-auth .qr{display:flex;justify-content:center}.sn-auth .qr img,.sn-auth .qr svg{width:200px;height:200px}
 .sn-auth .secret{text-align:center;font-size:13px;color:#5b6675;word-break:break-all}
+
+.sn-bar .sn-fail{color:#8a2a1e}
+.sn-bar:has(.sn-fail){background:#fdecea}

@@ -25,7 +25,7 @@ const App = () => window.SamosApp;
 const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v ?? d; } catch (_) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
 const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1",
-  marks: "symi.nisia.marks.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
+  marks: "symi.nisia.marks.v1", failed: "symi.nisia.failed.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
 const REASONS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
 const LIVE = ["open-early", "live", "break"];
 const pad = (n) => String(n).padStart(2, "0");
@@ -422,13 +422,19 @@ function decorate() {
     else if (LIVE.includes(code)) {
       const n = Object.keys(mine).length;
       bar.innerHTML = '<span><b>' + n + ' of ' + (people.length - off.length) + '</b> checked in with Evia ' + pills + '</span><button type="button" class="blue-button" data-sn-show>Show check-in code</button>';
-    } else if (code === "completed") bar.innerHTML = sent ? '<span class="sn-ok">Sent to Nisia. The hours are in your learners’ Evia. Tap a mark to change it.</span>' : '<span>Waiting to send to Nisia…</span>';
+    } else if (code === "completed") {
+      const fail = read(K.failed, {})[regId + ":" + key];
+      bar.innerHTML = sent ? '<span class="sn-ok">Sent to Nisia. The hours are in your learners’ Evia. Tap a mark to change it.</span>'
+        : fail ? '<span class="sn-fail"><b>Not sent to Nisia yet.</b> Nisia said: ' + esc(fail.message) + '. Symi keeps it and tries again every minute.</span><button type="button" class="soft-button" data-sn-retry>Try again</button>'
+        : '<span>Waiting to send to Nisia…</span>';
+    }
     else if (["early", "not-today"].includes(code) && (off.length || readyOffline(regId, key))) bar.innerHTML = '<span>Today ' + pills + '</span>';
     else if (code === "ended") bar.innerHTML = '<span>Session ended. Check the marks, then Finish.</span>';
     else return;
     host.insertBefore(bar, host.children[1] || null);
     const c = bar.querySelector("[data-sn-connect]"); if (c) c.onclick = openSignIn;
     const sh = bar.querySelector("[data-sn-show]"); if (sh) sh.onclick = () => showCheckIn(regId);
+    const rt = bar.querySelector("[data-sn-retry]"); if (rt) rt.onclick = () => { rt.disabled = true; rt.textContent = "Sending…"; sendFinished(); };
     const marking = signedIn && ["early", "open-early", "live", "break", "ended", "completed"].includes(code);
     host.querySelectorAll("[data-attendance-learner]").forEach((row) => {
       const id = row.dataset.attendanceLearner, x = mine[id], n = row.querySelector(".attendance-name strong");
@@ -493,7 +499,12 @@ async function sendFinished() {
         if (error) throw new Error(error.message);
         await db.from("class_sessions").update({ status: "finished", finished_at: now }).eq("id", s.id);
         sent[row.sessionKey] = now; write(K.sent, sent); hit("register.sent");
-      } catch (e) { console.warn("Symi: Nisia", row.sessionKey, e.message); }
+        const fails = read(K.failed, {}); delete fails[row.sessionKey]; write(K.failed, fails);
+      } catch (e) {
+        console.warn("Symi: Nisia", row.sessionKey, e.message);
+        /* Said on the register, so a register that can't reach Nisia never looks as if it's on its way. */
+        const fails = read(K.failed, {}); fails[row.sessionKey] = { at: Date.now(), message: String(e.message || e) }; write(K.failed, fails);
+      }
     }
   } finally { sending = false; decorate(); }
 }
