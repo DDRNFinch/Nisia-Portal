@@ -345,7 +345,7 @@ begin
         || ' with no signal. It reached Nisia after you finished the register.', jsonb_build_object('attendance_id', v_row.id, 'session_id', v_session.id, 'open', 'register')
     from public.classes c join public.organisation_members om on om.id = c.tutor_member_id where c.id = v_session.class_id;
   end if;
-  return jsonb_build_object('class', v_title, 'lesson', v_session.lesson_title, 'at', v_row.checked_in_at, 'late', v_row.late, 'offline', v_row.offline,
+  return jsonb_build_object('session', v_session.id, 'class', v_title, 'lesson', v_session.lesson_title, 'at', v_row.checked_in_at, 'late', v_row.late, 'offline', v_row.offline,
     'again', v_row.checked_in_at < v_when - interval '2 seconds', 'finished', v_session.status = 'finished');
 end $$;
 revoke all on function public.nisia_check_in(text, timestamptz) from public, anon;
