@@ -6,6 +6,7 @@ import { db, rpc, me, signOut, esc, ukDate, ago, courseName } from "../../packag
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { auth } from "../../packages/core/signin.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
+import { mountAbsences } from "../../packages/core/absences.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos", "paros");
@@ -281,9 +282,10 @@ async function apprentice(r, keep) {
     '</div>' +
     /* College */
     '<div class="m-pane" data-pane="college"' + (lTab === "college" ? "" : " hidden") + '>' +
+      '<div id="absBox"></div>' +
       (!college.length ? empty("No college registers yet", "When the tutor finishes a register in Symi, it shows here with what was taught.") :
         '<div class="card m-list">' + college.map((c) => { const here = (c.minutes || 0) > 0 && c.status !== "absent";
-          return '<div class="m-row p-sess"><span class="m-ic ' + (here ? "" : "bad") + '">' + IC.college + '</span><span class="m-row-main"><b>' + esc(day(c.date)) + ' · ' + esc(c.class) + '</b><span class="sub">' + esc(c.lesson || "") + '</span>' +
+          return '<div class="m-row p-sess" data-att="' + esc(c.id) + '"><span class="m-ic ' + (here ? "" : "bad") + '">' + IC.college + '</span><span class="m-row-main"><b>' + esc(day(c.date)) + ' · ' + esc(c.class) + '</b><span class="sub">' + esc(c.lesson || "") + '</span>' +
             ((c.ksbs || []).length ? '<span class="m-chips">' + c.ksbs.map((k) => '<span class="m-chip" title="' + esc((C.ksbs.find((x) => x[0] === k) || [k, ""])[1]) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</span>' +
             (here ? '<span class="pill good">' + esc(hm(c.minutes)) + (c.late ? " · late" : "") + '</span>' : '<span class="pill bad">Absent</span>') + '</div>'; }).join("") + '</div>') +
     '</div>' +
@@ -303,6 +305,16 @@ async function apprentice(r, keep) {
   root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => { lTab = b.dataset.lt; root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", x === b)); root.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== lTab); });
   ["doWitness", "doWitness2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => witness(r); });
   ["doRate", "doRate2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => rateBehaviours(r); });
+  /* Days off, and why they weren't at college. */
+  mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet, toast, hit });
+  reasons(r);
+}
+async function reasons(r) {
+  const key = "paros-reasons-" + r.enrolment_id;
+  let marks = read(key, null);
+  if (navigator.onLine) { try { marks = (await rpc("paros_absences", { p_enrolment: r.enrolment_id })).marks || []; write(key, marks); } catch (_) {} }
+  if (view !== r) return;
+  (marks || []).forEach((m) => { if (m.here || !m.reason) return; const p = root.querySelector('[data-att="' + m.id + '"] .pill.bad'); if (p) { p.textContent = "Off · " + m.reason; p.className = "pill warn"; } });
 }
 
 boot().catch((e) => { root.innerHTML = '<div class="auth"><p class="err">' + esc(e.message) + '</p></div>'; });

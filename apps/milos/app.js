@@ -9,6 +9,7 @@ import { startUsage, hit } from "../../packages/core/usage.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
+import { mountAbsences } from "../../packages/core/absences.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
@@ -375,6 +376,7 @@ async function learner(r, keep) {
         stat(String(F.evidencePeriod), "evidence since " + (F.lastReview ? "the last review" : "the start")) + stat(r.paired ? ago(r.last_activity) : "Not yet", r.paired ? "last in Evia" : "Evia connected", !r.paired) + '</div>' +
       '<div class="m-acts">' + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
+      '<div id="absBox"></div>' +
       insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +
     '</div>' +
     /* Portfolio */
@@ -407,6 +409,7 @@ async function learner(r, keep) {
   const me = { name: who.name, member_id: r.org.member_id };
   root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { ...me, roles: r.org.roles || [] }, (sent) => { IDX = null; toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); lTab = "reviews"; learner(r, true); });
   root.querySelector("#pair").onclick = () => pairing(r);
+  mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet: (h, l) => sheet(h, l), toast, hit });
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: String(v.reviewed_at).slice(0, 10) }); });

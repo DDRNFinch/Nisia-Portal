@@ -51,6 +51,9 @@ function handle(route) {
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-dave", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-dave", name: "Dave Hughes", memberships: [{ organisation_id: "O1", organisation: "Walsall College", member_id: "ME", roles: ["employer"] }] });
   if (p === "/rest/v1/rpc/paros_learners") return json(ROWS);
+  if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: day(5), ends_on: day(9), kind: "holiday", reason: "Holiday", booked_by: "Callum Hughes", booked_by_role: "learner" }]);
+  if (p === "/rest/v1/rpc/paros_absences") return json({ absences: [], marks: [{ id: "A2", date: day(-9), class: "L2 Brickwork", late: false, reason: "Dentist", here: false }, { id: "A1", here: true }] });
+  if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "AB2", from: body.p_from, to: body.p_to, reason: "At work" }); }
   if (p === "/rest/v1/rpc/paros_learner") return json(body.p_enrolment === "E1" ? DETAIL : { college: [], evidence: [], otj: [], witness: [{ id: "W0", statement: "Hung two doors well.", rating: 2, at: day(-10), ksbs: [], unit: "Doors" }], ratings: [], reviews: [] });
   if (p === "/rest/v1/enrolments") return json({ course_id: "C1" });
   if (q.method() === "POST" && p.startsWith("/rest/v1/")) { posted.push({ t: p.slice(9), body }); return route.fulfill({ status: 201, headers: { "access-control-allow-origin": "*" }, body: "" }); }
@@ -81,7 +84,14 @@ try {
   await page.click("[data-lt=college]");
   const col = await page.textContent("[data-pane=college]");
   await page.waitForTimeout(700); await page.screenshot({ path: shots + "/p3-college.png", fullPage: true });
-  check("College: each session from the tutor's register, what was taught with its KSBs, time attended or absent", /Cavity walls: ties and insulation/.test(col) && /6h 15m/.test(col) && /Absent/.test(col) && /K22/.test(col));
+  check("College: each session from the tutor's register, what was taught with its KSBs, time attended or absent", /Cavity walls: ties and insulation/.test(col) && /6h 15m/.test(col) && /Absent|Off · /.test(col) && /K22/.test(col));
+  await page.waitForSelector("#absBox .ab-row"); await page.waitForTimeout(300);
+  const off = { list: await page.textContent("#absBox"), why: await page.textContent('[data-att="A2"] .pill') };
+  check("…the days the apprentice booked off, and why they weren't at college", /Holiday/.test(off.list) && /Booked by Callum/.test(off.list) && /Off · Dentist/.test(off.why), JSON.stringify(off));
+  await page.click("#absBox [data-book]"); await page.click('.ab-kinds [data-k="work"]'); await page.fill(".sheet [name=reason]", "Needed on site"); await page.click(".sheet [data-save]"); await page.waitForTimeout(500);
+  const bk = posted.find((x) => x.t === "book");
+  check("…and the employer books them days off (Nisia tells the college)", !!bk && bk.body.p_enrolment === "E1" && bk.body.p_kind === "work" && bk.body.p_reason === "Needed on site" && !(await page.$(".sheet")), JSON.stringify(bk));
+  await page.screenshot({ path: shots + "/p3b-days-off.png", fullPage: true });
 
   await page.click("[data-lt=evidence]");
   const ev = await page.textContent("[data-pane=evidence]");

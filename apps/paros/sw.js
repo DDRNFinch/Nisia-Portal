@@ -5,7 +5,7 @@ const VERSION = "dev";
 const CACHE = "paros-" + VERSION;
 const FILES = ["./", "index.html", "paros.css", "app.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../milos/milos.css", "../milos/fonts/inter-latin-wght-normal.woff2",
-  "../../packages/core/nisia.js", "../../packages/core/signin.js", "../../packages/core/usage.js", "../../packages/core/courses.js", "../../packages/ui/nisia.css", "../../packages/vendor/supabase-2.45.4.js"];
+  "../../packages/core/nisia.js", "../../packages/core/signin.js", "../../packages/core/usage.js", "../../packages/core/courses.js", "../../packages/core/absences.js", "../../packages/ui/nisia.css", "../../packages/vendor/supabase-2.45.4.js"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) =>
   Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); }))))));
 self.addEventListener("message", (e) => { if (e.data === "update") self.skipWaiting(); });
