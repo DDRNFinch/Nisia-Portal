@@ -90,8 +90,17 @@ async function download() {
   await put("kv", at, "syncedAt");
   return { who, rows };
 }
+/* What the employer sent from Paros: witness testimonies and behaviour ratings. */
+async function loadEmployer(r) {
+  const [w, b] = await Promise.all([
+    db.from("witness_testimonies").select("id, unit, statement, rating, ksbs, signed_at, created_at").eq("enrolment_id", r.enrolment_id).order("created_at", { ascending: false }).limit(50),
+    db.from("behaviour_ratings").select("id, ratings, comment, created_at").eq("enrolment_id", r.enrolment_id).order("created_at", { ascending: false }).limit(20)]);
+  if (w.error) throw new Error(w.error.message);
+  if (b.error) throw new Error(b.error.message);
+  return { witness: w.data || [], ratings: b.data || [] };
+}
 export async function refreshLearner(r) {
-  const L = await loadLearner(r), P = await loadPortfolio(L), D = { L, P, at: new Date().toISOString() };
+  const L = await loadLearner(r), P = await loadPortfolio(L), E = await loadEmployer(r), D = { L, P, E, at: new Date().toISOString() };
   await put("learners", D, r.enrolment_id); return D;
 }
 

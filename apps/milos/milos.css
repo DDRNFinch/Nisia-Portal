@@ -402,3 +402,21 @@ body.milos h1,body.milos h2,body.milos h3,body.milos b,body.milos strong,.m-big,
 .m-title{letter-spacing:-.032em}
 .m-sync small.m-sync-note{color:var(--ink,#172033);font-weight:500;margin-top:4px}
 .m-note-ok{margin-left:6px;padding:2px 10px;border-radius:999px;border:1px solid var(--line,#e3e7ee);background:#fff;font:inherit;font-weight:700;color:var(--accent-text);cursor:pointer}
+
+/* From the employer (Paros): behaviours and witness testimonies on the learner's overview. */
+.m-employer{display:flex;flex-direction:column;gap:10px}
+.m-emp-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.m-emp-head b{font-size:15px}
+.m-beh{display:flex;flex-direction:column;gap:8px}
+.m-beh-row{display:grid;grid-template-columns:minmax(0,1fr) 90px 92px;align-items:center;gap:10px;font-size:13.5px}
+.m-beh-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted,#5b6675)}
+.m-beh-row span b{color:var(--text)}
+.m-beh-bar{display:block;height:8px;border-radius:99px;background:#eef1f5;overflow:hidden}
+.m-beh-bar i{display:block;height:100%;border-radius:99px;background:#2c85f7;animation:mBeh .7s cubic-bezier(.2,.9,.3,1) both}
+.m-beh-bar i.l1{background:#e2564b}.m-beh-bar i.l2{background:#e8a33a}
+.m-beh-row em{font-style:normal;font-weight:700;font-size:12.5px;text-align:right}
+.m-witness{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid #eef1f5}
+.m-quote{margin:0;font-size:14.5px;line-height:1.5;color:var(--text)}
+@keyframes mBeh{from{width:0}}
+@media (prefers-reduced-motion:reduce){.m-beh-bar i{animation:none}}
+@media (max-width:420px){.m-beh-row{grid-template-columns:minmax(0,1fr) 70px}.m-beh-row em{display:none}}

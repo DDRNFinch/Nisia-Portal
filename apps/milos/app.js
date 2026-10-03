@@ -10,6 +10,7 @@ import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { mountAbsences } from "../../packages/core/absences.js";
+import { COURSE_DATA } from "../../packages/core/courses.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
@@ -350,6 +351,8 @@ async function learner(r, keep) {
     if (!navigator.onLine) { root.querySelector("#main").innerHTML = '<div class="card"><p class="err">' + esc(r.name) + '’s progress isn’t on this phone yet. Sync when you have signal.</p></div>'; return; }
     try { D = await refreshLearner(r); IDX = null; } catch (e) { root.querySelector("#main").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; return; }
   }
+  /* Downloaded before Milos showed the employer's feedback: fetch it once now. */
+  if (!D.E && navigator.onLine) { try { D = await refreshLearner(r); } catch (_) {} }
   D = await withPending(r, D);
   if (view !== r) return;
   const L = D.L, P = D.P, F = facts({ ...L, P }), d = r.due;
@@ -376,6 +379,7 @@ async function learner(r, keep) {
         stat(String(F.evidencePeriod), "evidence since " + (F.lastReview ? "the last review" : "the start")) + stat(r.paired ? ago(r.last_activity) : "Not yet", r.paired ? "last in Evia" : "Evia connected", !r.paired) + '</div>' +
       '<div class="m-acts">' + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
+      employerHtml(D.E, r) +
       '<div id="absBox"></div>' +
       insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +
     '</div>' +
@@ -413,6 +417,22 @@ async function learner(r, keep) {
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: String(v.reviewed_at).slice(0, 10) }); });
+}
+/* From the employer (Paros): their witness testimonies and how they rate the apprentice's behaviours. */
+const WITNESS = ["", "Getting there", "Competent", "Excellent"], BEHAVE = ["", "Needs support", "Developing", "Good", "Excellent"];
+function employerHtml(E, r) {
+  if (!E || (!E.witness.length && !E.ratings.length)) return "";
+  const C = COURSE_DATA[r.course_code] || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];
+  const who = r.employer_name ? esc(r.employer_name) : "the employer", b = E.ratings[0];
+  return '<section class="card m-card m-employer"><p class="label">From ' + who + '</p>' +
+    (b ? '<div class="m-emp-head"><b>Behaviours</b><span class="sub">' + esc(ukDate(b.created_at)) + (E.ratings.length > 1 ? ' · ' + E.ratings.length + ' ratings so far' : '') + '</span></div>' +
+      '<div class="m-beh">' + Object.entries(b.ratings || {}).sort().map(([k, v]) => '<div class="m-beh-row" title="' + esc(name(k)) + '"><span><b>' + esc(k) + '</b> ' + esc(name(k)) + '</span><i class="m-beh-bar"><i style="width:' + (Number(v) / 4 * 100) + '%" class="l' + Number(v) + '"></i></i><em>' + esc(BEHAVE[v] || v) + '</em></div>').join("") + '</div>' +
+      (b.comment ? '<p class="m-quote">“' + esc(b.comment) + '”</p>' : "") : "") +
+    (E.witness.length ? '<div class="m-emp-head"><b>Witness testimonies</b><span class="sub">' + E.witness.length + '</span></div>' + E.witness.map((w) =>
+      '<div class="m-witness"><div class="m-emp-head"><b>' + esc(w.unit || "Witness testimony") + '</b><span class="pill ' + (w.rating >= 2 ? "good" : "warn") + '">' + esc(WITNESS[w.rating] || "") + '</span></div>' +
+      '<p class="m-quote">“' + esc(w.statement) + '”</p><span class="sub">' + esc(ukDate(w.signed_at || w.created_at)) + (w.signed_at ? " · signed as seen first hand" : "") + '</span>' +
+      ((w.ksbs || []).length ? '<span class="m-chips">' + w.ksbs.map((k) => '<span class="m-chip" title="' + esc(name(k)) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</div>').join("") : "") +
+  '</section>';
 }
 /* A completed review, kept in Nisia: read it here, or save a copy as a PDF. */
 function showReview(c) {
