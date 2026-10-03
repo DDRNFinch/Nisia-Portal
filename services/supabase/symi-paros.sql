@@ -86,9 +86,11 @@ alter table private.class_session_keys enable row level security;
 
 drop policy if exists classes_read on public.classes;
 drop policy if exists classes_write on public.classes;
-create policy classes_read on public.classes for select using (private.is_class_tutor(id));
+-- The row's own tutor and college (not a lookup by id: a class being saved can't be looked up in the same step).
+create policy classes_read on public.classes for select
+  using (private.mfa_ok() and (tutor_member_id = private.current_member_id(organisation_id) or private.can_manage_org(organisation_id)));
 create policy classes_write on public.classes for all
-  using (private.is_class_tutor(id))
+  using (private.mfa_ok() and (tutor_member_id = private.current_member_id(organisation_id) or private.can_manage_org(organisation_id)))
   with check (private.mfa_ok() and tutor_member_id = private.current_member_id(organisation_id)
     and (private.has_role(organisation_id, 'tutor') or private.has_role(organisation_id, 'admin')));
 
