@@ -24,9 +24,9 @@ const sh = (cmd) => execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] }).toStrin
 try { sh("pg_ctlcluster 16 main start"); } catch (_) { /* already running */ }
 sh(`su postgres -c "psql -X -q -c \\"alter user postgres password 'e2e'\\""`);
 sh(`su postgres -c "dropdb --if-exists ${DB} && createdb ${DB}"`);
-for (const f of ["tests/e2e/schema.sql", "tests/sql/live-helpers.sql", "services/supabase/symi-paros.sql", "services/supabase/registers.sql",
-  "services/supabase/classes-rls-fix.sql", "services/supabase/actions-registers.sql", "tests/e2e/seed.sql"])
-  sh(`su postgres -c "psql -X -q -v ON_ERROR_STOP=1 -d ${DB} -f ${path.join(root, f)}" 2>&1 | grep -v skipping || true`);
+for (const f of ["tests/e2e/schema.sql", "tests/sql/live-helpers.sql", "tests/e2e/live-functions.sql", "services/supabase/symi-paros.sql", "services/supabase/registers.sql",
+  "services/supabase/classes-rls-fix.sql", "services/supabase/actions-registers.sql", "services/supabase/actions-feedback.sql", "tests/e2e/seed.sql"])
+  { const out = sh(`su postgres -c "psql -X -q -v ON_ERROR_STOP=1 -d ${DB} -f ${path.join(root, f)}" 2>&1 | grep -v skipping || true`).trim(); if (/ERROR/.test(out)) throw new Error(f + ": " + out); }
 const pool = new Pool({ host: "127.0.0.1", user: "postgres", password: "e2e", database: DB, max: 4 });
 const q = async (sql, args) => (await pool.query(sql, args)).rows;
 
@@ -108,10 +108,11 @@ const site = "http://localhost:" + server.address().port;
 const TEE = "0e2e0000-0000-0000-0000-0000000000a1", LEE = "0e2e0000-0000-0000-0000-0000000000a2", EM = "0e2e0000-0000-0000-0000-0000000000a3", ENROL = "0e2e0000-0000-0000-0000-0000000000e1";
 
 const browser = await pw.chromium.launch();
-const errors = [];
+const errors = [], warnings = [];
 async function app(device) {
   const ctx = await browser.newContext({ viewport: device || { width: 1280, height: 860 }, locale: "en-GB", serviceWorkers: "block" }), page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message)); page.on("dialog", (d) => d.accept());
+  page.on("console", (m) => { if (m.type() === "warning" && /Nisia/.test(m.text())) warnings.push(m.text()); });
   await page.route(/supabase\.co/, nisia);
   return { ctx, page };
 }
@@ -196,7 +197,41 @@ try {
   const col = await par.page.textContent("[data-pane=college]").catch(() => "");
   check("Paros: the employer sees Lee at college: L2 Brickwork, 2 hours", /L2 Brickwork/.test(col) && /2h/.test(col), col);
 
-  /* 7. The rules: nobody else can do the tutor's job, and no app touched the class tables. */
+  /* 7. Stage 2: the employer's witness testimony and behaviour ratings from Paros reach Lee's Evia. */
+  await par.page.click("[data-lt=overview]"); await par.page.click("#doWitness");
+  await par.page.waitForSelector("#wText");
+  await par.page.fill("#wText", "Lee built a garden wall at the Ploughman job on his own: set out, bonded and pointed it neatly and checked it was plumb and level throughout.");
+  await par.page.click("#wKsbs [data-k]").catch(() => {}); await par.page.click('#wRate [data-v="3"]'); await par.page.check("#wSign"); await par.page.click("#wSave");
+  await par.page.waitForFunction(() => !document.querySelector("#wSave"), null, { timeout: 10000 }).catch(() => {});
+  await par.page.click("#doRate"); await par.page.waitForSelector(".p-beh");
+  for (const k of await par.page.$$eval(".p-beh", (x) => x.map((b) => b.dataset.k))) await par.page.click('.p-beh[data-k="' + k + '"] [data-v="3"]');
+  await par.page.fill("#bNote", "Reliable and keen."); await par.page.click("#bSave");
+  await par.page.waitForFunction(() => !document.querySelector("#bSave"), null, { timeout: 10000 }).catch(() => {});
+  const [fb] = await q("select (select count(*) from public.witness_testimonies where enrolment_id = $1)::int w, (select count(*) from public.behaviour_ratings where enrolment_id = $1)::int b, (select count(*) from public.notifications where notification_type in ('witness_testimony','behaviour_rated'))::int told", [ENROL]);
+  check("Paros: the employer signs a witness testimony and rates Lee's behaviours (through Nisia's actions; Lee is told)", fb.w === 1 && fb.b === 1 && fb.told === 2, JSON.stringify(fb));
+  /* (Evia may already be syncing from before the employer sent them: sync until they're in, at most a few times.) */
+  for (let i = 0; i < 4; i++) { await ev.page.evaluate(() => window.eviaNisia.sync()).catch(() => {}); if (await ev.page.evaluate(() => window.eviaData.list("supporting").filter((x) => String(x.id).startsWith("emp-")).length >= 2)) break; await ev.page.waitForTimeout(500); }
+  const sup = await ev.page.evaluate(() => window.eviaData.list("supporting").filter((x) => String(x.id).startsWith("emp-")).map((x) => x.title).sort());
+  check("Evia: both arrive in Lee's Supporting evidence (from the one “what's new” request)", sup.length === 2 && sup.includes("Employer feedback: behaviours") && sup.some((t) => /^Witness testimony/.test(t)), JSON.stringify(sup) + " " + warnings.join(" | "));
+
+  /* 8. Attendance in Lee's My progress: a percentage and a calendar. */
+  await ev.page.evaluate(() => { window.eviaChatKit && window.eviaChatKit.closeChat(); nav("learning"); }); await ev.page.waitForTimeout(900);
+  const tile = await ev.page.textContent("#pv-attendance").catch(() => "");
+  await ev.page.evaluate(() => window.eviaProgressDeep("attendance")); await ev.page.waitForSelector(".pv-acal-d", { timeout: 5000 }).catch(() => {});
+  const greenToday = await ev.page.evaluate(() => { const d = new Date(), k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); const c = document.querySelector('.pv-acal-d[data-day="' + k + '"]'); return c ? c.className : "no cell " + k + " " + document.querySelectorAll(".pv-acal-d").length; });
+  /* (The register started at 00:01, so Lee's check-in was late: today shows amber.) */
+  check("Evia: My progress shows Lee's attendance, 100% (1 of 1, late), and today is amber (late) on the calendar", /100%/.test(tile) && /1 of 1 session/.test(tile) && /pv-a-late/.test(greenToday), tile + " " + greenToday);
+  await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; });
+
+  /* 9. Lee books tomorrow off in Evia: the tutor's Symi and the employer's Paros both see it. */
+  const tm = new Date(Date.now() + 864e5), tmk = tm.getFullYear() + "-" + String(tm.getMonth() + 1).padStart(2, "0") + "-" + String(tm.getDate()).padStart(2, "0");
+  const booked = await ev.page.evaluate((d) => window.eviaNisia.bookAbsence(d, d, "appointment", "Dentist"), tmk).catch((e) => ({ error: e.message }));
+  const symiSees = await rpc("symi_absences", { p_from: tmk, p_to: tmk }, { sub: TEE, aal: "aal2" });
+  const parosSees = await rpc("paros_absences", { p_enrolment: ENROL }, { sub: EM, aal: "aal2" });
+  check("Evia: Lee books tomorrow off; the tutor (Symi) and the employer (Paros) both see “Dentist”",
+    booked && booked.sent && symiSees.status === 200 && symiSees.body.some((a) => a.reason === "Dentist") && parosSees.status === 200 && parosSees.body.absences.some((a) => a.reason === "Dentist"), JSON.stringify({ booked, symi: symiSees.body, paros: parosSees.body && parosSees.body.absences }));
+
+  /* 10. The rules: nobody else can do the tutor's job, and no app touched the class tables. */
   const lee = { sub: LEE, aal: "aal1" }, em = { sub: EM, aal: "aal2" }, tee = { sub: TEE, aal: "aal2" }, teeNoApp = { sub: TEE, aal: "aal1" };
   const [ses] = await q("select id from public.class_sessions limit 1");
   const tries = {
@@ -206,8 +241,12 @@ try {
     nobodyWhatsNew: await rpc("nisia_whats_new", {}, null),
     learnerSavesClass: await rpc("symi_save_class", { p_org: "0e2e0000-0000-0000-0000-000000000001", p_client_ref: "x", p_title: "Mine" }, lee),
     strangerOnRegister: await rpc("symi_finish_register", { p_session: ses.id, p_marks: [{ enrolment_id: "0e2e0000-0000-0000-0000-0000000000ff", minutes: 60, status: "present" }] }, tee),
+    learnerWritesWitness: await rpc("paros_add_witness", { p_enrolment: ENROL, p_statement: "I saw myself do a brilliant job on the wall today, honestly.", p_rating: 3 }, lee),
+    employerReadsAsAssessor: await rpc("milos_employer_feedback", { p_enrolment: ENROL }, em),
+    employerConfirmsCollege: await rpc("paros_confirm_hours", { p_otj: (await q("select id from public.otj_entries where activity_type = 'college' limit 1"))[0].id, p_decision: "rejected", p_comment: "no" }, em),
+    tutorRatesBehaviours: await rpc("paros_rate_behaviours", { p_enrolment: ENROL, p_ratings: { B1: 4 } }, tee),
   };
-  check("Nisia refuses: a learner finishing a register, an employer reading check-ins, the tutor without the authenticator app, anyone not signed in, a learner making a class, someone not on the class",
+  check("Nisia refuses: a learner finishing a register, an employer reading check-ins, the tutor without the authenticator app, anyone not signed in, a learner making a class, someone not on the class, a learner writing their own witness testimony, an employer reading the assessor's view, an employer overruling college hours, a tutor rating as the employer",
     Object.values(tries).every((t) => t.status === 400), JSON.stringify(Object.fromEntries(Object.entries(tries).map(([k, v]) => [k, v.status + " " + (v.body && v.body.message || "")]))));
   const [after] = await q("select minutes from public.class_attendance where enrolment_id = $1", [ENROL]);
   check("…and Lee's hours are still the tutor's 2 hours", after.minutes >= 119 && after.minutes < 600, JSON.stringify(after));

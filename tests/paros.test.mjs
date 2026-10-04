@@ -53,6 +53,11 @@ function handle(route) {
   if (p === "/rest/v1/rpc/paros_learners") return json(ROWS);
   if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: day(5), ends_on: day(9), kind: "holiday", reason: "Holiday", booked_by: "Callum Hughes", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/paros_absences") return json({ absences: [], marks: [{ id: "A2", date: day(-9), class: "L2 Brickwork", late: false, reason: "Dentist", here: false }, { id: "A1", here: true }] });
+  /* Paros asks Nisia through named actions; writing a table directly is refused here. */
+  if (p === "/rest/v1/rpc/paros_add_witness") { posted.push({ t: "witness", body }); return json("W9"); }
+  if (p === "/rest/v1/rpc/paros_rate_behaviours") { posted.push({ t: "rate", body }); return json("BR9"); }
+  if (p === "/rest/v1/rpc/paros_confirm_hours") { posted.push({ t: "confirm", body }); return json(null); }
+  if (/^\/rest\/v1\/(witness_testimonies|behaviour_ratings|otj_confirmations|enrolments)/.test(p)) { posted.push({ t: "TABLE " + p }); return json({ message: "Paros touched a table" }, 403); }
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "AB2", from: body.p_from, to: body.p_to, reason: "At work" }); }
   if (p === "/rest/v1/rpc/paros_learner") return json(body.p_enrolment === "E1" ? DETAIL : { college: [], evidence: [], otj: [], witness: [{ id: "W0", statement: "Hung two doors well.", rating: 2, at: day(-10), ksbs: [], unit: "Doors" }], ratings: [], reviews: [] });
   if (p === "/rest/v1/enrolments") return json({ course_id: "C1" });
@@ -107,8 +112,8 @@ try {
   const needSign = /Tick to confirm/.test(await page.textContent("#wErr"));
   await page.screenshot({ path: shots + "/p4-witness.png" });
   await page.check("#wSign"); await page.click("#wSave"); await page.waitForTimeout(800);
-  const w = posted.find((x) => x.t === "witness_testimonies");
-  check("A witness testimony: the unit, what they saw, the KSBs ticked and how well, signed as seen first hand", needSign && !!w && w.body.unit === "Jointing Styles" && w.body.ksbs.join() === "S12,B6" && w.body.rating === 3 && w.body.course_id === "C1" && w.body.witness_member_id === "ME" && !!w.body.signed_at, JSON.stringify(w && w.body));
+  const w = posted.find((x) => x.t === "witness");
+  check("A witness testimony: the unit, what they saw, the KSBs ticked and how well, signed as seen first hand (one action; Nisia signs and checks it)", needSign && !!w && w.body.p_unit === "Jointing Styles" && w.body.p_ksbs.join() === "S12,B6" && w.body.p_rating === 3 && w.body.p_enrolment === "E1" && /Oak Road/.test(w.body.p_statement), JSON.stringify(w && w.body));
 
   /* Behaviours. */
   await page.click("#doRate2");
@@ -118,8 +123,8 @@ try {
   for (const k of beh) await page.click('.p-beh[data-k="' + k + '"] [data-v="3"]');
   await page.fill("#bNote", "Reliable and safe on site."); await page.screenshot({ path: shots + "/p5-behaviours.png" });
   await page.click("#bSave"); await page.waitForTimeout(600);
-  const br = posted.find((x) => x.t === "behaviour_ratings");
-  check("Rating behaviours: each of the course's behaviours (all needed), with a comment", beh.join() === "B1,B2,B3,B4,B5,B6" && incomplete && !!br && Object.keys(br.body.ratings).length === 6 && br.body.ratings.B1 === 3 && /Reliable/.test(br.body.comment));
+  const br = posted.find((x) => x.t === "rate");
+  check("Rating behaviours: each of the course's behaviours (all needed), with a comment", beh.join() === "B1,B2,B3,B4,B5,B6" && incomplete && !!br && Object.keys(br.body.p_ratings).length === 6 && br.body.p_ratings.B1 === 3 && /Reliable/.test(br.body.p_comment));
 
   /* Hours. */
   await page.click("#backBtn"); await page.click("[data-tab=hours]"); await page.waitForSelector("[data-ok]");
@@ -127,9 +132,10 @@ try {
   await page.screenshot({ path: shots + "/p6-hours.png", fullPage: true });
   await page.click("[data-ok=OT1]"); await page.waitForTimeout(500);
   await page.click("[data-q=OT2]"); await page.fill("#qWhy", "He was on holiday that day."); await page.click("#qSend"); await page.waitForTimeout(500);
-  const conf = posted.filter((x) => x.t === "otj_confirmations").map((x) => x.body);
+  const conf = posted.filter((x) => x.t === "confirm").map((x) => x.body);
   check("Learning hours: the apprentice's own hours to confirm (not college hours, already confirmed by the tutor), confirmed or queried with a reason",
-    /Toolbox talk/.test(hoursText) && !/College · L2 Brickwork/.test(hoursText) && conf.length === 2 && conf[0].decision === "approved" && conf[0].otj_entry_id === "OT1" && conf[1].decision === "rejected" && /holiday/.test(conf[1].comment) && !(await page.$("[data-ok]")), JSON.stringify(conf));
+    /Toolbox talk/.test(hoursText) && !/College · L2 Brickwork/.test(hoursText) && conf.length === 2 && conf[0].p_decision === "approved" && conf[0].p_otj === "OT1" && conf[1].p_decision === "rejected" && /holiday/.test(conf[1].p_comment) && !(await page.$("[data-ok]")), JSON.stringify(conf));
+  check("Paros never wrote to a table: everything went through Nisia's named actions", !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify(posted.filter((x) => /^TABLE/.test(x.t))));
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

@@ -6,6 +6,9 @@
      and sent the next time there's signal; each job is sent a step at a time and picks up where it stopped.
    - Signing out clears it all from the phone. */
 import { db, rpc, me } from "../../packages/core/nisia.js";
+/* Requests to Nisia go through the shared actions where there is one (packages/core/nisia-actions.js). */
+const A = window.NisiaActions;
+A.use(rpc, { app: "milos" });
 import { hit } from "../../packages/core/usage.js";
 import { loadLearner, reviewDue } from "./review.js";
 import { loadPortfolio } from "./portfolio.js";
@@ -92,12 +95,8 @@ async function download() {
 }
 /* What the employer sent from Paros: witness testimonies and behaviour ratings. */
 async function loadEmployer(r) {
-  const [w, b] = await Promise.all([
-    db.from("witness_testimonies").select("id, unit, statement, rating, ksbs, signed_at, created_at").eq("enrolment_id", r.enrolment_id).order("created_at", { ascending: false }).limit(50),
-    db.from("behaviour_ratings").select("id, ratings, comment, created_at").eq("enrolment_id", r.enrolment_id).order("created_at", { ascending: false }).limit(20)]);
-  if (w.error) throw new Error(w.error.message);
-  if (b.error) throw new Error(b.error.message);
-  return { witness: w.data || [], ratings: b.data || [] };
+  const d = await A.send("employerFeedback", { p_enrolment: r.enrolment_id }) || {};
+  return { witness: d.witness || [], ratings: d.ratings || [] };
 }
 export async function refreshLearner(r) {
   const L = await loadLearner(r), P = await loadPortfolio(L), E = await loadEmployer(r), D = { L, P, E, at: new Date().toISOString() };

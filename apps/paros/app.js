@@ -3,6 +3,9 @@
    testimonies and behaviour ratings. Nisia decides what an employer can see (paros_learners, paros_learner): never the
    apprentice's own records in Evia. The last download is kept on the device, so Paros opens without signal. */
 import { db, rpc, me, signOut, esc, ukDate, ago, courseName } from "../../packages/core/nisia.js";
+/* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
+const A = window.NisiaActions;
+A.use(rpc, { app: "paros" });
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { auth } from "../../packages/core/signin.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
@@ -177,9 +180,8 @@ async function drawHours() {
   });
 }
 async function confirmHours(x, decision, comment) {
-  const m = (who.memberships || []).find((mm) => mm.organisation_id === x.r.organisation_id);
-  const { error } = await db.from("otj_confirmations").insert({ organisation_id: x.r.organisation_id, otj_entry_id: x.o.id, confirmer_member_id: m && m.member_id, decision, comment: comment || null });
-  if (error) return toast("Couldn’t save: " + error.message);
+  try { await A.send("confirmHours", { p_otj: x.o.id, p_decision: decision, p_comment: comment || null }); }
+  catch (e) { return toast("Couldn’t save: " + e.message); }
   x.o.decision = decision; x.r.to_confirm = Math.max(0, (x.r.to_confirm || 0) - 1); write("paros-cache", { who, rows, at: (read("paros-cache", {}) || {}).at });
   toast(decision === "approved" ? "Confirmed" : "Sent to the college");
   if (view) apprentice(view, true); else drawHours();
@@ -217,13 +219,10 @@ async function witness(r) {
     if (text.split(/\s+/).length < 12) return (err.textContent = "Say a bit more about what you saw (a few sentences).");
     if (!rating) return (err.textContent = "Choose how well it was done.");
     if (!o.querySelector("#wSign").checked) return (err.textContent = "Tick to confirm you saw it yourself.");
-    const i = o.querySelector("#wUnit").value, m = (who.memberships || []).find((mm) => mm.organisation_id === r.organisation_id);
+    const i = o.querySelector("#wUnit").value;
     const b = o.querySelector("#wSave"); b.disabled = true; b.textContent = "Sending…";
     try {
-      const { data: en, error: ee } = await db.from("enrolments").select("course_id").eq("id", r.enrolment_id).single(); if (ee) throw ee;
-      const { error } = await db.from("witness_testimonies").insert({ organisation_id: r.organisation_id, enrolment_id: r.enrolment_id, course_id: en.course_id, witness_member_id: m && m.member_id,
-        statement: text, rating, signed_at: new Date().toISOString(), unit: i === "" ? null : units[+i][0], ksbs: [...o.querySelectorAll("#wKsbs .on")].map((c) => c.dataset.k) });
-      if (error) throw error;
+      await A.send("addWitness", { p_enrolment: r.enrolment_id, p_statement: text, p_rating: rating, p_unit: i === "" ? null : units[+i][0], p_ksbs: [...o.querySelectorAll("#wKsbs .on")].map((c) => c.dataset.k) });
       o.remove(); r.witness = (r.witness || 0) + 1; details[r.enrolment_id] = null; toast("Sent. " + first(r.name) + " and their assessor can see it."); draw();
     } catch (e) { b.disabled = false; b.textContent = "Sign and send"; err.textContent = "Couldn’t send: " + e.message; }
   };
@@ -241,9 +240,9 @@ async function rateBehaviours(r) {
   o.querySelectorAll(".p-beh").forEach((row) => row.querySelectorAll("[data-v]").forEach((b) => b.onclick = () => { got[row.dataset.k] = +b.dataset.v; row.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }));
   o.querySelector("#bSave").onclick = async () => {
     if (Object.keys(got).length < B.length) return (o.querySelector("#bErr").textContent = "Rate each one (" + (B.length - Object.keys(got).length) + " to go).");
-    const m = (who.memberships || []).find((mm) => mm.organisation_id === r.organisation_id), b = o.querySelector("#bSave"); b.disabled = true;
-    const { error } = await db.from("behaviour_ratings").insert({ organisation_id: r.organisation_id, enrolment_id: r.enrolment_id, rater_member_id: m && m.member_id, ratings: got, comment: o.querySelector("#bNote").value.trim() || null });
-    if (error) { b.disabled = false; return (o.querySelector("#bErr").textContent = "Couldn’t send: " + error.message); }
+    const b = o.querySelector("#bSave"); b.disabled = true;
+    try { await A.send("rateBehaviours", { p_enrolment: r.enrolment_id, p_ratings: got, p_comment: o.querySelector("#bNote").value.trim() || null }); }
+    catch (e) { b.disabled = false; return (o.querySelector("#bErr").textContent = "Couldn’t send: " + e.message); }
     o.remove(); r.last_rating = new Date().toISOString(); details[r.enrolment_id] = null; toast("Thanks. " + first(r.name) + " and their assessor can see it."); draw();
   };
 }

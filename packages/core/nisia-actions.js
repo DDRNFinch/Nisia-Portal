@@ -11,9 +11,9 @@
    NisiaActions.flush()                     send what's kept; resolves with [{name, tag, args, at, ok, result, error}]
    NisiaActions.waiting(tag)                what's kept (optionally only one tag)
    NisiaActions.drop(tag)                   forget what's kept with that tag (cancelled before it went)
-   version: nisia-actions 1 */
+   version: nisia-actions 2 */
 (function (g) {
-  const VERSION = 1;
+  const VERSION = 2;
   /* name: Nisia's function, keep: kept with no signal, later(args, at): what's sent when it goes later. */
   const ACTIONS = {
     /* Registers (Symi) */
@@ -26,6 +26,12 @@
     /* Learners (Evia) */
     whatsNew: { fn: "nisia_whats_new" },
     checkIn: { fn: "nisia_check_in", keep: true, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },
+    /* Employers (Paros) */
+    addWitness: { fn: "paros_add_witness" },
+    rateBehaviours: { fn: "paros_rate_behaviours" },
+    confirmHours: { fn: "paros_confirm_hours" },
+    /* Assessors (Milos) */
+    employerFeedback: { fn: "milos_employer_feedback" },
     /* Days off (every app) */
     bookAbsence: { fn: "nisia_book_absence", keep: true },
     cancelAbsence: { fn: "nisia_cancel_absence" },

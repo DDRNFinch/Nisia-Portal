@@ -3,6 +3,8 @@
    days show on every register with the reason. The last list is kept on the device for when there's no signal.
    mountAbsences(box, { enrolment, name, sheet, toast, hit }) */
 import { rpc, esc } from "./nisia.js";
+/* Through the shared actions when the app has loaded them (nisia-actions.js); each app connects them to Nisia. */
+const ask = (name, fn, args) => window.NisiaActions ? window.NisiaActions.send(name, args) : rpc(fn, args);
 
 export const KINDS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
 const pad = (n) => String(n).padStart(2, "0");
@@ -46,7 +48,7 @@ export async function mountAbsences(box, o) {
     box.querySelectorAll("[data-cancel]").forEach((b) => b.onclick = async () => {
       if (!navigator.onLine) return o.toast("You need signal to cancel it.");
       b.disabled = true;
-      try { await rpc("nisia_cancel_absence", { p_id: b.dataset.cancel }); if (o.hit) o.hit("absence.cancel"); o.toast("Cancelled. Everyone sees it on the register again."); load(); }
+      try { await ask("cancelAbsence", "nisia_cancel_absence", { p_id: b.dataset.cancel }); if (o.hit) o.hit("absence.cancel"); o.toast("Cancelled. Everyone sees it on the register again."); load(); }
       catch (e) { b.disabled = false; o.toast(e.message); }
     });
   };
@@ -55,7 +57,7 @@ export async function mountAbsences(box, o) {
     if (kept) draw(kept);
     else box.innerHTML = '<section class="card m-card"><p class="label">Days off</p><p class="m-card-sub">Loading…</p></section>';
     if (!navigator.onLine) return draw(kept || [], "No signal: this is the list from last time.");
-    try { const list = await rpc("nisia_absences", { p_enrolment: o.enrolment }); write(key, list || []); draw(list || []); }
+    try { const list = await ask("absences", "nisia_absences", { p_enrolment: o.enrolment }); write(key, list || []); draw(list || []); }
     catch (e) { draw(kept || [], "Couldn’t reach Nisia: " + e.message); }
   };
   function book() {
@@ -77,7 +79,7 @@ export async function mountAbsences(box, o) {
       if (!navigator.onLine) return (err.textContent = "You need signal to book it.");
       $("[data-save]").disabled = true;
       try {
-        await rpc("nisia_book_absence", { p_from: from, p_to: to, p_kind: kind, p_reason: reason || null, p_enrolment: o.enrolment });
+        await ask("bookAbsence", "nisia_book_absence", { p_from: from, p_to: to, p_kind: kind, p_reason: reason || null, p_enrolment: o.enrolment });
         layer.remove(); if (o.hit) o.hit("absence.book");
         o.toast("Booked. " + first(o.name) + " and everyone with them has been told."); load();
       } catch (e) { $("[data-save]").disabled = false; err.textContent = e.message; }
