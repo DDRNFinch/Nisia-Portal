@@ -31,7 +31,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
-let GONE = false, EXTRA = false; /* EXTRA: a learner added in Nisia while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
+let GONE = false, EXTRA = false, NOEMP = false; /* NOEMP: a Nisia without milos_employer_feedback yet */ /* EXTRA: a learner added in Nisia while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -42,6 +42,7 @@ function handle(route) {
   if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-mark", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-mark", platform_admin: false, name: "Mark Ellis", memberships: [{ organisation_id: "O1", organisation: "Brookfield College", member_id: "M2", roles: ["assessor"] }] });
+  if (p === "/rest/v1/rpc/milos_employer_feedback" && NOEMP) return json({ code: "PGRST202", message: "Could not find the function public.milos_employer_feedback" }, 404);
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
   if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: "2099-01-05", ends_on: "2099-01-05", kind: "appointment", reason: "Hospital appointment", booked_by: "Sam Tutor", booked_by_role: "tutor" }]);
   if (p === "/rest/v1/rpc/nisia_college_learners") return json([LEARNER, { ...LEARNER, learner_id: "L2", enrolment_id: "E2", name: "Not Mine", assessors: [{ member_id: "M9", name: "Someone else" }] }].concat(EXTRA ? [{ ...LEARNER, learner_id: "L3", enrolment_id: "E3", name: "New Starter" }] : []));
@@ -116,6 +117,10 @@ try {
   await page.waitForSelector("#absBox .ab-row");
   const emp = await page.textContent(".m-employer").catch(() => "");
   check("…and what the employer sent from Paros: behaviours and witness testimonies", /From Hughes & Sons Builders/.test(emp) && /Reliable and keen/.test(emp) && /bucket handle joint/.test(emp) && /Excellent/.test(emp) && /Developing/.test(emp), emp.slice(0, 300));
+  NOEMP = true;
+  const noEmp = await page.evaluate(async () => { const m = await import("./store.js"); const D = await m.refreshLearner((await m.learnerData({ enrolment_id: "E1" })).L.row); return { pf: !!D.P, kept: D.E.witness.length === 1 && D.E.ratings.length === 1 }; }).catch((e) => ({ error: e.message }));
+  NOEMP = false;
+  check("If Nisia can't send the employer's feedback, the learner's work still downloads (and the last copy is kept)", noEmp.pf && noEmp.kept, JSON.stringify(noEmp));
   check("…and their days off, with who booked them", /Hospital appointment/.test(await page.textContent("#absBox")) && /Sam Tutor \(tutor\)/.test(await page.textContent("#absBox")));
   await page.click("#tab-portfolio"); await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&

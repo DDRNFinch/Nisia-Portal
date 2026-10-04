@@ -94,9 +94,16 @@ async function download() {
   return { who, rows };
 }
 /* What the employer sent from Paros: witness testimonies and behaviour ratings. */
+/* It never stops the learner's work downloading: if Nisia can't send it, the last copy is kept. */
 async function loadEmployer(r) {
-  const d = await A.send("employerFeedback", { p_enrolment: r.enrolment_id }) || {};
-  return { witness: d.witness || [], ratings: d.ratings || [] };
+  try {
+    const d = await A.send("employerFeedback", { p_enrolment: r.enrolment_id }) || {};
+    return { witness: d.witness || [], ratings: d.ratings || [] };
+  } catch (e) {
+    console.warn("Milos: employer feedback", e.message);
+    const D = await get("learners", r.enrolment_id).catch(() => null);
+    return (D && D.E) || { witness: [], ratings: [] };
+  }
 }
 export async function refreshLearner(r) {
   const L = await loadLearner(r), P = await loadPortfolio(L), E = await loadEmployer(r), D = { L, P, E, at: new Date().toISOString() };
