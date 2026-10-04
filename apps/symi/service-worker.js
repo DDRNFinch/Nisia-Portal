@@ -26,7 +26,7 @@ const ASSETS=[
   `./symi-home-polish-v025.js?v=${BUILD}`,
   `./symi-updater-v027.js?v=${BUILD}`,
   `./symi-nisia.css?v=${BUILD}`,`./nisia-link.js?v=${BUILD}`,
-  '../../packages/vendor/supabase-2.45.4.js','../../packages/core/nisia.js','../../packages/core/signin.js','../../packages/core/usage.js',
+  '../../packages/vendor/supabase-2.45.4.js','../../packages/core/nisia.js','../../packages/core/nisia-actions.js','../../packages/core/signin.js','../../packages/core/usage.js',
   `./manifest.json?v=${BUILD}`,
   `./manifest.webmanifest?v=${BUILD}`,
   `./icon-192.png?v=${BUILD}`,

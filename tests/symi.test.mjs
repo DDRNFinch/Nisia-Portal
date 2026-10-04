@@ -42,11 +42,12 @@ function handle(route) {
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
   if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Ill", booked_by: "Amira Khan", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
-  if (p === "/rest/v1/classes") { posted.push({ t: "classes", m: q.method(), body }); return json({ id: "CLS1" }); }
-  if (p === "/rest/v1/class_learners" && q.method() === "GET") return json([]);
-  if (p === "/rest/v1/class_sessions" && q.method() === "POST") { posted.push({ t: "class_sessions", m: "POST", body }); return json({ id: "SES1", status: "open" }); }
-  if (p === "/rest/v1/class_attendance" && q.method() === "GET") return json(checkins);
-  if (p === "/rest/v1/class_attendance" && q.method() === "POST" && refuse) { refuse = false; return json({ code: "42501", message: "new row violates row-level security policy" }, 403); }
+  /* Symi asks Nisia through named actions only; it never touches the class tables. */
+  if (/^\/rest\/v1\/(classes|class_learners|class_sessions|class_attendance)/.test(p)) { posted.push({ t: "TABLE " + p.slice(9), m: q.method() }); return json({ message: "Symi touched a table" }, 403); }
+  if (p === "/rest/v1/rpc/symi_save_class") { posted.push({ t: "saveClass", body }); return json("CLS1"); }
+  if (p === "/rest/v1/rpc/symi_open_session") { posted.push({ t: "openSession", body }); return json({ id: "SES1", status: "open" }); }
+  if (p === "/rest/v1/rpc/symi_checkins") return json(checkins);
+  if (p === "/rest/v1/rpc/symi_finish_register") { if (refuse) { refuse = false; return json({ code: "42501", message: "That class isn’t yours in Nisia." }, 400); } posted.push({ t: "finish", body }); return json(body.p_marks.length); }
   if (p.startsWith("/rest/v1/")) { posted.push({ t: p.slice(9), m: q.method(), body, s: u.search }); return route.fulfill({ status: 201, headers: { "access-control-allow-origin": "*" }, body: "" }); }
   return json({ error: "not faked " + p }, 404);
 }
@@ -94,10 +95,10 @@ try {
   await page.waitForTimeout(400);
   const w = Math.floor(Date.now() / 1000 / 20), shown = (await page.textContent(".sn-checkin .sn-code")).replace(/\s/g, "");
   const ok = [w, w - 1].some((x) => expected(x).short === shown);
-  const sess = posted.find((x) => x.t === "class_sessions"), cls = posted.find((x) => x.t === "classes"), cl = posted.find((x) => x.t === "class_learners" && x.m === "POST");
+  const sess = posted.find((x) => x.t === "openSession"), cls = posted.find((x) => x.t === "saveClass");
   check("Show check-in code: the class, its Nisia learners and today's session go to Nisia, and the code is the one Nisia checks (changing every 20 seconds)",
-    /0 of 1 checked in/.test(barText) && ok && !!(await page.$(".sn-checkin .sn-qr canvas, .sn-checkin .sn-qr img, .sn-checkin .sn-qr svg")) && !!cls && cls.body.client_ref === "r1" && cls.body.tutor_member_id === "MT" &&
-    !!cl && cl.body.length === 2 && cl.body.some((x) => x.enrolment_id === "E1") && !!sess && sess.body.class_id === "CLS1", JSON.stringify({ shown, exp: expected(w).short, cl: cl && cl.body }));
+    /0 of 1 checked in/.test(barText) && ok && !!(await page.$(".sn-checkin .sn-qr canvas, .sn-checkin .sn-qr img, .sn-checkin .sn-qr svg")) && !!cls && cls.body.p_client_ref === "r1" && cls.body.p_org === "O1" &&
+    cls.body.p_enrolments.length === 2 && cls.body.p_enrolments.includes("E1") && !!sess && sess.body.p_class === "CLS1" && !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify({ shown, exp: expected(w).short, cls: cls && cls.body }));
   fs.mkdirSync(path.join(root, "tests", "shots"), { recursive: true });
   await page.screenshot({ path: path.join(root, "tests", "shots", "symi-checkin.png") });
 
@@ -139,14 +140,14 @@ try {
   await page.click("[data-finish-register]");
   await page.waitForFunction(() => /Not sent to Nisia yet/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const failBar = await page.textContent(".sn-bar");
-  check("If Nisia refuses a finished register, Symi says so and why (not 'waiting'), keeps it, and Try again sends it", /Not sent to Nisia yet/.test(failBar) && /row-level security/.test(failBar), failBar);
+  check("If Nisia refuses a finished register, Symi says so and why (not 'waiting'), keeps it, and Try again sends it", /Not sent to Nisia yet/.test(failBar) && /isn’t yours/.test(failBar), failBar);
   await page.click("[data-sn-retry]");
   await page.waitForFunction(() => /Sent to Nisia/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
-  const att = posted.filter((x) => x.t === "class_attendance").map((x) => x.body).flat(), fin = posted.find((x) => x.t === "class_sessions" && x.m === "PATCH");
-  check("Finishing the register sends each Nisia learner's time, late mark and reason to Nisia, confirmed by the tutor (only Nisia learners), and the session is closed",
-    att.length === 2 && att[0].enrolment_id === "E1" && att[0].session_id === "SES1" && att[0].status === "present" && att[0].late === true && att[0].confirmed_by_member_id === "MT" && !!att[0].confirmed_at &&
+  const fin = posted.find((x) => x.t === "finish"), att = fin ? fin.body.p_marks : [];
+  check("Finishing the register sends each Nisia learner's time, late mark and reason to Nisia in one action (only Nisia learners), and never touches a table",
+    !!fin && fin.body.p_session === "SES1" && att.length === 2 && att[0].enrolment_id === "E1" && att[0].status === "present" && att[0].late === true &&
     att[1].enrolment_id === "E2" && att[1].status === "absent" && att[1].reason === "Dentist" && att[1].minutes === 0 &&
-    !!fin && fin.body.status === "finished" && /Sent to Nisia/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, fin: fin && fin.body }));
+    !posted.some((x) => /^TABLE/.test(x.t)) && /Sent to Nisia/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, tables: posted.filter((x) => /^TABLE/.test(x.t)) }));
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

@@ -17,6 +17,9 @@
      Anything booked while offline is sent when the signal's back.
    Everything Nisia needs is sent from Symi's own records: its history rows and the lesson set for each session. */
 import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
+/* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
+const A = window.NisiaActions;
+A.use(rpc, { app: "symi" });
 import { auth, inviteCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 startUsage("symi", window.SYMI_BUILD || "");
@@ -133,21 +136,11 @@ async function ensureSession(regId, key) {
   const counts = {}; people.forEach((p) => { counts[p.nisia.org] = (counts[p.nisia.org] || 0) + 1; });
   const org = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0], m = tutorOrgs().find((o) => o.organisation_id === org);
   if (!m) throw new Error("You’re not a tutor at that college in Nisia.");
-  const { data: cls, error: ce } = await db.from("classes").upsert({ organisation_id: org, tutor_member_id: m.member_id, client_ref: reg.id, title: String(reg.name || "Class").slice(0, 120),
-    room: reg.room || null, schedule: { day: reg.day, start: reg.start, end: reg.end, recurrence: reg.recurrence || null }, updated_at: new Date().toISOString() }, { onConflict: "tutor_member_id,client_ref" }).select("id").single();
-  if (ce) throw new Error(ce.message);
-  const want = people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId);
-  const { data: have, error: he } = await db.from("class_learners").select("enrolment_id").eq("class_id", cls.id);
-  if (he) throw new Error(he.message);
-  const had = new Set((have || []).map((x) => x.enrolment_id));
-  const add = want.filter((e) => !had.has(e)), gone = [...had].filter((e) => !want.includes(e));
-  if (add.length) { const { error } = await db.from("class_learners").insert(add.map((e) => ({ class_id: cls.id, enrolment_id: e, organisation_id: org }))); if (error) throw new Error(error.message); }
-  if (gone.length) await db.from("class_learners").delete().eq("class_id", cls.id).in("enrolment_id", gone);
+  const classId = await A.send("saveClass", { p_org: org, p_client_ref: reg.id, p_title: String(reg.name || "Class").slice(0, 120), p_room: reg.room || null,
+    p_schedule: { day: reg.day, start: reg.start, end: reg.end, recurrence: reg.recurrence || null }, p_enrolments: people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId) });
   const b = App().bounds(regId, key), lesson = lessonFor(st, regId, key) || {};
-  const { data: ses, error: se } = await db.from("class_sessions").upsert({ organisation_id: org, class_id: cls.id, session_date: key,
-    starts_at: b ? new Date(b.start).toISOString() : null, ends_at: b ? new Date(b.end).toISOString() : null,
-    lesson_title: lesson.title || null, lesson_summary: lesson.summary || null, ksbs: lesson.ksbs || [] }, { onConflict: "class_id,session_date" }).select("id, status").single();
-  if (se) throw new Error(se.message);
+  const ses = await A.send("openSession", { p_class: classId, p_date: key, p_starts: b ? new Date(b.start).toISOString() : null, p_ends: b ? new Date(b.end).toISOString() : null,
+    p_lesson: lesson.title || null, p_summary: lesson.summary || null, p_ksbs: lesson.ksbs || [] });
   const map = read(K.sessions, {}); map[regId + ":" + key] = { id: ses.id, org, member: m.member_id }; write(K.sessions, map);
   return { id: ses.id, org, member: m.member_id, status: ses.status, people };
 }
@@ -159,7 +152,7 @@ async function hmacKey(sessionId) {
   const keys = read(K.keys, {});
   let k = keys[sessionId] && keys[sessionId].k;
   if (online()) {
-    try { k = await rpc("symi_session_key", { p_session: sessionId }); keys[sessionId] = { k, on: App().today() }; }
+    try { k = await A.send("sessionKey", { p_session: sessionId }); keys[sessionId] = { k, on: App().today() }; }
     catch (e) { if (!k) throw e; }
     const old = addDays(App().today(), -14);
     for (const [id, v] of Object.entries(keys)) if (!v || v.on < old) delete keys[id];
@@ -177,8 +170,7 @@ export async function codeFor(sessionId, key, w) {
 /* ---------- Check-ins: tick the learner and start their timer ---------- */
 const checked = () => read(K.checked, {});
 async function pollCheckIns(regId, key, sessionId, people) {
-  const { data, error } = await db.from("class_attendance").select("enrolment_id, checked_in_at, late, offline").eq("session_id", sessionId).not("checked_in_at", "is", null);
-  if (error) throw new Error(error.message);
+  const data = await A.send("checkIns", { p_session: sessionId });
   const all = checked(), mine = all[regId + ":" + key] || {};
   const fresh = [];
   for (const row of data || []) {
@@ -199,8 +191,8 @@ const bookedFor = (enrolmentId, key) => absences().find((a) => a.enrolment_id ==
 async function pullAbsences() {
   if (!signedIn || !online()) return;
   const t = App().today();
-  const list = await rpc("symi_absences", { p_from: addDays(t, -7), p_to: addDays(t, 42) });
-  write(K.absences, (list || []).concat(absences().filter((a) => a.local && read(K.outbox, []).length)));
+  const list = await A.send("classAbsences", { p_from: addDays(t, -7), p_to: addDays(t, 42) });
+  write(K.absences, (list || []).concat(absences().filter((a) => a.local && A.waiting("absence").length)));
   decorate();
 }
 const marks = () => read(K.marks, {});
@@ -214,18 +206,10 @@ function setMark(regId, key, id, m) {
   write(K.marks, all);
 }
 const markText = (m) => !m ? "" : m.kind === "here" ? "Here" : m.kind === "late" ? "Late" : m.reason ? "Absent · " + m.reason : "Absent · no reason";
-/* Sent now, or kept and sent when there's a signal. */
-async function call(fn, args) {
-  if (online()) { try { return await rpc(fn, args); } catch (e) { if (online()) throw e; } }
-  const o = read(K.outbox, []); o.push({ fn, args, at: Date.now() }); write(K.outbox, o);
-  return null;
-}
+/* What was kept with no signal (days off booked): sent now there's signal. */
 async function flush() {
-  const o = read(K.outbox, []);
-  if (!o.length || !signedIn || !online()) return;
-  const left = [];
-  for (const x of o) { try { await rpc(x.fn, x.args); } catch (e) { console.warn("Symi: Nisia", x.fn, e.message); if (!online()) left.push(x); } }
-  write(K.outbox, left);
+  if (!signedIn || !online() || !A.waiting().length) return;
+  (await A.flush()).filter((x) => !x.ok).forEach((x) => { console.warn("Symi: Nisia", x.name, x.error); toast("Nisia didn’t accept something saved with no signal: " + x.error); });
   await pullAbsences().catch(() => {});
 }
 /* The next week's sessions and keys, so the code works in a classroom with no signal (once a day). */
@@ -314,7 +298,7 @@ function bookSheet(enrolmentId, name) {
     if (kind === "other" && !reason) return (err.textContent = "Say what the reason is.");
     const btn = layer.querySelector("[data-save]"); btn.disabled = true;
     try {
-      const r = await call("nisia_book_absence", { p_from: from, p_to: to, p_kind: kind, p_reason: reason || null, p_enrolment: enrolmentId });
+      const sent = await A.send("bookAbsence", { p_from: from, p_to: to, p_kind: kind, p_reason: reason || null, p_enrolment: enrolmentId }, { tag: "absence" }), r = sent && sent.kept ? null : sent;
       const list = absences().filter((a) => !(a.local && a.enrolment_id === enrolmentId && a.starts_on === from));
       list.push({ id: r && r.id || "local-" + Date.now(), local: !r, enrolment_id: enrolmentId, starts_on: from, ends_on: to, kind, reason: reason || REASONS.find(([k]) => k === kind)[1], booked_by: who && who.name || "", booked_by_role: "tutor" });
       write(K.absences, list);
@@ -483,7 +467,7 @@ async function sendFinished() {
         const s = await ensureSession(row.classId, row.date);
         const now = new Date().toISOString(), mk = marks()[row.sessionKey] || {}, b = App().bounds(row.classId, row.date);
         /* What Nisia already has: check-ins (some made with no signal, which this Symi may not have seen). */
-        const { data: there } = await db.from("class_attendance").select("enrolment_id, checked_in_at, late").eq("session_id", s.id);
+        const there = await A.send("checkIns", { p_session: s.id });
         const seen = new Map((there || []).map((a) => [a.enrolment_id, a]));
         const up = rows.filter((x) => x.n.org === s.org).map((x) => {
           const m = mk[x.id], a = seen.get(x.n.enrolmentId), inAt = a && a.checked_in_at ? Date.parse(a.checked_in_at) : null;
@@ -491,13 +475,10 @@ async function sendFinished() {
           const here = m ? m.kind === "here" || m.kind === "late" : ms > 0 || !!inAt;
           /* Checked in, but this Symi had no signal to start their timer: from check-in to the end of the session. */
           if (here && !ms && inAt && b) ms = Math.max(0, b.end - Math.max(inAt, b.start));
-          return { organisation_id: s.org, session_id: s.id, enrolment_id: x.n.enrolmentId, minutes: here ? Math.round(ms / 60000) : 0,
-            status: here ? "present" : "absent", late: here && (m ? m.kind === "late" : !!(a && a.late)), reason: here ? null : (m && m.reason) || null,
-            confirmed_at: now, confirmed_by_member_id: s.member };
+          return { enrolment_id: x.n.enrolmentId, minutes: here ? Math.round(ms / 60000) : 0,
+            status: here ? "present" : "absent", late: here && (m ? m.kind === "late" : !!(a && a.late)), reason: here ? null : (m && m.reason) || null };
         });
-        const { error } = await db.from("class_attendance").upsert(up, { onConflict: "session_id,enrolment_id" });
-        if (error) throw new Error(error.message);
-        await db.from("class_sessions").update({ status: "finished", finished_at: now }).eq("id", s.id);
+        await A.run("finishRegister", { p_session: s.id, p_marks: up });
         sent[row.sessionKey] = now; write(K.sent, sent); hit("register.sent");
         const fails = read(K.failed, {}); delete fails[row.sessionKey]; write(K.failed, fails);
       } catch (e) {
