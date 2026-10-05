@@ -40,5 +40,5 @@ Learning outcome 1 Interpret information
 • specifications
 1.2 Comply with the given contract information`, "qualification");
 check("A qualification: an optional unit, its learning outcome, criteria and their listed points",
-  q.items.length === 4 && q.items[0].optional && q.items[1].code === "238/1" && q.items[2].code === "238/1.1" && q.items[2].title.endsWith("including:\n• drawings\n• specifications") && q.items[3].parent === "238/1", JSON.stringify(q.items));
+  q.items.length === 4 && q.items[0].optional && q.items[1].code === "238.1" && q.items[2].code === "238.1.1" && q.items[2].title.endsWith("including:\n• drawings\n• specifications") && q.items[3].parent === "238.1", JSON.stringify(q.items));
 console.log(failed ? "\n" + failed + " check(s) failed." : "\nAll checks passed."); process.exit(failed ? 1 : 0);

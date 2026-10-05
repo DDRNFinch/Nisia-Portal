@@ -68,8 +68,8 @@ async function openVersion(id) {
   const unitList = () => v.requirements.filter((r) => r.kind === "unit").map((u) => {
     const outs = v.requirements.filter((r) => r.parent === u.code);
     return '<details class="std-unit"><summary><b class="mono">' + esc(u.code) + '</b> ' + esc(u.title) + (u.optional ? ' <span class="chip">Optional</span>' : "") + '</summary>' +
-      outs.map((o) => '<div class="std-lo"><b>LO' + esc(o.code.split("/")[1]) + '</b> ' + esc(o.title) + '</div>' +
-        v.requirements.filter((r) => r.parent === o.code).map((c) => '<div class="std-row"><b class="mono">' + esc(c.code.split("/")[1]) + '</b><span style="white-space:pre-line">' + esc(c.title) + '</span></div>').join("")).join("") + '</details>';
+      outs.map((o) => '<div class="std-lo"><b>LO' + esc(o.code.slice(o.code.indexOf(".") + 1)) + '</b> ' + esc(o.title) + '</div>' +
+        v.requirements.filter((r) => r.parent === o.code).map((c) => '<div class="std-row"><b class="mono">' + esc(c.code.slice(c.code.indexOf(".") + 1)) + '</b><span style="white-space:pre-line">' + esc(c.title) + '</span></div>').join("")).join("") + '</details>';
   }).join("");
   const m = modal(v.code + " v" + v.version,
     '<p class="small muted" style="margin-top:-4px">' + esc(v.title) + ' · ' + esc(kindName(v.kind)) + (v.awarding_body ? " · " + esc(v.awarding_body) : "") + (v.level ? " · Level " + v.level : "") + '</p>' +

@@ -32,8 +32,8 @@ select pg_temp.ok((select count(*) filter (where option_code is null) = 39 and c
 select pg_temp.ok((select count(*) filter (where r.kind = 'unit') = 12 and count(*) filter (where r.kind = 'unit' and r.optional) = 4 and count(*) filter (where r.kind = 'outcome') = 75 and count(*) filter (where r.kind = 'criterion') = 335
   from public.requirements r join public.qualification_versions v on v.id = r.version_id join public.qualifications q on q.id = v.qualification_id where q.code = '6570-05'),
   '6570-05: 12 units (4 optional), 75 learning outcomes, 335 assessment criteria');
-select pg_temp.ok((select p.code from public.requirements r join public.requirements p on p.id = r.parent_id where r.code = '102/1.4') = '102/1'
-  and (select title from public.requirements where code = '102/1.4') like '%• Personal Protective Equipment (PPE)%', 'a criterion sits under its learning outcome, with its sub-points kept');
+select pg_temp.ok((select p.code from public.requirements r join public.requirements p on p.id = r.parent_id where r.code = '102.1.4') = '102.1'
+  and (select title from public.requirements where code = '102.1.4') like '%• Personal Protective Equipment (PPE)%', 'a criterion sits under its learning outcome, with its sub-points kept');
 select pg_temp.ok((select r.title from public.requirements r join public.qualification_versions v on v.id = r.version_id join public.qualifications q on q.id = v.qualification_id where q.code = 'ST0095' and r.code = 'K2')
   = 'Safety control equipment and how to use personal protective equipment (PPE).', 'KSB wording is word for word');
 

@@ -46,12 +46,12 @@ export function parseStandard(text, kind) {
       outcome = null; add(unit); continue;
     }
     m = /^(?:lo|learning outcome|outcome)\s*([0-9]{1,2})\b[\s:.\-–—]*(.*)$/i.exec(l) || (unit && /^([0-9]{1,2})\s+([A-Z].*)$/.exec(l));
-    if (m && unit) { outcome = { code: unit.code + "/" + +m[1], kind: "outcome", title: tidy(m[2]), parent: unit.code }; add(outcome); continue; }
+    if (m && unit) { outcome = { code: unit.code + "." + +m[1], kind: "outcome", title: tidy(m[2]), parent: unit.code }; add(outcome); continue; }
     m = /^([0-9]{1,2})\.([0-9]{1,2})\s*[:.\-–—)]?\s+(.*)$/.exec(l);
     if (m && unit) {
-      const oc = unit.code + "/" + +m[1];
+      const oc = unit.code + "." + +m[1];
       if (!seen.has(oc)) { outcome = { code: oc, kind: "outcome", title: "Learning outcome " + +m[1], parent: unit.code }; add(outcome); warnings.push(oc + " had no learning outcome heading: check its wording."); }
-      add({ code: unit.code + "/" + +m[1] + "." + +m[2], kind: "criterion", title: tidy(m[3]), parent: oc }); continue;
+      add({ code: unit.code + "." + +m[1] + "." + +m[2], kind: "criterion", title: tidy(m[3]), parent: oc }); continue;
     }
     m = /^[•\-*▪◦]\s*(.+)$/.exec(l);
     if (m && cur && cur.kind === "criterion") { cur.title += "\n• " + tidy(m[1]); continue; }
@@ -71,7 +71,7 @@ export function parseStandard(text, kind) {
     }
   } else {
     if (!items.some((x) => x.kind === "unit")) warnings.push("No units found: each should start “Unit 102 Title”.");
-    for (const u of items.filter((x) => x.kind === "unit")) if (!items.some((x) => x.kind === "criterion" && x.parent && x.parent.startsWith(u.code + "/"))) warnings.push("Unit " + u.code + " has no assessment criteria.");
+    for (const u of items.filter((x) => x.kind === "unit")) if (!items.some((x) => x.kind === "criterion" && x.parent && x.parent.startsWith(u.code + "."))) warnings.push("Unit " + u.code + " has no assessment criteria.");
   }
   return { items, options, warnings };
 }
@@ -86,8 +86,8 @@ export function standardText(reqs, kind, options) {
   }
   for (const r of reqs) {
     if (r.kind === "unit") out.push("", "Unit " + r.code + " " + r.title + (r.optional ? " (optional)" : ""));
-    else if (r.kind === "outcome") out.push("LO" + r.code.split("/")[1] + " " + r.title);
-    else if (r.kind === "criterion") out.push(r.code.split("/")[1] + " " + r.title);
+    else if (r.kind === "outcome") out.push("LO" + r.code.slice(r.code.indexOf(".") + 1) + " " + r.title);
+    else if (r.kind === "criterion") out.push(r.code.slice(r.code.indexOf(".") + 1) + " " + r.title);
   }
   return out.join("\n").trim();
 }

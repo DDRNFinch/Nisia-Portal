@@ -26,14 +26,15 @@ const carpentry = { code: "ST0264", kind: "standard", title: "Carpentry and join
     return c in site ? ksb(c, site[c], "site_carpenter") : ksb(c, joiner[c], "architectural_joiner");
   }) };
 
-/* The NVQ: units, then each unit's learning outcomes, then their assessment criteria (with any listed sub-points). */
+/* The NVQ: units, then each unit's learning outcomes, then their assessment criteria (with any listed sub-points).
+   Numbered as Evia and the handbook do: unit 102, its learning outcome 102.1, criterion 102.1.1. */
 const nvqReq = [];
 for (const u of N.units) {
   nvqReq.push({ code: u.n, kind: "unit", title: u.t, optional: !!u.opt, ...(u.lv ? { level: u.lv } : {}) });
   for (const o of u.o) {
-    const oc = u.n + "/" + o.n;
+    const oc = u.n + "." + o.n;
     nvqReq.push({ code: oc, kind: "outcome", title: o.t, parent: u.n });
-    for (const c of o.c) nvqReq.push({ code: u.n + "/" + c.n, kind: "criterion", title: c.t + (c.s && c.s.length ? "\n" + c.s.map((x) => "• " + x).join("\n") : ""), parent: oc });
+    for (const c of o.c) nvqReq.push({ code: u.n + "." + c.n, kind: "criterion", title: c.t + (c.s && c.s.length ? "\n" + c.s.map((x) => "• " + x).join("\n") : ""), parent: oc });
   }
 }
 const trowel = { code: N.qual, kind: "qualification", title: N.title, awarding_body: "City & Guilds", level: 3, version: "1.1",
