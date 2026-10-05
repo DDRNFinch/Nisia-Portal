@@ -3,14 +3,14 @@
    The Milos button in the middle syncs with Nisia. Each learner opens on Overview, Portfolio and Reviews, and
    everything the assessor does (observations, sign-offs, reviews) is saved on the phone first and sent when there's
    signal (store.js). Everything is read from Nisia under the college's own rules. */
-import { db, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
+import { db, rpc, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, inviteCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { mountAbsences } from "../../packages/core/absences.js";
-import { coursePack } from "../../packages/core/packs.js";
+import { coursePack, packsLike, loadPacks } from "../../packages/core/packs.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
@@ -155,6 +155,25 @@ function sheet(html, label, wide) {
   o.innerHTML = '<section class="sheet' + (wide ? " wide" : "") + '" role="dialog" aria-modal="true" aria-label="' + esc(label || "") + '"><span class="m-grab" aria-hidden="true"></span><button class="x" aria-label="Close">×</button>' + html + '</section>';
   o.onclick = (e) => { if (e.target === o) o.remove(); }; o.querySelector(".x").onclick = () => o.remove();
   document.body.appendChild(o); return o;
+}
+/* ---------- The learner's pack: the topics they're taught and evidenced in ---------- */
+function packCard(r) {
+  const C = coursePack(r.course_code, r.enrolment_id), p = C && C.pack, list = packsLike(r.course_code, r.enrolment_id);
+  if (!p) return "";
+  return '<section class="card m-card"><p class="label">Pack</p><p class="m-card-sub"><b>' + esc(p.title) + '</b> · ' + (p.college ? "the college’s own" : "Nisia’s") + ' · ' + C.units.length + ' topics</p>' +
+    (list.length > 1 ? '<button class="btn" type="button" id="packBtn">Change pack</button>' : "") + '</section>';
+}
+function choosePack(r) {
+  const first = firstName(r.name), list = packsLike(r.course_code, r.enrolment_id);
+  const o = sheet('<h2>' + esc(first) + '’s pack</h2><p class="muted">The topics ' + esc(first) + ' is taught and evidenced in. Their evidence and sign-offs are kept by KSB, so changing pack never loses anything.</p>' +
+    '<form id="pkF" style="display:grid;gap:8px;margin-top:10px">' + list.map((p) => '<label class="check"><input type="radio" name="p" value="' + esc(p.id) + '"' + (p.current ? " checked" : "") + '> <span><b>' + esc(p.title) + '</b><br><span class="small muted">' +
+      (p.college ? "The college’s own" : "Nisia’s") + ' · ' + p.topics + ' topics</span></span></label>').join("") + '<p class="err" hidden></p><button class="btn primary wide" type="submit">Save</button></form>', "Pack");
+  o.querySelector("#pkF").onsubmit = async (e) => {
+    e.preventDefault(); const v = new FormData(e.target).get("p"), err = o.querySelector(".err"), b = e.target.querySelector("[type=submit]");
+    b.disabled = true;
+    try { await rpc("set_enrolment_pack", { p_enrolment: r.enrolment_id, p_pack: v }); await loadPacks(rpc); hit("learner.pack"); o.remove(); toast(first + "’s pack is changed. Evia follows on its next sync."); learner(r, true); }
+    catch (x) { err.textContent = navigator.onLine ? x.message : "Changing a pack needs signal. Try again when you’re back online."; err.hidden = false; b.disabled = false; }
+  };
 }
 /* ---------- Notifications ---------- */
 const PUSH_WHAT = "New evidence to assess, and on Mondays the reviews to book. Weekdays only, 7:30am to 9pm.";
@@ -380,6 +399,7 @@ async function learner(r, keep) {
       '<div class="m-acts">' + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
       employerHtml(D.E, r) +
+      packCard(r) +
       '<div id="absBox"></div>' +
       insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +
     '</div>' +
@@ -414,6 +434,7 @@ async function learner(r, keep) {
   root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { ...me, roles: r.org.roles || [] }, (sent) => { IDX = null; toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); lTab = "reviews"; learner(r, true); });
   root.querySelector("#pair").onclick = () => pairing(r);
   mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet: (h, l) => sheet(h, l), toast, hit });
+  const pb = root.querySelector("#packBtn"); if (pb) pb.onclick = () => choosePack(r);
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: String(v.reviewed_at).slice(0, 10) }); });
@@ -422,7 +443,7 @@ async function learner(r, keep) {
 const WITNESS = ["", "Getting there", "Competent", "Excellent"], BEHAVE = ["", "Needs support", "Developing", "Good", "Excellent"];
 function employerHtml(E, r) {
   if (!E || (!E.witness.length && !E.ratings.length)) return "";
-  const C = coursePack(r.course_code) || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];
+  const C = coursePack(r.course_code, r.enrolment_id) || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];
   const who = r.employer_name ? esc(r.employer_name) : "the employer", b = E.ratings[0];
   return '<section class="card m-card m-employer"><p class="label">From ' + who + '</p>' +
     (b ? '<div class="m-emp-head"><b>Behaviours</b><span class="sub">' + esc(ukDate(b.created_at)) + (E.ratings.length > 1 ? ' · ' + E.ratings.length + ' ratings so far' : '') + '</span></div>' +

@@ -7,9 +7,10 @@ import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pa
 import { auth, MARK } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
-import { coursePack, loadPacks } from "../../packages/core/packs.js";
+import { coursePack, loadPacks, topicFor, packsLike } from "../../packages/core/packs.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { standardsPage } from "./standards.js";
+import { collegePacksPage } from "./college-packs.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -93,7 +94,7 @@ function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
-    .concat(admin || quality ? [["impact", "Impact", "chart"]] : [])
+    .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
 function shell(content) {
@@ -138,12 +139,13 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage }[S.page] || overview)();
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+    packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
 /* ---------- College data, and each learner's status ---------- */
 async function loadCollege() {
-  loadPacks(rpc).catch((e) => console.warn("Nisia: packs", e.message));
+  await loadPacks(rpc).catch((e) => console.warn("Nisia: packs", e.message));
   const org = S.org, m = mine(org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   const [summary, learners, staff, activity] = await Promise.all([
     admin || quality ? rpc("nisia_college_summary", { p_org: org }) : null,
@@ -274,11 +276,12 @@ function addLearner() {
    assessor has accepted. Each piece opens with its photos and the assessor's decision. */
 const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 function portfolioPanel(l, evidence, first, snap) {
-  const C = coursePack(l.course_code) || { units: [] };
+  const C = coursePack(l.course_code, l.enrolment_id) || { units: [] };
   const groups = C.units.map(([name, ksbs], i) => ({ no: i + 1, name, ksbs, items: [] })), other = { name: "Other units", ksbs: [], items: [] }, sup = { name: "Supporting evidence", ksbs: [], items: [] };
   evidence.forEach((e) => {
     if (e.collection === "supporting") return sup.items.push(e);
-    const g = groups.find((u) => norm(u.name) === norm(e.unit || e.title)); (g || other).items.push(e);
+    /* By its topic's id, then its name, then the topic its KSBs fit best (so a college's own topics keep everything). */
+    const t = topicFor(C, { title: e.title, source_metadata: { unit: e.unit, unitId: e.unit_id || e.unitId, ksbs: e.ksbs || [] } }), g = t >= 0 ? groups[t] : null; (g || other).items.push(e);
   });
   const all = groups.concat(other.items.length ? [other] : [], sup.items.length ? [sup] : []);
   const waiting = evidence.filter((e) => !e.assessment).length;
@@ -289,6 +292,19 @@ function portfolioPanel(l, evidence, first, snap) {
         (g.items.length ? g.items.length + (g.items.length === 1 ? " piece" : " pieces") : "No evidence yet") + '</span>' + (g.no ? strengthBars(unitStrength(snap, g.name, g.items.map((e) => ({ photos: e.files || e.photos_expected || 0, text: e.text })))) : "") + (g.ksbs.length ? '<span class="small num pf-met">' + g.ksbs.filter((k) => met.has(k)).length + '/' + g.ksbs.length + ' KSBs signed off</span>' : "") + '</div>' +
         g.items.map((e) => '<div class="pf-ev" role="button" tabindex="0" data-ev="' + e.id + '"><span>' + esc(g.no ? ukDate(e.at) : e.title) + '<span class="small muted"> · ' + esc(EV_TYPE[e.type] || e.type) + (e.files ? " · " + e.files + (e.files === 1 ? " file" : " files") : "") + '</span></span>' + assessedPill(e.assessment) + '</div>').join("") + '</div>';
     }).join("") + '</div>' : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>';
+}
+/* Move a learner onto another pack built on the same standard (their evidence and sign-offs are kept by KSB). */
+function choosePack(l) {
+  const first = (l.name || "").split(" ")[0], list = packsLike(l.course_code, l.enrolment_id);
+  const m = modal("Pack for " + l.name, '<p class="muted small" style="margin-top:-4px">The topics ' + esc(first) + ' is taught and evidenced in. Changing it never loses evidence or sign-offs: they’re kept by KSB and shown under the new topics.</p>' +
+    '<form id="pkF" style="display:grid;gap:8px">' + list.map((p) => '<label class="check" style="border-radius:12px"><input type="radio" name="p" value="' + esc(p.id) + '"' + (p.current ? " checked" : "") + '> <span><b>' + esc(p.title) + '</b> <span class="small muted">' +
+      (p.college ? "The college’s own" : "Yours (Nisia)") + ' · ' + p.topics + ' topics</span></span></label>').join("") +
+    '<p class="err" hidden></p><div class="row-actions"><button class="btn primary" type="submit">Save</button></div></form>');
+  m.querySelector("#pkF").onsubmit = (e) => { e.preventDefault(); const v = new FormData(e.target).get("p"), err = m.querySelector(".err");
+    busy(e.target.querySelector("[type=submit]"), "Saving…", async () => {
+      try { await rpc("set_enrolment_pack", { p_enrolment: l.enrolment_id, p_pack: v }); await loadPacks(rpc); hit("learner.pack"); closeModal(); toast(first + "’s pack is changed. Evia follows on its next sync."); learnerPage(); }
+      catch (x) { err.textContent = x.message; err.hidden = false; }
+    }); };
 }
 /* A completed review, as the college sees it (signatures included), with a PDF copy. */
 async function showReview(id) {
@@ -368,9 +384,9 @@ async function learnerPage() {
   shell(
     '<button class="btn ghost back" type="button" data-go="learners">' + ICON.back + 'All learners</button>' +
     '<div class="lhead">' + avatar(l.name) + '<div style="flex:1;min-width:220px"><h1>' + esc(l.name) + '</h1>' +
-      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">' + ((a.roles || []).includes("employer") && !(a.roles || []).some((x) => x === "assessor" || x === "tutor") ? "Employer: " : (a.roles || []).includes("tutor") && !(a.roles || []).includes("assessor") ? "Tutor: " : "Assessor: ") + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
+      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + ((coursePack(l.course_code, l.enrolment_id) || {}).pack ? '<span class="tag" title="The topics ' + esc(first) + ' is taught and evidenced in">Pack: ' + esc(coursePack(l.course_code, l.enrolment_id).pack.title) + '</span>' : "") + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">' + ((a.roles || []).includes("employer") && !(a.roles || []).some((x) => x === "assessor" || x === "tutor") ? "Employer: " : (a.roles || []).includes("tutor") && !(a.roles || []).includes("assessor") ? "Tutor: " : "Assessor: ") + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
       '<div style="margin-top:8px"><span class="sync ' + (!l.paired || l.quiet == null || l.quiet > 3 ? "stale" : "") + '">' + (l.paired ? "Last update from Evia: " + lastActive(d.snapshot_at || l.last_activity) : "Evia not connected yet") + '</span></div></div>' +
-      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
+      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin && packsLike(l.course_code, l.enrolment_id).length > 1 ? '<button class="btn" type="button" id="packL">Pack</button>' : "") + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
     (l.reasons.length ? '<div class="panel" style="border-color:' + stripeFor(l.state) + ';display:flex;gap:10px;flex-direction:column"><span class="label">Why this learner is flagged</span>' + l.reasons.map((r) => '<span>• ' + esc(r) + '</span>').join("") + '</div>' : "") +
     '<section class="stats" aria-label="Learner summary">' +
       '<div class="stat"><span class="label">Through the course</span><span class="big num">' + (l.through ?? "–") + '%</span><span class="sub">' + esc(ukDate(l.start_date)) + ' to ' + esc(ukDate(l.end_date)) + '</span></div>' +
@@ -394,6 +410,7 @@ async function learnerPage() {
   root.querySelectorAll("#main [data-ev]").forEach((r) => { const open = () => showEvidence(d.evidence.find((x) => x.id === r.dataset.ev)); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelector("#pair").onclick = () => pairing(l);
   const ed = root.querySelector("#editL"); if (ed) ed.onclick = () => editLearner(l);
+  const pk = root.querySelector("#packL"); if (pk) pk.onclick = () => choosePack(l);
 }
 
 /* ---------- Reviews ---------- */

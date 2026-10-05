@@ -31,6 +31,15 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
+/* Nisia's packs: your Bricklayer pack, and the college's own copy of it, which Callum (E1) is on. */
+let PACKMOVE = null;
+const PACKS = (() => {
+  const seed = fs.readFileSync(path.join(root, "services/supabase/packs-seed.sql"), "utf8"), std = fs.readFileSync(path.join(root, "services/supabase/standards-seed.sql"), "utf8");
+  const brick = [...seed.matchAll(/save_pack\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m) => JSON.parse(m[2])).find((x) => x.course === "bricklayer");
+  const ksbs = [...std.matchAll(/save_standard\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m) => JSON.parse(m[2])).find((x) => x.code === "ST0095").requirements.map((r) => [r.code, r.title]);
+  const one = (id, code, title) => ({ id, code, title, course: "bricklayer", version: 1, hash: "h" + id, standard: { code: "ST0095", kind: "standard", version: "1.2", option: null }, topics: brick.content.topics, ksbs });
+  return () => ({ packs: [one("k0", "nisia-bricklayer", "Bricklayer"), one("kc", "college-1", "Brookfield bricklaying")], courses: { bricklayer: "k0" }, enrolments: { E1: PACKMOVE ? PACKMOVE.p_pack : "kc" } });
+})();
 let GONE = false, EXTRA = false, NOEMP = false; /* NOEMP: a Nisia without milos_employer_feedback yet */ /* EXTRA: a learner added in Nisia while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
@@ -42,6 +51,8 @@ function handle(route) {
   if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-mark", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-mark", platform_admin: false, name: "Mark Ellis", memberships: [{ organisation_id: "O1", organisation: "Brookfield College", member_id: "M2", roles: ["assessor"] }] });
+  if (p === "/rest/v1/rpc/nisia_packs") return json(PACKS());
+  if (p === "/rest/v1/rpc/set_enrolment_pack") { PACKMOVE = body; return json(null); }
   if (p === "/rest/v1/rpc/milos_employer_feedback" && NOEMP) return json({ code: "PGRST202", message: "Could not find the function public.milos_employer_feedback" }, 404);
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
   if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: "2099-01-05", ends_on: "2099-01-05", kind: "appointment", reason: "Hospital appointment", booked_by: "Sam Tutor", booked_by_role: "tutor" }]);
@@ -113,6 +124,10 @@ try {
   await page.click("[data-id=L1]"); await page.waitForSelector("#rev"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
+  const packCard = await page.textContent(".m-card:has(#packBtn)").catch(() => "");
+  await page.click("#packBtn"); await page.check(".sheet input[value=k0]"); await page.click("#pkF [type=submit]"); await page.waitForFunction(() => !document.querySelector(".sheet #pkF"));
+  check("A learner's pack shows on their Overview (here the college's own), and their assessor can move them onto Nisia's", /Brookfield bricklaying/.test(packCard) && /college’s own/.test(packCard) && PACKMOVE && PACKMOVE.p_enrolment === "E1" && PACKMOVE.p_pack === "k0" &&
+    /Bricklayer · Nisia’s/.test(await page.textContent(".m-card:has(#packBtn)")), packCard + " " + JSON.stringify(PACKMOVE));
   check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));
   await page.waitForSelector("#absBox .ab-row");
   const emp = await page.textContent(".m-employer").catch(() => "");

@@ -39,7 +39,7 @@ const hm = (mins) => { const m = Math.round(Number(mins) || 0); return Math.floo
 const hrs = (h) => { const n = Math.round((Number(h) || 0) * 10) / 10; return n + (n === 1 ? " hour" : " hours"); };
 const day = (d) => { const t = Date.parse(d); return isNaN(t) ? "" : new Date(t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
 const ring = (pct) => { const p = Math.max(0, Math.min(100, Math.round(pct || 0))); return '<span class="m-ring" style="--p:' + p + '"><b>' + p + '<small>%</small></b></span>'; };
-const course = (r) => coursePack(r.course_code) || { name: r.course_title || courseName(r.course_code), units: [], ksbs: [] };
+const course = (r) => coursePack(r.course_code, r.enrolment_id) || { name: r.course_title || courseName(r.course_code), units: [], ksbs: [] };
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (_) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
 function toast(msg) {

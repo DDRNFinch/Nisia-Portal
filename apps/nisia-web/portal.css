@@ -445,3 +445,14 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .std-q .panel-head h2{margin:0}
 .modal.wide-modal>*{flex-shrink:0}
 .std-seg{flex-wrap:wrap;align-self:flex-start}
+
+/* College pack builder */
+.b-topic{padding:14px 16px}
+.b-head{display:flex;align-items:center;gap:8px}
+.b-head .b-name{flex:1;min-width:0;font-weight:700}
+.b-ksbs{margin-top:10px;align-items:center}
+.b-x{border:0;background:none;color:var(--ink-3);font-size:15px;line-height:1;padding:0 0 0 2px;cursor:pointer}
+.b-pick{cursor:pointer;grid-template-columns:24px 1fr}
+.b-pick input{margin-top:4px}
+.b-grid{grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:start}
+@media(max-width:900px){.b-grid{grid-template-columns:1fr}.b-cover{position:static!important}}

@@ -46,7 +46,7 @@ export const dueText = (d) => !d ? "" : d.overdue ? "Overdue by " + -d.days + " 
 
 /* ---------- The facts, from Evia and Nisia ---------- */
 export function facts(L, now = Date.now()) {
-  const en = L.enrolment, row = L.row, snap = L.snapshot || {}, course = coursePack(row.course_code) || { name: row.course_code, ksbs: [], units: [] };
+  const en = L.enrolment, row = L.row, snap = L.snapshot || {}, course = coursePack(row.course_code, row.enrolment_id) || { name: row.course_code, ksbs: [], units: [] };
   const start = Date.parse(en.start_date), end = Date.parse(en.end_date);
   const last = L.reviews.length ? L.reviews[L.reviews.length - 1] : null;
   const periodStart = last ? Date.parse(last.reviewed_at) : start;

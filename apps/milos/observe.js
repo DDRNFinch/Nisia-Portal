@@ -47,7 +47,7 @@ const today = () => { const d = new Date(); return d.getFullYear() + "-" + Strin
 const ksbText = (C, code) => ((C.ksbs || []).find((k) => k[0] === code) || [code, ""])[1];
 
 export function openObservation({ L, me }, onSaved) {
-  const code = L.row.course_code, C = coursePack(code) || { units: [], ksbs: [] }, units = observationUnits(code);
+  const code = L.row.course_code, C = coursePack(code, L.row.enrolment_id) || { units: [], ksbs: [] }, units = observationUnits(code);
   const word = code === "trowel3" ? "criteria" : "KSBs";
   const DRAFT = "milos-obs-" + L.row.enrolment_id;
   let saved = {}; try { saved = JSON.parse(localStorage.getItem(DRAFT) || "{}") || {}; } catch (_) {}

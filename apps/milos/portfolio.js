@@ -34,7 +34,7 @@ export async function loadPortfolio(L) {
 
 /* The course's units in order, each with its evidence (newest first); then other units; then supporting evidence. */
 export function groupByUnit(L, P) {
-  const code = L.row.course_code, C = coursePack(code) || { units: [], ksbs: [] };
+  const code = L.row.course_code, C = coursePack(code, L.row.enrolment_id) || { units: [], ksbs: [] };
   const groups = C.units.map(([name, ksbs], i) => ({ key: "u" + i, no: i + 1, name, ksbs, items: [] }));
   const other = { key: "other", name: "Other units", ksbs: [], items: [] }, supporting = { key: "supporting", name: "Supporting evidence", ksbs: [], items: [] };
   L.evidence.forEach((e) => {
@@ -96,7 +96,7 @@ async function signed(files) {
 const ksbText = (C, code) => ((C.ksbs || []).find((k) => k[0] === code) || [code, ""])[1];
 
 export async function openEvidence(ctx, item, onSaved) {
-  const { L, groups, me, college } = ctx, e = item.e, m = e.source_metadata || {}, C = coursePack(L.row.course_code) || { units: [], ksbs: [] };
+  const { L, groups, me, college } = ctx, e = item.e, m = e.source_metadata || {}, C = coursePack(L.row.course_code, L.row.enrolment_id) || { units: [], ksbs: [] };
   const group = groups.find((g) => g.items.includes(item)), siblings = group ? group.items : [item], at = siblings.indexOf(item);
   const claimed = (m.ksbs || []).filter(Boolean), latest = item.latest;
   /* The learner's words: the write-up, and what Evia wrote down from any video or voice note they recorded. */

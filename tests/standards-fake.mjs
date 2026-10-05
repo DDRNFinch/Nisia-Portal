@@ -44,9 +44,26 @@ export function standardsFake(root) {
       option: k.option ? ({ site_carpenter: "Site carpenter", architectural_joiner: "Architectural joiner" })[k.option] : null, courses: course0(k) ? [course0(k).title] : [], enrolments: course0(k) ? course0(k).enrolments : 0,
       versions: [{ id: k.vid, version: 1, status: "published", hash: "h", published_at: "2026-10-06T10:00:00Z", topics: k.content.topics.length }] })),
     nisia_pack: (b) => { const k = S.packs.find((x) => x.vid === b.p_version), v = vOf(k.standard), q = S.quals.find((x) => x.id === v.qid);
-      return { id: k.id, version_id: k.vid, code: k.code, title: k.title, course: k.course, version: 1, hash: "h", status: "published", topics: k.content.topics,
+      return { id: k.id, version_id: k.vid, code: k.code, title: k.title, course: k.course, version: k.pver || 1, hash: "h" + (k.pver || 1), status: k.status || "published", mine: !!k.org, topics: k.content.topics,
         standard: { code: q.code, kind: q.kind, title: q.title, version: v.version, option: k.option, option_title: k.option ? (v.options.find((o) => o.code === k.option) || {}).title : null },
         ksbs: v.requirements.filter((r) => ["knowledge", "skill", "behaviour", "criterion"].includes(r.kind) && (!r.option || r.option === k.option)).map((r) => [r.code, r.title]) }; },
+    /* A college's packs (the college admin's Packs page, the learner page and the apps). */
+    college_packs: () => ({ admin: true,
+      packs: S.packs.map((k) => ({ id: k.id, code: k.code, title: k.title, course: k.course, mine: !!k.org, kind: vOf(k.standard) && S.quals.find((q) => q.id === vOf(k.standard).qid).kind,
+        standard: k.standard + " v" + k.version, version_id: vOf(k.standard).id, option: k.option, option_title: k.option ? (vOf(k.standard).options.find((o) => o.code === k.option) || {}).title : null,
+        versions: [{ id: k.vid, version: k.pver || 1, status: k.status || "published", topics: k.content.topics.length }], learners: 0 })),
+      courses: [{ id: "cb", code: "bricklayer", title: "Bricklayer (ST0095)", version_id: vOf("ST0095").id, option: null, yours: "k0", pack: S.collegeCourse || null, learners: 1, own_pack: S.enrolPack ? 1 : 0 }] }),
+    college_save_pack: (b) => { S.collegeSaved = b;
+      const k = { id: "kc", vid: "kcv1", code: "college-1", title: b.p_title, course: "bricklayer", standard: "ST0095", version: "1.2", option: null, content: b.p_content, org: true, status: "draft", pver: 1 };
+      S.packs = S.packs.filter((x) => x.id !== "kc").concat([k]); return k.vid; },
+    college_publish_pack: (b) => { const k = S.packs.find((x) => x.vid === b.p_version); k.status = "published"; S.collegePublished = b.p_version; return null; },
+    college_set_course_pack: (b) => { S.collegeCourse = b.p_pack; S.courseSet3 = b; return null; },
+    set_enrolment_pack: (b) => { S.enrolPack = b; return null; },
+    nisia_packs: () => ({ packs: S.packs.filter((k) => (k.status || "published") === "published").map((k) => { const v = vOf(k.standard), q = S.quals.find((x) => x.id === v.qid);
+        return { id: k.id, code: k.code, title: k.title, course: k.course, version: k.pver || 1, hash: "h" + (k.pver || 1), topics: k.content.topics, standard: { code: q.code, kind: q.kind, version: v.version, option: k.option },
+          ksbs: v.requirements.filter((r) => ["knowledge", "skill", "behaviour", "criterion"].includes(r.kind) && (!r.option || r.option === k.option)).map((r) => [r.code, r.title]) }; }),
+      courses: Object.fromEntries(S.packs.filter((k) => !k.org).map((k) => [k.course, k.id])),
+      enrolments: { e0: S.enrolPack ? S.enrolPack.p_pack : S.collegeCourse || "k0" } }),
     admin_save_standard: (b) => { S.saved = b.p; return save(b.p, "draft").id; },
     admin_publish_standard: (b) => { const v = S.versions.find((x) => x.id === b.p_version); v.status = "published"; v.published_at = "2026-10-05T11:00:00Z"; return null; },
     admin_delete_standard_draft: (b) => { S.versions = S.versions.filter((x) => x.id !== b.p_version || x.status !== "draft"); return null; },

@@ -278,6 +278,34 @@ try {
     check("Attendance: each learner against the college's target, those below it first, with unexplained absences in a row", /70%/.test(att) && /2 in a row/.test(att) && !!(await page.$("tr.att-below")) && /85%/.test(await page.textContent(".att-stats")) && !!fake.S.attReport, att.slice(0, 500));
     await page.fill("#rules [name=late_minutes]", "15"); await page.fill("#rules [name=target_pct]", "95"); await page.click("#rules button[type=submit]"); await page.waitForSelector("#rules [name=late_minutes]");
     check("…the college sets its own rules (late after, target, when admins hear)", fake.S.attSet && fake.S.attSet.late_minutes === 15 && fake.S.attSet.target_pct === 95 && fake.S.attSet.alert_after === 2 && fake.S.attSet.organisation_id, JSON.stringify(fake.S.attSet));
+    /* The college's own pack: a copy of yours, changed in the builder (coverage shown as it goes), published, given to
+       the course, and one learner moved back onto yours. Your pack is never changed. */
+    { const okAll = (d) => d.accept(); page.on("dialog", okAll);
+      await page.click("nav [data-go=packs]"); await page.waitForSelector("[data-copy]");
+      const packsPage = await page.textContent("#main");
+      await page.click("[data-copy=kv0]"); await page.waitForSelector(".b-topic");
+      const cover = async () => (await page.textContent(".b-cover .panel-head")).replace(/\s+/g, " ");
+      const c0 = await cover();
+      await page.fill(".b-name[data-i='0']", "Mortar: mixing and gauging");
+      await page.click(".b-topic[data-i='0'] .b-x[data-k='S14']"); const c1 = await cover(), gap = await page.textContent(".b-cover");
+      await page.click("#bAdd"); await page.fill(".b-name[data-i='10']", "Gauging boxes");
+      await page.click("[data-pick='10']"); await page.check(".modal .b-pick input[value='S14']"); const also = await page.textContent(".modal .b-pick:has(input[value='K20'])"); await page.click("#pkDone");
+      const c2 = await cover(); await page.click("[data-up='10']"); await page.screenshot({ path: shots + "/12e-pack-builder.png", fullPage: true });
+      await page.click("#bSave"); await page.waitForSelector("[data-publish]");
+      const saved = STD.S.collegeSaved || {}, t = (saved.p_content || {}).topics || [];
+      check("College packs: a copy of your pack is changed in the builder, with KSB coverage shown as it goes, and saved as the college's own draft",
+        /Yours \(Nisia\)/.test(packsPage) && /59 of 59/.test(c0) && /58 of 59/.test(c1) && /S14/.test(gap) && /59 of 59/.test(c2) && /Not in any other topic|Also in/.test(also) &&
+        saved.p_pack === null && t.length === 11 && t[0].name === "Mortar: mixing and gauging" && t[0].from === "bricklayer/mixing-mortar" && t[9].name === "Gauging boxes" && t[9].ksbs[0].code === "S14" && !t[0].ksbs.some((k) => k.code === "S14"),
+        JSON.stringify({ c0, c1, c2, n: t.length, t0: t[0] && t[0].name, t9: t[9] && t[9].name }));
+      await page.click("[data-publish=kcv1]"); await page.waitForFunction(() => !document.querySelector("[data-publish]"));
+      await page.selectOption("select[data-course=cb]", "kc"); await page.waitForFunction(() => /uses/.test((document.querySelector(".toast") || {}).textContent || ""));
+      check("…published, and given to the college's Bricklayer course (your pack stays as it was)", STD.S.collegePublished === "kcv1" && STD.S.courseSet3 && STD.S.courseSet3.p_pack === "kc" &&
+        JSON.stringify(STD.S.packs.find((k) => k.id === "k0").content.topics[0].name) === JSON.stringify("Mixing mortar"));
+      await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("#packL");
+      const tag = await page.textContent(".lmeta"); await page.click("#packL"); await page.check(".modal input[value=k0]"); await page.click("#pkF [type=submit]");
+      await page.waitForFunction(() => !document.querySelector(".modal"));
+      check("…and a learner shows their pack, and can be moved back onto yours", /Pack: Bricklayer \(/.test(tag) && STD.S.enrolPack && STD.S.enrolPack.p_enrolment === "e0" && STD.S.enrolPack.p_pack === "k0", tag + " " + JSON.stringify(STD.S.enrolPack));
+      page.off("dialog", okAll); }
     await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));
