@@ -4,6 +4,6 @@ set -e
 cd "$(dirname "$0")"
 DB=nisia_registers_test
 su postgres -c "dropdb --if-exists $DB && createdb $DB"
-for f in stub.sql live-helpers.sql symi-only.sql ../../services/supabase/registers.sql ../../services/supabase/classes-rls-fix.sql ../../services/supabase/actions-registers.sql ../../services/supabase/actions-feedback.sql ../../services/supabase/standards.sql ../../services/supabase/standards-seed.sql ../../services/supabase/standards-seed.sql registers-test.sql rls-classes.sql standards-test.sql; do
+for f in stub.sql live-helpers.sql symi-only.sql ../../services/supabase/registers.sql ../../services/supabase/classes-rls-fix.sql ../../services/supabase/actions-registers.sql ../../services/supabase/actions-feedback.sql ../../services/supabase/standards.sql ../../services/supabase/run-2026-10-05-standards-save.sql ../../services/supabase/standards-seed.sql ../../services/supabase/standards-seed.sql ../../services/supabase/standards.sql registers-test.sql rls-classes.sql standards-test.sql; do
   su postgres -c "psql -X -q -t -o /dev/null -v ON_ERROR_STOP=1 -d $DB -f $(pwd)/$f" 2>&1 | grep -v 'does not exist, skipping' | sed 's/^psql:[^ ]* NOTICE:  /  /'
 done

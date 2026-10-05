@@ -71,17 +71,15 @@ begin
     end if;
     return coalesce(new, old);
   end if;
-  if tg_op = 'DELETE' then
-    if old.status = 'published' then raise exception 'A published version can’t be deleted: learners may be on it.'; end if;
+  if new is null then
+    if old.status = 'published' then raise exception 'A published version can’t be removed: learners may be on it.'; end if;
     return old;
   end if;
   if old.status = 'published' then raise exception 'This version is published, so it can’t change. Add a new version instead.'; end if;
   return new;
 end $$;
-drop trigger if exists requirements_frozen on public.requirements;
-create trigger requirements_frozen before insert or update or delete on public.requirements for each row execute function private.standards_frozen();
-drop trigger if exists versions_frozen on public.qualification_versions;
-create trigger versions_frozen before update or delete on public.qualification_versions for each row execute function private.standards_frozen();
+create or replace trigger requirements_frozen before insert or update or delete on public.requirements for each row execute function private.standards_frozen();
+create or replace trigger versions_frozen before update or delete on public.qualification_versions for each row execute function private.standards_frozen();
 
 -- A new enrolment follows its course's version unless it says otherwise.
 create or replace function private.enrolment_standard() returns trigger language plpgsql security definer set search_path = '' as $$
@@ -91,20 +89,22 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists enrolment_standard on public.enrolments;
-create trigger enrolment_standard before insert or update of course_id on public.enrolments for each row execute function private.enrolment_standard();
+create or replace trigger enrolment_standard before insert or update of course_id on public.enrolments for each row execute function private.enrolment_standard();
 
 alter table public.qualifications enable row level security;
 alter table public.qualification_versions enable row level security;
 alter table public.requirements enable row level security;
-drop policy if exists qualifications_read on public.qualifications;
-create policy qualifications_read on public.qualifications for select to authenticated using (true);
-drop policy if exists qualification_versions_read on public.qualification_versions;
-create policy qualification_versions_read on public.qualification_versions for select to authenticated using (status = 'published' or private.is_platform_admin());
-drop policy if exists requirements_read on public.requirements;
-create policy requirements_read on public.requirements for select to authenticated
-  using (exists (select 1 from public.qualification_versions v where v.id = version_id and (v.status = 'published' or private.is_platform_admin())));
-revoke insert, update, delete on public.qualifications, public.qualification_versions, public.requirements from anon, authenticated;
+do $p$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'qualifications' and policyname = 'qualifications_read') then
+    create policy qualifications_read on public.qualifications for select to authenticated using (true); end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'qualification_versions' and policyname = 'qualification_versions_read') then
+    create policy qualification_versions_read on public.qualification_versions for select to authenticated using (status = 'published' or private.is_platform_admin()); end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'requirements' and policyname = 'requirements_read') then
+    create policy requirements_read on public.requirements for select to authenticated
+      using (exists (select 1 from public.qualification_versions v where v.id = version_id and (v.status = 'published' or private.is_platform_admin()))); end if;
+end $p$;
+revoke insert, update, delete, truncate, references, trigger on public.qualifications, public.qualification_versions, public.requirements from anon, authenticated;
+revoke select on public.qualifications, public.qualification_versions, public.requirements from anon;
 grant select on public.qualifications, public.qualification_versions, public.requirements to authenticated;
 
 -- Saves a draft version from {code, kind, title, awarding_body, level, version, options, source_url, source_note,
