@@ -15,7 +15,7 @@ insert into public.roles (code) values ('admin'),('assessor'),('tutor'),('employ
 create table public.organisation_member_roles (organisation_member_id uuid references public.organisation_members(id), role_id int references public.roles(id));
 create table public.learners (id uuid primary key default gen_random_uuid(), organisation_id uuid references public.organisations(id), organisation_member_id uuid references public.organisation_members(id));
 create table public.learner_access (organisation_id uuid, learner_id uuid references public.learners(id), organisation_member_id uuid references public.organisation_members(id));
-create table public.courses (id uuid primary key default gen_random_uuid(), title text, source_id text);
+create table public.courses (id uuid primary key default gen_random_uuid(), title text, source_id text, code text);
 create table public.enrolments (id uuid primary key default gen_random_uuid(), organisation_id uuid references public.organisations(id), learner_id uuid references public.learners(id),
   course_id uuid references public.courses(id), status text not null default 'active', employer_name text, created_at timestamptz not null default now());
 create table public.notifications (id uuid primary key default gen_random_uuid(), organisation_id uuid, recipient_user_id uuid, notification_type text, title text, body text, data jsonb, created_at timestamptz default now());

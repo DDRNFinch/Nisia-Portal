@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
+import { standardsFake, tinyPdf } from "./standards-fake.mjs";
 const require = createRequire(import.meta.url);
 let pw; try { pw = require("playwright"); } catch { pw = require(execSync("npm root -g").toString().trim() + "/playwright"); }
 
@@ -17,6 +18,7 @@ const server = http.createServer((q, r) => {
   r.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(r);
 }).listen(0);
 const url = "http://localhost:" + server.address().port + "/apps/nisia-web/";
+const STD = standardsFake(root);
 
 const results = [];
 const check = (name, ok, detail) => { results.push(ok); console.log((ok ? "✓ " : "✗ ") + name + (ok || !detail ? "" : " — " + detail)); };
@@ -41,6 +43,7 @@ function fakeSupabase(persona) {
     if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
     if (/\/verify$/.test(p)) { if (body.code !== "123456") return json({ msg: "Invalid TOTP code entered" }, 422); S.aal = "aal2"; S.factors = [{ id: "f1", factor_type: "totp", status: "verified", friendly_name: "Nisia" }]; return json(session()); }
     if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: persona.id, aal: S.aal, platform_admin: !!persona.platform, memberships: persona.memberships || [], name: persona.name });
+    if (STD.handles(p)) { const a = STD.answer(p, body); return json(a.data, a.status); }
     if (p === "/rest/v1/rpc/nisia_admin_colleges") return json(S.colleges);
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
@@ -148,6 +151,46 @@ try {
     check("Master admin's Usage page: features ranked by reach, and what nobody used", fake.S.usageDays === 30 && /Teach me lesson[\s\S]*Evidence saved/.test(usage) && /58%/.test(usage) && /Not used/.test(usage) && /Record a video/.test(usage), usage.slice(0, 300));
     await page.click("[data-days='90']"); await page.waitForSelector("[data-days='90'][aria-pressed=true]"); await page.click("[data-app=milos]"); await page.waitForSelector("[data-app=milos][aria-pressed=true]");
     check("…the period and the app can be changed", fake.S.usageDays === 90 && /Tab: assess/.test(await page.textContent("#main")));
+    /* The standards library: the source of truth, version by version, word for word. */
+    const okAll = (d) => d.accept(); page.on("dialog", okAll);
+    await page.click("nav [data-go=standards]"); await page.waitForSelector(".std-q");
+    const lib = await page.textContent("#main"); await page.screenshot({ path: shots + "/5d-standards.png", fullPage: true });
+    check("Master admin's Standards: Evia's three courses, version by version, and what each course is built on",
+      /ST0095 · Bricklayer/.test(lib) && /31 K · 22 S · 6 B/.test(lib) && /ST0264 · Carpentry and joinery/.test(lib) && /Options: Site carpenter, Architectural joiner/.test(lib) &&
+      /6570-05/.test(lib) && /12 units · 75 outcomes · 335 criteria/.test(lib) && /City & Guilds/.test(lib) && /Carpentry\s*carp\s*Not set/.test(lib), lib.slice(0, 600));
+    await page.click(".std-q:has-text('ST0264') [data-open]"); await page.waitForSelector(".modal .std-row");
+    const rows = () => page.$$eval(".modal .std-row", (r) => r.length);
+    const all264 = await rows(); await page.click(".modal [data-f=site_carpenter]"); const site264 = await rows(); await page.click(".modal [data-f=core]"); const core264 = await rows();
+    const k1 = await page.textContent(".modal .std-row");
+    check("…a version opens word for word, and each option's KSBs can be shown on their own", all264 === 75 && site264 === 18 && core264 === 39 && /^K1\s*Health and safety|^K1/.test(k1.trim()) && !(await page.$(".modal #stdPublish")),
+      JSON.stringify({ all264, site264, core264, k1: k1.slice(0, 80) }));
+    await page.click(".modal .x");
+    await page.click(".std-q:has-text('6570-05') [data-open]"); await page.waitForSelector(".modal .std-unit");
+    await page.click(".modal .std-unit summary"); await page.screenshot({ path: shots + "/5e-standard-nvq.png" });
+    const nvq = { units: await page.$$eval(".modal .std-unit", (u) => u.length), optional: await page.$$eval(".modal .std-unit summary .chip", (c) => c.length), crit: await page.$$eval(".modal .std-unit[open] .std-row", (r) => r.length) };
+    check("…a qualification shows its units (optional ones marked), with their learning outcomes and assessment criteria", nvq.units === 12 && nvq.optional === 4 && nvq.crit > 5, JSON.stringify(nvq));
+    await page.click(".modal .x");
+    /* A new standard from its PDF: Nisia reads it, says what to check, it's saved as a draft, then published. */
+    await page.click("#stdAdd"); await page.waitForSelector("#stdForm");
+    await page.fill("#stdForm [name=code]", "st0400"); await page.fill("#stdForm [name=version]", "1.0"); await page.fill("#stdForm [name=title]", "Plasterer"); await page.fill("#stdForm [name=level]", "2");
+    await page.setInputFiles("#stdFile", { name: "ST0400.pdf", mimeType: "application/pdf", buffer: tinyPdf(["Knowledge", "K1 Know the basics of", "safe working on site.", "K3 Know plaster types.", "Skills", "S1 Mix and apply plaster.", "Page 1 of 1", "Behaviours", "B1 Work safely."]) });
+    await page.waitForFunction(() => /read\./.test(document.querySelector("#stdFileNote").textContent), null, { timeout: 15000 }).catch(() => {});
+    const read = await page.textContent("#stdCheck"); await page.screenshot({ path: shots + "/5f-standard-add.png" });
+    check("…a standard's PDF is read: its KSBs, wording over two lines joined, and gaps in the numbering to check", /Nisia read 4 items/.test(read) && /2 knowledge, 1 skills, 1 behaviours/.test(read) && /Missing in the numbering: K2/.test(read),
+      read.slice(0, 300) + " | " + await page.textContent("#stdFileNote"));
+    await page.click("#stdForm [type=submit]"); await page.waitForSelector(".modal #stdPublish");
+    const saved = STD.S.saved || {};
+    check("…saved as a draft, word for word", saved.code === "st0400" && saved.requirements.length === 4 && saved.requirements[0].title === "Know the basics of safe working on site." && STD.S.versions.some((v) => v.version === "1.0" && v.status === "draft"), JSON.stringify(saved).slice(0, 300));
+    await page.click(".modal #stdPublish"); await page.waitForFunction(() => !document.querySelector(".modal") && /ST0400/.test(document.getElementById("main").textContent));
+    check("…and published once checked", STD.S.versions.some((v) => v.version === "1.0" && v.status === "published") && /ST0400 · Plasterer[\s\S]*Published/.test(await page.textContent("#main")));
+    /* What a course is built on. */
+    await page.click("[data-course=cx]"); await page.waitForSelector("#cForm");
+    await page.evaluate(() => { const s = document.querySelector("#cForm [name=version]"); s.value = [...s.options].find((o) => /ST0264/.test(o.textContent)).value; s.dispatchEvent(new Event("change")); });
+    await page.selectOption("#cOpt", "architectural_joiner"); await page.check("#cForm [name=move]"); await page.click("#cForm [type=submit]");
+    await page.waitForFunction(() => !document.querySelector(".modal"));
+    check("…and the master admin sets what a course is built on (version and option), moving its learners across", STD.S.courseSet && STD.S.courseSet.p_option === "architectural_joiner" && STD.S.courseSet.p_move_learners === true &&
+      /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(await page.textContent("#main")), JSON.stringify(STD.S.courseSet));
+    page.off("dialog", okAll);
     await page.click("nav [data-go=colleges]"); await page.waitForSelector("#testPanel");
     fake.S.sessionGone = true; /* Nisia has already ended this sign-in (expired, or ended elsewhere) */
     await page.click("#signOut"); await page.waitForSelector("#email", { timeout: 5000 }).catch(() => {});

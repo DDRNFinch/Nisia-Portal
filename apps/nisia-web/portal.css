@@ -432,3 +432,16 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .att-table th,.att-table td{padding-left:10px;padding-right:10px}
 .att-table .person b{white-space:nowrap}
 .att-table th{white-space:normal;max-width:90px;line-height:1.25}
+
+/* Standards library */
+.std-body{display:flex;flex-direction:column}
+.std-row{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:9px 2px;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.std-row b.mono{font-size:13px;color:var(--ink-2)}
+.std-unit-row{background:var(--surface-2);font-weight:600}
+.std-unit{border-top:1px solid var(--line);padding:6px 0}
+.std-unit>summary{cursor:pointer;padding:8px 2px;font-weight:600}
+.std-unit>summary .mono{margin-right:6px}
+.std-lo{margin:10px 0 2px;padding:6px 10px;border-radius:8px;background:var(--surface-2);font-size:14px;font-weight:600}
+.std-q .panel-head h2{margin:0}
+.modal.wide-modal>*{flex-shrink:0}
+.std-seg{flex-wrap:wrap;align-self:flex-start}

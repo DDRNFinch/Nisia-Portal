@@ -9,6 +9,7 @@ import { startUsage, hit } from "../../packages/core/usage.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
 import { COURSE_DATA } from "../../packages/core/courses.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
+import { standardsPage } from "./standards.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -89,7 +90,7 @@ document.addEventListener("click", async (e) => {
 /* ---------- Shell ---------- */
 function mine(org) { return (who.memberships || []).find((m) => m.organisation_id === org) || { roles: who.platform_admin ? ["admin"] : [], organisation: "" }; }
 function navFor() {
-  if (!S.org) return [["colleges", "Colleges", "home"], ["usage", "Usage", "chart"]];
+  if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"]] : [])
@@ -116,7 +117,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 startUsage("portal", new URL(import.meta.url).searchParams.get("v") || "");
 function go(page, extra) {
   hit("page." + page);
-  if (page === "colleges" || page === "usage") { S.org = null; S.data = null; }
+  if (page === "colleges" || page === "usage" || page === "standards") { S.org = null; S.data = null; }
   S.page = page; Object.assign(S, extra || {}); window.scrollTo(0, 0); render();
 }
 const loading = () => shell('<p class="loading">Loading…</p>');
@@ -131,7 +132,7 @@ async function home() {
   render();
 }
 async function render() {
-  if (!S.org) return S.page === "usage" ? usagePage() : colleges();
+  if (!S.org) return S.page === "usage" ? usagePage() : S.page === "standards" ? standardsPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, ukDate }) : colleges();
   /* Fresh from Nisia whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
   if (!S.data || S.data.org !== S.org) {
     loading();
