@@ -1,4 +1,4 @@
-const BUILD='0.29.0';
+const BUILD='0.30.0';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',
@@ -25,7 +25,7 @@ const ASSETS=[
   `./symi-standard-ui-v024.js?v=${BUILD}`,
   `./symi-home-polish-v025.js?v=${BUILD}`,
   `./symi-updater-v027.js?v=${BUILD}`,
-  `./symi-nisia.css?v=${BUILD}`,`./nisia-link.js?v=${BUILD}`,
+  `./symi-nisia.css?v=${BUILD}`,`./symi-look.css?v=${BUILD}`,`./symi-look.js?v=${BUILD}`,'./fonts/inter-latin-wght-normal.woff2',`./nisia-link.js?v=${BUILD}`,
   '../../packages/vendor/supabase-2.45.4.js','../../packages/core/nisia.js','../../packages/core/nisia-actions.js','../../packages/core/signin.js','../../packages/core/usage.js',
   `./manifest.json?v=${BUILD}`,
   `./manifest.webmanifest?v=${BUILD}`,

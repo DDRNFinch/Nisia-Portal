@@ -1,0 +1,141 @@
+/* Symi in the Nisia apps' look (Evia, Milos, Paros): Inter, warm background, big bold titles, rounded cards with small
+   capital labels, chunky buttons, and the floating bar along the bottom with Symi's face in the middle. Loaded last,
+   so it only restyles what app.js draws (symi-look.js adds the home greeting and the bar). Symi's colour is green. */
+@font-face{font-family:"Inter";src:url("fonts/inter-latin-wght-normal.woff2") format("woff2-variations"),url("fonts/inter-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+:root{--sy-accent:#2a9d63;--sy-deep:#1f8a54;--sy-soft:#e7f6ee;--sy-line:#bfe5cf;--sy-text:#17734a;
+  --sy-ink:#141b2d;--sy-text2:#3a4456;--sy-muted:#6b7588;--sy-faint:#a0a9b8;--sy-line2:#eef0f3;--sy-hair:rgba(20,27,45,.07);--sy-bg:#f7f6f3;
+  --sy-shadow:0 1px 2px rgba(20,27,45,.04),0 10px 30px rgba(20,27,45,.06);--sy-r:26px;--sy-nav-h:74px}
+
+body.sy-look,body.sy-look button,body.sy-look input,body.sy-look select,body.sy-look textarea{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-feature-settings:"cv11","ss01"}
+body.sy-look{background:var(--sy-bg)!important;color:var(--sy-ink);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  padding-bottom:calc(var(--sy-nav-h) + max(30px,env(safe-area-inset-bottom)))}
+body.sy-look main{background:none!important}
+body.sy-look h1,body.sy-look h2,body.sy-look h3{letter-spacing:-.025em}
+
+/* The top: Symi's name, with Nisia, help and profile as round buttons on the right. */
+body.sy-look .app-header{background:transparent!important;border:0!important;box-shadow:none!important;padding-top:max(16px,env(safe-area-inset-top))!important}
+body.sy-look .app-brand .brand-word{font-size:24px!important;font-weight:850!important;letter-spacing:-.04em!important;color:var(--sy-ink)!important}
+body.sy-look .app-brand-i{color:var(--sy-accent)!important}
+body.sy-look .assessor-label{font-size:11px!important;font-weight:800!important;letter-spacing:.12em!important;color:var(--sy-muted)!important}
+body.sy-look .header-utility-actions button{border-radius:999px!important;border:1px solid var(--sy-line)!important;background:linear-gradient(180deg,#fff,var(--sy-soft))!important;color:var(--sy-text)!important;
+  font-weight:750!important;font-size:12.5px!important;box-shadow:0 6px 18px rgba(42,157,99,.12)!important;min-height:38px}
+
+/* One top row on every screen (home used to float it over the face): name on the left, buttons on the right. */
+body.sy-look .app-header,body.sy-look.samos-home-centred .app-header{position:static!important;inset:auto!important;width:auto!important;max-width:760px!important;margin:0 auto!important;padding:max(16px,env(safe-area-inset-top)) 0 8px!important;display:block!important}
+body.sy-look .app-header .app-brand,body.sy-look.samos-home-centred .app-header .app-brand{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:8px!important}
+body.sy-look .app-header .assessor-label,body.sy-look .app-header .header-actions{display:none!important}
+body.sy-look .app-header .header-utility-actions,body.sy-look.samos-home-centred .app-header .header-utility-actions{position:static!important;margin:0 0 0 auto!important;display:flex!important;gap:5px!important;flex-wrap:nowrap;justify-content:flex-end}
+body.sy-look.samos-home-centred .app-header .header-utility-actions button{width:auto!important;min-width:0!important;height:auto!important;min-height:38px!important;padding:0 13px!important;font-size:12.5px!important}
+body.sy-look.samos-home-centred .app-header .header-utility-actions button::before{content:none!important}
+/* Home's week sits in the page, not pinned to the bottom (the bar is there now). */
+body.sy-look.samos-home-centred #staffApp{position:static!important;transform:none!important;left:auto!important;bottom:auto!important;width:auto!important;max-width:760px!important;margin:0 auto!important;padding:0!important;z-index:auto!important}
+body.sy-look.samos-home-centred main{min-height:0!important;height:auto!important;overflow:visible!important}
+body.sy-look.sy-is-home .sy-home{max-width:760px;margin-left:auto!important;margin-right:auto!important;width:100%}
+
+/* Page titles, Evia's way. */
+body.sy-look .staff-page-head{align-items:center!important;gap:12px!important;margin:6px 0 16px!important}
+body.sy-look .staff-page-head h1{font-size:34px!important;line-height:1.08!important;letter-spacing:-.04em!important;font-weight:850!important;color:var(--sy-ink)!important;margin:2px 0 0!important}
+body.sy-look .staff-page-head small{font-size:11.5px!important;font-weight:800!important;letter-spacing:.12em!important;color:var(--sy-muted)!important;text-transform:uppercase}
+body.sy-look .staff-back{width:44px!important;height:44px!important;border-radius:50%!important;border:1px solid var(--sy-hair)!important;background:#fff!important;color:var(--sy-text)!important;box-shadow:var(--sy-shadow)!important;font-size:20px!important}
+
+/* Cards. */
+body.sy-look .staff-card,body.sy-look .clean-register-card{background:#fff!important;border:1px solid var(--sy-hair)!important;border-radius:var(--sy-r)!important;box-shadow:var(--sy-shadow)!important;padding:20px!important}
+body.sy-look .samos-section-head h2,body.sy-look .clean-register-head h2{font-size:20px!important;font-weight:800!important;letter-spacing:-.025em!important;color:var(--sy-ink)!important}
+body.sy-look .samos-section-head small,body.sy-look .clean-register-head small{font-size:13px!important;color:var(--sy-muted)!important;font-weight:600!important}
+body.sy-look .samos-empty strong{font-size:18px!important;font-weight:800!important;color:var(--sy-ink)!important}
+body.sy-look .samos-empty p{font-size:15px!important;color:var(--sy-muted)!important}
+
+/* Buttons. */
+body.sy-look .blue-button{min-height:50px!important;border-radius:16px!important;border:0!important;background:linear-gradient(180deg,#34b072,var(--sy-deep))!important;color:#fff!important;font-weight:750!important;font-size:15.5px!important;
+  box-shadow:0 6px 16px rgba(42,157,99,.28),inset 0 1px 0 rgba(255,255,255,.18)!important;transition:transform .15s ease,filter .15s ease}
+body.sy-look .soft-button{min-height:48px!important;border-radius:16px!important;border:1px solid var(--sy-hair)!important;background:#fff!important;color:var(--sy-ink)!important;font-weight:700!important;font-size:15px!important;box-shadow:0 1px 2px rgba(20,27,45,.04)!important}
+body.sy-look .blue-button:active,body.sy-look .soft-button:active{transform:scale(.97)}
+body.sy-look .segmented{background:#eeece7!important;border-radius:16px!important;padding:4px!important;border:0!important}
+body.sy-look .segmented button{border-radius:12px!important;font-weight:700!important;font-size:14px!important;color:var(--sy-muted)!important;min-height:40px}
+body.sy-look .segmented button.active{background:#fff!important;color:var(--sy-ink)!important;box-shadow:0 1px 3px rgba(20,27,45,.1)!important}
+
+/* Lists. */
+body.sy-look .learner-row,body.sy-look .attendance-row{padding:14px 2px!important;border-color:var(--sy-line2)!important}
+body.sy-look .learner-row strong,body.sy-look .attendance-name strong{font-size:16px!important;font-weight:750!important;color:var(--sy-ink)!important;letter-spacing:-.01em}
+body.sy-look .learner-row small{font-size:13px!important;color:var(--sy-muted)!important}
+body.sy-look .mini-progress b{font-size:17px!important;font-weight:800!important;color:var(--sy-text)!important}
+body.sy-look .timer-readout b{font-size:14px!important;font-weight:700!important;color:var(--sy-muted)!important;font-variant-numeric:tabular-nums}
+body.sy-look .register-compact-meta span{border-radius:999px!important;background:#f1f2f5!important;color:var(--sy-muted)!important;font-weight:700!important;font-size:12.5px!important;padding:4px 10px!important}
+body.sy-look .register-state{border-radius:999px!important;font-weight:700!important}
+
+/* The week strip. */
+body.sy-look .scal-shell{background:#fff!important;border:1px solid var(--sy-hair)!important;border-radius:var(--sy-r)!important;box-shadow:var(--sy-shadow)!important;padding:16px 14px!important;margin:0 0 14px!important}
+body.sy-look .scal-head span{font-size:11.5px!important;font-weight:800!important;letter-spacing:.12em!important;color:var(--sy-muted)!important;text-transform:uppercase}
+body.sy-look .scal-head button{color:var(--sy-text)!important;font-weight:750!important}
+body.sy-look .scal-day{border-radius:16px!important;border-color:var(--sy-line2)!important}
+body.sy-look .scal-day strong{font-weight:800!important}
+
+/* Symi's menu (the face): its choices as cards. */
+body.sy-look .evia-wizard{background:var(--sy-bg)!important}
+body.sy-look #samosPrompt{font-size:28px!important;font-weight:850!important;letter-spacing:-.035em!important;color:var(--sy-ink)!important}
+body.sy-look #samosHint{font-size:15px!important;color:var(--sy-muted)!important}
+body.sy-look #samosContent .ta-menu button{background:#fff!important;border:1px solid var(--sy-hair)!important;border-radius:22px!important;box-shadow:var(--sy-shadow)!important;padding:16px 18px!important}
+body.sy-look #samosContent .ta-menu button strong{font-size:17px!important;font-weight:800!important;color:var(--sy-ink)!important;letter-spacing:-.02em}
+body.sy-look #samosContent .ta-menu button span{font-size:14px!important;color:var(--sy-muted)!important;font-weight:500!important}
+body.sy-look .evia-toolbar button{width:44px;height:44px;border-radius:50%!important;border:1px solid var(--sy-hair)!important;background:#fff!important;box-shadow:var(--sy-shadow)!important}
+
+/* Forms in Symi's windows. */
+body.sy-look .samos-dialog{border-radius:28px!important;border:0!important;box-shadow:0 24px 60px rgba(20,27,45,.22)!important;background:var(--sy-bg)!important}
+body.sy-look .dialog-head h2{font-size:24px!important;font-weight:850!important;letter-spacing:-.03em!important}
+body.sy-look .dialog-head small{font-size:11.5px!important;font-weight:800!important;letter-spacing:.12em!important;color:var(--sy-muted)!important}
+body.sy-look .samos-dialog input:not([type=checkbox]):not([type=radio]),body.sy-look .samos-dialog select,body.sy-look .samos-dialog textarea{min-height:48px;border-radius:16px!important;border:1px solid #e3e6eb!important;background:#fff!important;font-size:15px!important}
+body.sy-look .samos-dialog input:focus,body.sy-look .samos-dialog select:focus,body.sy-look .samos-dialog textarea:focus{outline:none;border-color:var(--sy-accent)!important;box-shadow:0 0 0 3px rgba(42,157,99,.18)!important}
+
+/* Home: the greeting and today's classes. The face lives in the bar along the bottom now. */
+.sy-home{display:none}
+body.sy-look.sy-is-home .sy-home{display:flex;flex-direction:column;gap:14px;margin:4px 0 14px}
+body.sy-look.sy-is-home #samosFacePanel{display:none!important}
+.sy-hello h1{margin:0;font-size:34px;line-height:1.08;letter-spacing:-.04em;font-weight:850;color:var(--sy-ink)}
+.sy-hello p{margin:5px 0 0;font-size:15px;font-weight:650;color:var(--sy-muted)}
+.sy-card{position:relative;display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--sy-hair);border-radius:var(--sy-r);box-shadow:var(--sy-shadow);padding:20px;color:var(--sy-ink);font:inherit}
+.sy-label{margin:0 0 6px;font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--sy-muted)}
+.sy-big{margin:0;font-size:40px;line-height:1.05;letter-spacing:-.045em;font-weight:850;font-variant-numeric:tabular-nums}
+.sy-big small{font-size:20px;letter-spacing:-.02em;color:var(--sy-muted);font-weight:750}
+.sy-sub{margin:6px 0 0;font-size:15px;color:var(--sy-muted)}
+.sy-rows{display:flex;flex-direction:column;margin-top:10px}
+.sy-row{display:flex;align-items:center;gap:14px;width:100%;padding:13px 2px;border:0;border-top:1px solid var(--sy-line2);background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.sy-time{flex:0 0 auto;min-width:58px;padding:6px 10px;border-radius:12px;background:var(--sy-soft);color:var(--sy-text);font-weight:800;font-size:14px;text-align:center;font-variant-numeric:tabular-nums}
+.sy-row-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.sy-row-main b{font-size:16px;font-weight:750;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sy-row-main small{font-size:13px;color:var(--sy-muted)}
+.sy-chev{color:var(--sy-faint);display:grid;place-items:center}
+.sy-chev svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.sy-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sy-tile{cursor:pointer;padding:16px 18px}
+.sy-num{margin:0;font-size:30px;font-weight:850;letter-spacing:-.04em}
+.sy-card:active,.sy-row:active{transform:scale(.985)}
+
+/* The bar along the bottom, with Symi's face in the middle (tap it for Symi's menu). */
+.sy-nav{position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));width:min(560px,calc(100% - 24px));height:var(--sy-nav-h);display:grid;grid-template-columns:1fr 1fr 78px 1fr 1fr;align-items:center;
+  padding:4px 6px;border-radius:40px;background:rgba(255,255,255,.94);border:1px solid rgba(230,233,238,.95);box-shadow:0 16px 36px rgba(20,27,45,.13),0 2px 8px rgba(20,27,45,.04);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.sy-nav>button{position:relative;height:62px;border:0;border-radius:30px;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#9ba5b5;font:700 11px/1 "Inter",-apple-system,sans-serif;letter-spacing:-.01em;white-space:nowrap;cursor:pointer;transition:color .2s ease,background .2s ease,transform .15s ease}
+.sy-nav>button svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sy-nav>button.on{color:var(--sy-text);background:var(--sy-soft)}
+.sy-nav>button:active{transform:scale(.94)}
+.sy-nav .sy-nav-face{height:70px;width:70px;margin:-26px auto 0;border-radius:50%;background:#fff;box-shadow:0 10px 26px rgba(42,157,99,.28),0 0 0 8px rgba(231,246,238,.9);display:grid;place-items:center}
+.sy-av{position:relative;width:54px;height:54px;border-radius:50%;background:#fff;border:4px solid var(--sy-accent);display:flex;align-items:center;justify-content:center;animation:sy-blink 5s infinite}
+.sy-av i{display:inline-block;width:9px;height:13px;margin:0 3px;border:3px solid var(--sy-accent);border-radius:50%}
+@keyframes sy-blink{0%,92%,100%{transform:none}95%{transform:scaleY(.92)}}
+@media(max-width:360px){.sy-nav>button{font-size:10px}.sy-nav{grid-template-columns:1fr 1fr 70px 1fr 1fr}}
+/* Out of the way while Symi's menu, a window, or the classroom screen is open. */
+body.evia-open .sy-nav,body:has(dialog[open]) .sy-nav,body:has(.sn-checkin) .sy-nav,body:has(.classroom-player[aria-hidden="false"]) .sy-nav{display:none}
+@media (prefers-reduced-motion:reduce){.sy-av{animation:none}.sy-nav>button,.sy-card,.sy-row{transition:none}}
+.sy-hello{display:block}
+body.sy-look.samos-home-centred #nisiaButton{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:6px!important}
+body.sy-look #nisiaButton::before{content:none!important}
+body.sy-look.samos-home-centred .app-header .header-utility-actions button,body.sy-look .app-header .header-utility-actions button{border-radius:999px!important;border:1px solid var(--sy-line)!important;background:linear-gradient(180deg,#fff,var(--sy-soft))!important;color:var(--sy-text)!important;
+  font-weight:750!important;font-size:12.5px!important;box-shadow:0 6px 18px rgba(42,157,99,.12)!important;padding:0 10px!important;min-height:36px!important;height:36px!important;width:auto!important;line-height:1!important}
+body.sy-look .app-header .app-brand{flex-wrap:nowrap!important;width:auto!important;max-width:none!important}
+body.sy-look .app-header .brand-word,body.sy-look.samos-home-centred .app-header .brand-word{display:inline-block!important;flex:0 0 auto!important;width:auto!important}
+body.sy-look .app-header .header-utility-actions{flex-wrap:nowrap!important;min-width:0}
+/* Small phones: Help and Profile become round buttons so the top row still fits on one line. */
+@media(max-width:400px){
+  body.sy-look .app-header #helpButton,body.sy-look .app-header #profileButton,body.sy-look.samos-home-centred .app-header #helpButton,body.sy-look.samos-home-centred .app-header #profileButton{font-size:0!important;width:36px!important;min-width:36px!important;padding:0!important;display:grid!important;place-items:center!important}
+  body.sy-look .app-header #helpButton::after{content:"?";font-size:16px;font-weight:800}
+  body.sy-look .app-header #profileButton::after{content:"";width:15px;height:15px;border-radius:50%;border:2px solid currentColor;box-sizing:border-box}
+}

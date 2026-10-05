@@ -64,7 +64,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.29.0");
+    localStorage.setItem("symi-last-seen-release-v1", "0.30.0");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -73,6 +73,20 @@ try {
   await page.evaluate(() => window.SamosApp.openRegisters()); await page.waitForTimeout(500);
   const before = { chip: /Connect to Nisia/.test(await page.textContent("#nisiaButton")), bar: /Sign in to Nisia/.test(await page.textContent(".sn-bar")) };
   check("Symi works as before, with Connect to Nisia in the header and on the register", before.chip && before.bar, JSON.stringify(before));
+  /* Evia's look: the bar along the bottom goes to each screen, and Symi's face in the middle opens her menu. */
+  const look = {};
+  for (const [tab, view] of [["learners", "learners"], ["classes", "classes"], ["home", "home"], ["registers", "registers"]]) {
+    await page.click('.sy-nav [data-sy-tab="' + tab + '"]'); await page.waitForTimeout(250);
+    look[tab] = (await page.evaluate(() => window.SamosApp.getState().view)) === view && await page.$eval('.sy-nav [data-sy-tab="' + tab + '"]', (b) => b.classList.contains("on"));
+  }
+  await page.click(".sy-nav [data-sy-face]"); await page.waitForTimeout(400);
+  look.menu = await page.evaluate(() => document.body.classList.contains("evia-open")) && !(await page.isVisible(".sy-nav"));
+  await page.click("#samosClose"); await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200);
+  look.finishClear = await page.evaluate(async () => { window.scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => setTimeout(r, 200));
+    const f = document.querySelector("[data-finish-register]"), n = document.querySelector(".sy-nav"); return !!f && f.getBoundingClientRect().bottom <= n.getBoundingClientRect().top; });
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.evaluate(() => window.scrollTo(0, 0));
+  check("Symi looks like Evia: the bar along the bottom goes to each screen, the face opens Symi's menu, and nothing is hidden behind the bar on a phone", Object.values(look).every(Boolean), JSON.stringify(look));
 
   await page.click("#nisiaButton");
   await page.fill(".sn-auth #email", "p.shah@x"); await page.fill(".sn-auth #pw", "Str0ng-pass!"); await page.click(".sn-auth button[type=submit]");
