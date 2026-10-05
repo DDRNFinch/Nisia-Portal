@@ -6,6 +6,7 @@
      and sent the next time there's signal; each job is sent a step at a time and picks up where it stopped.
    - Signing out clears it all from the phone. */
 import { db, rpc, me } from "../../packages/core/nisia.js";
+import { loadPacks } from "../../packages/core/packs.js";
 /* Requests to Nisia go through the shared actions where there is one (packages/core/nisia-actions.js). */
 const A = window.NisiaActions;
 A.use(rpc, { app: "milos" });
@@ -66,6 +67,8 @@ export async function withPending(r, D) {
 /* ---------- Downloading from Nisia ---------- */
 async function download() {
   const who = await me();
+  /* The course packs (topics and KSBs) first, so learners open in the newest; with no change nothing is downloaded. */
+  try { await loadPacks(rpc); } catch (e) { console.warn("Milos: packs", e.message); }
   const orgs = (who.memberships || []).filter((m) => m.roles.some((x) => ["assessor", "tutor", "admin"].includes(x)));
   const rows = [];
   for (const o of orgs) {

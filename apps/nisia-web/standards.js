@@ -25,8 +25,8 @@ export async function standardsPage(helpers) {
   ui = helpers;
   const { shell, rpc, esc } = ui;
   shell('<p class="loading">Loading the standards library…</p>');
-  let L;
-  try { L = await rpc("nisia_standards"); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  let L, packs = [];
+  try { [L, packs] = await Promise.all([rpc("nisia_standards"), rpc("admin_packs").catch(() => [])]); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   const versions = L.standards.flatMap((q) => q.versions.map((v) => ({ ...v, q })));
   const vName = (id) => { const v = versions.find((x) => x.id === id); return v ? v.q.code + " v" + v.version : ""; };
   const optName = (id, o) => { const v = versions.find((x) => x.id === id); const t = v && (v.options || []).find((x) => x.code === o); return t ? t.title : o; };
@@ -46,11 +46,34 @@ export async function standardsPage(helpers) {
       L.courses.map((c) => '<tr class="static"><td><b>' + esc(c.title) + '</b><br><span class="small muted">' + esc(c.code || "") + '</span></td><td>' +
         (c.version_id ? esc(vName(c.version_id)) + (c.option ? ' <span class="small muted">· ' + esc(optName(c.version_id, c.option)) + '</span>' : "") : '<span class="pill idle">Not set</span>') +
         '</td><td class="num">' + c.enrolments + '</td><td style="text-align:right"><button class="btn small" type="button" data-course="' + c.id + '">Change</button></td></tr>').join("") +
-      '</tbody></table></div></section>');
+      '</tbody></table></div></section>' +
+    /* The packs: the topics each course is taught and evidenced in, built on a standard. */
+    '<section class="panel"><div class="panel-head"><div><h2>Packs</h2><span class="small muted">The topics each course is taught and evidenced in. Yours come from Evia’s own files; Evia, Milos and Paros all use them from here.</span></div></div>' +
+      (packs.length ? '<div class="table-wrap flat"><table><thead><tr><th>Pack</th><th>Built on</th><th>Version</th><th>Topics</th><th>Courses</th><th>Learners</th><th></th></tr></thead><tbody>' +
+        packs.map((k) => { const v = k.versions[0] || {}; return '<tr class="static"><td><b>' + esc(k.title) + '</b><br><span class="small muted">' + esc(k.college ? "Made by " + k.college : "Yours") + '</span></td><td>' +
+          esc(k.standard) + (k.option ? ' <span class="small muted">· ' + esc(k.option) + '</span>' : "") + '</td><td>v' + esc(v.version || "") + ' ' + statusPill(v.status) + '</td><td class="num">' + (v.topics || 0) +
+          '</td><td>' + (k.courses.length ? k.courses.map(esc).join("<br>") : '<span class="muted">None</span>') + '</td><td class="num">' + k.enrolments + '</td><td style="text-align:right"><button class="btn small" type="button" data-pack="' + esc(v.id) + '">Open</button></td></tr>'; }).join("") +
+        '</tbody></table></div>' : '<p class="muted">No packs yet.</p>') + '</section>');
   const root = document.getElementById("main");
+  root.querySelectorAll("[data-pack]").forEach((b) => b.onclick = () => openPack(b.dataset.pack));
   root.querySelector("#stdAdd").onclick = () => addForm();
   root.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => openVersion(b.dataset.open));
   root.querySelectorAll("[data-course]").forEach((b) => b.onclick = () => courseForm(L.courses.find((c) => c.id === b.dataset.course), versions));
+}
+
+/* A pack: its topics, each with the KSBs it covers (in the topic's own words; the standard's wording on hover). */
+async function openPack(id) {
+  const { rpc, esc, modal, toast, hit } = ui;
+  let p;
+  try { p = await rpc("nisia_pack", { p_version: id }); } catch (e) { toast(e.message); return; }
+  hit("standards.pack");
+  const full = Object.fromEntries((p.ksbs || []).map(([c, t]) => [c, t])), nvq = p.standard && p.standard.kind === "qualification";
+  const m = modal(p.title + " v" + p.version,
+    '<p class="small muted" style="margin-top:-4px">Built on ' + esc(p.standard.code + " v" + p.standard.version) + (p.standard.option_title ? " · " + esc(p.standard.option_title) : "") + ' · ' + p.topics.length + (nvq ? " units" : " topics") + '</p>' +
+    '<div class="std-body">' + p.topics.map((t, i) => '<details class="std-unit"><summary><b class="mono">' + (i + 1) + '</b> ' + esc(t.name) + (t.optional ? ' <span class="chip">Optional</span>' : "") +
+      ' <span class="small muted">· ' + t.ksbs.length + (nvq ? " criteria" : " KSBs") + '</span></summary>' +
+      t.ksbs.map((k) => '<div class="std-row" title="' + esc(full[k.code] || "") + '"><b class="mono">' + esc(k.code) + '</b><span>' + esc(k.text || full[k.code] || "") + '</span></div>').join("") + '</details>').join("") + '</div>');
+  m.classList.add("wide-modal");
 }
 
 /* One version, word for word. */

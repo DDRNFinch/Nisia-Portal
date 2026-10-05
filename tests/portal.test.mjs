@@ -170,6 +170,15 @@ try {
     const nvq = { units: await page.$$eval(".modal .std-unit", (u) => u.length), optional: await page.$$eval(".modal .std-unit summary .chip", (c) => c.length), crit: await page.$$eval(".modal .std-unit[open] .std-row", (r) => r.length) };
     check("…a qualification shows its units (optional ones marked), with their learning outcomes and assessment criteria", nvq.units === 12 && nvq.optional === 4 && nvq.crit > 5, JSON.stringify(nvq));
     await page.click(".modal .x");
+    /* The packs: yours, each built on its standard, with its topics and their KSBs. */
+    const packsText = await page.textContent("section.panel:has(h2:text-is('Packs'))");
+    await page.click("[data-pack=kv0]"); await page.waitForSelector(".modal .std-unit");
+    const pk = { topics: await page.$$eval(".modal .std-unit", (u) => u.length), first: await page.textContent(".modal .std-unit summary") };
+    await page.click(".modal .std-unit summary"); pk.ksb = await page.textContent(".modal .std-unit[open] .std-row"); await page.screenshot({ path: shots + "/5g-pack.png" });
+    check("…and the packs: yours, each built on its standard (and option), with its topics and their KSBs in the topic's own words",
+      (packsText.match(/Yours(?! come)/g) || []).length === 4 && /Bricklayer[\s\S]*ST0095 v1\.2/.test(packsText) && /ST0264 v1\.4\s*· Site carpenter/.test(packsText) && pk.topics === 10 && /Mixing mortar/.test(pk.first) && /S14\s*Gauge and hand mix mortar to ratio\./.test(pk.ksb),
+      JSON.stringify(pk).slice(0, 300) + " | " + packsText.slice(0, 300));
+    await page.click(".modal .x");
     /* A new standard from its PDF: Nisia reads it, says what to check, it's saved as a draft, then published. */
     await page.click("#stdAdd"); await page.waitForSelector("#stdForm");
     await page.fill("#stdForm [name=code]", "st0400"); await page.fill("#stdForm [name=version]", "1.0"); await page.fill("#stdForm [name=title]", "Plasterer"); await page.fill("#stdForm [name=level]", "2");

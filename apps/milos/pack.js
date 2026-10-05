@@ -4,7 +4,7 @@
    The learner prepares evidence in Evia, Evia prepares it for Milos, the assessor signs it off in Milos, and this
    hands it on. */
 import { esc, ukDate } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack } from "../../packages/core/packs.js";
 
 const DAY = 864e5;
 const meta = (e) => e.source_metadata || {};
@@ -13,7 +13,7 @@ const PREFIX = { evidence: "E", observation: "O", supporting: "S" };
 
 /* Everything the pack shows, worked out once. me: {name, member_id} of the assessor making it. */
 export function buildPack(L, P, me) {
-  const C = COURSE_DATA[L.row.course_code] || { name: L.row.course_code, units: [], ksbs: [] }, nvq = L.row.course_code === "trowel3";
+  const C = coursePack(L.row.course_code) || { name: L.row.course_code, units: [], ksbs: [] }, nvq = L.row.course_code === "trowel3";
   const names = {}; (L.row.assessors || []).forEach((a) => { names[a.member_id] = a.name; }); if (me && me.member_id) names[me.member_id] = me.name;
   const nameOf = (a, e) => names[a.assessor_member_id] || (kindOf(e) === "observation" && meta(e).observedBy) || "Assessor";
   const unitNo = (u) => { const i = C.units.findIndex(([n]) => n.toLowerCase() === String(u || "").toLowerCase()); return i < 0 ? null : i + 1; };

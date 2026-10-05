@@ -339,6 +339,33 @@ try {
     check("Notifications: Milos offers them on Today, saves the device to Nisia, shows Nisia's push, and a tapped one opens To assess", saved && gone && acct && shown && opens && !e2.length, JSON.stringify({ saved, gone, acct, shown, opens, reg: !!reg, worker: !!worker }) + " " + e2.join(" | "));
     await c2.close();
   }
+  /* The course from Nisia's pack: a renamed topic keeps its evidence (by its id), evidence filed under an old topic
+     goes where its KSBs fit, and a KSB signed off in one topic counts in every topic that covers it. */
+  {
+    const seed = fs.readFileSync(path.join(root, "services/supabase/packs-seed.sql"), "utf8");
+    const brick = [...seed.matchAll(/save_pack\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m) => JSON.parse(m[2])).find((p) => p.course === "bricklayer");
+    const std = fs.readFileSync(path.join(root, "services/supabase/standards-seed.sql"), "utf8");
+    const ksbs = [...std.matchAll(/save_standard\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m) => JSON.parse(m[2])).find((p) => p.code === "ST0095").requirements.map((r) => [r.code, r.title]);
+    const topics = JSON.parse(JSON.stringify(brick.content.topics)); topics[0].name = "Mortar mixing";
+    const pack = { id: "P1", code: "nisia-bricklayer", title: "Bricklayer", version: 2, hash: "h2", standard: { code: "ST0095", kind: "standard", version: "1.2" }, topics, ksbs };
+    const c3 = await browser.newContext(), p3 = await c3.newPage(); await p3.goto(url + "milos.css"); await p3.addScriptTag({ url: url + "../../packages/vendor/supabase-2.45.4.js" }); await p3.addScriptTag({ url: url + "../../packages/core/nisia-actions.js" });
+    const got = await p3.evaluate(async (pack) => {
+      const P = await import("../../packages/core/packs.js"), F = await import("./portfolio.js");
+      let asked = 0; await P.loadPacks(async (fn, args) => { asked++; return { packs: [args.p_have.P1 === "h2" ? { id: "P1", hash: "h2", unchanged: true } : pack], courses: { bricklayer: "P1" } }; });
+      await P.loadPacks(async (fn, args) => ({ packs: [args.p_have.P1 === "h2" ? { id: "P1", hash: "h2", unchanged: true } : pack], courses: { bricklayer: "P1" } }));
+      const C = P.coursePack("bricklayer");
+      const ev = (id, unit, unitId, k) => ({ id, title: unit, created_at: "2026-10-01T10:00:00Z", evidence_type: "photo", source_metadata: { collection: "evidence", unit, unitId, ksbs: k } });
+      const L = { row: { course_code: "bricklayer" }, evidence: [ev("a", "Mixing mortar", "bricklayer/mixing-mortar", ["S14", "K20"]), ev("b", "Pointing old work", null, ["S12", "K17", "S2"])] };
+      const groups = F.groupByUnit(L, { files: {}, assessed: { b: [{ decision: "accepted", ksbs: ["K1", "S12"] }] } });
+      const html = F.portfolioHtml(groups, false, {}), box = document.createElement("div"); box.innerHTML = html;
+      const met = [...box.querySelectorAll(".pf-unit")].map((d) => [d.querySelector(".pf-name b").textContent, (d.querySelector(".pf-met") || {}).textContent || ""]);
+      return { first: C.units[0][0], kept: localStorage.getItem("nisia-packs-v1") !== null, a: groups[0].name + ":" + groups[0].items.map((i) => i.e.id).join(), b: groups[1].items.map((i) => i.e.id + "|" + (i.movedFrom || "")).join(),
+        other: groups.some((g) => g.key === "other"), filedAs: /Filed as Pointing old work/.test(html), metMix: (met.find((m) => m[0] === "Mortar mixing") || [])[1], fallback: Object.keys(P.allCoursePacks()).length };
+    }, pack);
+    check("Milos takes the course from Nisia's pack (kept for no signal): a renamed topic keeps its evidence, evidence under an old topic goes where its KSBs fit, and a KSB signed off anywhere counts everywhere",
+      got.first === "Mortar mixing" && got.kept && got.a === "Mortar mixing:a" && got.b === "b|Pointing old work" && !got.other && got.filedAs && /^1\/8/.test(got.metMix) && got.fallback >= 4, JSON.stringify(got));
+    await c3.close();
+  }
 } catch (e) { check("Test run finished", false, e.message); }
 await browser.close(); server.close();
 const failed = results.filter((x) => !x).length;

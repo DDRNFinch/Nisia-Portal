@@ -4,7 +4,7 @@
    the learner's mapping is ticked to start with, and can be unticked or added to. Each decision is a new row in
    Nisia's assessments (the latest one stands), so the history is kept. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack, allCoursePacks, topicFor } from "../../packages/core/packs.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { saveAssessment } from "./store.js";
 import { analyse, highlighted, statementMarked, draftFeedback } from "./match.js";
@@ -34,16 +34,17 @@ export async function loadPortfolio(L) {
 
 /* The course's units in order, each with its evidence (newest first); then other units; then supporting evidence. */
 export function groupByUnit(L, P) {
-  const code = L.row.course_code, C = COURSE_DATA[code] || { units: [], ksbs: [] };
+  const code = L.row.course_code, C = coursePack(code) || { units: [], ksbs: [] };
   const groups = C.units.map(([name, ksbs], i) => ({ key: "u" + i, no: i + 1, name, ksbs, items: [] }));
   const other = { key: "other", name: "Other units", ksbs: [], items: [] }, supporting = { key: "supporting", name: "Supporting evidence", ksbs: [], items: [] };
   L.evidence.forEach((e) => {
     const item = { e, files: P.files[e.id] || [], history: P.assessed[e.id] || [] };
     item.latest = item.history[0] || null;
     if (isSupporting(e)) return supporting.items.push(item);
-    const g = groups.find((u) => norm(u.name) === norm(unitOf(e)));
-    if (g) return g.items.push(item);
-    const elsewhere = Object.entries(COURSE_DATA).find(([k, c]) => k !== code && c.units.some(([n]) => norm(n) === norm(unitOf(e))));
+    /* By its topic's id, then its name, then the topic its KSBs fit best: renamed or regrouped topics never lose evidence. */
+    const t = topicFor(C, e), g = t >= 0 ? groups[t] : null;
+    if (g) { if (norm(g.name) !== norm(unitOf(e)) && unitOf(e)) item.movedFrom = unitOf(e); return g.items.push(item); }
+    const elsewhere = Object.entries(allCoursePacks()).find(([k, c]) => k !== code && c.units.some(([n]) => norm(n) === norm(unitOf(e))));
     item.otherCourse = elsewhere ? elsewhere[1].name : "";
     other.items.push(item);
   });
@@ -55,14 +56,16 @@ export const statusPill = (it) => { const s = status(it); return '<span class="p
 
 /* The unit list on the learner page. */
 export function portfolioHtml(groups, onlyNew, snap) {
+  /* A KSB signed off anywhere in the portfolio counts in every topic that covers it. */
+  const met = new Set();
+  groups.forEach((g) => g.items.forEach((it) => { if (it.latest && it.latest.decision === "accepted") (it.latest.ksbs || []).forEach((k) => met.add(String(k).replace(/^(\d+\.\d+\.\d+)[a-z]$/, "$1"))); }));
   const newCount = groups.reduce((n, g) => n + g.items.filter((it) => !it.latest).length, 0);
   return '<div class="between"><h2>Portfolio</h2><div class="row">' + (newCount ? '<span class="pill accent">' + newCount + ' new to assess</span>' : '<span class="pill good">All assessed</span>') +
     '<button class="btn ghost" id="pfFilter">' + (onlyNew ? "Show everything" : "Only new") + '</button></div></div>' +
     '<div class="pf">' + groups.map((g) => {
       const items = onlyNew ? g.items.filter((it) => !it.latest) : g.items;
       if (onlyNew && !items.length) return "";
-      const fresh = g.items.filter((it) => !it.latest).length, met = new Set();
-      g.items.forEach((it) => { if (it.latest && it.latest.decision === "accepted") (it.latest.ksbs || []).forEach((k) => met.add(k)); });
+      const fresh = g.items.filter((it) => !it.latest).length;
       const covered = g.ksbs.filter((k) => met.has(k)).length;
       return '<details class="card pf-unit' + (fresh ? " has-new" : "") + (g.items.length ? "" : " pf-none") + '"' + (fresh || onlyNew ? " open" : "") + '><summary>' +
         '<span class="pf-no">' + (g.no || "") + '</span><span class="pf-name"><b>' + esc(g.name) + '</b><span class="sub">' +
@@ -71,7 +74,7 @@ export function portfolioHtml(groups, onlyNew, snap) {
         (g.ksbs.length ? '<span class="pf-met" title="KSBs signed off">' + covered + '/' + g.ksbs.length + '<small>signed off</small></span>' : "") + '</summary>' +
         (items.length ? '<div class="pf-items">' + items.map((it) => '<button class="pf-item' + (!it.latest ? " is-new" : "") + '" data-ev="' + it.e.id + '">' +
           '<span class="name-cell"><span class="name">' + esc(g.key === "supporting" || g.key === "other" ? it.e.title : ukDate(it.e.created_at)) + '</span>' +
-          '<span class="sub">' + esc([g.key === "supporting" || g.key === "other" ? ukDate(it.e.created_at) : "", it.otherCourse, isObservation(it.e) ? "Observation" + (it.e.source_metadata.observedBy ? " by " + it.e.source_metadata.observedBy : "") : TYPE[it.e.evidence_type] || it.e.evidence_type, it.files.length ? it.files.length + (it.files.length === 1 ? " file" : " files") : ""].filter(Boolean).join(" · ")) + '</span></span>' +
+          '<span class="sub">' + esc([g.key === "supporting" || g.key === "other" ? ukDate(it.e.created_at) : "", it.otherCourse, it.movedFrom ? "Filed as " + it.movedFrom : "", isObservation(it.e) ? "Observation" + (it.e.source_metadata.observedBy ? " by " + it.e.source_metadata.observedBy : "") : TYPE[it.e.evidence_type] || it.e.evidence_type, it.files.length ? it.files.length + (it.files.length === 1 ? " file" : " files") : ""].filter(Boolean).join(" · ")) + '</span></span>' +
           statusPill(it) + '<span class="chev">›</span></button>').join("") + '</div>' : "") + '</details>';
     }).join("") + '</div>';
 }
@@ -93,7 +96,7 @@ async function signed(files) {
 const ksbText = (C, code) => ((C.ksbs || []).find((k) => k[0] === code) || [code, ""])[1];
 
 export async function openEvidence(ctx, item, onSaved) {
-  const { L, groups, me, college } = ctx, e = item.e, m = e.source_metadata || {}, C = COURSE_DATA[L.row.course_code] || { units: [], ksbs: [] };
+  const { L, groups, me, college } = ctx, e = item.e, m = e.source_metadata || {}, C = coursePack(L.row.course_code) || { units: [], ksbs: [] };
   const group = groups.find((g) => g.items.includes(item)), siblings = group ? group.items : [item], at = siblings.indexOf(item);
   const claimed = (m.ksbs || []).filter(Boolean), latest = item.latest;
   /* The learner's words: the write-up, and what Evia wrote down from any video or voice note they recorded. */

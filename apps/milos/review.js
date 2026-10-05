@@ -6,7 +6,7 @@
    the record matches the data); people write the rest. Saved once, when signed, with a hash of its content; a draft
    is kept on this device until then. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack } from "../../packages/core/packs.js";
 import { saveReview } from "./store.js";
 import { progressText, otjText, fsText, summaryText, suggestRag } from "./draft.js";
 import { reviewPdf } from "../../packages/core/reviewdoc.js";
@@ -46,7 +46,7 @@ export const dueText = (d) => !d ? "" : d.overdue ? "Overdue by " + -d.days + " 
 
 /* ---------- The facts, from Evia and Nisia ---------- */
 export function facts(L, now = Date.now()) {
-  const en = L.enrolment, row = L.row, snap = L.snapshot || {}, course = COURSE_DATA[row.course_code] || { name: row.course_code, ksbs: [], units: [] };
+  const en = L.enrolment, row = L.row, snap = L.snapshot || {}, course = coursePack(row.course_code) || { name: row.course_code, ksbs: [], units: [] };
   const start = Date.parse(en.start_date), end = Date.parse(en.end_date);
   const last = L.reviews.length ? L.reviews[L.reviews.length - 1] : null;
   const periodStart = last ? Date.parse(last.reviewed_at) : start;

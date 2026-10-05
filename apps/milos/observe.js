@@ -4,7 +4,7 @@
    evidence (recorded as the assessor's observation, photos in the college's private evidence store), now or once
    there's signal. */
 import { db, esc } from "../../packages/core/nisia.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack } from "../../packages/core/packs.js";
 import { PROMPTS, split, termMatched } from "../../packages/core/prompts.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { saveObservation } from "./store.js";
@@ -24,7 +24,7 @@ const LEVEL = { strong: "Strong", good: "Good", weak: "Needs more" };
 
 /* The units to observe against, in the course's order, with Evia's prompts. The NVQ works by site job, as in Evia. */
 export function observationUnits(code) {
-  const C = COURSE_DATA[code] || { units: [] }, P = PROMPTS[code] || {};
+  const C = coursePack(code) || { units: [] }, P = PROMPTS[code] || {};
   if (code === "trowel3") return Object.entries(P).map(([name, p]) => {
     const u = C.units.find(([n]) => n.startsWith(p.unit + " "));
     return { name, sub: u ? u[0] : "", ksbs: u ? u[1] : [], capture: split(p.photos), mention: split(p.writeup) };
@@ -47,7 +47,7 @@ const today = () => { const d = new Date(); return d.getFullYear() + "-" + Strin
 const ksbText = (C, code) => ((C.ksbs || []).find((k) => k[0] === code) || [code, ""])[1];
 
 export function openObservation({ L, me }, onSaved) {
-  const code = L.row.course_code, C = COURSE_DATA[code] || { units: [], ksbs: [] }, units = observationUnits(code);
+  const code = L.row.course_code, C = coursePack(code) || { units: [], ksbs: [] }, units = observationUnits(code);
   const word = code === "trowel3" ? "criteria" : "KSBs";
   const DRAFT = "milos-obs-" + L.row.enrolment_id;
   let saved = {}; try { saved = JSON.parse(localStorage.getItem(DRAFT) || "{}") || {}; } catch (_) {}

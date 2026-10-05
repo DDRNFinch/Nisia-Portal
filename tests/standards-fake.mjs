@@ -27,6 +27,10 @@ export function standardsFake(root) {
   const link = (cid, code, option) => Object.assign(S.courses.find((c) => c.id === cid), { version_id: vOf(code).id, option: option || null });
   link("cb", "ST0095"); link("cs", "ST0264", "site_carpenter"); link("cj", "ST0264", "architectural_joiner"); link("ct", "6570-05");
 
+  /* The packs, from the real seed. */
+  const packSeed = fs.readFileSync(path.join(root, "services/supabase/packs-seed.sql"), "utf8");
+  S.packs = [...packSeed.matchAll(/save_pack\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m, i) => ({ ...JSON.parse(m[2]), id: "k" + i, vid: "kv" + i }));
+  const course0 = (k) => S.courses.find((c) => c.code === k.course);
   const counts = (v) => v.requirements.reduce((a, r) => (a[r.kind] = (a[r.kind] || 0) + 1, a), {});
   const handlers = {
     nisia_standards: () => ({ courses: S.courses.map((c) => ({ ...c, version_id: c.version_id || null, option: c.option || null })),
@@ -36,6 +40,13 @@ export function standardsFake(root) {
     nisia_standard: (b) => { const v = S.versions.find((x) => x.id === b.p_version), q = S.quals.find((x) => x.id === v.qid);
       return { id: v.id, code: q.code, kind: q.kind, title: q.title, awarding_body: q.awarding_body, level: q.level, version: v.version, status: v.status, options: v.options, source_url: v.source_url,
         source_note: v.source_note, published_at: v.published_at, requirements: v.requirements }; },
+    admin_packs: () => S.packs.map((k) => ({ id: k.id, code: k.code, title: k.title, course: k.course, college: null, standard: k.standard + " v" + k.version,
+      option: k.option ? ({ site_carpenter: "Site carpenter", architectural_joiner: "Architectural joiner" })[k.option] : null, courses: course0(k) ? [course0(k).title] : [], enrolments: course0(k) ? course0(k).enrolments : 0,
+      versions: [{ id: k.vid, version: 1, status: "published", hash: "h", published_at: "2026-10-06T10:00:00Z", topics: k.content.topics.length }] })),
+    nisia_pack: (b) => { const k = S.packs.find((x) => x.vid === b.p_version), v = vOf(k.standard), q = S.quals.find((x) => x.id === v.qid);
+      return { id: k.id, version_id: k.vid, code: k.code, title: k.title, course: k.course, version: 1, hash: "h", status: "published", topics: k.content.topics,
+        standard: { code: q.code, kind: q.kind, title: q.title, version: v.version, option: k.option, option_title: k.option ? (v.options.find((o) => o.code === k.option) || {}).title : null },
+        ksbs: v.requirements.filter((r) => ["knowledge", "skill", "behaviour", "criterion"].includes(r.kind) && (!r.option || r.option === k.option)).map((r) => [r.code, r.title]) }; },
     admin_save_standard: (b) => { S.saved = b.p; return save(b.p, "draft").id; },
     admin_publish_standard: (b) => { const v = S.versions.find((x) => x.id === b.p_version); v.status = "published"; v.published_at = "2026-10-05T11:00:00Z"; return null; },
     admin_delete_standard_draft: (b) => { S.versions = S.versions.filter((x) => x.id !== b.p_version || x.status !== "draft"); return null; },

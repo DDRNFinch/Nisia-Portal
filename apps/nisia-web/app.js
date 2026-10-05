@@ -7,7 +7,7 @@ import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pa
 import { auth, MARK } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack, loadPacks } from "../../packages/core/packs.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { standardsPage } from "./standards.js";
 
@@ -143,6 +143,7 @@ async function render() {
 
 /* ---------- College data, and each learner's status ---------- */
 async function loadCollege() {
+  loadPacks(rpc).catch((e) => console.warn("Nisia: packs", e.message));
   const org = S.org, m = mine(org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   const [summary, learners, staff, activity] = await Promise.all([
     admin || quality ? rpc("nisia_college_summary", { p_org: org }) : null,
@@ -273,7 +274,7 @@ function addLearner() {
    assessor has accepted. Each piece opens with its photos and the assessor's decision. */
 const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 function portfolioPanel(l, evidence, first, snap) {
-  const C = COURSE_DATA[l.course_code] || { units: [] };
+  const C = coursePack(l.course_code) || { units: [] };
   const groups = C.units.map(([name, ksbs], i) => ({ no: i + 1, name, ksbs, items: [] })), other = { name: "Other units", ksbs: [], items: [] }, sup = { name: "Supporting evidence", ksbs: [], items: [] };
   evidence.forEach((e) => {
     if (e.collection === "supporting") return sup.items.push(e);

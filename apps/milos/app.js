@@ -10,7 +10,7 @@ import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { mountAbsences } from "../../packages/core/absences.js";
-import { COURSE_DATA } from "../../packages/core/courses.js";
+import { coursePack } from "../../packages/core/packs.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
@@ -422,7 +422,7 @@ async function learner(r, keep) {
 const WITNESS = ["", "Getting there", "Competent", "Excellent"], BEHAVE = ["", "Needs support", "Developing", "Good", "Excellent"];
 function employerHtml(E, r) {
   if (!E || (!E.witness.length && !E.ratings.length)) return "";
-  const C = COURSE_DATA[r.course_code] || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];
+  const C = coursePack(r.course_code) || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];
   const who = r.employer_name ? esc(r.employer_name) : "the employer", b = E.ratings[0];
   return '<section class="card m-card m-employer"><p class="label">From ' + who + '</p>' +
     (b ? '<div class="m-emp-head"><b>Behaviours</b><span class="sub">' + esc(ukDate(b.created_at)) + (E.ratings.length > 1 ? ' · ' + E.ratings.length + ' ratings so far' : '') + '</span></div>' +
