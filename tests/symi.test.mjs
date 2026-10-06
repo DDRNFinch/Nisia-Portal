@@ -64,7 +64,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.30.1");
+    localStorage.setItem("symi-last-seen-release-v1", "0.30.2");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -162,6 +162,20 @@ try {
     !!fin && fin.body.p_session === "SES1" && att.length === 2 && att[0].enrolment_id === "E1" && att[0].status === "present" && att[0].late === true &&
     att[1].enrolment_id === "E2" && att[1].status === "absent" && att[1].reason === "Dentist" && att[1].minutes === 0 &&
     !posted.some((x) => /^TABLE/.test(x.t)) && /Sent to Nisia/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, tables: posted.filter((x) => /^TABLE/.test(x.t)) }));
+  /* The tutor changes the class (weekly now, a new finish time): Nisia hears within a minute, not the next day, so
+     learners' Evia shows the classes coming up. */
+  const savedBefore = posted.filter((x) => x.t === "saveClass").length;
+  await page.evaluate(() => {
+    const d = new Date(), wd = d.toLocaleDateString("en-GB", { weekday: "long" });
+    const iso = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+    const end = new Date(d); end.setDate(end.getDate() + 21);
+    window.SamosApp.mutate((s) => { const r = s.classes.find((c) => c.id === "r1"); r.end = "23:59"; r.day = wd; r.recurrence = { type: "weekly", interval: 1, weekdays: [wd], startDate: iso(d), endDate: iso(end), anchorDate: iso(d) }; });
+    window.dispatchEvent(new Event("online"));
+  });
+  for (let i = 0; i < 20 && posted.filter((x) => x.t === "saveClass").length <= savedBefore; i++) await page.waitForTimeout(250);
+  const changed = posted.filter((x) => x.t === "saveClass").slice(savedBefore);
+  check("Changing a class reaches Nisia straight away (new times and weekly dates), so Evia can show the classes coming up",
+    changed.some((x) => x.body.p_schedule && x.body.p_schedule.end === "23:59" && x.body.p_schedule.recurrence && x.body.p_schedule.recurrence.type === "weekly"), JSON.stringify(changed.map((x) => x.body.p_schedule)));
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

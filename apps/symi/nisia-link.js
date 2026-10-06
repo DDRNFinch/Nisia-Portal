@@ -216,8 +216,10 @@ async function flush() {
 let preparing = false;
 async function prepareAhead(force) {
   if (preparing || !signedIn || !online()) return;
-  const t = App().today();
-  if (!force && read(K.ready, "") === t) return;
+  const t = App().today(), st0 = App().getState();
+  /* Once a day, and again straight away when a class changes (its times, dates or learners), so Evia sees it. */
+  const sig = t + "|" + JSON.stringify((st0.classes || []).map((c) => [c.id, c.name, c.archived, c.day, c.start, c.end, c.recurrence || null, regLearners(st0, c).map((p) => p.nisia.enrolmentId)]));
+  if (!force && read(K.ready, "") === sig) return;
   preparing = true;
   try {
     const st = App().getState();
@@ -229,7 +231,7 @@ async function prepareAhead(force) {
         try { const s = await ensureSession(reg.id, key); await hmacKey(s.id); } catch (e) { console.warn("Symi: getting ready", reg.name, key, e.message); }
       }
     }
-    write(K.ready, t);
+    write(K.ready, sig);
   } finally { preparing = false; decorate(); }
 }
 const readyOffline = (regId, key) => { const s = read(K.sessions, {})[regId + ":" + key]; return !!(s && read(K.keys, {})[s.id]); };
