@@ -3,7 +3,7 @@
    The apps run in real browsers; Nisia is a real Postgres with Nisia's own tables, rules and functions
    (services/supabase), so a wrong rule or a missing permission fails here before anyone tries it for real.
    Only the sign-in is pretend (any password; the code 123456 is the authenticator app).
-   Run: node tests/e2e/registers.e2e.mjs   (needs Postgres 16 and Evia's repository beside this one, ../Evia7) */
+   Run: node tests/e2e/registers.e2e.mjs   (needs Postgres 16) */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +14,7 @@ const globalRoot = execSync("npm root -g").toString().trim();
 const need = (m) => { try { return require(m); } catch { return require(globalRoot + "/" + m); } };
 const pw = need("playwright"), { Pool } = need("pg");
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../.."), evia = path.resolve(root, "../Evia7");
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../.."), evia = path.resolve(root, "apps/evia");
 const results = [];
 const check = (name, ok, detail) => { results.push(ok); console.log((ok ? "✓ " : "✗ ") + name + (ok || !detail ? "" : " — " + String(detail).slice(0, 600))); };
 

@@ -1,4 +1,5 @@
-# Publishes the Nisia portal (site root) and Milos (/milos/) to GitHub Pages on every push to main.
+# Publishes the Nisia portal (site root) and the assistants (/evia/, /milos/, /paros/, /symi/) to GitHub Pages on every push to main.
+# Evia is also published at its own address (the one offline learners installed) by the DDRNFinch/Evia repository, from apps/evia here.
 name: Deploy Nisia to GitHub Pages
 on:
   push:
@@ -24,10 +25,14 @@ jobs:
           mkdir -p _site
           cp -r packages _site/packages
           cp -r apps/nisia-web/. _site/
-          if [ -d apps/milos ]; then mkdir -p _site/milos && cp -r apps/milos/. _site/milos/; fi
-          # In the repo the apps sit two folders down; on the site the portal is at the root and Milos one down.
+          for app in evia milos paros symi; do if [ -d apps/$app ]; then mkdir -p _site/$app && cp -r apps/$app/. _site/$app/; fi; done
+          rm -rf _site/*/tests
+          # In the repo the apps sit two folders down; on the site the portal is at the root and the assistants one down.
           find _site -maxdepth 1 -type f \( -name '*.html' -o -name '*.js' \) -exec sed -i 's#\.\./\.\./packages/#./packages/#g' {} +
-          if [ -d _site/milos ]; then find _site/milos -type f \( -name '*.html' -o -name '*.js' -o -name '*.webmanifest' \) -exec sed -i 's#\.\./\.\./packages/#../packages/#g' {} +; fi
+          for app in milos paros symi; do if [ -d _site/$app ]; then find _site/$app -type f \( -name '*.html' -o -name '*.js' -o -name '*.webmanifest' \) -exec sed -i 's#\.\./\.\./packages/#../packages/#g' {} +; fi; done
+          # Each assistant's service worker is stamped with the commit, so phones pick up the new version.
+          for f in _site/milos/sw.js _site/paros/sw.js; do [ -f "$f" ] && sed -i "s/^const VERSION = \".*\";/const VERSION = \"${GITHUB_SHA::7}\";/" "$f"; done
+          test -f _site/index.html && test -f _site/evia/index.html && test -f _site/milos/index.html && test -f _site/paros/index.html && test -f _site/symi/index.html
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -1,0 +1,79 @@
+# Evia's own address (the one learners installed) shows the Evia that lives in Nisia: apps/evia on the main
+# branch of DDRNFinch/Nisia-Portal. Nothing is edited here.
+#
+# It checks every hour and publishes when Nisia's Evia has a new version (index.html's evia-version); a push here
+# or "Run workflow" publishes straight away. If Nisia's Evia can't be found, nothing is published and the address
+# keeps showing the last good version.
+name: Publish Evia from Nisia
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Get Evia from Nisia
+        uses: actions/checkout@v4
+        with:
+          repository: DDRNFinch/Nisia-Portal
+          ref: main
+          path: nisia
+          sparse-checkout: apps/evia
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Is there a new version?
+        id: check
+        run: |
+          set -euo pipefail
+          if [ ! -f nisia/apps/evia/index.html ]; then
+            echo "Nisia's main branch has no apps/evia yet: leaving the live Evia as it is."
+            echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          want=$(grep -o 'name="evia-version" content="[^"]*"' nisia/apps/evia/index.html | sed 's/.*content="//;s/"$//')
+          live=$(curl -fsSL "${{ steps.pages.outputs.base_url }}/index.html?nocache=$GITHUB_RUN_ID" 2>/dev/null | grep -o 'name="evia-version" content="[^"]*"' | sed 's/.*content="//;s/"$//' || true)
+          echo "Nisia's Evia: $want   Live: ${live:-unknown}"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ -n "$want" ] && [ "$want" = "$live" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the site
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p public
+          rsync -a --exclude='.git' --exclude='.github' --exclude='tests' --exclude='shots' nisia/apps/evia/ public/
+          test -f public/index.html
+          test -f public/manifest.json
+          touch public/.nojekyll
+
+      - name: Upload
+        if: steps.check.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Publish
+        if: steps.check.outputs.publish == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4

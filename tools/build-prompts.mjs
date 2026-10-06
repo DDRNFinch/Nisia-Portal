@@ -1,8 +1,8 @@
 /* Copies Evia's per-unit "things to capture" and "things to mention", and the way Evia matches what's written against
    them, into packages/core/prompts.js, so Milos captures observations exactly as Evia captures evidence.
-   Run from the repo root with Evia checked out beside it:  node tools/build-prompts.mjs ../Evia7 */
+   Run from the repo root:  node tools/build-prompts.mjs */
 import fs from "node:fs"; import path from "node:path"; import vm from "node:vm";
-const evia = process.argv[2] || "../Evia7";
+const evia = process.argv[2] || "apps/evia";
 const read = (f) => fs.readFileSync(path.join(evia, f), "utf8");
 const between = (src, start, end) => { const i = src.indexOf(start); if (i < 0) throw new Error("Not found: " + start); const j = src.indexOf(end, i); return src.slice(i + start.length, j + end.length - 1); };
 const prompts = vm.runInNewContext("(" + between(read("polish.js"), "const LEARNER_PROMPTS=", "\n  };") + ")");

@@ -1,11 +1,11 @@
 // Your course packs, from Evia's own files, so Evia, Nisia, Milos and Paros all use the same topics:
 //   - services/supabase/packs-seed.sql   the packs for Nisia (published, version by version)
 //   - packages/core/courses.js           the copy Milos, Paros and the portal fall back on with no signal (was made by hand)
-//   node tools/build-packs.mjs            (reads ../Evia7: app.js's course list, packs.js's topic ids, nvq-data.js, ksb-official.js)
+//   node tools/build-packs.mjs            (reads apps/evia: app.js's course list, packs.js's topic ids, nvq-data.js, ksb-official.js)
 // A pack is: its topics in order, each with a permanent id, its name, and the KSBs it covers in Evia's own short wording.
 // The KSBs' full wording isn't in the pack: it's the standard's, from Nisia's library.
 import fs from "node:fs"; import path from "node:path"; import vm from "node:vm"; import crypto from "node:crypto"; import { fileURLToPath } from "node:url";
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), evia = path.resolve(root, "../Evia7");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), evia = path.resolve(root, "apps/evia");
 const read = (f) => fs.readFileSync(path.join(evia, f), "utf8");
 
 /* Evia's course list (app.js "const C={…}};"), topic ids (packs.js), the NVQ and the official KSB wording. */

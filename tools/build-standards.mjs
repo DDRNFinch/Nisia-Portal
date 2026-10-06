@@ -1,9 +1,9 @@
 // Builds services/supabase/standards-seed.sql: the standards Evia is built on, word for word from Evia's own data
-// (../Evia7/ksb-official.js and nvq-data.js), so Nisia's library and Evia start from the same wording.
+// (apps/evia/ksb-official.js and nvq-data.js), so Nisia's library and Evia start from the same wording.
 //   node tools/build-standards.mjs
 // The seed is safe to run again: a version already in the library is left alone (published ones can't change).
 import fs from "node:fs"; import path from "node:path"; import vm from "node:vm"; import { fileURLToPath } from "node:url";
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), evia = path.resolve(root, "../Evia7");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), evia = path.resolve(root, "apps/evia");
 const ctx = { window: {} }; vm.createContext(ctx);
 for (const f of ["ksb-official.js", "nvq-data.js"]) vm.runInContext(fs.readFileSync(path.join(evia, f), "utf8"), ctx, { filename: f });
 const K = ctx.window.EVIA_KSB_OFFICIAL, N = ctx.window.EVIA_NVQ;
