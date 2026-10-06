@@ -1,9 +1,7 @@
 {
-  "version": "0.30.0",
-  "title": "Symi looks like Evia",
+  "version": "0.30.1",
+  "title": "Steadier registers",
   "details": [
-    "A bar along the bottom for Today, Registers, Classes and Learners, with Symi's face in the middle for her menu",
-    "Today shows a greeting, today's classes (tap one to open its register) and your week",
-    "Bigger, clearer titles, cards and buttons, in the same style as Evia, Milos and Paros"
+    "Here, Late and Absent marks on the register stay still instead of flickering"
   ]
 }

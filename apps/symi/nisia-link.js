@@ -389,6 +389,7 @@ async function showCheckIn(regId) {
 
 /* ---------- The register: the check-in button, who's checked in, and each learner's mark ---------- */
 let decorating = false, bgPoll = null;
+const shownMarks = new Map();
 function decorate() {
   if (decorating) return; decorating = true;
   try {
@@ -427,15 +428,18 @@ function decorate() {
       if (x && !n.querySelector(".sn-tick")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tick" title="Checked in with Evia">✓ ' + new Date(x.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (x.late ? " · late" : "") + (x.offline ? " · no signal" : "") + '</span>');
       const p = people.find((q) => q.id === id);
       if (p && !n.querySelector(".sn-tag")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tag">Nisia</span>');
-      /* The mark: one button. */
-      row.querySelectorAll(".sn-mark").forEach((b) => b.remove());
-      if (!p || !marking) return;
-      const m = markOf(regId, key, id), b = bookedFor(p.nisia.enrolmentId, key);
-      const label = m ? markText(m) : x ? "" : b ? "Off · " + b.reason : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
-      if (!label && !m) return;
+      /* The mark: one button. Symi draws the register again every second, so the mark only fades in when it's new or
+         has changed (fading in every time, it would flicker). */
+      const old = [...row.querySelectorAll(".sn-mark")];
+      const m = p && marking ? markOf(regId, key, id) : null, b = p && marking ? bookedFor(p.nisia.enrolmentId, key) : null;
+      const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
       const cls = m ? (m.kind === "absent" ? (m.reason ? "why" : "no") : m.kind) : b ? "why" : label === "Mark" ? "" : "no";
+      if (old.length === 1 && label && old[0].textContent === label && old[0].className.replace(" sn-still", "") === "sn-mark " + cls && old[0].parentElement === n.parentElement) return;
+      old.forEach((o) => o.remove());
+      if (!label) return;
       const btn = document.createElement("button");
-      btn.type = "button"; btn.className = "sn-mark " + cls; btn.textContent = label; btn.setAttribute("aria-label", "Mark for " + p.name + ": " + label);
+      const was = shownMarks.get(regId + "|" + id); shownMarks.set(regId + "|" + id, cls + "|" + label);
+      btn.type = "button"; btn.className = "sn-mark " + cls + (was === cls + "|" + label ? " sn-still" : ""); btn.textContent = label; btn.setAttribute("aria-label", "Mark for " + p.name + ": " + label);
       btn.onclick = (e) => { e.stopPropagation(); markSheet(regId, id); };
       n.parentElement.appendChild(btn);
     });

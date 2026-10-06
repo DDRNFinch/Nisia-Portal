@@ -156,7 +156,7 @@
   /* A small note when real work pays out. */
   function toast(g){
     const n=g.reduce((a,x)=>a+x.n,0),t=document.createElement("div");t.className="rw-toast";t.setAttribute("role","status");
-    t.innerHTML=coin+'<b>+'+n+'</b><span>'+esc(g.length>1?g.length+" things done":g[0].why)+'</span>';
+    t.innerHTML=coin+'<b>+'+n+(n===1?' coin':' coins')+'</b><span>'+esc(g.length>1?g.length+" things done":g[0].why)+'</span>';
     document.body.appendChild(t);setTimeout(()=>t.classList.add("out"),2600);setTimeout(()=>t.remove(),3000);
   }
   /* Real work may have changed after any screen: check quietly a moment later. */

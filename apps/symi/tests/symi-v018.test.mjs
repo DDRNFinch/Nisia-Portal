@@ -42,15 +42,15 @@ test('normal Symi OTJ receipts include attendance and remain anonymous',()=>{
 });
 
 test('0.27 shell calendar update system home polish cache and manifest are aligned',()=>{
-  assert.match(index,/symi-build" content="0\.30\.0"/);
-  assert.match(index,/symi-week-calendar-v023\.css\?v=0\.30\.0/);
-  assert.match(index,/symi-week-calendar-v023\.js\?v=0\.30\.0/);
-  assert.match(index,/symi-standard-ui-v024\.css\?v=0\.30\.0/);
-  assert.match(index,/symi-calendar-manager-v025\.css\?v=0\.30\.0/);
-  assert.match(index,/symi-home-polish-v025\.css\?v=0\.30\.0/);
-  assert.match(index,/symi-home-polish-v025\.js\?v=0\.30\.0/);
-  assert.match(index,/symi-updater-v027\.js\?v=0\.30\.0/);
-  assert.match(sw,/const BUILD='0\.30\.0'/);
+  assert.match(index,/symi-build" content="0\.30\.1"/);
+  assert.match(index,/symi-week-calendar-v023\.css\?v=0\.30\.1/);
+  assert.match(index,/symi-week-calendar-v023\.js\?v=0\.30\.1/);
+  assert.match(index,/symi-standard-ui-v024\.css\?v=0\.30\.1/);
+  assert.match(index,/symi-calendar-manager-v025\.css\?v=0\.30\.1/);
+  assert.match(index,/symi-home-polish-v025\.css\?v=0\.30\.1/);
+  assert.match(index,/symi-home-polish-v025\.js\?v=0\.30\.1/);
+  assert.match(index,/symi-updater-v027\.js\?v=0\.30\.1/);
+  assert.match(sw,/const BUILD='0\.30\.1'/);
   assert.match(sw,/symi-calendar-manager-v025\.css/);
   assert.match(sw,/symi-home-polish-v025\.js/);
   assert.match(sw,/symi-updater-v027\.js/);
@@ -59,5 +59,5 @@ test('0.27 shell calendar update system home polish cache and manifest are align
   assert.match(calendar,/function classEvents\(/);
   assert.match(calendar,/Edit \/ reschedule/);
   assert.equal(manifest.short_name,'Symi');
-  assert.equal(manifest.start_url,'./?v=0.30.0');
+  assert.equal(manifest.start_url,'./?v=0.30.1');
 });
