@@ -1,0 +1,70 @@
+name: Deploy Evia7 to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows:
+      - Evia7 Preview
+    types:
+      - completed
+    branches:
+      - preview/evia7-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout main site
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          path: main-site
+
+      - name: Checkout preview site
+        uses: actions/checkout@v6
+        with:
+          ref: preview/evia7-test
+          path: preview-site
+
+      - name: Build combined Pages site
+        run: |
+          set -euo pipefail
+          rm -rf public
+          mkdir -p public/preview/evia7-test
+          rsync -a --exclude='.git' --exclude='.github' main-site/ public/
+          rsync -a --exclude='.git' --exclude='.github' preview-site/ public/preview/evia7-test/
+          test -f public/index.html
+          test -f public/preview/evia7-test/index.html
+          grep -q 'Submit to Portfolio' public/preview/evia7-test/capture-redesign.js
+          ! grep -q 'EXPLAIN THE PROCESS AND WHAT YOU DID' public/preview/evia7-test/capture-redesign.js
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,24 @@
+name: Evia7 Preview
+
+on:
+  push:
+    branches:
+      - preview/evia7-test
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout preview
+        uses: actions/checkout@v6
+
+      - name: Validate preview files
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f app.js
+          test -f capture-redesign.js
+          test -f capture-redesign.css
