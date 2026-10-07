@@ -432,6 +432,9 @@ function decorate() {
     if (!host) return;
     const st = App().getState(), regId = App().activeRegisterId(), reg = st.classes.find((c) => c.id === regId);
     if (!reg) return;
+    /* A class the college set up in Nisia: one badge by its name (not a tag on every learner). */
+    const h2 = host.querySelector(".clean-register-head h2");
+    if (h2 && reg.managed && !h2.querySelector(".sn-managed")) h2.insertAdjacentHTML("beforeend", ' <span class="sn-managed" title="Set up by your college in Nisia. You can still change it.">From Nisia</span>');
     const key = App().today(), code = App().timing(regId), people = regLearners(st, reg), sent = read(K.sent, {})[regId + ":" + key];
     const mine = checked()[regId + ":" + key] || {}, off = people.filter((p) => !mine[p.id] && bookedFor(p.nisia.enrolmentId, key));
     const bar = document.createElement("div"); bar.className = "sn-bar"; bar.dataset.n = String(people.length);
@@ -470,7 +473,6 @@ function decorate() {
       /* Checked in: a tick next to the name. */
       if (x && !n.querySelector(".sn-tick")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tick" title="Checked in with Evia">✓ ' + new Date(x.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (x.late ? " · late" : "") + (x.offline ? " · no signal" : "") + '</span>');
       const p = people.find((q) => q.id === id);
-      if (p && !n.querySelector(".sn-tag")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tag">Nisia</span>');
       /* The mark: one button. Symi draws the register again every second, so the mark only fades in when it's new or
          has changed (fading in every time, it would flicker). */
       const old = [...row.querySelectorAll(".sn-mark")];

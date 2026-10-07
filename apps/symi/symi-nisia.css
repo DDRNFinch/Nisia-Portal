@@ -136,3 +136,7 @@
 
 .sn-bar .sn-fail{color:#8a2a1e}
 .sn-bar:has(.sn-fail){background:#fdecea}
+/* Registers: one clear list, and a badge on classes the college set up in Nisia. */
+.sn-managed{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;background:#e6f4ec;color:#1e7a46;font-size:11.5px;font-weight:700;vertical-align:3px;letter-spacing:.01em}
+#registerWorkspace .attendance-list{grid-template-columns:1fr!important}
+#registerWorkspace .compact-timer-row:nth-child(2){border-top:1px solid #e2ede7}
