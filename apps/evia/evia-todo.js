@@ -150,7 +150,7 @@
       k.say("Want to get ahead?");
       let a=null;try{a=window.eviaStats.compute().a}catch(_){}
       const q=a&&a.quickest;
-      k.replies([q?{label:(q.started?"Add to ":"Start ")+q.name,primary:true,run:()=>openUnit(q)}:{label:"Go to My course",primary:true,run:leave(()=>nav("course"))},
+      k.replies([q?{label:(q.started?"Add to ":"Start ")+q.name,primary:true,run:()=>openUnit(q)}:{label:"Go to Topics",primary:true,run:leave(()=>nav("course"))},
         {label:"A Teach me lesson",run:leave(()=>nav("teach"))},
         {label:(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA practice",run:()=>C().epa&&C().epa()}]);
       awayLink();

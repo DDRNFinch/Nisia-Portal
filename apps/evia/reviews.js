@@ -29,7 +29,7 @@
     maths:{measure:t=>bestTestSince(["maths"],t.createdAt),pct:true,action:["Maths test","maths"]},
     english:{measure:t=>bestTestSince(["english"],t.createdAt),pct:true,action:["English test","english"]},
     skill:{measure:t=>skillMap().get(t.param)||t.baseline,action:["Rate my skills","confidence"]},
-    quality:{measure:(t,S)=>S.coverage||0,pct:true,action:["Go to My course","course"]},
+    quality:{measure:(t,S)=>S.coverage||0,pct:true,action:["Go to Topics","course"]},
     /* Lessons done in one Teach me subject (param: course, maths, english or edi). */
     lessons:{measure:t=>{const R=window.eviaTeach&&window.eviaTeach.report&&window.eviaTeach.report(),s=R&&R.subjects.find(x=>x.id===t.param);return s?s.done:0},action:["Open Teach me","teach"]},
     /* Targets set before the real-life scenarios moved into Teach me: they stay until the next review replaces them. */

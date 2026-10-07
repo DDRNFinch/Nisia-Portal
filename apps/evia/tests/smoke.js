@@ -35,7 +35,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       hours.push({id:"h1",n:3,description:"Toolbox talk",createdAt:Date.now()});persist();render()});
     await page.waitForTimeout(500);
 
-    check("The app opens on My course; the nav is Course, Progress, Evia, Teach me and Rewards",await page.evaluate(()=>screen==="course"&&!!document.getElementById("ui-course-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Course,Progress,Teach me,Rewards"));
+    check("The app opens on Topics; the nav is Topics, Progress, Evia, Calendar and Learn",await page.evaluate(()=>screen==="course"&&!!document.getElementById("ui-course-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Topics,Progress,Calendar,Learn"));
     for(const s of ["course","progress","portfolio","learning"]){await page.evaluate(s=>nav(s),s);await page.waitForTimeout(450)}
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
     /* On a computer screen the bottom bar sits in the middle, with Evia at its centre. */
@@ -258,17 +258,24 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{const x=document.querySelector(".tm .tm-x");if(x)x.click()});await page.waitForTimeout(300);
     // My progress: the Teach me tile (average score, areas completed, medals) and its deep dive; no real-life scenarios.
     await page.evaluate(()=>nav("learning"));await page.waitForTimeout(700);
-    const tt=await page.evaluate(()=>{const c=document.getElementById("pv-teach");return {tile:!!c&&c.querySelectorAll(".pv-medal").length===3&&/areas completed|Finish a lesson/.test(c.textContent),noScenarios:!document.getElementById("pv-scen")&&!window.eviaScenarios}});
+    const tt=await page.evaluate(()=>{const c=document.getElementById("pv-teach");return {tile:!!c&&/Teach me/.test(c.textContent)&&c.closest(".pv-more")!==null,noScenarios:!document.getElementById("pv-scen")&&!window.eviaScenarios}});
     await page.evaluate(()=>document.getElementById("pv-teach").click());await page.waitForTimeout(700);
     tt.deep=await page.evaluate(()=>{const t=document.querySelector(".pv-sheet");return !!t&&/medal/.test(t.textContent)&&/EDI and safeguarding/.test(t.textContent)&&document.querySelectorAll(".pv-sheet .pv-teach-h").length>=2});
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
-    check("My progress: Teach me tile with average score, areas and medals, a deep dive by subject, and no old scenarios",Object.values(tt).every(Boolean),JSON.stringify(tt));
+    check("My progress: Teach me in the More list, a deep dive by subject, and no old scenarios",Object.values(tt).every(Boolean),JSON.stringify(tt));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
     check("The first-run demo can point at the KSB card on My progress",!!await page.$("#pv-ksb"));
-    await page.evaluate(()=>nav("course"));await page.waitForTimeout(200);
-    check("My course has Learning logs under the units, for the demo to point at (reviews moved to My progress)",await page.evaluate(()=>{const g=document.getElementById("ui-logs-grid");return !!g&&g.querySelectorAll(".ui-log-tile").length===1&&!document.getElementById("ui-open-reviews")&&!!g.previousElementSibling}));
+    await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
+    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month .pv-acal-d").length>=28&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
+      nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
+      nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
+      const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
+    check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
+      const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
+      const tue=[...document.querySelectorAll("#cal-month .pv-acal-d.pv-a-coming")].every(b=>new Date(b.dataset.day+"T12:00:00").getDay()===2);
+      const next=/Tue|Today/.test(document.querySelector(".cal-card strong").textContent)&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
     await page.evaluate(()=>{document.body.classList.remove("evia-onboarding");nav("home")});await page.waitForTimeout(450);
 
     await page.evaluate(()=>{window.__joined=window.eviaNisia.joined;window.eviaNisia.joined=()=>({college:"Brookfield College"});window.eviaStartReview()});await page.waitForTimeout(400);
@@ -328,7 +335,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
 
     // Page headings, draft tags, the strength key, the backup reminder, clean test screens and the OTJ PDF.
     await page.evaluate(()=>{localStorage.setItem("evia7-working-evidence-packs",JSON.stringify({["bricklayer|"+data().u[5][0]]:{course:"bricklayer",unit:data().u[5][0],photos:[],write:"Started"}}));nav("course")});await page.waitForTimeout(450);
-    check("My course has a heading and a Draft tag",await page.evaluate(()=>/My course/.test(document.querySelector(".ui-page-head h1").textContent)&&document.querySelectorAll(".draft-chip").length===1));
+    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Topics/.test(document.querySelector(".ui-page-head h1").textContent)&&document.querySelectorAll(".draft-chip").length===1));
     check("Evia reminds learners to back up once they have a few packs",await page.evaluate(()=>{localStorage.removeItem("evia7-last-backup");return window.eviaStats.nudges(window.eviaStats.compute()).some(n=>n.id==="backup")}));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaStartTest("maths",5,"Maths")});await page.waitForSelector(".ex #ex-start",{state:"visible",timeout:12000});
     check("A maths test from Practice opens as an exam",await page.evaluate(()=>/Maths test/.test(document.querySelector(".ex").textContent)));
@@ -795,7 +802,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       // Nisia gets everything: after a sync nothing is left waiting, the PPE PDF included.
       ob.synced=await p2.evaluate(async()=>{await window.eviaNisia.sync();const s=window.eviaNisia.status();return s.joined&&!s.changes&&!s.media&&!!s.lastSync});
       await p2.waitForTimeout(800);
-      ob.tourCountsAsSeen=await p2.evaluate(()=>{const s=JSON.parse(localStorage.getItem("evia7-tips-seen")||"[]");return ["course","supporting","unit","learning","teach","rewards","evia","profile"].every(k=>s.includes(k))&&!document.querySelector(".ev-tip")});
+      ob.tourCountsAsSeen=await p2.evaluate(()=>{const s=JSON.parse(localStorage.getItem("evia7-tips-seen")||"[]");return ["course","supporting","unit","learning","teach","calendar","evia","profile"].every(k=>s.includes(k))&&!document.querySelector(".ev-tip")});
       ob.noErrors=!e2.length&&await p2.evaluate(()=>!window.eviaErrors.list().filter(x=>x.kind!=="reported").length);
       check("First run: connect to the college with the assessor's code, confirm the details Nisia sends, a Teach me style welcome, the PPE induction in the real guided mode saved to Supporting evidence (ticking K2 and S2), then a short tap-through tour",Object.values(ob).every(Boolean),JSON.stringify(ob)+" "+e2.join(" | "));
       await c2.close();
@@ -1061,9 +1068,10 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const tipText=()=>p3.evaluate(()=>{const t=document.querySelector(".ev-tip");return t?t.querySelector("strong").textContent:""});
       const gotIt=()=>p3.evaluate(()=>{const b=document.querySelector(".ev-tip button");if(b)b.click()});
       const tp={};
-      await p3.evaluate(()=>nav("teach"));await p3.waitForTimeout(900);tp.first=await tipText()==="Teach me";
+      await p3.evaluate(()=>nav("teach"));await p3.waitForTimeout(900);tp.first=await tipText()==="Learn";
       await gotIt();await p3.waitForTimeout(400);
-      await p3.evaluate(()=>nav("course"));await p3.waitForTimeout(900);tp.course=await tipText()==="My course";await gotIt();await p3.waitForTimeout(400);
+      await p3.evaluate(()=>nav("course"));await p3.waitForTimeout(900);tp.course=await tipText()==="Topics";await gotIt();await p3.waitForTimeout(400);
+      await p3.evaluate(()=>nav("calendar"));await p3.waitForTimeout(900);tp.calendar=await tipText()==="Calendar";await gotIt();await p3.waitForTimeout(400);
       await p3.evaluate(()=>nav("teach"));await p3.waitForTimeout(900);tp.onlyOnce=await tipText()==="";
       await p3.evaluate(()=>window.chat());await p3.waitForTimeout(1200);tp.section=await tipText()==="That’s me";
       await p3.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});await p3.waitForTimeout(500);tp.closesWithSection=await tipText()==="";
@@ -1256,14 +1264,14 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       cv.away=!!bk&&JSON.parse(bk.body).p_kind==="ill"&&JSON.parse(bk.body).p_reason==="Flu"&&JSON.parse(bk.body).p_from===tmk&&await p9.evaluate(()=>/is booked/.test(document.getElementById("chat").innerText)&&/tutor, assessor and employer/.test(document.getElementById("chat").innerText)&&window.eviaNisia.absences().length===1);
       if(d9)await p9.screenshot({path:d9+"/away-booked.png"}).catch(()=>{});
       /* Attendance in My progress: the percentage, and a calendar with a colour for each kind of day. */
-      await p9.evaluate(()=>{window.eviaChatKit.closeChat();nav("learning")});await p9.waitForTimeout(900);
-      cv.attTile=await p9.evaluate(()=>{const c=document.getElementById("pv-attendance");return !!c&&/50%/.test(c.textContent)&&/2 of 4 sessions/.test(c.textContent)&&/1 late/.test(c.textContent)&&/1 missed with no reason/.test(c.textContent)&&c.querySelectorAll(".pv-adots i").length===4});
+      await p9.evaluate(()=>{window.eviaChatKit.closeChat();nav("learning")});await p9.waitForTimeout(2000);
+      cv.attTile=await p9.evaluate(()=>{const c=document.getElementById("pv-attendance");return !!c&&/50%/.test(c.textContent)&&/2 of 4 sessions/.test(c.textContent)&&/1 absent/.test(c.textContent)&&c.querySelectorAll(".pv-adots i").length===4});
       await p9.click("#pv-attendance");await p9.waitForTimeout(700);
       const calDay=await p9.evaluate(()=>{const d=new Date();d.setDate(d.getDate()-2);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")});
       if(!(await p9.$('.pv-acal-d[data-day="'+calDay+'"]')))await p9.click('.pv-acal-nav[data-m="-1"]');
-      cv.attCal=await p9.evaluate(d=>{const key=document.querySelector(".pv-acal-key").textContent,cell=document.querySelector('.pv-acal-d[data-day="'+d+'"]');return !!cell&&cell.classList.contains("pv-a-holiday")&&/Holiday/.test(key)&&/Absent, no reason/.test(key)&&/Booked off/.test(key)&&document.querySelectorAll(".pv-acal-d.pv-a-here,.pv-acal-d.pv-a-late,.pv-acal-d.pv-a-none").length>=1},calDay);
+      cv.attCal=await p9.evaluate(d=>{const key=document.querySelector(".pv-acal-key").textContent,cell=document.querySelector('.pv-acal-d[data-day="'+d+'"]');return !!cell&&cell.classList.contains("pv-a-booked")&&[...document.querySelectorAll(".pv-acal-key span")].map(x=>x.textContent.trim()).join()==="Present,Absent,Booked off,Coming up"&&document.querySelectorAll(".pv-acal-d.pv-a-present,.pv-acal-d.pv-a-absent").length>=1},calDay);
       await p9.click('.pv-acal-d[data-day="'+calDay+'"]');await p9.waitForTimeout(200);
-      cv.attDay=/L2 Brickwork: Holiday/.test(await p9.textContent("#pv-acal-day"));
+      cv.attDay=/L2 Brickwork: Booked off, holiday/.test(await p9.textContent("#pv-acal-day"));
       if(d9)await p9.screenshot({path:d9+"/attendance-calendar.png"}).catch(()=>{});
       await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
       /* From the employer (Paros): the witness testimony is in Supporting evidence, and their view is in My progress. */

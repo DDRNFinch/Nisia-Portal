@@ -2756,6 +2756,8 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .pv-adots i{width:14px;height:14px;border-radius:50%;animation:pvDot .4s cubic-bezier(.3,1.6,.4,1) both;animation-delay:var(--d,0ms)}
 @keyframes pvDot{from{transform:scale(0)}}
 .pv-a-here{--at:var(--at-here)}.pv-a-late{--at:var(--at-late)}.pv-a-holiday{--at:var(--at-hol)}.pv-a-ill{--at:var(--at-ill)}.pv-a-reason{--at:var(--at-why)}.pv-a-none{--at:var(--at-none)}
+.pv-a-present{--at:var(--at-here)}.pv-a-absent{--at:var(--at-none)}.pv-a-booked{--at:var(--at-hol)}
+.pv-stats.pv-stats3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .pv-adots i,.pv-acal-key i{background:var(--at,#cbd5e1)}
 .pv-card.pv-warn .pv-big{color:var(--at-none)}
 .pv-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:4px 0 14px}
@@ -2783,3 +2785,40 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .pv-acal-key .pv-a-coming{background:transparent;box-shadow:inset 0 0 0 1.5px var(--at-here)}
 @media (max-width:380px){.pv-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.pv-adots i,.pv-acal-d{animation:none}}
+
+/* ---------- Calendar tab (calendar.js): this week on top, then the month ---------- */
+.cal-top{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:2px 0 14px}
+.cal-card{display:flex;flex-direction:column;gap:3px;padding:14px;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow)}
+.cal-label{font-size:12px;font-weight:700;color:var(--ui-muted,#667085)}
+.cal-card strong{font-size:18px;color:var(--ui-ink,#172033)}
+.cal-card strong small{font-size:13px;font-weight:600;color:var(--ui-muted,#667085)}
+.cal-card>small{font-size:13px;color:var(--ui-muted,#667085)}
+.cal-btn{margin-top:auto;padding:9px 12px;border-radius:12px;font:inherit;font-size:14px;cursor:pointer}
+.cal-card .cal-btn{margin-top:10px}
+.cal-bar{display:block;height:7px;border-radius:99px;background:var(--ui-soft,#f2f4f7);overflow:hidden;margin-top:4px}
+.cal-bar i{display:block;height:100%;border-radius:99px;background:var(--yellow,#f5c542);transition:width .4s ease}
+.cal-month{background:var(--ui-card,#fff)}
+.pv-acal-d.cal-h{position:relative}
+.pv-acal-d.cal-h::after{content:"";position:absolute;left:50%;bottom:4px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--yellow-ink,#b7791f)}
+.pv-acal-d.cal-h[class*="pv-a-"]:not(.pv-a-booked):not(.pv-a-coming)::after{background:#fff}
+.cal-key .cal-key-h{border-radius:50%;width:8px;height:8px;background:var(--yellow-ink,#b7791f)}
+.cal-links{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.cal-link{padding:10px 14px;border-radius:999px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff);color:var(--ui-ink,#172033);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+@media (max-width:340px){.cal-top{grid-template-columns:1fr}}
+/* Learn: the Shop sits beside the coins. */
+.tg-pill.tg-shop{border:0;cursor:pointer;background:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033);font-weight:800;padding:5px 12px}
+.tg-back{margin-bottom:8px}
+/* My progress: the short list under the four main cards. */
+.pv-more{display:flex;flex-direction:column;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);overflow:hidden;margin-bottom:18px}
+.pv-more-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border:0;border-top:1px solid var(--ui-line,#e9edf2);background:transparent;color:var(--ui-ink,#172033);font:inherit;font-size:15px;font-weight:700;text-align:left;cursor:pointer}
+.pv-more-row:first-child{border-top:0}
+.pv-more-row>span:first-child{flex:1}
+.pv-more-val{font-size:15px;color:var(--ui-muted,#667085);font-weight:700;white-space:nowrap}
+.pv-more-val b{font-weight:800;color:var(--ui-ink,#172033)}.pv-more-val small{font-size:12px;font-weight:600}
+.pv-more-row .pv-chev{display:inline-flex;color:var(--ui-faint,#98a2b3)}.pv-more-row .pv-chev svg{width:18px;height:18px}
+/* Calendar: a learner not connected to a college picks their college days. */
+.cal-days{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cal-day{min-width:44px;padding:8px 0;border-radius:10px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff);color:var(--ui-ink,#172033);font:inherit;font-size:13px;font-weight:700;cursor:pointer;flex:1 0 44px}
+.cal-day.on{background:var(--yellow,#f5c542);border-color:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033)}
+.cal-card .cal-change{align-self:flex-start;margin-top:10px;padding:7px 12px;font-size:13px}
+.cal-wide{grid-column:1/-1}

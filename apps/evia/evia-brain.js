@@ -484,13 +484,13 @@
     [/\bmaths?\b.*\b(test|practi[cs]e|quiz)\b|\b(test|practi[cs]e)\b.*\bmaths?\b/,"A quick maths test keeps it fresh: 5 questions.","Take a maths test",nudge("test","Take a maths test",{id:"maths"})],
     [/\benglish\b.*\b(test|practi[cs]e|quiz)\b|\b(test|practi[cs]e)\b.*\benglish\b/,"A quick English practice: 5 questions.","Take an English test",nudge("test","Take an English test",{id:"english"})],
     [/\bconfiden/,"Rate how confident you feel with each practical skill, so you and your tutor know what to practise.","Do a confidence check",nudge("confidence","Confidence check")],
-    [/\b(download|share|send|aptem|zip|pdf|e.?portfolio)\b/,"Open a unit, then tap Send to Portfolio at the bottom: you can save everything as a zip, share it all, or just the PDF.","Go to My course",goNav("course")],
+    [/\b(download|share|send|aptem|zip|pdf|e.?portfolio)\b/,"Open a unit, then tap Send to Portfolio at the bottom: you can save everything as a zip, share it all, or just the PDF.","Go to Topics",goNav("course")],
     [/\bback.?up\b/,"A backup saves your whole portfolio to a file, in case your phone breaks or goes missing.","Back up now",nudge("backup","Back up now")],
     [/\b(colou?r|shape|theme|look|hat|accessor|expression|face)\b/,"You can change how I look (colour, shape, hats and faces) in your profile and in Rewards.","Open Rewards",goNav("rewards")],
     [/\b(coins?|rewards?|shop|spend)\b/,"You earn coins for lessons, evidence and games, and spend them in Rewards.","Open Rewards",goNav("rewards")],
     [/\b(games?|leaderboards?|trade|crossword|flappy|showdown)\b/,"The mini games and leaderboards are in Teach me.","Open Teach me",goNav("teach")],
     [/\b(strong|good|better)\b.*\b(portfolio|evidence)\b|\bhow.*\b(get|build|make)\b.*\bevidence\b/,"I’ll show you how to build a strong portfolio: five quick slides.","Show me",()=>{K().closeChat();setTimeout(()=>window.eviaStrength&&window.eviaStrength.guide(),120)}],
-    [/\b(write.?up|statement|what (do|should) i write|help me write)\b/,"On any unit page, tap Let Evia guide you: I’ll take you through it KSB by KSB and put your answers together as your statement. The words must be yours, though.","Go to My course",goNav("course")],
+    [/\b(write.?up|statement|what (do|should) i write|help me write)\b/,"On any unit page, tap Let Evia guide you: I’ll take you through it KSB by KSB and put your answers together as your statement. The words must be yours, though.","Go to Topics",goNav("course")],
     [/\b(teach me|lesson|learn|revise|revision)\b/,"Teach me has short lessons for your trade, maths, English and EDI.","Open Teach me",goNav("teach")],
     [/\b(how am i doing|my progress|progress|am i behind|on track)\b/,"",null,null]
   ];

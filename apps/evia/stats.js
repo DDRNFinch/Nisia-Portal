@@ -129,8 +129,8 @@
     const since=lastBackup?packsAll.filter(e=>(Date.parse(e.savedAt||"")||0)>lastBackup).length:packsAll.length;
     if(!lastBackup&&packsAll.length>=3)list.push({id:"backup",text:"Your portfolio is only saved on this phone. Back it up now so you don’t lose it if your phone breaks or goes missing.",action:{label:"Back up now",kind:"backup"}});
     else if(lastBackup&&(since>=5||(since>=1&&daysAgo(lastBackup)>30)))list.push({id:"backup",text:"You’ve added "+since+" evidence pack"+(since===1?"":"s")+" since your last backup "+Math.round(daysAgo(lastBackup))+" days ago. Back up now so "+(since===1?"it’s":"they’re")+" safe.",action:{label:"Back up now",kind:"backup"}});
-    if(s.daysSince==null&&s.a.units.length)list.push({id:"first-evidence",text:"Ready for your first unit? Any job from site can be evidence. Take photos and write up what you did.",action:{label:"Go to My course",kind:"course"}});
-    else if(s.daysSince!=null&&s.daysSince>=14)list.push({id:"quiet",text:"It’s been "+s.daysSince+" days since your last evidence. Anything from site this week worth capturing?",action:{label:"Go to My course",kind:"course"}});
+    if(s.daysSince==null&&s.a.units.length)list.push({id:"first-evidence",text:"Ready for your first unit? Any job from site can be evidence. Take photos and write up what you did.",action:{label:"Go to Topics",kind:"course"}});
+    else if(s.daysSince!=null&&s.daysSince>=14)list.push({id:"quiet",text:"It’s been "+s.daysSince+" days since your last evidence. Anything from site this week worth capturing?",action:{label:"Go to Topics",kind:"course"}});
     /* Targets and reviews */
     const T=window.eviaTargets,targets=T?T.mine():[],overdue=targets.filter(t=>!t.done&&new Date(t.due+"T23:59:59").getTime()<s.now);
     if(overdue.length)list.push({id:"target-overdue",text:"Your target “"+overdue[0].title+"” is past its date. Want to take a look?",action:{label:"My targets",kind:"targets"}});

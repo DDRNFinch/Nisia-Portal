@@ -476,16 +476,16 @@
      "Tap this" steps wait for the learner to tap the highlighted thing; the others have Next. */
   const $q=s=>document.querySelector(s);
   const TOUR=[
-    {nav:"course",seen:"course",target:"[data-supporting-evidence]",tap:true,text:"It’s in <strong>Supporting evidence</strong>, on My course. Tap it."},
+    {nav:"course",seen:"course",target:"[data-supporting-evidence]",tap:true,text:"It’s in <strong>Supporting evidence</strong>, on Topics. Tap it."},
     {seen:"supporting",target:savedTarget,text:"Here’s your PPE, linked to "+"{ksb}"+". Tap any file to see it or share it."},
-    {nav:"course",target:"#screen .unit-card[data-u]",tap:true,text:"Your units are here on <strong>My course</strong>. Tap one."},
+    {nav:"course",target:"#screen .unit-card[data-u]",tap:true,text:"Your topics are here on <strong>Topics</strong>. Tap one."},
     {seen:"unit",target:".ev-modes",text:"Every unit works like your PPE: <strong>Evia guides you</strong>, or go <strong>free range</strong> and add it your way."},
     {target:'[data-nav="learning"]',tap:true,text:"Tap <strong>Progress</strong>."},
     {seen:"learning",text:"<strong>My progress</strong> shows how you’re doing, and what to do next."},
-    {target:'[data-nav="teach"]',tap:true,text:"Tap <strong>Teach me</strong>."},
-    {seen:"teach",text:"Short lessons and games for your course, like the one you just did. Each earns <strong>coins</strong>."},
-    {target:'[data-nav="rewards"]',tap:true,text:"Tap <strong>Rewards</strong>."},
-    {seen:"rewards",text:"Spend your coins on new looks for me, and mini games."},
+    {target:'[data-nav="calendar"]',tap:true,text:"Tap <strong>Calendar</strong>."},
+    {seen:"calendar",text:"Your college days, set by your tutor, and your learning hours. Can’t make college? Tell me from here."},
+    {target:'[data-nav="teach"]',tap:true,text:"Tap <strong>Learn</strong>."},
+    {seen:"teach",target:"#tg-shop",text:"Lessons, tests and games, like the one you just did. Each earns <strong>coins</strong>: spend them in the <strong>Shop</strong> on new looks for me and mini games."},
     {seen:"evia",target:"#evia-fab",text:"And this is me. Tap me any time for help, evidence checks and practice tests."},
     {nav:"course",target:"#profile-btn",tap:true,text:"Last one: tap your <strong>profile</strong>."},
     {profile:true,seen:"profile"}

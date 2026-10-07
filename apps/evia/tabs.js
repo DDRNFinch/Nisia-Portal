@@ -1,4 +1,5 @@
-/* Evia7 tabs beside Evia: Teach me (the course, maths and English lessons, and the mini games) and Rewards (rewards.js). */
+/* Evia7 Learn tab (the course, maths and English lessons, tests and the mini games), with the coins and the Shop
+   (rewards.js) at the top. The Shop opens from Learn; it isn't in the bottom bar. */
 (function(){
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const scr=()=>document.getElementById("screen");
@@ -48,13 +49,14 @@
     const player='<section class="tg-player"><div class="tg-me"><span class="tg-evia evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span></div>'+
       '<div class="tg-xp"><div class="tg-xp-top"><strong>'+won+'<small> '+(won===1?"medal":"medals")+'</small></strong><span>'+(won?"Replay a lesson to go for gold":"Finish a lesson to win one")+'</span></div>'+
       '<div class="tg-medals">'+["gold","silver","bronze"].map(k=>'<span class="tg-medal medal-'+k+'" aria-label="'+md[k]+' '+k+'"><i aria-hidden="true"></i><b>'+md[k]+'</b></span>').join("")+'</div>'+
-      '<div class="tg-pills"><span class="tg-pill fire'+(me.today?" lit":"")+'">'+(I.flame||"")+'<b>'+me.streak+'</b> day streak</span><span class="tg-pill coin">'+(R&&R.coin?R.coin():"")+'<b>'+bal+'</b> coins</span></div></div></section>';
+      '<div class="tg-pills"><span class="tg-pill fire'+(me.today?" lit":"")+'">'+(I.flame||"")+'<b>'+me.streak+'</b> day streak</span><span class="tg-pill coin">'+(R&&R.coin?R.coin():"")+'<b>'+bal+'</b> coins</span>'+(R?'<button type="button" class="tg-pill tg-shop" id="tg-shop">Shop ›</button>':"")+'</div></div></section>';
     /* Up next: one tap straight into the next lesson. */
     const nx=T&&T.nextUp?T.nextUp():null;
     const next=nx?'<button type="button" class="tg-next" data-play="'+esc(nx.id)+'"><span class="tg-next-copy"><small>'+(nx.resume?"Carry on":"Up next")+' · '+esc(nx.unit)+'</small><strong>'+esc(nx.title)+'</strong><span>Lesson '+nx.n+' of '+nx.of+' · about '+nx.mins+' min</span></span><span class="tg-play">'+PLAY+'</span></button>':"";
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
       return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
-    scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
+    scr().innerHTML=head("Learn")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
+    const shop=document.getElementById("tg-shop");if(shop)shop.onclick=()=>nav("rewards");
     const et=document.getElementById("tg-epa");if(et)et.onclick=()=>window.eviaOpenEpa&&window.eviaOpenEpa();
     const sk=document.getElementById("tg-skills");if(sk)sk.onclick=()=>window.eviaPractice&&window.eviaPractice.openSkills();
     scr().querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(T)T.open(b.dataset.go)});
@@ -95,16 +97,22 @@
           (own?'<span class="tg-game-go">'+PLAY+'Play</span>':'<span class="tg-game-go lock">'+LOCK+(PRICE[g.rarity]?'<b>'+PRICE[g.rarity]+'</b>':"")+'</span>')+'</span>'+
           '<span class="tg-info"><strong>'+esc(g.label)+'</strong><small>'+esc(g.about)+'</small></span></button>'}).join("")+'</div></section>';
   }
-  function rewardsPage(){if(window.eviaRewards)window.eviaRewards.page();else scr().innerHTML=head("Rewards")}
+  /* The Shop, opened from Learn, with a way back. */
+  function rewardsPage(){
+    if(window.eviaRewards)window.eviaRewards.page();else scr().innerHTML=head("Shop");
+    const h=scr().querySelector(".ui-page-head h1");if(h&&h.textContent==="Rewards")h.textContent="Shop";
+    const b=document.createElement("button");b.type="button";b.className="secondary tg-back";b.textContent="‹ Learn";b.onclick=()=>nav("teach");
+    const hd=scr().querySelector(".ui-page-head");if(hd)hd.after(b);else scr().prepend(b);
+  }
 
   const prev=window.render;
   window.render=function(){
     if(window.eviaRewards&&window.eviaRewards.later)window.eviaRewards.later();
     if(screen!=="teach"&&screen!=="rewards")return prev();
     const pb=document.getElementById("profile-btn");if(pb)pb.style.display="flex";
-    document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===screen));
+    document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav==="teach"));
     const s=scr();if(s)s.classList.add("ui-top");
-    const t=document.getElementById("page-title");if(t)t.textContent=screen==="teach"?"Teach me":"Rewards";
+    const t=document.getElementById("page-title");if(t)t.textContent=screen==="teach"?"Learn":"Shop";
     if(screen==="teach")teachPage();else rewardsPage();
   };
 })();

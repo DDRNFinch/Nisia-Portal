@@ -5,11 +5,12 @@
 (function(){
   const KEY="evia7-tips-seen";
   const TIPS={
-    course:["My course","Your units are here. Open one to add evidence. The bar shows how much of your course has evidence so far."],
+    course:["Topics","Your course topics are here. Open one to add evidence. The bar shows how much of your course has evidence so far."],
     unit:["Evidence pack","Let me guide you step by step, or go free range. What you’re working on, and what you’ve saved, shows below."],
     learning:["My progress","How you’re doing on your course. Tap any card to see more."],
-    teach:["Teach me","Short lessons for your course, maths and English. Finish one for a medal and coins."],
-    rewards:["Rewards","Spend your coins on new looks for me and mini games. Lessons, evidence and learning hours earn them."],
+    teach:["Learn","Short lessons for your course, maths and English, tests and games. Finish one for a medal and coins, then spend them in the Shop."],
+    rewards:["Shop","Spend your coins on new looks for me and mini games. Lessons, evidence and learning hours earn them."],
+    calendar:["Calendar","Your college days come from your tutor. Check in on the day, or tell me if you can’t make it. Your learning hours show here too."],
     supporting:["Supporting evidence","Extra proof for your units: witness statements, videos, voice notes and documents."],
     share:["Share with your assessor","Pick the evidence you want, and it’s shared as one PDF."],
     evia:["That’s me","Pick what you need: I can check your evidence, log your learning hours or give you a practice test."],

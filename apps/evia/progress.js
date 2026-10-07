@@ -134,7 +134,7 @@
   const kit=name=>inChat(()=>{const k=window.eviaChatKit;if(k&&k[name])k[name]()});
   const ACTS={
     review:[["Get ready for my review",coach("prepare"),1],["My review",inChat(()=>window.eviaChatReview&&window.eviaChatReview())],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
-    where:[["Go to My course",()=>nav("course")]],
+    where:[["Go to Topics",()=>nav("course")]],
     ksb:[["Add evidence",()=>{let q=null;try{q=window.eviaChatKit.analyse().quickest}catch(_){}if(q&&window.openUnit)window.openUnit(q.index);else nav("course")},1]],
     otj:[["Log hours",coach("hours"),1],["Learning logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs()]],
     tests:[[()=>nvqOn()?"Knowledge tests":"EPA mocks",coach("epa"),1]],
@@ -151,7 +151,11 @@
   }
   const openDeep=id=>{deep(id,gather());addActs(id)};
   /* ---------- Attendance: the percentage, and a calendar of every day ---------- */
-  const ATT_KEY=[["here","Here"],["late","Late"],["holiday","Holiday"],["ill","Ill"],["reason","Other reason"],["none","Absent, no reason"],["booked","Booked off"],["coming","Class coming up"]];
+  /* Three kinds of day on the calendars: present (on time or late), absent (no reason) and booked off (sick, holiday,
+     work or another reason, booked ahead or given to the tutor). The day itself says which. */
+  const ATT_KEY=[["present","Present"],["absent","Absent"],["booked","Booked off"],["coming","Coming up"]];
+  const ATT_GROUP={here:"present",late:"present",none:"absent",holiday:"booked",ill:"booked",reason:"booked"};
+  const ATT_DETAIL={here:"Present",late:"Present, late",none:"Absent, unauthorised",holiday:"Booked off, holiday",ill:"Booked off, sick",reason:"Booked off"};
   const dkey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   function markKind(m){
     if(m.status==="present")return m.late?"late":"here";
@@ -162,7 +166,7 @@
   }
   function attendanceData(){
     const N=window.eviaNisia;if(!N||!N.attendance||!N.joined||!N.joined()||!N.joined().live)return null;
-    const list=N.attendance()||[],marks=list.map(m=>Object.assign({},m,{k:markKind(m)})),n=marks.length,here=marks.filter(m=>m.k==="here"||m.k==="late").length,t=dkey(new Date());
+    const list=N.attendance()||[],marks=list.map(m=>{const k=markKind(m);return Object.assign({},m,{k,g:ATT_GROUP[k]||"present"})}),n=marks.length,here=marks.filter(m=>m.k==="here"||m.k==="late").length,t=dkey(new Date());
     return {marks,n,here,late:marks.filter(m=>m.k==="late").length,why:marks.filter(m=>["holiday","ill","reason"].includes(m.k)).length,none:marks.filter(m=>m.k==="none").length,
       pct:n?Math.round(here/n*100):null,booked:N.absences?N.absences():[],coming:(N.sessions?N.sessions():[]).filter(x=>x.session_date>=t&&!x.checked_in_at&&x.status!=="finished")};
   }
@@ -172,7 +176,7 @@
     const minM=first.getFullYear()*12+first.getMonth(),maxM=now.getFullYear()*12+now.getMonth()+1;let cur=now.getFullYear()*12+now.getMonth();
     const el=sheet("MY PROGRESS","Attendance",
       '<div class="pv-deep-hero">'+(AT.pct==null?"–":num(AT.pct,"%"))+'<span>'+(AT.n?"at college · "+AT.here+" of "+AT.n+" sessions":"No college registers yet")+'</span></div>'+
-      '<div class="pv-stats">'+stat("Here",AT.here-AT.late)+stat("Late",AT.late)+stat("Off, with a reason",AT.why)+stat("Missed, no reason",AT.none)+'</div>'+
+      '<div class="pv-stats pv-stats3">'+stat("Present",AT.here)+stat("Absent",AT.none)+stat("Booked off",AT.why)+'</div>'+
       '<div class="pv-acal" id="pv-acal"></div><p class="pv-acal-day" id="pv-acal-day" aria-live="polite">Tap a day to see what happened.</p>'+
       '<div class="pv-acal-key">'+ATT_KEY.map(([k,t])=>'<span><i class="pv-a-'+k+'"></i>'+t+'</span>').join("")+'</div>'+
       (AT.none?note("Missed a class? If there was a reason, tell your tutor. You can book days off ahead in Evia’s chat: “Can’t make college?”."):""));
@@ -185,7 +189,7 @@
       AT.coming.forEach(x=>{(byDay[x.session_date]=byDay[x.session_date]||{marks:[]}).coming=x});
       let cells="";for(let i=0;i<lead;i++)cells+='<span class="pv-acal-blank"></span>';
       for(let d=1;d<=days;d++){
-        const k=dkey(new Date(y,m,d)),o=byDay[k],c=o?(o.marks.length?(o.marks.find(x=>x.k==="none")||o.marks[0]).k:o.booked?"booked":o.coming?"coming":""):"";
+        const k=dkey(new Date(y,m,d)),o=byDay[k],c=o?(o.marks.length?(o.marks.find(x=>x.k==="none")||o.marks[0]).g:o.booked?"booked":o.coming?"coming":""):"";
         cells+='<button type="button" class="pv-acal-d'+(c?" pv-a-"+c:"")+(k===today?" pv-today":"")+'" data-day="'+k+'" aria-label="'+esc(new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+(c?": "+LABEL[c]:""))+'">'+d+'</button>';
       }
       const box=el.querySelector("#pv-acal");
@@ -195,7 +199,7 @@
       box.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{
         box.querySelectorAll(".pv-picked").forEach(x=>x.classList.remove("pv-picked"));b.classList.add("pv-picked");
         const k=b.dataset.day,o=byDay[k],when=new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
-        const lines=o?o.marks.map(x=>esc(x.class)+": <strong>"+esc(LABEL[x.k])+"</strong>"+(x.k==="here"||x.k==="late"?(x.minutes?" · "+Math.floor(x.minutes/60)+"h"+(x.minutes%60?" "+(x.minutes%60)+"m":""):""):x.reason&&x.reason.toLowerCase()!==LABEL[x.k].toLowerCase()?" · "+esc(x.reason):"")):[];
+        const lines=o?o.marks.map(x=>esc(x.class)+": <strong>"+esc(ATT_DETAIL[x.k])+"</strong>"+(x.k==="here"||x.k==="late"?(x.minutes?" · "+Math.floor(x.minutes/60)+"h"+(x.minutes%60?" "+(x.minutes%60)+"m":""):""):x.reason&&!ATT_DETAIL[x.k].toLowerCase().includes(x.reason.toLowerCase())?" · "+esc(x.reason):"")):[];
         if(o&&o.booked&&!o.marks.length)lines.push("<strong>Booked off</strong> · "+esc(o.booked.reason));
         if(o&&o.coming&&!o.marks.length)lines.push(esc(o.coming.class)+(o.coming.starts_at?" at "+new Date(o.coming.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"")+": <strong>class coming up</strong>");
         el.querySelector("#pv-acal-day").innerHTML="<span>"+esc(when)+"</span>"+(lines.length?lines.join("<br>"):"No class that day.");
@@ -203,16 +207,23 @@
     };
     draw();
   }
+  /* The Calendar tab (calendar.js) draws the same days. */
+  window.eviaAttendance={data:attendanceData,KEY:ATT_KEY,DETAIL:ATT_DETAIL};
   const BEH=["","Needs support","Developing","Good","Excellent"],WIT=["","Getting there","Competent","Excellent"];
   const behName=k=>{try{const o=window.EVIA_KSB_OFFICIAL||{},c=typeof course==="string"?course:"",m=o[c]||o[c==="trowel3"?"bricklayer":c]||{};return m[k]||""}catch(_){return ""}};
   window.eviaOpenEmployer=()=>{if(typeof nav==="function")nav("learning");setTimeout(()=>openDeep("employer"),250)};
-  const card=(id,title,big,sub,chart,extra)=>cardBtn(id,title,big,sub,chart,extra);
+  let META={};
+  const card=(id,title,big,sub,chart,extra)=>{META[id]={title,big};return cardBtn(id,title,big,sub,chart,extra)};
+  /* The four that matter most get a card; the rest sit in one short list underneath, each opening the same deep dive. */
+  const MAIN=["where","review","otj","attendance"];
+  const moreRow=(id,html)=>{const m=META[id]||{title:(html.match(/<strong>([^<]*)<\/strong>/)||[])[1]||"",big:""};return '<button type="button" class="pv-more-row" data-pv="'+id+'" id="pv-'+id+'"><span>'+m.title+'</span><span class="pv-more-val">'+m.big+'</span><span class="pv-chev">'+CHEV+'</span></button>'};
   const cardBtn=(id,title,big,sub,chart,extra)=>'<button type="button" class="pv-card'+(extra||"")+'" data-pv="'+id+'" id="pv-'+id+'"><span class="pv-head"><span class="pv-title">'+title+'</span><span class="pv-chev">'+CHEV+'</span></span><span class="pv-big">'+big+'</span>'+(sub?'<span class="pv-sub">'+sub+'</span>':"")+(chart?'<span class="pv-chart">'+chart+'</span>':"")+'</button>';
   const empty=text=>'<span class="pv-empty">'+esc(text)+'</span>';
   /* Medals from Teach me, each popping in after the last: bronze, then silver, then gold. */
   const medalRow=m=>'<span class="pv-medals">'+["bronze","silver","gold"].map((k,i)=>'<span class="tg-medal medal-'+k+' pv-medal pv-pop" style="--d:'+(i*350)+'ms" aria-label="'+m[k]+' '+k+'"><i aria-hidden="true"></i>'+num(m[k])+'</span>').join("")+'</span>';
 
   function cards(D){
+    META={};
     const {S,a,verdict}=D,T=term(),out=[];
     // Progress review: when the next one is due, and the last one
     const rd=window.eviaReviewDue&&window.eviaReviewDue(),revs=window.eviaGetReviews?window.eviaGetReviews():[],lastR=revs[0];
@@ -262,8 +273,8 @@
     // Attendance at college (the tutor's registers in Symi), for learners connected to a college.
     const AT=attendanceData();
     if(AT)out.push(card("attendance","Attendance",AT.pct==null?"–":num(AT.pct,"%"),
-      AT.n?AT.here+" of "+AT.n+" session"+(AT.n===1?"":"s")+(AT.late?" · "+AT.late+" late":"")+(AT.none?" · "+AT.none+" missed with no reason":""):"No college registers yet",
-      AT.n?'<span class="pv-adots" aria-hidden="true">'+AT.marks.slice(-14).map((m,i)=>'<i class="pv-a-'+m.k+'" style="--d:'+(i*45)+'ms"></i>').join("")+'</span>':empty("Your tutor’s registers show here"),AT.none?" pv-warn":""));
+      AT.n?AT.here+" of "+AT.n+" session"+(AT.n===1?"":"s")+(AT.none?" · "+AT.none+" absent":""):"No college registers yet",
+      AT.n?'<span class="pv-adots" aria-hidden="true">'+AT.marks.slice(-14).map((m,i)=>'<i class="pv-a-'+m.g+'" style="--d:'+(i*45)+'ms"></i>').join("")+'</span>':empty("Your tutor’s registers show here"),AT.none?" pv-warn":""));
     // From the employer (Paros): how they rate the behaviours, and their witness testimonies.
     const EM=window.eviaEmployer&&window.eviaEmployer.get();
     if(EM){
@@ -353,7 +364,7 @@
         '<div class="pv-deep-hero">'+hmBig(S.otjTotal)+'<span>logged in total</span></div>'+
         (wk.some(w=>w.h>0)?'<p class="pv-caption">Each bar is a week, Monday to Sunday.</p>'+columns(wk.map(w=>w.h),wk.map((w,i)=>i===wk.length-1?"This wk":i%2===1?shortDate(w.start):""),Math.max(OTJ_WEEK_GOAL*1.4,...wk.map(w=>w.h)),{h:130,goal:OTJ_WEEK_GOAL,goalLabel:OTJ_WEEK_GOAL+" h a week",aria:"Learning hours each week",highlight:wk.length-1}):'<span class="pv-empty">Nothing logged in the last 8 weeks.</span>')+
         '<div class="pv-stats">'+stat("This week",hm(S.otjWeek))+stat("This month",hm(S.otjMonth))+stat("Entries",log.length)+'</div>'+
-        note("Most apprentices need about "+OTJ_WEEK_GOAL+" hours a week; your commitment statement has your exact number. Tell Evia what you did and she’ll log it. Your full log and its PDFs are in <strong>Learning logs</strong> on My course."));
+        note("Most apprentices need about "+OTJ_WEEK_GOAL+" hours a week; your commitment statement has your exact number. Tell Evia what you did and she’ll log it. Your full log and its PDFs are in <strong>Learning logs</strong> on your Calendar."));
     }
     else if(id==="tests"){
       const byType={};D.tests.forEach(t=>{(byType[t.type]=byType[t.type]||[]).push(t)});
@@ -439,7 +450,10 @@
     document.getElementById("page-title").textContent="My progress";
     let D;try{D=gather()}catch(err){console.error("My progress failed",err);$("#screen").innerHTML='<p class="pv-empty">Evia couldn’t work out your progress just now.</p>';return}
     const rd=window.eviaReviewDue&&window.eviaReviewDue();
-    $("#screen").innerHTML='<header class="ui-page-head"><h1>My progress</h1><span>'+esc(typeof data==="function"?data().name:"")+'</span></header>'+'<div class="pv-grid">'+cards(D).join("")+'</div>';
+    $("#screen").innerHTML='<header class="ui-page-head"><h1>My progress</h1><span>'+esc(typeof data==="function"?data().name:"")+'</span></header>'+(()=>{
+      const all=cards(D),id=h=>(h.match(/data-pv="([^"]+)"/)||[])[1],main=all.filter(h=>MAIN.includes(id(h))),rest=all.filter(h=>!MAIN.includes(id(h)));
+      return '<div class="pv-grid">'+main.join("")+'</div>'+(rest.length?'<h2 class="ui-section-label">More</h2><div class="pv-more">'+rest.map(h=>moreRow(id(h),h)).join("")+'</div>':"");
+    })();
     document.querySelectorAll("[data-pv]").forEach(b=>b.onclick=()=>openDeep(b.dataset.pv));
     observe(document.getElementById("screen"));
   }

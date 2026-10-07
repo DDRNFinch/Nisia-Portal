@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="evia-version" content="evia7-v226">
+<meta name="evia-version" content="evia7-v227">
 <meta name="theme-color" content="#fffdfa">
 <meta name="description" content="Evia apprenticeship tracking">
 <meta name="evia-build-policy" content="network-first-v1">
@@ -13,7 +13,7 @@
 <title>Evia</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="polish.css">
-<link rel="stylesheet" href="ui.css?v=ui-v77">
+<link rel="stylesheet" href="ui.css?v=ui-v79">
 <link rel="stylesheet" href="premium.css?v=pm-v2">
 <link rel="stylesheet" href="accessibility.css?v=a11y-v2">
 <style>
@@ -67,18 +67,18 @@ html.evia-booting body{visibility:hidden}
 <main id="screen" class="screen"></main>
 <button class="evia-fab" id="evia-fab" aria-label="Open Evia"><span class="evia-face"><i></i><i></i></span></button>
 <nav class="bottom-nav" aria-label="Main navigation">
-<button data-nav="course"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4.5" y="2.8" width="15" height="18.4" rx="2.6"/><path d="m7.6 8.2 1.4 1.4 2.4-2.6M7.6 14.2l1.4 1.4 2.4-2.6M13.6 8.6h3M13.6 14.6h3"/></svg></span><span>Course</span></button>
+<button data-nav="course"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4.5" y="2.8" width="15" height="18.4" rx="2.6"/><path d="m7.6 8.2 1.4 1.4 2.4-2.6M7.6 14.2l1.4 1.4 2.4-2.6M13.6 8.6h3M13.6 14.6h3"/></svg></span><span>Topics</span></button>
 <button data-nav="learning"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20.5h18"/><path d="M5.5 20.5v-5h3v5M10.5 20.5v-8h3v8"/><path d="M15.5 20.5V9h-2.2L17 3.5 20.7 9h-2.2v11.5"/></svg></span><span>Progress</span></button>
 <div></div>
-<button data-nav="teach"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 3h12v15h-12a2 2 0 0 0-2 2V5a2 2 0 0 1 2-2Z"/><path d="M4.5 20a2 2 0 0 0 2 1.5h12V18"/><path d="M8.5 3v15"/><path d="M11.5 18v4.5l1.5-1.2 1.5 1.2V18"/></svg></span><span>Teach me</span></button>
-<button data-nav="rewards"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v8h14v-8M12 8.5v12"/><path d="M12 8.5C10.5 5 6.8 4.2 6.8 6.4c0 1.6 2.7 2.1 5.2 2.1ZM12 8.5c1.5-3.5 5.2-4.3 5.2-2.1 0 1.6-2.7 2.1-5.2 2.1Z"/></svg></span><span>Rewards</span></button>
+<button data-nav="calendar"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg></span><span>Calendar</span></button>
+<button data-nav="teach"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 3h12v15h-12a2 2 0 0 0-2 2V5a2 2 0 0 1 2-2Z"/><path d="M4.5 20a2 2 0 0 0 2 1.5h12V18"/><path d="M8.5 3v15"/><path d="M11.5 18v4.5l1.5-1.2 1.5 1.2V18"/></svg></span><span>Learn</span></button>
 </nav>
 </div>
 <div id="modal-root"></div>
 <script src="errors.js?v=errors-v1"></script>
 <script src="install.js?v=install-v2"></script>
 <script src="packs.js?v=packs-v3"></script>
-<script src="storage.js?v=storage-v6" data-app-scripts="data.js?v=data-v12 nisia-actions.js?v=actions-2 nisia.js?v=nisia-v15 checkin.js?v=checkin-v2 @course-pack-early ksb-official.js?v=ksb-v2 app.js polish.js theme.js?v=evia-theme-v11 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v26 profile.js?v=profile-v14 eportfolio.js?v=eport-v17 test-banks.js?v=banks-v2 review.js?v=tests-v13 repair.js?v=repair-v3 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v2 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v3 guide.js?v=guide-v9 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v14 practice.js?v=practice-v11 reviews.js?v=reviews-v13 ui.js?v=ui-v43 progress.js?v=pv-v11 epa-guide.js?v=guide-v1 discussion.js?v=disc-v5 evia-coach.js?v=coach-v20 evia-brain.js?v=brain-v7 evia-todo.js?v=todo-v3 camera.js?v=camera-v7 photo-tips.js?v=tips-v2 writing.js?v=writing-v2 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v14 games.js?v=games-v7 showdown-data.js?v=sd-v3 showdown.js?v=sd-v2 leaderboard.js?v=lb-v2 rewards.js?v=rw-v17 orbs.js?v=orbs-v2 tips.js?v=tips-v1 usage.js?v=usage-v1"></script>
+<script src="storage.js?v=storage-v6" data-app-scripts="data.js?v=data-v12 nisia-actions.js?v=actions-2 nisia.js?v=nisia-v15 checkin.js?v=checkin-v2 @course-pack-early ksb-official.js?v=ksb-v2 app.js polish.js theme.js?v=evia-theme-v11 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v27 profile.js?v=profile-v14 eportfolio.js?v=eport-v17 test-banks.js?v=banks-v2 review.js?v=tests-v13 repair.js?v=repair-v3 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v2 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v3 guide.js?v=guide-v9 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v15 practice.js?v=practice-v11 reviews.js?v=reviews-v14 ui.js?v=ui-v44 progress.js?v=pv-v12 epa-guide.js?v=guide-v1 discussion.js?v=disc-v5 evia-coach.js?v=coach-v21 evia-brain.js?v=brain-v8 evia-todo.js?v=todo-v4 camera.js?v=camera-v7 photo-tips.js?v=tips-v2 writing.js?v=writing-v2 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v15 calendar.js?v=cal-v1 games.js?v=games-v7 showdown-data.js?v=sd-v3 showdown.js?v=sd-v2 leaderboard.js?v=lb-v2 rewards.js?v=rw-v17 orbs.js?v=orbs-v2 tips.js?v=tips-v2 usage.js?v=usage-v1"></script>
 <script>
 (function(){
   if (!("serviceWorker" in navigator)) return;
@@ -88,7 +88,7 @@ html.evia-booting body{visibility:hidden}
   navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloading||!hadController||Date.now()-openedAt>8000)return;reloading=true;window.location.reload();});
   window.addEventListener("load", async function(){
     try {
-      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v226",{updateViaCache:"none"});
+      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v227",{updateViaCache:"none"});
       await registration.update().catch(()=>{}); /* fails harmlessly with no signal */
       const activateWaiting=worker=>{if(!worker)return;worker.postMessage({type:"SKIP_WAITING"});};
       if(registration.waiting) activateWaiting(registration.waiting);

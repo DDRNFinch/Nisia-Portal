@@ -184,7 +184,7 @@
   function evidence(){
     const k=K(),a=k.analyse(),prompts=(window.eviaLearnerPrompts||{})[course]||{};
     const started=a.units.filter(u=>u.started);
-    if(!started.length){k.say("You haven’t saved any evidence yet. Pick a unit on My course, take a few photos and write what you did. I’ll check it for you after.");k.replies([{label:"Something else",run:k.somethingElse}]);return}
+    if(!started.length){k.say("You haven’t saved any evidence yet. Pick a topic on Topics, take a few photos and write what you did. I’ll check it for you after.");k.replies([{label:"Something else",run:k.somethingElse}]);return}
     const checks=started.map(u=>{const c=prompts[u.name]?k.checkUnit(u,prompts):null;const latest=u.entries.slice().sort((x,y)=>Date.parse(y.savedAt||0)-Date.parse(x.savedAt||0))[0];const photos=c?c.photos:(latest&&(latest.photoIds||latest.p||[]).length)||0,words=c?c.words:String(latest&&latest.w||"").trim().split(/\s+/).filter(Boolean).length;
       const issues=[];if(photos<5)issues.push(photos<3?"only "+k.plural(photos,"photo")+": add the start, middle and finished job":"add "+(5-photos)+" more photo"+(5-photos===1?"":"s"));
       if(c&&c.missing.length)issues.push("mention "+k.listText(c.missing.slice(0,3))+(c.missing.length>3?" and "+(c.missing.length-3)+" more":""));
@@ -226,8 +226,8 @@
     const latest=u=>Math.max(...u.entries.map(e=>Date.parse(e.savedAt||"")||0));
     const started=a.units.filter(u=>u.started).sort((x,y)=>latest(y)-latest(x));
     if(!started.length){
-      k.say("You haven’t saved any evidence yet. Pick a unit on My course, take a few photos and write what you did. Then I’ll check it for you.");
-      k.replies([{label:"Go to My course",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
+      k.say("You haven’t saved any evidence yet. Pick a topic on Topics, take a few photos and write what you did. Then I’ll check it for you.");
+      k.replies([{label:"Go to Topics",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
     }
     k.say("Which evidence shall I check? Your most recent is first.");
     k.replies(started.slice(0,5).map((u,i)=>({label:u.name,primary:!i,run:()=>{checkOne(u)}})).concat([{label:"Something else",run:k.somethingElse}]));

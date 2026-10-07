@@ -319,20 +319,7 @@
     scr.querySelectorAll("[data-ev-share]").forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.evShare);if(x)shareSupporting(x,()=>window.openSupportingEvidence())});
   };
 
-  /* ---------- My course: learning logs and progress reviews, under the units ---------- */
   const hmText=h=>window.eviaHM(h);
-  function logsGridHtml(){
-    const last=otjBatches[otjBatches.length-1],cutoff=Number(last?last.cutoff:0),fresh=hours.filter(x=>Number(x.createdAt)>cutoff).length;
-    const reviews=window.eviaGetReviews?window.eviaGetReviews().length:0,total=hours.reduce((n,x)=>n+Number(x.n||0),0),rd=window.eviaReviewDue&&window.eviaReviewDue();
-    const tile=(id,cls,iconSvg,value,label,sub)=>'<button type="button" class="ui-log-tile '+cls+'" id="'+id+'"><span class="ui-log-top"><span class="ui-log-icon">'+iconSvg+'</span><span class="ui-log-chev" aria-hidden="true">›</span></span><b class="ui-log-value">'+value+'</b><strong>'+label+'</strong><small>'+sub+'</small></button>';
-    return '<h2 class="ui-section-label">Learning logs</h2><div class="ui-logs-grid" id="ui-logs-grid">'+
-      tile("ui-open-logs","logs",icon(ICONS.clock),hours.length?escHtml(hmText(total)):"0 h","Learning logs",hours.length?(fresh&&last?fresh+" new to download":hours.length+" entr"+(hours.length===1?"y":"ies")):"No hours logged yet")+
-    '</div>';
-  }
-  function bindLogsGrid(){
-    const l=$("#ui-open-logs");if(l)l.onclick=()=>openLearningLogs();
-    const r=$("#ui-open-reviews");if(r)r.onclick=()=>openSavedReviews();
-  }
   /* Learning logs: every off-the-job entry, one button for the ones not downloaded yet, and past PDFs to get again. */
   function openLearningLogs(){
     withFade(()=>{
@@ -342,7 +329,7 @@
       const fresh=hours.filter(x=>Number(x.createdAt)>cutoff),total=hours.reduce((n,x)=>n+Number(x.n||0),0);
       const day=t=>new Date(Number(t)).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
       const batches=otjBatches.slice().reverse();
-      $("#screen").innerHTML='<button class="secondary ui-back" id="ui-logs-back" type="button">‹ My course</button><h1 class="ui-sub-title">Learning logs</h1>'+
+      $("#screen").innerHTML='<button class="secondary ui-back" id="ui-logs-back" type="button">‹ Calendar</button><h1 class="ui-sub-title">Learning logs</h1>'+
         '<div class="ui-page">'+'<button type="button" class="primary ui-log-add" id="ui-log-add">+ Log hours</button>'+
           '<section class="ui-card ui-hours-sum"><div><strong>'+escHtml(hmText(total))+'</strong><small>logged in total</small></div><div><strong>'+hours.length+'</strong><small>entr'+(hours.length===1?"y":"ies")+'</small></div></section>'+
           (hours.length?'<section class="ui-card ui-logs-dl"><div><strong>'+(fresh.length?fresh.length+" new entr"+(fresh.length===1?"y":"ies"):"Everything’s downloaded")+'</strong><small>'+(fresh.length?(last?"Since your last download on "+escHtml(savedDay(last.downloadedAt)):"Not downloaded yet"):"New entries will be ready to download here")+'</small></div>'+(fresh.length?'<button type="button" class="primary" id="download-otj">Download PDF</button>':"")+'</section>':"")+
@@ -351,7 +338,7 @@
             :'<div class="ui-card ui-empty"><span class="ui-icon-chip">'+icon(ICONS.clock)+'</span><p>No learning hours logged yet. Tap <strong>Log hours</strong> above to add some.</p></div>')+
           (batches.length?'<h2 class="ui-hours-h">Past downloads</h2><div class="ui-card ui-hours-list">'+batches.map(b=>'<div class="ui-hours-item ui-batch"><span class="ui-hours-copy"><strong>'+escHtml(savedDay(b.downloadedAt))+'</strong><small>'+(b.entryIds||[]).length+' entr'+((b.entryIds||[]).length===1?"y":"ies")+'</small></span><button type="button" class="secondary" data-batch="'+escHtml(b.id)+'">Download again</button></div>').join("")+'</div>':"")+
         '</div>';
-      $("#ui-logs-back").onclick=()=>nav("course");
+      $("#ui-logs-back").onclick=()=>nav("calendar");
       $("#ui-log-add").onclick=()=>{window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)};
       const dl=$("#download-otj");if(dl)dl.onclick=()=>downloadOTJPDF("new");
       document.querySelectorAll("[data-batch]").forEach(b=>b.onclick=()=>downloadOTJPDF(b.dataset.batch));
@@ -541,7 +528,7 @@
     const a=analyse(),prompts=(window.eviaLearnerPrompts||{})[course]||{};
     const checks=a.units.filter(u=>u.started&&prompts[u.name]).map(u=>checkUnit(u,prompts)).filter(c=>c.terms.length)
       .sort((x,y)=>(y.missing.length/y.terms.length)-(x.missing.length/x.terms.length));
-    if(!checks.length){say("You haven’t submitted a unit with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to My course",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
+    if(!checks.length){say("You haven’t submitted a unit with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to Topics",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
     const needsWork=checks.filter(c=>c.missing.length||c.words<50||c.photos<3);
     if(!needsWork.length){
       say(pick(["Your write-ups cover all the key points, with plenty of photos. Nice.","I’ve checked your write-ups: they mention everything they should and have good photos. Good job."]));
@@ -796,23 +783,23 @@
     originalCourses();
     const head=document.querySelector("#screen > .card:not(.unit-card)");
     if(head)head.remove();
-    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("My course").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
+    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("Topics").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
     /* The units sit together in one grouped list. */
     const scr=document.getElementById("screen"),units=[...scr.querySelectorAll(":scope > .unit-card[data-u]")];
     if(units.length){const list=document.createElement("div");list.className="ui-unit-list";units[0].before(list);units.forEach((u,i)=>{u.insertAdjacentHTML("afterbegin",'<span class="ui-unit-no" aria-hidden="true">'+(i+1)+'</span>');list.appendChild(u)});
-      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Units</h2>')}
+      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Topics</h2>')}
     /* Supporting evidence sits in its own grouped list, like the units. */
     const sup=scr.querySelector(":scope > .supporting-course-card");
     if(sup){const box=document.createElement("div");box.className="ui-unit-list ui-sup-list";sup.before(box);box.appendChild(sup);box.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Workplace evidence</h2>')}
     /* The summary at the top, in the same card style as My progress. */
     const top=document.getElementById("ui-course-head");if(top)top.insertAdjacentHTML("afterend",courseHero());
-    scr.insertAdjacentHTML("beforeend",logsGridHtml());bindLogsGrid();
+    /* Learning logs live on the Calendar now, and past reviews on My progress. */
     courseNudge();
   };
   function courseHero(){
     const nvq=window.eviaNvq&&window.eviaNvq.on(),us=data().u,lv=us.map(u=>unitStrengthForCourse(u[0])),n=lv.filter(Boolean).length,c=k=>lv.filter(l=>l===k).length,pct=us.length?Math.round(n/us.length*100):0;
-    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Units with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
-      '<span class="pv-sub">'+(n?c("strong")+" strong · "+c("good")+" good · "+c("weak")+" weak":"Open a "+(nvq?"job":"unit")+" to capture your first evidence")+'</span><i class="pv-bar ui-hero-bar"><i style="width:'+pct+'%"></i></i></div>';
+    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Topics with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
+      '<span class="pv-sub">'+(n?c("strong")+" strong · "+c("good")+" good · "+c("weak")+" weak":"Open a "+(nvq?"job":"topic")+" to capture your first evidence")+'</span><i class="pv-bar ui-hero-bar"><i style="width:'+pct+'%"></i></i></div>';
   }
   window.portfolio=()=>window.courses();
   /* Evia's bubble belongs to the course list: it goes when anything else (a unit, supporting evidence) replaces it. */
