@@ -204,6 +204,8 @@ function slidesFor(p, s) {
     if (!part.lessons.length) {
       const keys = part.unit.lessons.flatMap((l) => l.slides.filter((x) => x.key).flatMap((x) => x.points)).slice(0, 6);
       out.push({ title: "Recap: " + part.unit.name, text: "Remember from last time:", points: keys.length ? keys : part.unit.lessons.filter((l) => l.slides.length).map((l) => [l.title, plain(l.blurb)]) });
+      /* The unit's pictures again, for a quick recap and the demonstration before the practical. */
+      out.push(...part.unit.lessons.flatMap((l) => l.slides.filter((x) => x.pic)).slice(0, 6));
     }
     for (const l of part.lessons) { out.push({ title: l.title, text: plain(l.blurb), cover: true, unit: part.unit.name }); out.push(...l.slides); }
     const t = part.unit.task;
