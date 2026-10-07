@@ -115,3 +115,16 @@ body.st-open{overflow:hidden}
 .st-step-text b{display:block;font-size:17px}.st-step-text small{display:block;font-size:13.5px;color:#5b6a62;line-height:1.4;margin-top:2px}
 .st-step .st-btn{min-height:46px;white-space:nowrap}
 @media (max-width:720px){.st-step{grid-template-columns:40px minmax(0,1fr)}.st-step .st-btn{grid-column:1/-1;width:100%}}
+/* The quiz on phones: answers counting in, then how many picked each one, then the scores */
+.st-live{display:flex;align-items:center;gap:12px;color:#cfe0d6;font-size:clamp(15px,1.7vw,20px);font-weight:700}
+.st-live-ring{width:120px;height:10px;border-radius:99px;background:#24342b;overflow:hidden}.st-live-ring i{display:block;height:100%;width:0;background:#2a9d63;transition:width .4s}
+.st-opts li{position:relative}
+.st-votes{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:120px}
+.st-votes b{font-size:clamp(20px,2.4vw,30px);min-width:1.4em;text-align:right}
+.st-votes em{display:block;height:12px;border-radius:99px;background:#2a9d63;min-width:4px;max-width:100px;transition:width .4s}
+.st-wrong .st-votes em{background:#56635c}
+.st-board{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px;max-width:640px}
+.st-board li{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:14px;background:#1c2a23;font-size:clamp(17px,2vw,24px)}
+.st-board i{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#2c3d34;font-style:normal;font-weight:800}
+.st-board li:first-child i{background:#e2b23c;color:#2a1f00}
+.st-board span{flex:1}.st-board b{color:#7fd3a5}

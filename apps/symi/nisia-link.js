@@ -583,3 +583,13 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
   if (inviteCode()) return openSignIn();
   if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
 })();
+
+/* ---------- The class quiz on learners' phones (symi-teach.js runs it) ----------
+   The tutor starts it on the classroom screen; learners on the class answer in Evia. Needs Nisia and a signal: with
+   neither, the quiz is the hands-up kind. */
+window.SymiNisia = {
+  live: () => signedIn && online(),
+  quizStart: async (regId, key, title, questions) => { const s = await ensureSession(regId, key); return A.send("quizStart", { p_session: s.id, p_title: String(title || "Class quiz").slice(0, 200), p_questions: questions }); },
+  quizStep: (id, current, revealed, finished) => A.send("quizStep", { p_quiz: id, p_current: current, p_revealed: !!revealed, p_finished: !!finished }),
+  quizState: (id) => A.send("quizState", { p_quiz: id }),
+};

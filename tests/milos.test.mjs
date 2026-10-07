@@ -58,6 +58,7 @@ function handle(route) {
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
   /* Visits (the Calendar): booked, listed and cancelled through Nisia's actions. */
   if (p === "/rest/v1/rpc/nisia_visits") return json(VISITS);
+  if (p === "/rest/v1/rpc/nisia_learner_quizzes") return json([{ quiz_id: "Q1", session_date: "2026-10-06", class: "L2 Bricklaying", title: "Class quiz", total: 8, answered: 8, right_answers: 6 }]);
   if (p === "/rest/v1/rpc/nisia_learner_college") return json([
     { session_id: "S2", session_date: "2026-10-06", class: "L2 Bricklaying", lesson: "Session 4 · Jointing Styles: Joint finishes, Protecting the work", ksbs: ["S12", "K17", "S2", "K2"], status: "present", late: true, minutes: 360 },
     { session_id: "S1", session_date: "2026-09-29", class: "L2 Bricklaying", lesson: "Session 3 · Mixing mortar", ksbs: ["S14", "K20"], status: "present", late: false, minutes: 375 }]);
@@ -166,7 +167,7 @@ try {
   await page.waitForSelector("#colBox .m-college");
   const col = await page.textContent("#colBox");
   check("…what they were taught at college (from Symi): each session's lesson and KSBs, and whether they were there",
-    /At college/.test(col) && /2 of 2 sessions/.test(col) && /6 KSBs taught/.test(col) && /Joint finishes/.test(col) && /Late/.test(col) && /S12/.test(col), col);
+    /At college/.test(col) && /2 of 2 sessions/.test(col) && /6 KSBs taught/.test(col) && /Joint finishes/.test(col) && /Late/.test(col) && /S12/.test(col) && /Quiz 6\/8/.test(col) && /class quizzes 75% right/.test(col), col);
   check("…and their days off, with who booked them", /Hospital appointment/.test(await page.textContent("#absBox")) && /Sam Tutor \(tutor\)/.test(await page.textContent("#absBox")));
   await page.click("#tab-portfolio"); await page.waitForSelector(".pf-unit"); await page.screenshot({ path: shots + "/m2a-portfolio.png", fullPage: true });
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&

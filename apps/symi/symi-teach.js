@@ -383,14 +383,72 @@ function slides(p, s, back, hooks) {
   };
   draw();
 }
+/* The quiz: on learners' phones when Symi is signed in to Nisia and there's a signal (each learner answers in Evia,
+   the screen counts them in); otherwise hands up, the tutor tapping whether most of the class got it. */
 function quiz(p, s, back, hooks) {
+  const N = window.SymiNisia;
+  if (N && N.live() && quizFor(p, s).some((q) => q.opts)) return liveQuiz(p, s, back, hooks);
+  return handsQuiz(p, s, back, hooks);
+}
+async function liveQuiz(p, s, back, hooks) {
+  hooks = hooks || {};
+  const N = window.SymiNisia, list = quizFor(p, s).filter((q) => q.opts), L = "ABCDEFGH", name = s.parts.some((x) => x.check) ? "Unit check" : "Class quiz";
+  frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(name) + '</span></header><article class="st-slide st-cover"><div class="st-slide-text"><small>On everyone’s phones</small><h1>Starting the quiz…</h1></div></article></div>', "st-dark");
+  let id;
+  try { id = await N.quizStart(p.reg.id, s.date, name + ": " + titleOf(s), list.map((q) => ({ q: plain(q.q), opts: q.opts.map(plain), a: q.a, why: plain(q.why || "") }))); }
+  catch (e) { App().toast("The phones couldn’t join (" + e.message + "). Playing hands up."); return handsQuiz(p, s, back, hooks); }
+  let i = 0, shown = false, st = null, timer = null, alive = true, busy = false;
+  const stop = () => { alive = false; clearTimeout(timer); };
+  const leave = () => { stop(); N.quizStep(id, i, shown, true).catch(() => {}); back(); };
+  const poll = async () => { if (!alive) return; try { st = await N.quizState(id); } catch (_) { /* keep the last */ } if (alive) { paint(); timer = setTimeout(poll, 2000); } };
+  const go = async (fn) => { if (busy) return; busy = true; try { await fn(); } catch (e) { App().toast(e.message); } busy = false; };
+  /* Only the numbers change as answers come in, so the screen doesn't flicker. */
+  const paint = () => {
+    if (!sheet || !st) return;
+    const n = sheet.querySelector("[data-answered]"); if (n) n.textContent = st.answered + " of " + st.learners + " answered";
+    const ring = sheet.querySelector(".st-live-ring i"); if (ring) ring.style.width = Math.min(100, st.learners ? st.answered / st.learners * 100 : 0) + "%";
+    if (shown && st.current === i) sheet.querySelectorAll("[data-count]").forEach((b) => { const k = +b.dataset.count, c = (st.counts || [])[k] || 0, all = Math.max(1, st.answered); b.querySelector("b").textContent = c; b.querySelector("em").style.width = (c / all * 100) + "%"; });
+  };
+  const results = async () => {
+    try { st = await N.quizState(id); } catch (_) { /* last known */ }
+    const scores = (st && st.scores) || [], n = list.length, avg = scores.length ? Math.round(scores.reduce((a, x) => a + x.right, 0) / (scores.length * n) * 100) : 0;
+    const text = scores.length ? avg + "% right on phones · " + scores.length + " answered" : "no answers on phones";
+    if (hooks.onDone) hooks.onDone(Math.round(avg / 100 * n), n, text);
+    const help = scores.filter((x) => x.right / n < 0.5);
+    const el = frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(name) + ' · ' + esc(titleOf(s)) + '</span><span></span><button type="button" class="st-iconbtn" data-st-back aria-label="Close">×</button></header>' +
+      '<article class="st-slide st-cover"><div class="st-slide-text"><small>Quiz done · ' + scores.length + ' on phones</small><h1>' + (scores.length ? avg + "% right as a class" : "No answers came in") + '</h1>' +
+        (scores.length ? '<ol class="st-board">' + scores.slice(0, 10).map((x, k) => '<li><i>' + (k + 1) + '</i><span>' + esc(x.name) + '</span><b>' + x.right + ' / ' + n + '</b></li>').join("") + '</ol>' : "") +
+        (help.length ? '<p class="st-why">Go over it with ' + esc(help.map((x) => x.name.split(" ")[0]).join(", ")) + ' before the practical.</p>' : "") + '</div></article>' +
+      '<footer class="st-deckfoot"><span></span><button type="button" class="st-btn st-primary" data-done>Finish</button></footer></div>', "st-dark");
+    view = { back }; el.querySelector("[data-st-back]").onclick = back; el.querySelector("[data-done]").onclick = back;
+  };
+  const draw = () => {
+    const q = list[i], c = (st && st.current === i && st.counts) || [];
+    const el = frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(name) + ' · on phones · ' + esc(titleOf(s)) + '</span><span class="st-count">' + (i + 1) + ' / ' + list.length + '</span><button type="button" class="st-iconbtn" data-st-back aria-label="Close quiz">×</button></header>' +
+      '<article class="st-slide st-q"><div class="st-slide-text"><small>Question ' + (i + 1) + ' · answer in Evia</small><h1>' + md(q.q) + '</h1>' +
+        '<ol class="st-opts">' + q.opts.map((o, k) => '<li class="' + (shown ? (k === q.a ? "st-right" : "st-wrong") : "") + '"' + (shown ? ' data-count="' + k + '"' : "") + '><i>' + L[k] + '</i><span>' + md(o) + '</span>' +
+          (shown ? '<span class="st-votes"><b>' + (c[k] || 0) + '</b><em></em></span>' : "") + '</li>').join("") + '</ol>' +
+        (shown && q.why ? '<p class="st-why">' + md(q.why) + '</p>' : "") + '</div></article>' +
+      '<footer class="st-deckfoot"><span class="st-live"><span class="st-live-ring"><i></i></span><span data-answered>0 answered</span></span>' +
+        (shown ? '<button type="button" class="st-btn st-primary" data-next>' + (i < list.length - 1 ? "Next question" : "See the results") + '</button>' : '<button type="button" class="st-btn st-primary" data-show>Show the answer</button>') + '</footer></div>', "st-dark");
+    const next = () => go(async () => { if (i < list.length - 1) { i++; shown = false; await N.quizStep(id, i, false); st = null; draw(); } else { stop(); await N.quizStep(id, i, true, true); await results(); } });
+    const show = () => go(async () => { await N.quizStep(id, i, true); shown = true; try { st = await N.quizState(id); } catch (_) { } draw(); });
+    view = { back: leave, next: () => shown ? next() : show() };
+    el.querySelector("[data-st-back]").onclick = leave;
+    const sh = el.querySelector("[data-show]"), nx = el.querySelector("[data-next]");
+    if (sh) sh.onclick = show; if (nx) nx.onclick = next;
+    paint();
+  };
+  draw(); poll();
+}
+function handsQuiz(p, s, back, hooks) {
   hooks = hooks || {};
   const list = quizFor(p, s);
   let i = 0, shown = false, got = 0;
   const L = "ABCDEFGH";
   const draw = () => {
     if (i >= list.length) {
-      if (hooks.onDone) hooks.onDone(got, list.length);
+      if (hooks.onDone) hooks.onDone(got, list.length, got + " of " + list.length + " right as a class");
       const el = frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(titleOf(s)) + '</span><span></span><button type="button" class="st-iconbtn" data-st-back aria-label="Close">×</button></header>' +
         '<article class="st-slide st-cover"><div class="st-slide-text"><small>Quiz done</small><h1>' + got + ' of ' + list.length + ' right as a class</h1><p>Go over anything that tripped people up before the practical.</p></div></article>' +
         '<footer class="st-deckfoot"><button type="button" class="st-btn" data-again>Start again</button><span></span><button type="button" class="st-btn st-primary" data-done>Finish</button></footer></div>', "st-dark");
@@ -427,7 +485,7 @@ function todayFlow(p, s) {
   const steps = [
     { id: "reg", title: "Take the register", sub: "Learners check in on Evia with the code on the screen. You mark anyone late or off.", btn: "Show the check-in code", ok: !!(f.reg || done) },
     { id: "teach", title: "Teach", sub: titleOf(s) + " · " + slidesFor(p, s).length + " slides with pictures", btn: f.taught ? "Teach again" : "Start teaching", ok: !!f.taught },
-    { id: "quiz", title: check ? "Unit check" : "Class quiz", sub: quizFor(p, s).length + " questions" + (f.quiz ? " · " + f.quiz + " right as a class" : ""), btn: f.quiz ? "Do it again" : "Start the quiz", ok: !!f.quiz },
+    { id: "quiz", title: check ? "Unit check" : "Class quiz", sub: quizFor(p, s).length + " questions" + (window.SymiNisia && window.SymiNisia.live() ? ", answered on phones" : "") + (f.quiz ? " · " + f.quiz : ""), btn: f.quiz ? "Do it again" : "Start the quiz", ok: !!f.quiz },
     { id: "finish", title: "Finish the class", sub: done ? "Done. Everyone’s hours, and what you taught" + (codes.length ? " (" + codes.length + " KSBs)" : "") + ", are in their Evia and with their assessor in Milos."
       : "Confirms everyone’s hours. What you taught" + (codes.length ? " (" + codes.slice(0, 8).join(", ") + (codes.length > 8 ? "…" : "") + ")" : "") + " goes to each learner’s Evia and their assessor in Milos.", btn: done ? "" : "Finish the register", ok: done },
   ];
@@ -447,8 +505,8 @@ function todayFlow(p, s) {
       const b = document.querySelector("[data-sn-show]") || document.querySelector("[data-sn-connect]");
       if (b) b.click(); else App().toast("The register is below: tap each learner as they arrive.");
     },
-    teach: () => slides(p, s, () => todayFlow(p, s), { onEnd: () => flowSet(p.reg.id, k, { taught: true }), onDone: (got, n) => flowSet(p.reg.id, k, { quiz: got + " of " + n }) }),
-    quiz: () => quiz(p, s, () => todayFlow(p, s), { onDone: (got, n) => flowSet(p.reg.id, k, { quiz: got + " of " + n }) }),
+    teach: () => slides(p, s, () => todayFlow(p, s), { onEnd: () => flowSet(p.reg.id, k, { taught: true }), onDone: (got, n, text) => flowSet(p.reg.id, k, { quiz: text }) }),
+    quiz: () => quiz(p, s, () => todayFlow(p, s), { onDone: (got, n, text) => flowSet(p.reg.id, k, { quiz: text }) }),
     finish: () => {
       close();
       const b = document.querySelector("[data-finish-register]");

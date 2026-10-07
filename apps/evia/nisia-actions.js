@@ -23,15 +23,22 @@
     finishRegister: { fn: "symi_finish_register", keep: true },
     sessionKey: { fn: "symi_session_key" },
     classAbsences: { fn: "symi_absences" },
+    quizStart: { fn: "symi_quiz_start" },
+    quizStep: { fn: "symi_quiz_step" },
+    quizState: { fn: "symi_quiz_state" },
     /* Learners (Evia) */
     whatsNew: { fn: "nisia_whats_new" },
     checkIn: { fn: "nisia_check_in", keep: true, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },
+    quizNow: { fn: "evia_quiz_now" },
+    quizAnswer: { fn: "evia_quiz_answer" },
     /* Employers (Paros) */
     addWitness: { fn: "paros_add_witness" },
     rateBehaviours: { fn: "paros_rate_behaviours" },
     confirmHours: { fn: "paros_confirm_hours" },
     /* Assessors (Milos) */
     employerFeedback: { fn: "milos_employer_feedback" },
+    learnerCollege: { fn: "nisia_learner_college" },
+    learnerQuizzes: { fn: "nisia_learner_quizzes" },
     /* Days off (every app) */
     bookAbsence: { fn: "nisia_book_absence", keep: true },
     cancelAbsence: { fn: "nisia_cancel_absence" },

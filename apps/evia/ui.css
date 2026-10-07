@@ -2842,3 +2842,28 @@ body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}
 .tg-shop-txt strong{font-size:20px;font-weight:850;letter-spacing:-.02em}
 .tg-shop-txt small{font-size:14px;font-weight:600;opacity:.85}
 .tg-shop-go{font-size:28px;font-weight:700;opacity:.7}
+
+/* The class quiz on the learner's phone (class-quiz.js) */
+#cq-view{position:fixed;inset:0;z-index:4000;background:rgba(17,24,39,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+#cq-view .cq-card{width:100%;max-width:520px;max-height:100%;overflow:auto;background:#fff;color:#172033;border-radius:26px;padding:18px 18px 20px;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:cq-in .25s ease-out}
+@keyframes cq-in{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){#cq-view .cq-card{animation:none}}
+#cq-view .cq-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+#cq-view .cq-head small{display:block;font-size:12.5px;font-weight:700;color:#667085}#cq-view .cq-head b{font-size:16px}
+#cq-view .cq-x{width:38px;height:38px;border-radius:50%;border:1px solid #e4e7ec;background:#fff;font-size:22px;line-height:1;color:#344054}
+#cq-view .cq-q{margin:4px 0 14px;font-size:21px;line-height:1.3}
+#cq-view .cq-opts{display:grid;gap:10px}
+#cq-view .cq-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;border-radius:18px;border:2px solid #e4e7ec;background:#f9fafb;font:inherit;font-size:16.5px;font-weight:600;color:#172033;min-height:60px}
+#cq-view .cq-opt i{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#fff;border:1px solid #e4e7ec;font-style:normal;font-weight:800;flex:none}
+#cq-view .cq-mine{border-color:#e7b900;background:#fff8d6}#cq-view .cq-mine i{background:#e7b900;border-color:#e7b900;color:#172033}
+#cq-view .cq-right{border-color:#12b76a;background:#ecfdf3}#cq-view .cq-right i{background:#12b76a;border-color:#12b76a;color:#fff}
+#cq-view .cq-wrong{border-color:#f04438;background:#fef3f2}
+#cq-view .cq-dim{opacity:.5}
+#cq-view .cq-note{margin:12px 2px 0;font-size:14px;color:#667085;text-align:center}
+#cq-view .cq-result{margin-top:14px;padding:14px;border-radius:16px;background:#f2f4f7}
+#cq-view .cq-result b{font-size:18px}#cq-view .cq-result p{margin:6px 0;font-size:15px;line-height:1.45}#cq-view .cq-result small{color:#667085}
+#cq-view .cq-yes{background:#ecfdf3}#cq-view .cq-yes b{color:#067647}
+#cq-view .cq-no{background:#fef3f2}#cq-view .cq-no b{color:#b42318}
+#cq-view .cq-done{text-align:center;padding:10px 0 16px}#cq-view .cq-big{font-size:46px;font-weight:800;margin:6px 0}
+#cq-view .cq-coins{display:inline-block;padding:6px 14px;border-radius:999px;background:#fff8d6;font-weight:800;color:#6e5c00}
+#cq-view .cq-btn{width:100%;min-height:52px;border-radius:16px;border:0;background:#e7b900;color:#172033;font:inherit;font-weight:800;font-size:16px}

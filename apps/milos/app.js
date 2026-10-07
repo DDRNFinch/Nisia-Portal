@@ -570,19 +570,26 @@ async function learner(r, keep) {
 async function mountCollege(box, r) {
   if (!box) return;
   const KEY = "milos-college-" + r.enrolment_id;
-  const draw = (rows) => {
+  const draw = (data) => {
+    const rows = Array.isArray(data) ? data : data && data.rows, quiz = (data && data.quiz) || [];
     if (!rows || !rows.length) { box.innerHTML = ""; return; }
+    const quizOn = (d) => quiz.filter((x) => x.session_date === d);
     const here = rows.filter((x) => x.status === "present").length, taught = new Set(rows.flatMap((x) => x.ksbs || [])), mins = rows.reduce((n, x) => n + (x.status === "present" ? x.minutes || 0 : 0), 0);
     const pack = coursePack(r.course_code, r.enrolment_id), name = (k) => ((pack && pack.ksbs) || []).find((x) => x[0] === k)?.[1] || k;
     const tag = (x) => x.status === "present" ? (x.late ? '<span class="pill warn">Late</span>' : '<span class="pill good">Here</span>') : x.status === "absent" ? '<span class="pill ' + (x.reason ? "idle" : "bad") + '">' + esc(x.reason ? "Off: " + x.reason : "Absent") + '</span>' : '<span class="pill idle">Not marked</span>';
     box.innerHTML = '<section class="card m-list m-college"><p class="label m-in">At college</p>' +
-      '<p class="m-card-sub m-in">' + here + ' of ' + rows.length + ' sessions · ' + Math.round(mins / 6) / 10 + ' h · ' + taught.size + (pack && pack.nvq ? " criteria" : " KSBs") + ' taught</p>' +
+      '<p class="m-card-sub m-in">' + here + ' of ' + rows.length + ' sessions · ' + Math.round(mins / 6) / 10 + ' h · ' + taught.size + (pack && pack.nvq ? " criteria" : " KSBs") + ' taught' +
+        (quiz.length ? ' · class quizzes ' + Math.round(quiz.reduce((n, z) => n + z.right_answers, 0) / Math.max(1, quiz.reduce((n, z) => n + z.total, 0)) * 100) + '% right' : "") + '</p>' +
       rows.slice(0, 5).map((x) => '<div class="m-row"><span class="m-row-main"><b>' + esc(x.lesson || x.class) + '</b><span class="sub">' + esc(ukDate(x.session_date)) + ' · ' + esc(x.class) + '</span>' +
-        '<span class="m-row-tags">' + tag(x) + ((x.ksbs || []).length ? '<span class="m-chips">' + x.ksbs.slice(0, 10).map((k) => '<span class="m-chip" title="' + esc(name(k)) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</span></span></div>').join("") + '</section>';
+        '<span class="m-row-tags">' + tag(x) + quizOn(x.session_date).map((z) => '<span class="pill ' + (z.right_answers / z.total >= 0.7 ? "good" : z.right_answers / z.total >= 0.4 ? "warn" : "bad") + '">Quiz ' + z.right_answers + '/' + z.total + '</span>').join("") + ((x.ksbs || []).length ? '<span class="m-chips">' + x.ksbs.slice(0, 10).map((k) => '<span class="m-chip" title="' + esc(name(k)) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</span></span></div>').join("") + '</section>';
   };
   try { draw(JSON.parse(localStorage.getItem(KEY) || "null")); } catch (_) {}
   if (!navigator.onLine) return;
-  try { const rows = (await rpc("nisia_learner_college", { p_enrolment: r.enrolment_id })) || []; try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch (_) {} if (box.isConnected) draw(rows); }
+  try {
+    const [rows, quiz] = await Promise.all([rpc("nisia_learner_college", { p_enrolment: r.enrolment_id }), rpc("nisia_learner_quizzes", { p_enrolment: r.enrolment_id }).catch(() => [])]);
+    const data = { rows: rows || [], quiz: quiz || [] };
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (_) {} if (box.isConnected) draw(data);
+  }
   catch (e) { console.warn("Milos: college", e.message); }
 }
 /* From the employer (Paros): their witness testimonies and how they rate the apprentice's behaviours. */

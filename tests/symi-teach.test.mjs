@@ -111,6 +111,33 @@ try {
   const moved = /^2 \//.test(await page.textContent(".st-count"));
   check("Class quiz: a question with lettered answers, the right one shown with why, and the class tally moves on", !!q1 && opts >= 2 && moved, q1 + " " + opts);
 
+  /* The quiz on learners' phones (signed in to Nisia): answers count in, then how many picked each, then the scores. */
+  await page.evaluate(() => {
+    const S = window.__quiz = { calls: [], answered: 0 };
+    window.SymiNisia = { live: () => true,
+      quizStart: async (regId, key, title, qs) => { S.calls.push({ t: "start", regId, key, title, n: qs.length, first: qs[0] }); S.qs = qs; return "QZ1"; },
+      quizStep: async (id, cur, rev, fin) => { S.calls.push({ t: "step", cur, rev, fin }); S.cur = cur; S.rev = rev; },
+      quizState: async () => ({ current: S.cur || 0, revealed: !!S.rev, learners: 3, answered: S.answered, counts: S.qs[S.cur || 0].opts.map((_, k) => k === S.qs[S.cur || 0].a ? 2 : k === 0 ? 1 : 0),
+        scores: [{ name: "Callum Hughes", right: 5, answered: 6 }, { name: "Amira Khan", right: 4, answered: 6 }, { name: "Jordan Pike", right: 1, answered: 6 }], total: S.qs.length }) };
+  });
+  await page.click(".st-strip [data-st=quiz]").catch(async () => { await page.evaluate(() => window.SymiTeach.open("t1", "quiz")); });
+  await page.waitForSelector("#stSheet [data-answered]");
+  await page.evaluate(() => { window.__quiz.answered = 2; }); await page.waitForTimeout(2300);
+  const counting = await page.textContent("#stSheet [data-answered]");
+  await page.screenshot({ path: shots + "/symi-quiz-live.png" });
+  await page.click("#stSheet [data-show]"); await page.waitForSelector("#stSheet [data-count]");
+  const votes = await page.$$eval("#stSheet [data-count] .st-votes b", (x) => x.map((b) => b.textContent).join(","));
+  await page.screenshot({ path: shots + "/symi-quiz-live-answer.png" });
+  for (let i = 0; i < 20 && !(await page.$("#stSheet .st-board")); i++) { await page.click("#stSheet [data-next]"); await page.waitForTimeout(80); if (await page.$("#stSheet [data-show]")) await page.click("#stSheet [data-show]"); await page.waitForTimeout(80); }
+  const board = await page.textContent("#stSheet .st-board"), calls = await page.evaluate(() => window.__quiz.calls);
+  await page.screenshot({ path: shots + "/symi-quiz-live-results.png" });
+  check("Class quiz on phones: the questions go to Nisia with the right answers kept back from phones, answers count in live, then how many picked each, then the class's scores and who needs help",
+    calls[0].t === "start" && calls[0].n >= 4 && Array.isArray(calls[0].first.opts) && Number.isInteger(calls[0].first.a) && /2 of 3 answered/.test(counting) && /2/.test(votes) &&
+    /Callum Hughes/.test(board) && calls.some((c) => c.fin) && /Jordan/.test(await page.textContent("#stSheet")), JSON.stringify({ counting, votes, calls: calls.slice(0, 3) }));
+  await page.click("#stSheet [data-done]");
+  await page.evaluate(() => { delete window.SymiNisia; });
+  await page.evaluate(() => { const x = document.querySelector("#stSheet [data-st-close]"); if (x) x.click(); });
+
   /* Printing the scheme of work. */
   await page.evaluate(() => { window.print = () => { window.__printed = document.getElementById("stPrint").textContent; }; });
   await page.click("#stSheet [data-done]").catch(() => {}); await page.waitForTimeout(100);
