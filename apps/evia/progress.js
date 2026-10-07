@@ -164,11 +164,18 @@
     if(m.kind==="ill"||/\bill\b|sick/i.test(why))return "ill";
     return why||m.kind?"reason":"none";
   }
+  /* Classes coming up: the sessions Symi has opened, then every other day on the class timetable, up to a year ahead. */
+  function coming(N,t){
+    const open=(N.sessions?N.sessions():[]).filter(x=>x.session_date>=t&&!x.checked_in_at&&x.status!=="finished"),seen=new Set((N.sessions?N.sessions():[]).map(x=>x.session_date+"|"+x.class));
+    const end=new Date(t+"T12:00:00");end.setFullYear(end.getFullYear()+1);
+    const planned=N.timetableDays?N.timetableDays(t,dkey(end)).filter(x=>!seen.has(x.session_date+"|"+x.class)):[];
+    return open.concat(planned).sort((a,b)=>String(a.session_date+(a.starts_at||"")).localeCompare(b.session_date+(b.starts_at||"")));
+  }
   function attendanceData(){
     const N=window.eviaNisia;if(!N||!N.attendance||!N.joined||!N.joined()||!N.joined().live)return null;
     const list=N.attendance()||[],marks=list.map(m=>{const k=markKind(m);return Object.assign({},m,{k,g:ATT_GROUP[k]||"present"})}),n=marks.length,here=marks.filter(m=>m.k==="here"||m.k==="late").length,t=dkey(new Date());
     return {marks,n,here,late:marks.filter(m=>m.k==="late").length,why:marks.filter(m=>["holiday","ill","reason"].includes(m.k)).length,none:marks.filter(m=>m.k==="none").length,
-      pct:n?Math.round(here/n*100):null,booked:N.absences?N.absences():[],coming:(N.sessions?N.sessions():[]).filter(x=>x.session_date>=t&&!x.checked_in_at&&x.status!=="finished")};
+      pct:n?Math.round(here/n*100):null,booked:N.absences?N.absences():[],coming:coming(N,t)};
   }
   function attendanceSheet(){
     const AT=attendanceData();if(!AT)return;

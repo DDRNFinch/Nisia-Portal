@@ -38,7 +38,7 @@
     const nextV=V.filter(v=>Date.parse(v.starts_at)+(v.minutes||60)*6e4>Date.now()).sort((a,b)=>String(a.starts_at).localeCompare(b.starts_at))[0];
     /* Not connected: the learner's own college days, from today to two months ahead. */
     const own=!AT?myDays():[],ownComing=[];
-    if(own.length){const e=new Date();e.setMonth(e.getMonth()+3,0);for(let d=new Date();d<=e;d.setDate(d.getDate()+1))if(own.includes(d.getDay()))ownComing.push({session_date:dkey(d),class:"College"})}
+    if(own.length){const e=new Date();e.setFullYear(e.getFullYear()+1);for(let d=new Date();d<=e;d.setDate(d.getDate()+1))if(own.includes(d.getDay()))ownComing.push({session_date:dkey(d),class:"College"})}
     const coming=AT?AT.coming:ownComing;
     const next=coming.slice().sort((a,b)=>String(a.session_date+(a.starts_at||"")).localeCompare(b.session_date+(b.starts_at||"")))[0];
     const wk=weekHours(by),pct=Math.min(100,Math.round(wk/WEEK_GOAL*100));
@@ -54,7 +54,11 @@
     const hoursCard='<section class="cal-card'+(!AT&&(editDays||!myDays().length)?" cal-wide":"")+'"><span class="cal-label">Learning hours this week</span><strong>'+esc(hm(wk))+'<small> of '+WEEK_GOAL+' h</small></strong>'+
       '<span class="cal-bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><button type="button" class="cal-btn primary" id="cal-log">Log hours</button></section>';
     const start=(()=>{try{const s=window.eviaData.enrolment&&window.eviaData.enrolment().start;return s?new Date(s+"T12:00:00"):null}catch(_){return null}})()||new Date(Date.now()-365*864e5);
-    const n0=new Date(),minM=start.getFullYear()*12+start.getMonth(),maxM=n0.getFullYear()*12+n0.getMonth()+2;
+    /* From the course start to its end (or the last class booked), and at least a year ahead. */
+    const endOf=(()=>{try{const D=window.eviaData,e=D.enrolment()||{},l=D.learner()||{};return e.end||l.end||""}catch(_){return ""}})();
+    const lastClass=(coming||[]).reduce((m,x)=>x.session_date>m?x.session_date:m,"");
+    const mOf=k=>{const d=new Date(k+"T12:00:00");return isNaN(d)?0:d.getFullYear()*12+d.getMonth()};
+    const n0=new Date(),minM=start.getFullYear()*12+start.getMonth(),maxM=Math.min(n0.getFullYear()*12+n0.getMonth()+36,Math.max(n0.getFullYear()*12+n0.getMonth()+12,endOf?mOf(endOf):0,lastClass?mOf(lastClass):0));
     if(cur==null||cur<minM||cur>maxM)cur=n0.getFullYear()*12+n0.getMonth();
     scr().innerHTML='<header class="ui-page-head"><h1>Calendar</h1><span>'+esc(courseName())+'</span></header>'+
       '<div class="cal-top">'+classCard+hoursCard+'</div>'+

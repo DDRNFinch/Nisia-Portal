@@ -272,6 +272,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
       const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
+    check("Calendar: every college day on the class timetable shows, every week to the class's end date, and the calendar goes a year ahead",await page.evaluate(async()=>{const N=window.eviaNisia;
+      localStorage.setItem("evia7-nisia-timetable",JSON.stringify([{class:"L2 Bricklaying",room:"W2",schedule:{day:"Tuesday",start:"09:00",end:"16:00",recurrence:{type:"weekly",interval:1,weekdays:["Tuesday"],startDate:"2026-10-05",endDate:"2026-12-22",anchorDate:"2026-10-05"}}},{class:"Maths",schedule:{day:"Monday",start:"10:00",recurrence:{type:"weekly",interval:2,weekdays:["Monday"],startDate:"2026-10-05",endDate:"2026-11-30",anchorDate:"2026-10-05"}}}]));
+      const d=N.timetableDays("2026-10-01","2027-06-30"),tue=d.filter(x=>x.class==="L2 Bricklaying").map(x=>x.session_date),mon=d.filter(x=>x.class==="Maths").map(x=>x.session_date);
+      localStorage.removeItem("evia7-nisia-timetable");
+      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<14;i++){const b=document.querySelector('#cal-month [data-m="1"]');if(!b||b.disabled)break;b.click();n++;await new Promise(r=>setTimeout(r,30))}
+      return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=12}));
     check("Calendar: a visit the assessor booked in Milos shows at the top, on its day, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
       const t=new Date(Date.now()+2*864e5);t.setHours(11,30,0,0);localStorage.setItem("evia7-nisia-visits",JSON.stringify([{id:"V1",starts_at:t.toISOString(),minutes:90,kind:"observation",place:"Kings Road site",note:"Bring your PPE",booked_by:"Mark Ellis"}]));
       nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;

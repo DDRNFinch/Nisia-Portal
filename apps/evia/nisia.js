@@ -358,7 +358,7 @@
     if(!p||!mine)return null;
     return JSON.stringify(p.topics.map(t=>[t.id,t.name,t.ksbs.map(k=>k.code)]))===JSON.stringify(mine.units.map(u=>[u.id,u.name,u.ksbs.map(k=>k.code)]));
   }
-  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance",VIS_KEY="evia7-nisia-visits";
+  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance",VIS_KEY="evia7-nisia-visits",TT_KEY="evia7-nisia-timetable";
   /* Kept by an older Evia (before the shared actions): moved across once. */
   try{const q=readJson("evia7-nisia-checkin-queue",[])||[],b=readJson("evia7-nisia-absence-queue",[])||[];
     if(q.length||b.length){const K="nisia-outbox-v1:evia",o=readJson(K,[])||[];
@@ -383,6 +383,8 @@
     if(Array.isArray(w.attendance))writeJson(ATT_KEY,{at:Date.now(),list:w.attendance});
     /* Visits the assessor has booked (Milos): on the Calendar. */
     if(Array.isArray(w.visits))writeJson(VIS_KEY,w.visits);
+    /* The class timetable (days, times, start and end dates), so the Calendar shows every college day ahead. */
+    if(Array.isArray(w.timetable))writeJson(TT_KEY,w.timetable);
     return w;
   }
   /* Kept with no signal, now sent. A check-in Nisia turns down is kept as a problem for the learner to see. */
@@ -418,6 +420,25 @@
   const waitingCheckIns=()=>keptCheckIns().length;
 
   /* Days off: the learner's own, soonest first; booked ones waiting for signal too. */
+  /* College days from the timetable between two days (YYYY-MM-DD): each class's weekly (or every few weeks), monthly
+     or one-off days, within its start and end dates. Sessions Symi has already opened come from sessions(). */
+  function timetableDays(from,to){
+    const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],out=[],key=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    (readJson(TT_KEY,[])||[]).forEach(t=>{
+      const s=t&&t.schedule||{},r=s.recurrence||{},type=r.type||"weekly",lo=r.startDate&&r.startDate>from?r.startDate:from,hi=r.endDate&&r.endDate<to?r.endDate:to;
+      const at=(k,hm)=>{const d=new Date(k+"T"+(hm||"09:00"));return isNaN(d)?null:d.toISOString()};
+      const add=k=>out.push({session_date:k,class:t.class||"",room:t.room||"",starts_at:at(k,s.start),ends_at:at(k,s.end),planned:true});
+      if(type==="once"){const k=r.onceDate||r.startDate;if(k&&k>=from&&k<=to)add(k);return}
+      if(lo>hi)return;
+      const wd=new Set((r.weekdays&&r.weekdays.length?r.weekdays:[s.day]).map(x=>DAYS.indexOf(x)).filter(i=>i>=0)),md=new Set((r.monthDays||[]).map(Number)),every=Math.max(1,Number(r.interval)||1);
+      const anchor=new Date((r.anchorDate||r.startDate||lo)+"T12:00:00"),monday=d=>{const x=new Date(d);x.setDate(x.getDate()-(x.getDay()+6)%7);return x};
+      for(let d=new Date(lo+"T12:00:00");key(d)<=hi;d.setDate(d.getDate()+1)){
+        if(type==="monthly"){const months=(d.getFullYear()-anchor.getFullYear())*12+d.getMonth()-anchor.getMonth();if(md.has(d.getDate())&&months%every===0)add(key(d));continue}
+        const weeks=Math.round((monday(d)-monday(anchor))/6048e5);if(wd.has(d.getDay())&&((weeks%every)+every)%every===0)add(key(d));
+      }
+    });
+    return out;
+  }
   const absences=()=>(readJson(ABS_KEY,[])||[]).filter(a=>a&&a.ends_on>=today()).sort((a,b)=>a.starts_on<b.starts_on?-1:1);
   const KINDS={ill:"Ill",holiday:"Holiday",appointment:"Appointment",work:"At work",other:"Other"};
   async function bookAbsence(from,to,kind,reason){
@@ -561,7 +582,7 @@
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
   window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn),
-    sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,visits:()=>(readJson(VIS_KEY,[])||[]).filter(v=>v&&v.starts_at),checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
+    sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,timetableDays,visits:()=>(readJson(VIS_KEY,[])||[]).filter(v=>v&&v.starts_at),checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,
