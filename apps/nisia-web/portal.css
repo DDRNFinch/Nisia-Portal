@@ -472,3 +472,26 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .today-list .person{min-width:0}
 .today-list .person b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:520px){.today-grid{grid-template-columns:1fr}}
+
+/* New class: breaks, teaching time and the learner picker */
+.brk-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.brk-row label{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-2);font-weight:600}
+.brk-row input{width:auto}
+.teach-sum{display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 14px;border-radius:12px;background:var(--good-soft);color:var(--ink-2);font-size:13.5px}
+.teach-sum:empty{display:none}
+.teach-sum b{color:var(--ink);font-size:16px}
+.lp-count{margin-left:6px;color:var(--accent);font-weight:700}
+.lpick{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.lp-tools{display:flex;gap:8px;flex-wrap:wrap;padding:10px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.lp-tools input[type=search]{flex:1 1 220px;min-width:0}
+.lp-tools select{width:auto}
+.lp-list{max-height:300px;overflow:auto}
+.lp-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border-top:1px solid var(--line);cursor:pointer}
+.lp-row:first-child{border-top:0}
+.lp-row[hidden]{display:none}
+.lp-row:hover{background:var(--surface-2)}
+.lp-row:has(input:checked){background:var(--accent-soft)}
+.lp-row input{width:18px;height:18px;accent-color:var(--accent);margin:0;flex:none}
+.lp-row span{display:flex;flex-direction:column;min-width:0}
+.lp-row small{color:var(--ink-3);font-size:12.5px}
+.lp-none{padding:12px}

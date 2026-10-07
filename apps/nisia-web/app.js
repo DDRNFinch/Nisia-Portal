@@ -845,7 +845,8 @@ const WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 async function loadClasses() { S.classes = await rpc("nisia_classes", { p_org: S.org }); return S.classes; }
 function classWhen(c) {
   const s = c.schedule || {}, r = s.recurrence || {}, days = (r.weekdays && r.weekdays.length ? r.weekdays : [s.day]).filter(Boolean);
-  return (r.interval > 1 ? "Every " + r.interval + " weeks · " : "") + days.map((d) => d.slice(0, 3)).join(", ") + (s.start ? " " + s.start + "–" + (s.end || "") : "");
+  const teach = s.start && s.end ? mins(s.end) - mins(s.start) - (s.breaks || []).reduce((n, b) => n + Math.max(0, mins(b.end) - mins(b.start)), 0) : 0;
+  return (r.interval > 1 ? "Every " + r.interval + " weeks · " : "") + days.map((d) => d.slice(0, 3)).join(", ") + (s.start ? " " + s.start + "–" + (s.end || "") : "") + (teach > 0 ? " · " + hm(teach) + " teaching" : "");
 }
 const classDates = (c) => { const r = (c.schedule || {}).recurrence || {}; return r.startDate ? ukDate(r.startDate) + (r.endDate ? " to " + ukDate(r.endDate) : " onwards") : ""; };
 async function classesPage() {
@@ -868,11 +869,18 @@ async function classesPage() {
   const nb = root.querySelector("#newClass"); if (nb) nb.onclick = () => classForm(null);
   root.querySelectorAll("[data-edit-class]").forEach((b) => b.onclick = () => classForm(S.classes.find((c) => c.id === b.dataset.editClass)));
 }
+/* Hours and minutes from "HH:MM", and a length of time in words. */
+const mins = (t) => { const [h, m] = String(t || "").split(":").map(Number); return Number.isFinite(h) ? h * 60 + (m || 0) : NaN; };
+const hm = (n) => { n = Math.max(0, Math.round(n)); const h = Math.floor(n / 60), m = n % 60; return (h ? h + "h" : "") + (m ? (h ? " " : "") + m + "m" : h ? "" : "0m"); };
 function classForm(c) {
   const D = S.data, s = (c && c.schedule) || {}, r = s.recurrence || {}, days = c ? (r.weekdays && r.weekdays.length ? r.weekdays : [s.day]) : [];
   const tutors = (D.staff || []).filter((x) => x.active && (x.roles.includes("tutor") || x.roles.includes("admin")));
   const inClass = new Set(c ? c.learners.map((l) => l.enrolment_id) : []);
-  const learners = D.learners.filter((l) => l.enrolment_id).slice().sort((a, b) => a.name.localeCompare(b.name));
+  /* Everyone at the college, the ones on this class first, then A to Z. Searchable, so it works with hundreds. */
+  const learners = D.learners.filter((l) => l.enrolment_id).slice().sort((a, b) => (inClass.has(b.enrolment_id) - inClass.has(a.enrolment_id)) || a.name.localeCompare(b.name));
+  const courses = [...new Set(learners.map((l) => l.course_code).filter(Boolean))];
+  const breaks = c ? (Array.isArray(s.breaks) ? s.breaks : []) : [{ start: "10:30", end: "10:45" }, { start: "12:30", end: "13:00" }, { start: "14:30", end: "14:45" }];
+  const breakRow = (b) => '<div class="brk-row"><label>From<input type="time" data-brk="start" value="' + esc(b.start || "") + '"></label><label>to<input type="time" data-brk="end" value="' + esc(b.end || "") + '"></label><button type="button" class="btn ghost small" data-brk-del aria-label="Remove this break">Remove</button></div>';
   const m = modal(c ? "Edit class" : "New class",
     '<form class="form-grid" id="cf" novalidate>' +
     '<label class="field full">Class name<input name="title" required maxlength="120" placeholder="e.g. L2 Bricklaying, Tuesday group" value="' + esc(c ? c.title : "") + '"></label>' +
@@ -881,14 +889,56 @@ function classForm(c) {
     '<div class="field full"><span>Days</span><div class="choice">' + WEEK.map((d) => '<label><input type="checkbox" name="day" value="' + d + '"' + (days.includes(d) ? " checked" : "") + '> ' + d.slice(0, 3) + '</label>').join("") + '</div></div>' +
     '<label class="field">Starts at<input name="start" type="time" required value="' + esc(s.start || "09:00") + '"></label>' +
     '<label class="field">Ends at<input name="end" type="time" required value="' + esc(s.end || "16:00") + '"></label>' +
+    '<div class="field full"><span>Breaks <small class="muted">(not counted as teaching time)</small></span><div id="brks">' + breaks.map(breakRow).join("") + '</div>' +
+      '<button type="button" class="btn small" id="brkAdd">' + ICON.plus + 'Add a break</button></div>' +
     '<label class="field">First day<input name="startDate" type="date" required value="' + esc(r.startDate || iso(Date.now())) + '"></label>' +
     '<label class="field">Last day<input name="endDate" type="date" value="' + esc(r.endDate || "") + '"></label>' +
     '<label class="field">How often<select name="interval"><option value="1">Every week</option><option value="2"' + (r.interval == 2 ? " selected" : "") + '>Every 2 weeks</option></select></label>' +
     '<label class="field">Room <small>(optional)</small><input name="room" maxlength="120" value="' + esc(c && c.room || "") + '"></label>' +
-    '<div class="field full"><span>Learners</span>' + (learners.length ? '<div class="choice">' + learners.map((l) => '<label><input type="checkbox" name="learner" value="' + esc(l.enrolment_id) + '"' + (inClass.has(l.enrolment_id) ? " checked" : "") + '> ' + esc(l.name) + ' <span class="small muted">' + esc(courseName(l.course_code)) + '</span></label>').join("") + '</div>' : '<p class="small muted">Add learners first; you can put them on this class later.</p>') + '</div>' +
+    '<div class="teach-sum full" id="teachSum" aria-live="polite"></div>' +
+    '<div class="field full"><span>Learners <b class="lp-count" id="lpCount"></b></span>' + (learners.length ?
+      '<div class="lpick"><div class="lp-tools"><input type="search" id="lpQ" placeholder="Search ' + learners.length + ' learners by name or employer" autocomplete="off">' +
+        (courses.length > 1 ? '<select id="lpCourse"><option value="">All courses</option>' + courses.map((x) => '<option value="' + esc(x) + '">' + esc(courseName(x)) + '</option>').join("") + '</select>' : "") +
+        '<button type="button" class="btn small" id="lpAll">Select all shown</button><button type="button" class="btn ghost small" id="lpNone">Clear</button></div>' +
+      '<div class="lp-list" id="lpList">' + learners.map((l) => '<label class="lp-row" data-q="' + esc((l.name + " " + (l.employer_name || "") + " " + courseName(l.course_code)).toLowerCase()) + '" data-course="' + esc(l.course_code || "") + '"><input type="checkbox" name="learner" value="' + esc(l.enrolment_id) + '"' + (inClass.has(l.enrolment_id) ? " checked" : "") + '>' +
+        '<span><b>' + esc(l.name) + '</b><small>' + esc([courseName(l.course_code), l.employer_name].filter(Boolean).join(" · ")) + '</small></span></label>').join("") +
+      '<p class="lp-none small muted" hidden>No learners match. Try part of their name.</p></div></div>'
+      : '<p class="small muted">Add learners first; you can put them on this class later.</p>') + '</div>' +
     '<p class="err full"></p><button class="btn primary wide full" type="submit">' + (c ? "Save class" : "Create class") + '</button>' +
     (c ? '<button class="btn wide full" type="button" id="endClass">End this class</button>' : "") + '</form>');
-  const f = m.querySelector("#cf"), err = f.querySelector(".err");
+  m.classList.add("wide-modal");
+  const f = m.querySelector("#cf"), err = f.querySelector(".err"), box = f.querySelector("#brks");
+  const readBreaks = () => [...box.querySelectorAll(".brk-row")].map((x) => ({ start: x.querySelector('[data-brk=start]').value, end: x.querySelector('[data-brk=end]').value })).filter((b) => b.start || b.end);
+  /* Teaching time: the day less its breaks, then over the whole class (or each week when it has no last day). */
+  const summary = () => {
+    const v = formData(f), picked = [...f.querySelectorAll("[name=day]:checked")].map((x) => x.value), day = mins(v.end) - mins(v.start);
+    const out = readBreaks().reduce((n, b) => n + Math.max(0, Math.min(mins(b.end), mins(v.end)) - Math.max(mins(b.start), mins(v.start))), 0), teach = day - out;
+    const el = f.querySelector("#teachSum");
+    if (!(day > 0)) { el.innerHTML = ""; return; }
+    let total = "";
+    if (picked.length && v.startDate && v.endDate && v.endDate >= v.startDate) {
+      const fake = { schedule: { day: picked[0], recurrence: { type: "weekly", interval: Number(v.interval) || 1, weekdays: picked, startDate: v.startDate, endDate: v.endDate, anchorDate: v.startDate } } };
+      let n = 0; for (let t = Date.parse(v.startDate + "T12:00:00"); iso(t) <= v.endDate && n < 800; t += DAY) if (classOn(fake, iso(t))) n++;
+      total = '<span><b>' + n + '</b> ' + (n === 1 ? "day" : "days") + '</span><span><b>' + hm(teach * n) + '</b> teaching in total</span>';
+    } else if (picked.length) total = '<span><b>' + hm(teach * picked.length / (Number(v.interval) || 1)) + '</b> teaching a week</span>';
+    el.innerHTML = '<span><b>' + hm(teach) + '</b> teaching a day</span><span>' + hm(day) + ' day · ' + hm(out) + ' breaks</span>' + total;
+  };
+  const lpCount = () => { const n = f.querySelectorAll("[name=learner]:checked").length, el = f.querySelector("#lpCount"); if (el) el.textContent = n ? n + " chosen" : ""; };
+  const lpFilter = () => {
+    const q = (f.querySelector("#lpQ").value || "").trim().toLowerCase(), cs = f.querySelector("#lpCourse"), cv = cs ? cs.value : "";
+    let shown = 0;
+    f.querySelectorAll(".lp-row").forEach((x) => { const ok = (!q || q.split(/\s+/).every((w) => x.dataset.q.includes(w))) && (!cv || x.dataset.course === cv); x.hidden = !ok; if (ok) shown++; });
+    f.querySelector(".lp-none").hidden = shown > 0;
+  };
+  f.addEventListener("input", (e) => { if (e.target.id === "lpQ") lpFilter(); else summary(); });
+  f.addEventListener("change", (e) => { if (e.target.id === "lpCourse") lpFilter(); else if (e.target.name === "learner") lpCount(); else summary(); });
+  f.querySelector("#brkAdd").onclick = () => { box.insertAdjacentHTML("beforeend", breakRow({})); box.lastElementChild.querySelector("input").focus(); summary(); };
+  box.addEventListener("click", (e) => { const b = e.target.closest("[data-brk-del]"); if (b) { b.parentElement.remove(); summary(); } });
+  if (f.querySelector("#lpQ")) {
+    f.querySelector("#lpAll").onclick = () => { f.querySelectorAll(".lp-row:not([hidden]) [name=learner]").forEach((x) => { x.checked = true; }); lpCount(); };
+    f.querySelector("#lpNone").onclick = () => { f.querySelectorAll("[name=learner]").forEach((x) => { x.checked = false; }); lpCount(); };
+  }
+  summary(); lpCount();
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
     err.textContent = "";
     const v = formData(f), picked = [...f.querySelectorAll("[name=day]:checked")].map((x) => x.value), chosen = [...f.querySelectorAll("[name=learner]:checked")].map((x) => x.value);
@@ -896,9 +946,15 @@ function classForm(c) {
     if (!v.tutor) return (err.textContent = "Invite a tutor on the Staff page first.");
     if (!picked.length) return (err.textContent = "Choose the day or days the class is on.");
     if (!v.start || !v.end || v.end <= v.start) return (err.textContent = "Choose a start time and a later end time.");
+    const brks = readBreaks().sort((a, b) => a.start.localeCompare(b.start));
+    for (const b of brks) {
+      if (!b.start || !b.end || b.end <= b.start) return (err.textContent = "Give each break a start and a later end, or remove it.");
+      if (b.start < v.start || b.end > v.end) return (err.textContent = "Breaks must be inside the class times (" + v.start + "–" + v.end + ").");
+    }
+    for (let i = 1; i < brks.length; i++) if (brks[i].start < brks[i - 1].end) return (err.textContent = "Two breaks overlap. Change one of them.");
     if (!v.startDate) return (err.textContent = "Choose the first day.");
     if (v.endDate && v.endDate < v.startDate) return (err.textContent = "The last day is before the first day.");
-    const schedule = { day: picked[0], start: v.start, end: v.end, recurrence: { type: "weekly", interval: Number(v.interval) || 1, weekdays: picked, monthDays: [], startDate: v.startDate, endDate: v.endDate || "", anchorDate: v.startDate, onceDate: "" } };
+    const schedule = { day: picked[0], start: v.start, end: v.end, breaks: brks, recurrence: { type: "weekly", interval: Number(v.interval) || 1, weekdays: picked, monthDays: [], startDate: v.startDate, endDate: v.endDate || "", anchorDate: v.startDate, onceDate: "" } };
     try {
       const id = await rpc("nisia_save_class", { p_org: S.org, p_title: v.title.trim(), p_tutor: v.tutor, p_schedule: schedule, p_course: v.course, p_room: v.room || null, p_enrolments: chosen, p_id: c ? c.id : null });
       /* Learners taken off the class: removed here, under the college's own rules. */

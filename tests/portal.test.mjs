@@ -260,13 +260,22 @@ try {
     await page.fill("#cf [name=title]", "L2 Bricklaying Tuesday"); await page.selectOption("#cf [name=course]", "bricklayer");
     await page.check('#cf [name=day][value=Tuesday]'); await page.fill("#cf [name=start]", "09:00"); await page.fill("#cf [name=end]", "16:00");
     await page.fill("#cf [name=startDate]", "2026-10-06"); await page.fill("#cf [name=endDate]", "2026-12-22"); await page.fill("#cf [name=room]", "Workshop 2");
-    await page.check('#cf [name=learner]'); await page.screenshot({ path: shots + "/9b-new-class.png" });
+    /* Breaks are edited here and teaching time is worked out as you go; learners are searched, not scrolled. */
+    await page.click("#brks .brk-row:last-child [data-brk-del]"); await page.fill('#brks .brk-row:nth-child(2) [data-brk=end]', "13:15");
+    const teachText = await page.textContent("#teachSum");
+    await page.fill("#lpQ", "zzz"); const noneShown = await page.isVisible(".lp-none");
+    await page.fill("#lpQ", "callum"); const rowsShown = await page.$$eval(".lp-row:not([hidden])", (x) => x.length);
+    await page.click("#lpAll"); const chosenText = await page.textContent("#lpCount");
+    await page.screenshot({ path: shots + "/9b-new-class.png", fullPage: true });
     await page.click("#cf button[type=submit]"); await page.waitForFunction(() => !document.querySelector("#cf"));
     await page.waitForSelector("[data-edit-class]"); await page.screenshot({ path: shots + "/9c-classes.png", fullPage: true });
     const sc = (fake.S.calls.find((c) => c.t === "save_class") || {}).body || {};
     check("Classes: the admin sets up a class once (tutor, course, days, times, dates, room and learners) and it's listed with its learners",
       sc.p_title === "L2 Bricklaying Tuesday" && sc.p_course === "bricklayer" && sc.p_schedule.recurrence.weekdays.join() === "Tuesday" && sc.p_schedule.start === "09:00" && sc.p_schedule.recurrence.endDate === "2026-12-22" &&
       sc.p_room === "Workshop 2" && sc.p_enrolments.length === 1 && !!sc.p_tutor && /Callum/.test(await page.textContent("table")) && /Tue 09:00/.test(await page.textContent("table")), JSON.stringify(sc));
+    check("…with its breaks (edited, not counted as teaching), teaching time per day and in total, and a learner search for big colleges",
+      JSON.stringify(sc.p_schedule.breaks) === JSON.stringify([{ start: "10:30", end: "10:45" }, { start: "12:30", end: "13:15" }]) && /6h teaching a day/.test(teachText) && /12 days/.test(teachText) && /72h teaching in total/.test(teachText) &&
+      noneShown && rowsShown === 1 && /1 chosen/.test(chosenText) && /6h teaching/.test(await page.textContent("table")), teachText + " | " + rowsShown + " | " + chosenText);
     /* Today: every class on today, with who's in, late, booked off and not in yet, live from Symi. */
     await page.click("nav [data-go=today]"); await page.waitForSelector(".today-class"); await page.screenshot({ path: shots + "/9d-today.png", fullPage: true });
     const tt = await page.textContent("#main");

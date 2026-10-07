@@ -140,6 +140,8 @@ async function pullClasses() {
       });
       const fromNisia = { name: c.title, room: c.room || "", day: s.day || (r.weekdays || [])[0] || "", start: s.start || "09:00", end: s.end || "16:00", recurrence: r,
         learners, nisiaClassId: c.id, managed: !!c.managed, nisiaUpdatedAt: c.updated_at, courseCode: c.course_code || "", archived: false };
+      /* Breaks set in Nisia don't count towards the learners' hours. */
+      if (Array.isArray(s.breaks)) fromNisia.breaks = s.breaks.filter((x) => x && x.start && x.end).map((x, i) => ({ id: "nb" + i + "-" + x.start, label: "Break " + (i + 1), start: x.start, end: x.end }));
       const reg = st.classes.find((x) => x.id === c.client_ref);
       if (!reg) { st.classes.push(Object.assign({ id: c.client_ref, breaks: [] }, fromNisia)); made++; }
       else if (!reg.nisiaUpdatedAt || String(c.updated_at) > String(reg.nisiaUpdatedAt)) Object.assign(reg, fromNisia);
@@ -169,7 +171,7 @@ async function ensureSession(regId, key) {
   const org = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0], m = tutorOrgs().find((o) => o.organisation_id === org);
   if (!m) throw new Error("You’re not a tutor at that college in Nisia.");
   const classId = await A.send("saveClass", { p_org: org, p_client_ref: reg.id, p_title: String(reg.name || "Class").slice(0, 120), p_room: reg.room || null,
-    p_schedule: { day: reg.day, start: reg.start, end: reg.end, recurrence: reg.recurrence || null }, p_enrolments: people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId) });
+    p_schedule: { day: reg.day, start: reg.start, end: reg.end, breaks: (reg.breaks || []).map((x) => ({ start: x.start, end: x.end })), recurrence: reg.recurrence || null }, p_enrolments: people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId) });
   const b = App().bounds(regId, key), lesson = lessonFor(st, regId, key) || {};
   const ses = await A.send("openSession", { p_class: classId, p_date: key, p_starts: b ? new Date(b.start).toISOString() : null, p_ends: b ? new Date(b.end).toISOString() : null,
     p_lesson: lesson.title || null, p_summary: lesson.summary || null, p_ksbs: lesson.ksbs || [] });
