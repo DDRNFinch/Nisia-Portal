@@ -43,6 +43,7 @@ const ICON = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  live: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
@@ -94,7 +95,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -140,7 +141,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, classes: classesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
@@ -777,6 +778,66 @@ async function attendancePage() {
       hit("attendance.rules"); toast("Saved. Symi and Evia use these from now on."); attendancePage();
     });
   };
+}
+
+/* ---------- Today: every class on today, with who's in as the registers come in from Symi ----------
+   Which classes are on comes from each class's days and dates (as Evia works them out), or a register already opened.
+   It refreshes itself every 20 seconds while it's open. */
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function classOn(c, k) {
+  const s = c.schedule || {}, r = s.recurrence || {}, type = r.type || "weekly", d = new Date(k + "T12:00:00");
+  if (type === "once") return (r.onceDate || r.startDate) === k;
+  if ((r.startDate && k < r.startDate) || (r.endDate && k > r.endDate)) return false;
+  const every = Math.max(1, Number(r.interval) || 1), anchor = new Date((r.anchorDate || r.startDate || k) + "T12:00:00");
+  if (type === "monthly") return (r.monthDays || []).map(Number).includes(d.getDate()) && ((d.getFullYear() - anchor.getFullYear()) * 12 + d.getMonth() - anchor.getMonth()) % every === 0;
+  const days = (r.weekdays && r.weekdays.length ? r.weekdays : [s.day]).filter(Boolean);
+  const monday = (x) => { const y = new Date(x); y.setDate(y.getDate() - (y.getDay() + 6) % 7); return y; };
+  const weeks = Math.round((monday(d) - monday(anchor)) / (7 * DAY));
+  return days.includes(WEEKDAYS[d.getDay()]) && ((weeks % every) + every) % every === 0;
+}
+const OFF_NAMES = { ill: "Ill", holiday: "Holiday", appointment: "Appointment", work: "At work", other: "Booked off" };
+function markOf(l, done) {
+  if (l.status === "present") return l.late ? ["warn", "Late"] : ["good", "In"];
+  if (l.off) return ["off", OFF_NAMES[l.off] || "Booked off"];
+  if (l.status === "absent" || done) return ["bad", "Absent"];
+  return ["idle", "Not in yet"];
+}
+let todayTimer = null;
+async function todayPage(quiet) {
+  const D = S.data, k = S.todayDay || iso(Date.now()), isToday = k === iso(Date.now());
+  clearTimeout(todayTimer);
+  if (isToday) todayTimer = setTimeout(() => { if (S.page === "today") todayPage(true); }, 20000);
+  if (!quiet) shell('<p class="loading">Loading today…</p>');
+  let rows;
+  try { rows = await rpc("nisia_today", { p_org: S.org, p_day: k }); } catch (e) { if (!quiet) shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  if (S.page !== "today" || (quiet && document.getElementById("modal"))) return;
+  const on = rows.filter((c) => c.session_status || classOn(c, k));
+  const marks = on.flatMap((c) => c.learners.map((l) => markOf(l, c.session_status === "finished")));
+  const n = (cls) => marks.filter((m) => m[0] === cls).length;
+  const stat = (label, big, sub, cls) => '<div class="stat"><span class="label">' + label + '</span><span class="big num' + (cls ? " " + cls : "") + '">' + big + '</span><span class="small muted">' + sub + '</span></div>';
+  const when = new Date(k + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const step = (days) => iso(Date.parse(k + "T12:00:00") + days * DAY), day = isToday ? "today" : "this day";
+  shell('<div class="topbar"><div><div class="label">' + esc(D.summary ? D.summary.name : mine(S.org).organisation) + '</div><h1>' + (isToday ? "Today" : esc(when)) + '</h1>' +
+      '<p class="small muted">' + (isToday ? esc(when) + ' · <span class="live-dot" aria-hidden="true"></span>Live from Symi' : "Registers for this day") + '</p></div>' +
+      '<div class="actions"><button class="btn" type="button" data-day="' + step(-1) + '" aria-label="Day before">‹</button>' + (isToday ? "" : '<button class="btn" type="button" data-day="' + iso(Date.now()) + '">Today</button>') +
+      '<button class="btn" type="button" data-day="' + step(1) + '" aria-label="Day after">›</button></div></div>' +
+    '<section class="stats">' + stat("Classes", on.length, "on " + day) + stat("In", n("good") + n("warn"), n("warn") ? n("warn") + " late" : "on time") +
+      stat("Booked off", n("off"), "ill, holiday, work…") + stat("Absent", n("bad"), "no reason given", n("bad") ? "bad" : "") + stat("Not in yet", n("idle"), "expected") + '</section>' +
+    (on.length ? '<div class="today-grid">' + on.map((c) => {
+      const done = c.session_status === "finished", open = c.session_status === "open", s = c.schedule || {};
+      const list = c.learners.map((l) => [l, markOf(l, done)]), inN = list.filter(([, m]) => m[0] === "good" || m[0] === "warn").length;
+      return '<section class="panel today-class"><div class="panel-head"><div><h2>' + esc(c.title) + '</h2><span class="small muted">' + esc([s.start && s.start + "–" + (s.end || ""), c.room, c.tutor].filter(Boolean).join(" · ")) + '</span></div>' +
+        (done ? '<span class="pill good">Register done</span>' : open ? '<span class="pill warn">Register open</span>' : '<span class="pill idle">Not started</span>') + '</div>' +
+        '<div class="today-count"><b class="num">' + inN + '</b> of ' + c.learners.length + ' in</div>' +
+        (c.learners.length ? '<ul class="today-list">' + list.map(([l, m]) => '<li><span class="person">' + avatar(l.name) + '<b>' + esc(l.name) + '</b></span><span class="pill ' + m[0] + '">' + m[1] +
+            (l.checked_in_at && l.status === "present" ? " " + new Date(l.checked_in_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "") + '</span></li>').join("") + '</ul>'
+          : '<p class="small muted">No learners on this class yet.</p>') +
+        (c.lesson_title ? '<p class="small muted">Taught: ' + esc(c.lesson_title) + (c.ksbs && c.ksbs.length ? " · " + esc(c.ksbs.join(", ")) : "") + '</p>' : "") + '</section>';
+    }).join("") + '</div>'
+      : '<section class="panel"><p class="empty">' + (rows.length ? "No classes on " + day + "." : D.admin ? 'No classes set up yet. <button class="btn primary" type="button" id="toClasses">Set up a class</button>' : "No classes yet.") + '</p></section>') +
+    '<p class="small muted">Learners check in on Evia with the code on the tutor’s Symi screen, or the tutor marks them. Days booked off in Evia, Symi, Milos or Paros show here.</p>');
+  root.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => { S.todayDay = b.dataset.day; todayPage(); });
+  const tc = root.querySelector("#toClasses"); if (tc) tc.onclick = () => go("classes");
 }
 
 /* ---------- Classes: set up once here, they're the tutor's registers in Symi and the learners' college days in Evia ---------- */

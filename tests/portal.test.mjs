@@ -49,6 +49,14 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     /* Classes set up here: they become the tutor's registers in Symi. */
     if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
+    if (p === "/rest/v1/rpc/nisia_today") return json([
+      { id: "T1", title: "L2 Bricklaying Tuesday", room: "Workshop 2", tutor: "Priya Shah", schedule: { start: "09:00", end: "16:00", recurrence: { type: "weekly", weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], startDate: "2020-01-01" } },
+        session_status: "open", ksbs: [], learners: [
+          { enrolment_id: "e1", name: "Callum Hughes", status: "present", late: false, checked_in_at: "2026-10-06T08:58:00Z" },
+          { enrolment_id: "e2", name: "Amira Khan", status: "present", late: true, checked_in_at: "2026-10-06T09:20:00Z" },
+          { enrolment_id: "e3", name: "Jordan Pike", status: null, off: "ill" },
+          { enrolment_id: "e4", name: "Sam Lee", status: null }] },
+      { id: "T2", title: "Plastering Friday", tutor: "Priya Shah", schedule: { start: "09:00", end: "15:00", recurrence: { type: "once", onceDate: "2001-01-01" } }, session_status: null, ksbs: [], learners: [] }]);
     if (p === "/rest/v1/rpc/nisia_save_class") { S.classes = S.classes || []; S.calls.push({ t: "save_class", body });
       const t = S.staff.find((x) => x.member_id === body.p_tutor) || {}, row = { id: body.p_id || "cls" + S.classes.length, title: body.p_title, course_code: body.p_course, room: body.p_room, schedule: body.p_schedule, managed: true,
         tutor_member_id: body.p_tutor, tutor: t.name || "", learners: body.p_enrolments.map((e) => ({ enrolment_id: e, name: (S.learners.find((l) => l.enrolment_id === e) || {}).name || "" })), sessions_done: 0, last_session: null };
@@ -259,6 +267,11 @@ try {
     check("Classes: the admin sets up a class once (tutor, course, days, times, dates, room and learners) and it's listed with its learners",
       sc.p_title === "L2 Bricklaying Tuesday" && sc.p_course === "bricklayer" && sc.p_schedule.recurrence.weekdays.join() === "Tuesday" && sc.p_schedule.start === "09:00" && sc.p_schedule.recurrence.endDate === "2026-12-22" &&
       sc.p_room === "Workshop 2" && sc.p_enrolments.length === 1 && !!sc.p_tutor && /Callum/.test(await page.textContent("table")) && /Tue 09:00/.test(await page.textContent("table")), JSON.stringify(sc));
+    /* Today: every class on today, with who's in, late, booked off and not in yet, live from Symi. */
+    await page.click("nav [data-go=today]"); await page.waitForSelector(".today-class"); await page.screenshot({ path: shots + "/9d-today.png", fullPage: true });
+    const tt = await page.textContent("#main");
+    check("Today: the classes on today, live from Symi, with who's in, late, booked off (ill) and not in yet",
+      (await page.$$eval(".today-class", (x) => x.length)) === 1 && /2 of 4 in/.test(tt) && /Late/.test(tt) && /Ill/.test(tt) && /Not in yet/.test(tt) && /Register open/.test(tt) && !/Plastering Friday/.test(tt), tt.slice(0, 400));
     await page.click("nav [data-go=overview]"); await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/10-overview.png", fullPage: true });
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
     await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });

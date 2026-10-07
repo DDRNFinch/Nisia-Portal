@@ -456,3 +456,19 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .b-pick input{margin-top:4px}
 .b-grid{grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:start}
 @media(max-width:900px){.b-grid{grid-template-columns:1fr}.b-cover{position:static!important}}
+
+/* Today board */
+.pill.off{background:var(--note-soft);color:var(--note)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:middle;animation:live-pulse 2s ease-in-out infinite}
+@keyframes live-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 45%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
+.today-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin:18px 0}
+.today-class h2{margin:0 0 2px}
+.today-count{font-size:15px;color:var(--ink-2);margin:-4px 0 10px}
+.today-count b{font-size:26px;color:var(--ink);margin-right:2px}
+.today-list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.today-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.today-list li:first-child{border-top:0}
+.today-list .person{min-width:0}
+.today-list .person b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:520px){.today-grid{grid-template-columns:1fr}}
