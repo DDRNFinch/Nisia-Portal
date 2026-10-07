@@ -49,13 +49,15 @@
     const player='<section class="tg-player"><div class="tg-me"><span class="tg-evia evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span></div>'+
       '<div class="tg-xp"><div class="tg-xp-top"><strong>'+won+'<small> '+(won===1?"medal":"medals")+'</small></strong><span>'+(won?"Replay a lesson to go for gold":"Finish a lesson to win one")+'</span></div>'+
       '<div class="tg-medals">'+["gold","silver","bronze"].map(k=>'<span class="tg-medal medal-'+k+'" aria-label="'+md[k]+' '+k+'"><i aria-hidden="true"></i><b>'+md[k]+'</b></span>').join("")+'</div>'+
-      '<div class="tg-pills"><span class="tg-pill fire'+(me.today?" lit":"")+'">'+(I.flame||"")+'<b>'+me.streak+'</b> day streak</span><span class="tg-pill coin">'+(R&&R.coin?R.coin():"")+'<b>'+bal+'</b> coins</span>'+(R?'<button type="button" class="tg-pill tg-shop" id="tg-shop">Shop ›</button>':"")+'</div></div></section>';
+      '<div class="tg-pills"><span class="tg-pill fire'+(me.today?" lit":"")+'">'+(I.flame||"")+'<b>'+me.streak+'</b> day streak</span><span class="tg-pill coin">'+(R&&R.coin?R.coin():"")+'<b>'+bal+'</b> coins</span>'+'</div></div></section>';
     /* Up next: one tap straight into the next lesson. */
     const nx=T&&T.nextUp?T.nextUp():null;
     const next=nx?'<button type="button" class="tg-next" data-play="'+esc(nx.id)+'"><span class="tg-next-copy"><small>'+(nx.resume?"Carry on":"Up next")+' · '+esc(nx.unit)+'</small><strong>'+esc(nx.title)+'</strong><span>Lesson '+nx.n+' of '+nx.of+' · about '+nx.mins+' min</span></span><span class="tg-play">'+PLAY+'</span></button>':"";
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
       return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
-    scr().innerHTML=head("Learn")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
+    /* The Shop: a big button under the player card, so learners can't miss where their coins go. */
+    const shopBtn=R?'<button type="button" class="tg-shop-big" id="tg-shop"><span class="tg-shop-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span><span class="tg-shop-txt"><strong>Shop</strong><small>Spend your '+bal+' coins on new looks for Evia and mini games</small></span><span class="tg-shop-go" aria-hidden="true">›</span></button>':"";
+    scr().innerHTML=head("Learn")+player+shopBtn+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
     const shop=document.getElementById("tg-shop");if(shop)shop.onclick=()=>nav("rewards");
     const et=document.getElementById("tg-epa");if(et)et.onclick=()=>window.eviaOpenEpa&&window.eviaOpenEpa();
     const sk=document.getElementById("tg-skills");if(sk)sk.onclick=()=>window.eviaPractice&&window.eviaPractice.openSkills();

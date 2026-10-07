@@ -120,22 +120,6 @@
      Whatever is in progress shows on the unit page, above the saved evidence. openAt opens free range at "photos" or
      "write" once the page is drawn (Evia's coach uses it). */
   let openAt=null;
-  /* KSBs the learner is aiming for (app.js ksbAims): those this unit covers, and the others, which they can tick to add
-     to this pack if the job shows them. The assessor decides in Milos. */
-  function aimsHtml(u,pack){
-    if(!window.eviaKsbAims)return"";
-    /* Evidenced: signed off by the assessor when connected to a college; on their own, what the learner has mapped. */
-    const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false};
-    const ev=so.on?so.signed:new Set((typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&e.c===course).flatMap(e=>e.k||[]).concat(typeof inductionKsbs==="function"?inductionKsbs():[]));
-    const aims=window.eviaKsbAims.list().filter(k=>!ev.has(k));if(!aims.length)return"";
-    const codes=u[1].map(code),asked=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>x.code),here=aims.filter(k=>codes.includes(k)&&!asked.includes(k)),other=aims.filter(k=>!codes.includes(k));
-    if(!here.length&&!other.length)return"";
-    const txt=k=>{const x=(typeof allK==="function"?allK():[]).find(y=>y[0]===k);return x?x[1]:""};
-    return '<section class="evidence-section ev-aims"><div class="evidence-section-title">AIMING FOR</div>'+
-      (here.length?'<p class="ev-aims-here">This job covers <strong>'+here.map(esc).join(", ")+'</strong>. Make sure your photos and write-up show '+(here.length===1?"it":"them")+'.</p>':"")+
-      (other.length?'<p class="ev-aims-q">Does this job show any of these too? Tick them to add them to this pack. Your assessor decides.</p>'+other.map(k=>'<label class="ev-aim"><input type="checkbox" data-aim-add value="'+esc(k)+'"'+((pack.extraKsbs||[]).includes(k)?" checked":"")+'><span><strong>'+esc(k)+'</strong> '+esc(txt(k))+'</span></label>').join(""):"")+
-    '</section>';
-  }
   async function renderPack(pack){
     const u=data().u[unit],photos=pack.photos||[],media=pack.media||[],prompts=learnerPrompts();
     const text=String(pack.write||"").trim(),started=photos.length||text||media.length,ready=!!(photos.length||text||media.length);
@@ -153,7 +137,7 @@
         (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions"):"")+
         card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
         (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
-        '</div>'+aimsHtml(u,pack)+
+        '</div>'+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
         '<div class="evidence-thumbs" id="evidence-photos"></div>'+
         (media.length?'<div class="ev-media-chips">'+media.map((m,i)=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")+'<button type="button" data-remove-media="'+i+'" aria-label="Remove recording">×</button></span>').join("")+'</div>':"")+
@@ -190,7 +174,6 @@
       window.eviaGuide.catchUp(Object.assign({},ctx,{missing,done:()=>renderPack(pack)}))};
     document.querySelectorAll("[data-remove-media]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.removeMedia,m=(pack.media||[])[i];if(!m||!confirm("Remove this recording?"))return;await idbDelete(m.id);pack.media.splice(i,1);await savePack(pack);renderPack(pack)});
     const how=$("#st-how");if(how)how.onclick=()=>window.eviaStrength.guide();
-    document.querySelectorAll("[data-aim-add]").forEach(c=>c.onchange=async()=>{const l=new Set(pack.extraKsbs||[]);c.checked?l.add(c.value):l.delete(c.value);pack.extraKsbs=[...l];await savePack(pack)});
     let submitting=false;
     if($("#submit-evidence"))$("#submit-evidence").onclick=async()=>{
       if(submitting)return;

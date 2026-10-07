@@ -2806,7 +2806,6 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .cal-link{padding:10px 14px;border-radius:999px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff);color:var(--ui-ink,#172033);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
 @media (max-width:340px){.cal-top{grid-template-columns:1fr}}
 /* Learn: the Shop sits beside the coins. */
-.tg-pill.tg-shop{border:0;cursor:pointer;background:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033);font-weight:800;padding:5px 12px}
 .tg-back{margin-bottom:8px}
 /* My progress: the short list under the four main cards. */
 .pv-more{display:flex;flex-direction:column;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);overflow:hidden;margin-bottom:18px}
@@ -2834,3 +2833,12 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .pv-acal-d.cal-v{position:relative}
 .cal-key .cal-key-v{border-radius:50%;width:9px;height:9px;background:#2c85f7}
 body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}
+/* Learn: the Shop, a big button under the player card. */
+.tg-shop-big{display:flex;align-items:center;gap:14px;width:100%;margin:12px 0 4px;padding:16px 18px;border:0;border-radius:22px;background:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033);font:inherit;text-align:left;cursor:pointer;box-shadow:0 8px 20px rgba(16,24,40,.10)}
+.tg-shop-big:active{transform:scale(.98)}
+.tg-shop-ic{flex:none;width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.55);display:grid;place-items:center}
+.tg-shop-ic svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tg-shop-txt{flex:1;display:flex;flex-direction:column;gap:2px}
+.tg-shop-txt strong{font-size:20px;font-weight:850;letter-spacing:-.02em}
+.tg-shop-txt small{font-size:14px;font-weight:600;opacity:.85}
+.tg-shop-go{font-size:28px;font-weight:700;opacity:.7}
