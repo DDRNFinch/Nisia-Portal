@@ -43,6 +43,7 @@ const ICON = {
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
 const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7", "#8A5A44", "#4A5B6E"];
@@ -93,7 +94,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -139,7 +140,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, classes: classesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
@@ -260,13 +261,17 @@ function addLearner() {
     '<label class="field">Employer contact<input name="employer_contact_name" autocomplete="off"></label>' +
     '<label class="field full">Employer contact’s email<input name="employer_contact_email" type="email" autocomplete="off"></label>' +
     '<div class="field full"><span>Assessor, tutor and employer</span>' + staffPicker([]) + '</div>' +
+    '<label class="field full">Class <small>(their register in Symi, and their college days in Evia)</small><select name="class_id"><option value="">Not yet</option>' +
+      (S.classes || []).map((c) => '<option value="' + esc(c.id) + '">' + esc(c.title + " · " + classWhen(c)) + '</option>').join("") + '</select></label>' +
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Add learner (uses 1 seat)</button></form>');
+  if (!S.classes) loadClasses().then(() => { const sel = m.querySelector("[name=class_id]"); if (sel) sel.insertAdjacentHTML("beforeend", (S.classes || []).map((c) => '<option value="' + esc(c.id) + '">' + esc(c.title + " · " + classWhen(c)) + '</option>').join("")); }).catch(() => {});
   const f = m.querySelector("#f");
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Adding…", async () => {
     try {
-      const d = formData(f); delete d.staff;
+      const d = formData(f), cls = d.class_id; delete d.staff; delete d.class_id;
       const r = await call("nisia-admin", { action: "add_learner", organisation_id: S.org, ...d, staff_member_ids: [...f.querySelectorAll("[name=staff]:checked")].map((x) => x.value) });
-      closeModal(); toast(d.name + " added"); S.data = null; await render();
+      if (cls) { try { await rpc("nisia_add_to_class", { p_class: cls, p_learner: r.learner_id }); S.classes = null; } catch (x) { toast("Added, but not to the class: " + x.message); } }
+      closeModal(); toast(d.name + " added" + (cls ? " and put on their class" : "")); S.data = null; await render();
       pairing({ learner_id: r.learner_id, name: d.name });
     } catch (x) { f.querySelector(".err").textContent = x.message; }
   }); };
@@ -772,6 +777,78 @@ async function attendancePage() {
       hit("attendance.rules"); toast("Saved. Symi and Evia use these from now on."); attendancePage();
     });
   };
+}
+
+/* ---------- Classes: set up once here, they're the tutor's registers in Symi and the learners' college days in Evia ---------- */
+const WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+async function loadClasses() { S.classes = await rpc("nisia_classes", { p_org: S.org }); return S.classes; }
+function classWhen(c) {
+  const s = c.schedule || {}, r = s.recurrence || {}, days = (r.weekdays && r.weekdays.length ? r.weekdays : [s.day]).filter(Boolean);
+  return (r.interval > 1 ? "Every " + r.interval + " weeks · " : "") + days.map((d) => d.slice(0, 3)).join(", ") + (s.start ? " " + s.start + "–" + (s.end || "") : "");
+}
+const classDates = (c) => { const r = (c.schedule || {}).recurrence || {}; return r.startDate ? ukDate(r.startDate) + (r.endDate ? " to " + ukDate(r.endDate) : " onwards") : ""; };
+async function classesPage() {
+  const D = S.data;
+  shell('<p class="loading">Loading classes…</p>');
+  try { await loadClasses(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const list = S.classes;
+  shell('<div class="topbar"><div><div class="label">' + esc(D.summary ? D.summary.name : mine(S.org).organisation) + '</div><h1>Classes</h1></div><div class="actions">' +
+      (D.admin ? '<button class="btn primary" type="button" id="newClass">' + ICON.plus + 'New class</button>' : "") + '</div></div>' +
+    '<p class="hint">Set each class up once. It becomes the tutor’s register in Symi, every class day in each learner’s Evia, and the attendance reports. Tutors can still change their own classes in Symi.</p>' +
+    '<div class="table-wrap"><table><thead><tr><th>Class</th><th>Course</th><th>Tutor</th><th>When</th><th>Dates</th><th>Learners</th><th>Registers taken</th>' + (D.admin ? '<th></th>' : "") + '</tr></thead><tbody>' +
+    (list.length ? list.map((c) => '<tr class="static"><td><b>' + esc(c.title) + '</b>' + (c.room ? '<br><span class="small muted">' + esc(c.room) + '</span>' : "") + '</td>' +
+      '<td class="small">' + esc(c.course_code ? courseName(c.course_code) : "") + '</td><td class="small">' + esc(c.tutor) + '</td>' +
+      '<td class="small">' + esc(classWhen(c)) + '</td><td class="small">' + esc(classDates(c)) + '</td>' +
+      '<td class="small">' + (c.learners.length ? '<b>' + c.learners.length + '</b> · ' + esc(c.learners.map((l) => l.name.split(" ")[0]).join(", ")) : '<span class="muted">None yet</span>') + '</td>' +
+      '<td class="num">' + (c.sessions_done || 0) + (c.last_session ? '<br><span class="small muted">last ' + esc(ukDate(c.last_session)) + '</span>' : "") + '</td>' +
+      (D.admin ? '<td><button class="btn" type="button" data-edit-class="' + esc(c.id) + '">Edit</button></td>' : "") + '</tr>').join("")
+      : '<tr class="static"><td colspan="8" class="empty">' + (D.admin ? "No classes yet. Set up your first one: its register appears in the tutor’s Symi straight away." : "No classes for you yet.") + '</td></tr>') +
+    '</tbody></table></div>');
+  const nb = root.querySelector("#newClass"); if (nb) nb.onclick = () => classForm(null);
+  root.querySelectorAll("[data-edit-class]").forEach((b) => b.onclick = () => classForm(S.classes.find((c) => c.id === b.dataset.editClass)));
+}
+function classForm(c) {
+  const D = S.data, s = (c && c.schedule) || {}, r = s.recurrence || {}, days = c ? (r.weekdays && r.weekdays.length ? r.weekdays : [s.day]) : [];
+  const tutors = (D.staff || []).filter((x) => x.active && (x.roles.includes("tutor") || x.roles.includes("admin")));
+  const inClass = new Set(c ? c.learners.map((l) => l.enrolment_id) : []);
+  const learners = D.learners.filter((l) => l.enrolment_id).slice().sort((a, b) => a.name.localeCompare(b.name));
+  const m = modal(c ? "Edit class" : "New class",
+    '<form class="form-grid" id="cf" novalidate>' +
+    '<label class="field full">Class name<input name="title" required maxlength="120" placeholder="e.g. L2 Bricklaying, Tuesday group" value="' + esc(c ? c.title : "") + '"></label>' +
+    '<label class="field">Course<select name="course">' + COURSES.map((x) => '<option value="' + x.id + '"' + (c && c.course_code === x.id ? " selected" : "") + '>' + esc(x.name) + '</option>').join("") + '</select></label>' +
+    '<label class="field">Tutor<select name="tutor" required>' + tutors.map((t) => '<option value="' + t.member_id + '"' + (c && c.tutor_member_id === t.member_id ? " selected" : "") + '>' + esc(t.name || t.email) + '</option>').join("") + '</select></label>' +
+    '<div class="field full"><span>Days</span><div class="choice">' + WEEK.map((d) => '<label><input type="checkbox" name="day" value="' + d + '"' + (days.includes(d) ? " checked" : "") + '> ' + d.slice(0, 3) + '</label>').join("") + '</div></div>' +
+    '<label class="field">Starts at<input name="start" type="time" required value="' + esc(s.start || "09:00") + '"></label>' +
+    '<label class="field">Ends at<input name="end" type="time" required value="' + esc(s.end || "16:00") + '"></label>' +
+    '<label class="field">First day<input name="startDate" type="date" required value="' + esc(r.startDate || iso(Date.now())) + '"></label>' +
+    '<label class="field">Last day<input name="endDate" type="date" value="' + esc(r.endDate || "") + '"></label>' +
+    '<label class="field">How often<select name="interval"><option value="1">Every week</option><option value="2"' + (r.interval == 2 ? " selected" : "") + '>Every 2 weeks</option></select></label>' +
+    '<label class="field">Room <small>(optional)</small><input name="room" maxlength="120" value="' + esc(c && c.room || "") + '"></label>' +
+    '<div class="field full"><span>Learners</span>' + (learners.length ? '<div class="choice">' + learners.map((l) => '<label><input type="checkbox" name="learner" value="' + esc(l.enrolment_id) + '"' + (inClass.has(l.enrolment_id) ? " checked" : "") + '> ' + esc(l.name) + ' <span class="small muted">' + esc(courseName(l.course_code)) + '</span></label>').join("") + '</div>' : '<p class="small muted">Add learners first; you can put them on this class later.</p>') + '</div>' +
+    '<p class="err full"></p><button class="btn primary wide full" type="submit">' + (c ? "Save class" : "Create class") + '</button>' +
+    (c ? '<button class="btn wide full" type="button" id="endClass">End this class</button>' : "") + '</form>');
+  const f = m.querySelector("#cf"), err = f.querySelector(".err");
+  f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
+    err.textContent = "";
+    const v = formData(f), picked = [...f.querySelectorAll("[name=day]:checked")].map((x) => x.value), chosen = [...f.querySelectorAll("[name=learner]:checked")].map((x) => x.value);
+    if (!v.title.trim()) return (err.textContent = "Give the class a name.");
+    if (!v.tutor) return (err.textContent = "Invite a tutor on the Staff page first.");
+    if (!picked.length) return (err.textContent = "Choose the day or days the class is on.");
+    if (!v.start || !v.end || v.end <= v.start) return (err.textContent = "Choose a start time and a later end time.");
+    if (!v.startDate) return (err.textContent = "Choose the first day.");
+    if (v.endDate && v.endDate < v.startDate) return (err.textContent = "The last day is before the first day.");
+    const schedule = { day: picked[0], start: v.start, end: v.end, recurrence: { type: "weekly", interval: Number(v.interval) || 1, weekdays: picked, monthDays: [], startDate: v.startDate, endDate: v.endDate || "", anchorDate: v.startDate, onceDate: "" } };
+    try {
+      const id = await rpc("nisia_save_class", { p_org: S.org, p_title: v.title.trim(), p_tutor: v.tutor, p_schedule: schedule, p_course: v.course, p_room: v.room || null, p_enrolments: chosen, p_id: c ? c.id : null });
+      /* Learners taken off the class: removed here, under the college's own rules. */
+      const gone = c ? c.learners.map((l) => l.enrolment_id).filter((x) => !chosen.includes(x)) : [];
+      if (gone.length) { const { error } = await db.from("class_learners").delete().eq("class_id", id).in("enrolment_id", gone); if (error) throw new Error(error.message); }
+      hit(c ? "class.edit" : "class.new"); closeModal(); toast(c ? "Class saved. Symi and Evia follow on their next sync." : "Class created. It’s in the tutor’s Symi and the learners’ Evia."); classesPage();
+    } catch (x) { err.textContent = x.message; }
+  }); };
+  const end = m.querySelector("#endClass");
+  if (end) end.onclick = () => { if (!confirm("End " + c.title + "? It leaves Symi and the learners’ Evia. Its registers and attendance are kept.")) return;
+    busy(end, "Ending…", async () => { try { await rpc("nisia_archive_class", { p_id: c.id }); hit("class.end"); closeModal(); toast("Class ended"); classesPage(); } catch (x) { err.textContent = x.message; } }); };
 }
 
 /* ---------- Master admin: colleges ---------- */

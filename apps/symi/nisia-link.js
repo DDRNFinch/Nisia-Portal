@@ -59,7 +59,7 @@ function openSignIn() {
       who = await me(); write(K.who, who);
       if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Nisia account isn’t a tutor"); return chip(); }
       layer.remove(); signedIn = true; chip();
-      await pullLearners(true); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
+      await pullLearners(true); await pullClasses(); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
     } catch (e) { layer.remove(); toast("Couldn’t reach Nisia: " + e.message); }
   } }).catch((e) => { layer.querySelector(".sn-auth-root").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
 }
@@ -67,7 +67,7 @@ function account() {
   const layer = sheet('<h2>Nisia</h2><p class="sn-muted">Signed in as <b>' + esc(who && who.name || "") + '</b> · ' + esc(tutorOrgs().map((o) => o.organisation).join(", ")) + '</p>' +
     '<p class="sn-muted">Your learners come from Nisia. Learners check in with Evia, and finished registers become their college hours.</p>' +
     '<div class="sn-actions"><button type="button" class="blue-button" data-pull>Update learners from Nisia</button><button type="button" class="soft-button" data-out>Sign out of Nisia</button></div>');
-  layer.querySelector("[data-pull]").onclick = async () => { layer.remove(); await pullLearners(true); };
+  layer.querySelector("[data-pull]").onclick = async () => { layer.remove(); await pullLearners(true); await pullClasses(); };
   layer.querySelector("[data-out]").onclick = async () => { layer.remove(); await signOut(); who = null; write(K.who, null); signedIn = false; chip(); toast("Signed out of Nisia. Symi keeps working on this device."); };
 }
 function sheet(html) {
@@ -115,6 +115,38 @@ async function pullLearners(say) {
     }
   });
   if (say) toast(found.length ? found.length + (found.length === 1 ? " learner" : " learners") + " from Nisia" + (added ? " (" + added + " new)" : "") : "No learners in Nisia for you yet");
+}
+/* ---------- Classes from Nisia ----------
+   The college sets classes up in the Nisia portal: each one the tutor teaches becomes a register here, with its
+   learners, days, times and dates. A class changed in Nisia is changed here; one the tutor changes here goes back to
+   Nisia when its sessions are got ready (symi_save_class). A class Nisia has ended, or moved to another tutor, is
+   archived here, its registers kept. */
+async function pullClasses() {
+  if (!signedIn || !online()) return;
+  let list;
+  try { list = await rpc("symi_my_classes"); } catch (e) { console.warn("Symi: classes from Nisia", e.message); return; }
+  if (!Array.isArray(list)) return;
+  let made = 0;
+  App().mutate((st) => {
+    const today = App().today(), mine = new Set();
+    st.classes = st.classes || []; st.learners = st.learners || [];
+    for (const c of list) {
+      mine.add(c.client_ref);
+      const s = c.schedule || {}, r = s.recurrence || {};
+      const learners = (c.learners || []).map((l) => {
+        let x = st.learners.find((y) => y.nisia && y.nisia.enrolmentId === l.enrolment_id);
+        if (!x) { x = { id: "nisia-" + l.enrolment_id, name: l.name, externalId: "", nisia: { enrolmentId: l.enrolment_id, org: c.organisation_id, course: "", linkedAt: today }, attendance: { sessions: 0, expectedMs: 0, attendedMs: 0, percentage: 0 } }; st.learners.push(x); }
+        return { id: x.id, name: x.name };
+      });
+      const fromNisia = { name: c.title, room: c.room || "", day: s.day || (r.weekdays || [])[0] || "", start: s.start || "09:00", end: s.end || "16:00", recurrence: r,
+        learners, nisiaClassId: c.id, managed: !!c.managed, nisiaUpdatedAt: c.updated_at, courseCode: c.course_code || "", archived: false };
+      const reg = st.classes.find((x) => x.id === c.client_ref);
+      if (!reg) { st.classes.push(Object.assign({ id: c.client_ref, breaks: [] }, fromNisia)); made++; }
+      else if (!reg.nisiaUpdatedAt || String(c.updated_at) > String(reg.nisiaUpdatedAt)) Object.assign(reg, fromNisia);
+    }
+    for (const reg of st.classes) if (reg.managed && !reg.archived && !mine.has(reg.id)) reg.archived = true;
+  }, true);
+  if (made) toast(made === 1 ? "A new class from Nisia is in your registers" : made + " new classes from Nisia are in your registers");
 }
 const nisiaOf = (st, learnerId) => { const l = st.learners.find((x) => x.id === learnerId); return l && l.nisia || null; };
 const regLearners = (st, reg) => (reg.learners || []).map((l) => ({ id: l.id, name: l.name, nisia: nisiaOf(st, l.id) })).filter((x) => x.nisia);
@@ -520,12 +552,15 @@ new MutationObserver(() => {
   const lost = card && ((Object.keys(mine).length && !card.querySelector(".sn-tick")) || (signedIn && bar && bar.dataset.n !== "0" && !card.querySelector(".sn-mark, .sn-tick") && App().timing(regId) !== "outside-dates"));
   if (card && (!card.querySelector(".sn-bar") || lost) && !queued) { queued = true; requestAnimationFrame(() => { queued = false; decorate(); }); }
 }).observe(document.body, { childList: true, subtree: true });
-addEventListener("online", () => { if (signedIn) { pullLearners(false).catch(() => {}); flush().then(sendFinished); prepareAhead(); } decorate(); });
+/* Coming back to Symi: any classes the college has set up or changed since (at most once a minute). */
+let classesAt = 0;
+document.addEventListener("visibilitychange", () => { if (!document.hidden && signedIn && Date.now() - classesAt > 60000) { classesAt = Date.now(); pullClasses().then(() => prepareAhead()).catch(() => {}); } });
+addEventListener("online", () => { if (signedIn) { pullLearners(false).then(pullClasses).catch(() => {}); flush().then(sendFinished); prepareAhead(); } decorate(); });
 addEventListener("offline", () => decorate());
 setInterval(() => { if (signedIn && !document.hidden) { sendFinished(); flush(); prepareAhead(); } }, 60000);
 setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() => {}); }, 5 * 60000);
 (async () => {
   chip();
   if (inviteCode()) return openSignIn();
-  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
+  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
 })();

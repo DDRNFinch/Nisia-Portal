@@ -27,5 +27,5 @@ begin
       from public.visits v join public.organisation_members om on om.id = v.booked_by_member_id left join public.profiles p on p.id = om.user_id
       where v.enrolment_id = v_e and v.cancelled_at is null and v.starts_at > now() - interval '31 days'), '[]'::jsonb),
     'timetable', coalesce((select jsonb_agg(jsonb_build_object('class', c.title, 'room', c.room, 'schedule', c.schedule) order by c.title)
-      from public.class_learners cl join public.classes c on c.id = cl.class_id where cl.enrolment_id = v_e), '[]'::jsonb));
+      from public.class_learners cl join public.classes c on c.id = cl.class_id where cl.enrolment_id = v_e and c.archived_at is null), '[]'::jsonb));
 end $$;

@@ -39,6 +39,10 @@ function handle(route) {
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-priya", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-priya", name: "Priya Shah", memberships: [{ organisation_id: "O1", organisation: "Walsall College", member_id: "MT", roles: ["tutor"] }] });
   if (p === "/rest/v1/rpc/nisia_college_learners") return json([learner(1, "Callum Hughes"), learner(2, "Amira Khan"), learner(3, "Not Mine", false)]);
+  /* Classes the college set up in the Nisia portal: one is Priya's. */
+  if (p === "/rest/v1/rpc/symi_my_classes") return json([{ id: "C9", organisation_id: "O1", client_ref: "nisia-c9", title: "L2 Bricklaying Thursday", course_code: "bricklayer", room: "Workshop 3", managed: true, updated_at: "2026-10-07T10:00:00Z",
+    schedule: { day: "Thursday", start: "09:00", end: "15:30", recurrence: { type: "weekly", interval: 1, weekdays: ["Thursday"], monthDays: [], startDate: "2026-10-08", endDate: "2027-07-15", anchorDate: "2026-10-08", onceDate: "" } },
+    learners: [{ enrolment_id: "E1", name: "Callum Hughes" }, { enrolment_id: "E2", name: "Amira Khan" }] }]);
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
   if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Ill", booked_by: "Amira Khan", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
@@ -64,7 +68,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.31.0");
+    localStorage.setItem("symi-last-seen-release-v1", "0.31.1");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -106,6 +110,10 @@ try {
   const callum = st.learners.find((l) => l.id === "x1"), amira = st.learners.find((l) => l.name === "Amira Khan");
   check("Signed in, the tutor's own learners come from Nisia: matched to the register's learner by name, nobody else's",
     !!(callum && callum.nisia && callum.nisia.enrolmentId === "E1") && !!(amira && amira.nisia && amira.id === "x3") && !st.learners.some((l) => l.name === "Not Mine") && !st.learners.find((l) => l.id === "x2").nisia);
+  const fromNisia = await page.evaluate(() => { const c = window.SamosApp.getState().classes.find((x) => x.id === "nisia-c9");
+    return !!c && c.name === "L2 Bricklaying Thursday" && c.room === "Workshop 3" && c.start === "09:00" && c.recurrence.weekdays.join() === "Thursday" && c.recurrence.endDate === "2027-07-15" &&
+      c.learners.map((l) => l.id).sort().join() === "x1,x3" && c.managed && !c.archived; });
+  check("A class the college set up in Nisia is in the tutor's registers straight away: its days, times, dates, room and learners (matched to Symi's own)", fromNisia);
   await page.waitForSelector('[data-attendance-learner="x3"] .sn-mark');
   const offMark = await page.textContent('[data-attendance-learner="x3"] .sn-mark'), barNow = await page.textContent(".sn-bar");
   check("A day Amira booked off (in Evia) shows on the register before anyone arrives, and isn't counted as expected",

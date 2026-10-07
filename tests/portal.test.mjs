@@ -47,6 +47,13 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_admin_colleges") return json(S.colleges);
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
+    /* Classes set up here: they become the tutor's registers in Symi. */
+    if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
+    if (p === "/rest/v1/rpc/nisia_save_class") { S.classes = S.classes || []; S.calls.push({ t: "save_class", body });
+      const t = S.staff.find((x) => x.member_id === body.p_tutor) || {}, row = { id: body.p_id || "cls" + S.classes.length, title: body.p_title, course_code: body.p_course, room: body.p_room, schedule: body.p_schedule, managed: true,
+        tutor_member_id: body.p_tutor, tutor: t.name || "", learners: body.p_enrolments.map((e) => ({ enrolment_id: e, name: (S.learners.find((l) => l.enrolment_id === e) || {}).name || "" })), sessions_done: 0, last_session: null };
+      S.classes = S.classes.filter((c) => c.id !== row.id).concat([row]); return json(row.id); }
+    if (p === "/rest/v1/rpc/nisia_add_to_class") { S.calls.push({ t: "add_to_class", body }); return json(null); }
     if (p === "/rest/v1/rpc/nisia_set_safeguarding") { S.dsl = body; return json(null); }
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
     if (p === "/rest/v1/rpc/nisia_admin_usage") { S.usageDays = body.p_days; return json({ from: "2026-09-01",
@@ -222,7 +229,7 @@ try {
   }
   // 2. A college admin (already set up) adds a learner, which uses a seat, and shows the Evia QR.
   {
-    const staff = [{ member_id: "m2", name: "Mark Ellis", email: "m.ellis@brookfield.example", roles: ["assessor"], active: true, learners: 0 }];
+    const staff = [{ member_id: "m2", name: "Mark Ellis", email: "m.ellis@brookfield.example", roles: ["assessor"], active: true, learners: 0 }, { member_id: "m3", name: "Priya Shah", email: "p.shah@brookfield.example", roles: ["tutor"], active: true, learners: 0 }];
     const { page, ctx, errors, fake } = await open({ id: "u-col", email: "s.mitchell@brookfield.example", password: "Str0ng-pass!", name: "Sarah Mitchell", factors: [{ id: "f1", factor_type: "totp", status: "verified" }], staff,
       memberships: [{ organisation_id: "o1", organisation: "Brookfield College", status: "active", member_id: "m1", roles: ["admin"] }] });
     await page.fill("#email", "s.mitchell@brookfield.example"); await page.fill("#pw", "wrong"); await page.click("button[type=submit]"); await page.waitForTimeout(300);
@@ -240,6 +247,18 @@ try {
     check("College admin adds a learner with their assessor, then Evia's pairing QR shows", fake.S.learners.length === 1 && fake.S.learners[0].assessors[0].name === "Mark Ellis" && /ABC-2345/.test(await page.textContent(".big-code")));
     await page.click(".x"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/9-college.png", fullPage: true });
     check("The learner shows in the table", /Callum Hughes/.test(await page.textContent("table")));
+    /* Classes: set up once in Nisia (here with the tutor, days, times, dates and learner); it becomes the tutor's register in Symi. */
+    await page.click("nav [data-go=classes]"); await page.waitForSelector("#newClass"); await page.click("#newClass"); await page.waitForSelector("#cf");
+    await page.fill("#cf [name=title]", "L2 Bricklaying Tuesday"); await page.selectOption("#cf [name=course]", "bricklayer");
+    await page.check('#cf [name=day][value=Tuesday]'); await page.fill("#cf [name=start]", "09:00"); await page.fill("#cf [name=end]", "16:00");
+    await page.fill("#cf [name=startDate]", "2026-10-06"); await page.fill("#cf [name=endDate]", "2026-12-22"); await page.fill("#cf [name=room]", "Workshop 2");
+    await page.check('#cf [name=learner]'); await page.screenshot({ path: shots + "/9b-new-class.png" });
+    await page.click("#cf button[type=submit]"); await page.waitForFunction(() => !document.querySelector("#cf"));
+    await page.waitForSelector("[data-edit-class]"); await page.screenshot({ path: shots + "/9c-classes.png", fullPage: true });
+    const sc = (fake.S.calls.find((c) => c.t === "save_class") || {}).body || {};
+    check("Classes: the admin sets up a class once (tutor, course, days, times, dates, room and learners) and it's listed with its learners",
+      sc.p_title === "L2 Bricklaying Tuesday" && sc.p_course === "bricklayer" && sc.p_schedule.recurrence.weekdays.join() === "Tuesday" && sc.p_schedule.start === "09:00" && sc.p_schedule.recurrence.endDate === "2026-12-22" &&
+      sc.p_room === "Workshop 2" && sc.p_enrolments.length === 1 && !!sc.p_tutor && /Callum/.test(await page.textContent("table")) && /Tue 09:00/.test(await page.textContent("table")), JSON.stringify(sc));
     await page.click("nav [data-go=overview]"); await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/10-overview.png", fullPage: true });
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
     await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });
