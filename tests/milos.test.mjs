@@ -33,6 +33,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
 const posted = [];
 /* Nisia's packs: your Bricklayer pack, and the college's own copy of it, which Callum (E1) is on. */
 let PACKMOVE = null;
+let VISITS = [], BOOKED = [];
 const PACKS = (() => {
   const seed = fs.readFileSync(path.join(root, "services/supabase/packs-seed.sql"), "utf8"), std = fs.readFileSync(path.join(root, "services/supabase/standards-seed.sql"), "utf8");
   const brick = [...seed.matchAll(/save_pack\((\$[a-z]+\$)([\s\S]*?)\1::jsonb/g)].map((m) => JSON.parse(m[2])).find((x) => x.course === "bricklayer");
@@ -55,6 +56,10 @@ function handle(route) {
   if (p === "/rest/v1/rpc/set_enrolment_pack") { PACKMOVE = body; return json(null); }
   if (p === "/rest/v1/rpc/milos_employer_feedback" && NOEMP) return json({ code: "PGRST202", message: "Could not find the function public.milos_employer_feedback" }, 404);
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
+  /* Visits (the Calendar): booked, listed and cancelled through Nisia's actions. */
+  if (p === "/rest/v1/rpc/nisia_visits") return json(VISITS);
+  if (p === "/rest/v1/rpc/nisia_book_visit") { BOOKED.push(body); VISITS = VISITS.filter((v) => v.id !== body.p_id).concat([{ id: body.p_id || "V" + (VISITS.length + 1), enrolment_id: body.p_enrolment, learner: "Callum Hughes", starts_at: body.p_starts_at, minutes: body.p_minutes, kind: body.p_kind, place: body.p_place, note: body.p_note, booked_by: "Mark Ellis", mine: true }]); return json({ id: "V1" }); }
+  if (p === "/rest/v1/rpc/nisia_cancel_visit") { BOOKED.push({ cancel: body.p_id }); VISITS = VISITS.filter((v) => v.id !== body.p_id); return json(null); }
   if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: "2099-01-05", ends_on: "2099-01-05", kind: "appointment", reason: "Hospital appointment", booked_by: "Sam Tutor", booked_by_role: "tutor" }]);
   if (p === "/rest/v1/rpc/nisia_college_learners") return json([LEARNER, { ...LEARNER, learner_id: "L2", enrolment_id: "E2", name: "Not Mine", assessors: [{ member_id: "M9", name: "Someone else" }] }].concat(EXTRA ? [{ ...LEARNER, learner_id: "L3", enrolment_id: "E3", name: "New Starter" }] : []));
   if (p === "/rest/v1/enrolments") return json(one ? { id: "E1", organisation_id: "O1", course_id: "C1", learner_id: "L1", start_date: start, end_date: end, status: "active", planned_otj_hours: 416, employer_name: "Hughes & Sons Builders", employer_contact_name: "Dave Hughes" } : []);
@@ -120,12 +125,31 @@ try {
   await page.click("[data-tab=reviews]"); await page.waitForTimeout(200); await page.screenshot({ path: shots + "/m1d-reviews.png", fullPage: true });
   const revText = await page.textContent("#main");
   check("Learners search, one To assess queue across learners, and reviews by when they're due", found === 1 && ringShown && none && queue.length === 3 && badge === "3" && queue.some((t) => /Construct Cavity Walling/.test(t)) && /Overdue/.test(revText) && /Callum Hughes/.test(revText), JSON.stringify({ found, ringShown, none, queue, badge }));
-  await page.click("[data-tab=today]"); await page.waitForSelector("[data-id=L1]");
+  /* Calendar: book a visit with Callum; it goes to Nisia (so it's on his Evia calendar), shows on the month and in
+     Coming up, and opening it offers the observation. The face in the middle goes back to what needs doing. */
+  await page.click("[data-tab=calendar]"); await page.waitForSelector("#bookVisit");
+  const calEmpty = /No visits booked/.test(await page.textContent("#main"));
+  await page.click("#bookVisit"); await page.waitForSelector("#vF");
+  const dd = new Date(Date.now() + 3 * 864e5), dayStr = dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0") + "-" + String(dd.getDate()).padStart(2, "0");
+  await page.selectOption("#vF [name=who]", "E1"); await page.fill("#vF [name=day]", dayStr); await page.fill("#vF [name=time]", "11:30");
+  const placeFilled = await page.inputValue("#vF [name=place]");
+  await page.selectOption("#vF [name=kind]", "observation"); await page.fill("#vF [name=note]", "Bring your PPE"); await page.screenshot({ path: shots + "/m1e0-book.png" });
+  await page.click("#vF [type=submit]"); await page.waitForFunction(() => !document.querySelector("#vF"));
+  await page.waitForSelector('[data-visit]'); await page.screenshot({ path: shots + "/m1e-calendar.png", fullPage: true });
+  const b0 = BOOKED[0] || {}, onMonth = await page.$('.m-cal-d.has[data-day="' + dayStr + '"]');
+  await page.click("[data-visit]"); await page.waitForSelector("#vObs"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/m1e2-visit.png" });
+  const sheetText = await page.textContent(".sheet");
+  await page.click(".sheet .x");
+  check("Calendar: book a visit with a learner (Nisia tells them and it's on their Evia calendar), see it on the month and in Coming up, and open it to start the observation",
+    calEmpty && b0.p_enrolment === "E1" && new Date(b0.p_starts_at).getHours() === 11 && b0.p_kind === "observation" && b0.p_note === "Bring your PPE" && !!placeFilled && b0.p_place === placeFilled && !!onMonth && /Observation/.test(sheetText) && /Evia calendar/.test(sheetText),
+    JSON.stringify({ calEmpty, b0, placeFilled, onMonth: !!onMonth, sheetText }));
+  await page.click("#navTodo"); await page.waitForSelector("[data-id=L1]"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/m1f-todo.png", fullPage: true });
+  check("The face in the middle opens what needs doing, with the visit coming up this week", /Visits/.test(await page.textContent("#main")) && !!(await page.$("#navTodo.on")) && !!(await page.$("#main [data-visit]")));
   await page.click("[data-id=L1]"); await page.waitForSelector("#rev"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
   const packCard = await page.textContent(".m-card:has(#packBtn)").catch(() => "");
-  await page.click("#packBtn"); await page.check(".sheet input[value=k0]"); await page.click("#pkF [type=submit]"); await page.waitForFunction(() => !document.querySelector(".sheet #pkF"));
+  await page.click("#packBtn"); await page.check(".sheet input[value=k0]"); await page.click("#pkF [type=submit]"); await page.waitForFunction(() => !document.querySelector(".sheet #pkF")); await page.waitForFunction(() => /Nisia’s/.test((document.querySelector(".m-card:has(#packBtn)") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
   check("A learner's pack shows on their Overview (here the college's own), and their assessor can move them onto Nisia's", /Brookfield bricklaying/.test(packCard) && /college’s own/.test(packCard) && PACKMOVE && PACKMOVE.p_enrolment === "E1" && PACKMOVE.p_pack === "k0" &&
     /Bricklayer · Nisia’s/.test(await page.textContent(".m-card:has(#packBtn)")), packCard + " " + JSON.stringify(PACKMOVE));
   check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));

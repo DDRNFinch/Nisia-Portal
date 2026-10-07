@@ -2822,3 +2822,15 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .cal-day.on{background:var(--yellow,#f5c542);border-color:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033)}
 .cal-card .cal-change{align-self:flex-start;margin-top:10px;padding:7px 12px;font-size:13px}
 .cal-wide{grid-column:1/-1}
+/* Calendar: the assessor's next visit (booked in Milos), and visit days on the month. */
+.cal-visit{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:0 0 14px;padding:13px 14px;border-radius:18px;border:1px solid #c9dcfb;background:#eef5ff;color:var(--ui-ink,#172033);font:inherit;cursor:pointer}
+.cal-visit-ic{flex:none;width:40px;height:40px;border-radius:12px;background:#2c85f7;display:grid;place-items:center}
+.cal-visit-ic svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cal-visit span:last-child{display:flex;flex-direction:column;gap:1px}
+.cal-visit small{font-size:12px;font-weight:700;color:#1b5fb8}
+.cal-visit strong{font-size:16px}
+.cal-visit em{font-style:normal;font-size:13px;color:var(--ui-muted,#667085)}
+.pv-acal-d.cal-v::before{content:"";position:absolute;top:4px;right:5px;width:7px;height:7px;border-radius:50%;background:#2c85f7;box-shadow:0 0 0 1.5px #fff}
+.pv-acal-d.cal-v{position:relative}
+.cal-key .cal-key-v{border-radius:50%;width:9px;height:9px;background:#2c85f7}
+body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}

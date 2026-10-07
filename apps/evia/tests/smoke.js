@@ -272,6 +272,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
       const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
+    check("Calendar: a visit the assessor booked in Milos shows at the top, on its day, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
+      const t=new Date(Date.now()+2*864e5);t.setHours(11,30,0,0);localStorage.setItem("evia7-nisia-visits",JSON.stringify([{id:"V1",starts_at:t.toISOString(),minutes:90,kind:"observation",place:"Kings Road site",note:"Bring your PPE",booked_by:"Mark Ellis"}]));
+      nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
+      top.click();await w(300);const k=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+      const ok=!!document.querySelector('#cal-month .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
+      localStorage.removeItem("evia7-nisia-visits");return ok}));
     check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
       const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
       const tue=[...document.querySelectorAll("#cal-month .pv-acal-d.pv-a-coming")].every(b=>new Date(b.dataset.day+"T12:00:00").getDay()===2);

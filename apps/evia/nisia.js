@@ -358,7 +358,7 @@
     if(!p||!mine)return null;
     return JSON.stringify(p.topics.map(t=>[t.id,t.name,t.ksbs.map(k=>k.code)]))===JSON.stringify(mine.units.map(u=>[u.id,u.name,u.ksbs.map(k=>k.code)]));
   }
-  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance";
+  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance",VIS_KEY="evia7-nisia-visits";
   /* Kept by an older Evia (before the shared actions): moved across once. */
   try{const q=readJson("evia7-nisia-checkin-queue",[])||[],b=readJson("evia7-nisia-absence-queue",[])||[];
     if(q.length||b.length){const K="nisia-outbox-v1:evia",o=readJson(K,[])||[];
@@ -381,6 +381,8 @@
     const kept=new Set(A.waiting().filter(x=>x.name==="bookAbsence").map(x=>x.tag));
     writeJson(ABS_KEY,(w.absences||[]).concat((readJson(ABS_KEY,[])||[]).filter(a=>a.local&&kept.has("absence:"+a.id))));
     if(Array.isArray(w.attendance))writeJson(ATT_KEY,{at:Date.now(),list:w.attendance});
+    /* Visits the assessor has booked (Milos): on the Calendar. */
+    if(Array.isArray(w.visits))writeJson(VIS_KEY,w.visits);
     return w;
   }
   /* Kept with no signal, now sent. A check-in Nisia turns down is kept as a problem for the learner to see. */
@@ -559,7 +561,7 @@
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
   window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn),
-    sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
+    sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,visits:()=>(readJson(VIS_KEY,[])||[]).filter(v=>v&&v.starts_at),checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,
@@ -616,6 +618,7 @@
         window.eviaEmployer.markSeen();if(x)openSupportingDetails(x.id,false);else if(window.eviaOpenEmployer)window.eviaOpenEmployer()}else if(typeof nav==="function")nav("course")}
       else if(what==="targets")K.runNudge({action:{kind:"targets",label:"My targets"}});
       else if(what==="review")K.runNudge({action:{kind:"prep",label:"Get ready for my review"}});
+      else if(what==="calendar"){if(typeof nav==="function")nav("calendar")}
       else if(what==="hours")K.runNudge({action:{kind:"learning",label:"Log learning hours"}});
     };
     /* Fetch what the assessor did first, so it's there to show. */

@@ -46,6 +46,10 @@
       K().replies([{label:"Back to my list",back:true,run:()=>show({again:true})}]);
     })));
 
+    /* The assessor is visiting in the next 3 days (booked in Milos): when and where, and the Calendar. */
+    const soonV=(live&&N.visits?N.visits():[]).filter(v=>{const t=Date.parse(v.starts_at);return t+(v.minutes||60)*6e4>Date.now()&&t<Date.now()+3*864e5}).sort((x,y)=>String(x.starts_at).localeCompare(y.starts_at))[0];
+    if(soonV){const t=new Date(soonV.starts_at),day=t.toDateString()===new Date().toDateString()?"Today":t.toLocaleDateString("en-GB",{weekday:"long"});
+      add(97,"assessor",(soonV.kind==="review"?"Progress review ":"Your assessor visits ")+(day==="Today"?"today":"on "+day),t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(soonV.place?" · "+soonV.place:"")+(soonV.note?" · "+soonV.note:""),"See it on my calendar",leave(()=>nav("calendar")))}
     /* The assessor asked for more on a unit. */
     const more=window.eviaMoreRequired?window.eviaMoreRequired():[];
     [...new Set(more.map(x=>x.unit))].forEach(name=>{const u=units.find(x=>x.name===name);if(!u)return;

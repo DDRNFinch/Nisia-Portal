@@ -1,6 +1,7 @@
-/* Milos, the assessor's app: Evia's look, Milos blue. Four places, like Evia's own tabs: Today (what needs you),
-   Learners, To assess (every learner's new evidence in one queue) and Reviews (who's due, and drafts to finish).
-   The Milos button in the middle syncs with Nisia. Each learner opens on Overview, Portfolio and Reviews, and
+/* Milos, the assessor's app: Evia's look, Milos blue. Four places, like Evia's own tabs: Learners, Assess (every
+   learner's new evidence in one queue), Reviews (who's due, and drafts to finish) and Calendar (visits booked with
+   learners, which show on their Evia calendar too). Milos's face in the middle is what needs doing; syncing with
+   Nisia is on the line at the top. Each learner opens on Overview, Portfolio and Reviews, and
    everything the assessor does (observations, sign-offs, reviews) is saved on the phone first and sent when there's
    signal (store.js). Everything is read from Nisia under the college's own rules. */
 import { db, rpc, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
@@ -40,8 +41,11 @@ const IC = {
   out: svg('<path d="M14.5 4.5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-3"/><path d="M10 16.5L5.5 12 10 7.5M5.5 12h10"/>'),
   clip: svg('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  cal: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/>'),
+  pin: svg('<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>'),
   pen: svg('<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/>'),
 };
+IC.calendar = IC.cal;
 const EYES = '<span class="av" aria-hidden="true"><i></i><i></i></span>';
 
 /* ---------- Opening Milos ---------- */
@@ -58,7 +62,7 @@ async function start() {
   }
 }
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("it took too long to answer.")), ms))]);
-db.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") clear().finally(start); });
+db.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") { visits = []; try { localStorage.removeItem("milos-visits-v1"); } catch (_) {} clear().finally(start); } });
 start().catch((e) => { root.innerHTML = '<div class="auth"><p class="err">' + esc(e.message) + '</p></div>'; });
 
 function toast(msg) {
@@ -84,7 +88,7 @@ async function install() {
 const initials = (n) => String(n || "").trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "M";
 const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 const face = (name) => '<span class="m-face" style="--h:' + hue(name) + '" aria-hidden="true">' + esc(initials(name)) + '</span>';
-const TABS = [["today", "Today"], ["learners", "Learners"], ["assess", "To assess"], ["reviews", "Reviews"]];
+const TABS = [["learners", "Learners"], ["assess", "Assess"], ["reviews", "Reviews"], ["calendar", "Calendar"]];
 function frame({ title, sub, back, body }) {
   const w = status().waiting, fresh = IDX ? IDX.reduce((n, x) => n + (x.fresh ? x.fresh.length : 0), 0) : 0;
   const navBtn = ([k, t]) => '<button type="button" data-tab="' + k + '" class="' + (tab === k ? "on" : "") + '"' + (tab === k && view === "home" ? ' aria-current="page"' : "") + '>' + IC[k] +
@@ -96,10 +100,10 @@ function frame({ title, sub, back, body }) {
       '<div class="m-sync" id="syncbar"></div></header>' +
     '<main class="m-main" id="main">' + body + '</main>' +
     '<nav class="m-nav" aria-label="Milos">' + navBtn(TABS[0]) + navBtn(TABS[1]) +
-      '<button type="button" class="m-nav-milos" id="navSync" aria-label="Sync with Nisia">' + EYES + (w ? '<b class="m-badge">' + w + '</b>' : "") + '</button>' +
+      '<button type="button" class="m-nav-milos' + (tab === "today" && view === "home" ? " on" : "") + '" id="navTodo" aria-label="What needs doing">' + EYES + '</button>' +
       navBtn(TABS[2]) + navBtn(TABS[3]) + '</nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; home(); scrollTo(0, 0); });
-  root.querySelector("#navSync").onclick = () => manualSync();
+  root.querySelector("#navTodo").onclick = () => { tab = "today"; home(); scrollTo(0, 0); };
   root.querySelector("#meBtn").onclick = account;
   drawSync(status());
 }
@@ -116,8 +120,7 @@ function drawSync(st) {
     (st.notice ? '<small class="m-sync-note">' + esc(st.notice) + ' <button type="button" class="m-note-ok" id="noteOk">OK</button></small>' : "") + '</span><button type="button" class="m-sync-btn" id="syncNow"' + (st.syncing || !st.online ? " disabled" : "") + '>' + (st.syncing ? "Syncing…" : "Sync now") + '</button>';
   bar.querySelector("#syncNow").onclick = () => manualSync();
   const ok = bar.querySelector("#noteOk"); if (ok) ok.onclick = dismissNotice;
-  const m = document.getElementById("navSync");
-  if (m) { m.classList.toggle("busy", !!st.syncing); const b = m.querySelector(".m-badge"); if (st.waiting && !b) m.insertAdjacentHTML("beforeend", '<b class="m-badge">' + st.waiting + '</b>'); else if (b) { if (st.waiting) b.textContent = st.waiting; else b.remove(); } }
+  const m = document.getElementById("syncNow"); if (m) m.classList.toggle("busy", !!st.syncing);
 }
 onStatus(drawSync);
 /* Whatever started a sync (opening, the timer, coming back to Milos, the signal returning), the screen shows what's
@@ -184,7 +187,7 @@ function pushRow() {
 }
 /* A tapped notification opens its tab: To assess, or Reviews. */
 function pushOpen(what) {
-  if (!["assess", "reviews", "today", "learners"].includes(what) || !who) return;
+  if (!["assess", "reviews", "today", "learners", "calendar"].includes(what) || !who) return;
   tab = what; filter = "all"; home(); scrollTo(0, 0);
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "milos-open") pushOpen(e.data.open); });
@@ -243,7 +246,7 @@ async function home(fresh) {
   const have = await cached().catch(() => null);
   if (have) {
     who = have.who; rows = have.rows;
-    if (openFirst) { tab = ["assess", "reviews", "today", "learners"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
+    if (openFirst) { tab = ["assess", "reviews", "today", "learners", "calendar"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
     await drawTab(); if (fresh && navigator.onLine) { quietSync(); push.refresh(); } return;
   }
   frame({ title: "Milos", body: '<div class="m-loading">' + EYES + '<p class="muted">Downloading your learners from Nisia…</p></div>' });
@@ -261,7 +264,7 @@ async function drawTab() {
   const X = await index();
   if (view !== "home") return;
   const y = scrollY, same = tab === lastTab;
-  ({ today: drawToday, learners: drawLearners, assess: drawAssess, reviews: drawReviews })[tab](X);
+  ({ today: drawToday, learners: drawLearners, assess: drawAssess, reviews: drawReviews, calendar: drawCalendar })[tab](X);
   root.querySelectorAll("[data-id]").forEach((b) => b.onclick = () => learner(rows.find((r) => r.learner_id === b.dataset.id)));
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { tab = b.dataset.go; filter = b.dataset.gf || "all"; home(); scrollTo(0, 0); });
   if (same && y) scrollTo(0, y);
@@ -279,8 +282,11 @@ function drawToday(X) {
     '<p class="label">' + esc(label) + '</p>' + big + (sub ? '<p class="m-card-sub">' + sub + '</p>' : "") + inner + '</section>';
   const mini = (r, right) => '<button type="button" class="m-mini" data-id="' + r.learner_id + '">' + face(r.name) + '<span class="m-mini-name"><b>' + esc(r.name) + '</b><span class="sub">' + esc(courseName(r.course_code)) + '</span></span>' + right + '</button>';
   const oldest = fresh.map((f) => f.it.e.created_at).sort()[0];
+  const week = Date.now() + 7 * 864e5, todayV = comingVisits().filter((v) => vDay(v) === dkey(new Date())), soonV = comingVisits().filter((v) => Date.parse(v.starts_at) < week);
   frame({ title: hi + " " + firstName(who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
     (!rows.length ? empty("No learners yet", "Your college assigns learners to you in Nisia. They appear here after the next sync.") :
+      (soonV.length ? card({ label: "Visits", go: "calendar", big: '<p class="m-big">' + (todayV.length ? todayV.length + '<small> today</small>' : soonV.length + '<small> this week</small>') + '</p>',
+        sub: todayV.length ? "Open one to start the observation." : "Coming up in the next 7 days.", inner: '<div class="card m-list m-in-card">' + soonV.slice(0, 4).map((v) => visitRow(v, !todayV.includes(v))).join("") + '</div>' }) : "") +
       card({ cls: "m-hero" + (overdue.length ? " is-bad" : ""), label: "Progress reviews", go: "reviews",
         big: '<p class="m-big ' + (overdue.length ? "bad" : due.length ? "warn" : "good") + '">' + (overdue.length ? overdue.length + " overdue" : due.length ? due.length + " due soon" : "All up to date") + '</p>',
         sub: overdue.length ? "Funding rules need one every 12 weeks." + (due.length > overdue.length ? " " + (due.length - overdue.length) + " more due in the next 2 weeks." : "") : due.length ? "Due in the next 2 weeks." : "Nobody is due in the next 2 weeks.",
@@ -294,6 +300,8 @@ function drawToday(X) {
       (unpaired.length ? card({ label: "Evia not connected", go: "learners", gf: "unpaired", big: '<p class="m-big">' + unpaired.length + '</p>', sub: "Reviews can’t be filled in from Evia until it’s connected. Open the learner and tap Connect Evia." }) : "")) +
     (canInstall() ? '<button type="button" class="card m-install" id="installCard"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>' : "") +
     (rows.length && push.state() === "off" && !push.asked() ? '<button type="button" class="card m-install" id="pushCard"><span class="m-ic">' + IC.bell + '</span><span class="m-row-main"><b>Turn on notifications</b><span class="sub">Know when learners add evidence. Weekdays only, never in the evening.</span></span></button>' : "") });
+  bindVisits();
+  if (Date.now() - visitsAt > 60000 && navigator.onLine) loadVisits().then(() => { if (view === "home" && tab === "today") drawTab(); });
   const ic = root.querySelector("#installCard"); if (ic) ic.onclick = install;
   const pc = root.querySelector("#pushCard");
   if (pc) pc.onclick = async () => {
@@ -356,12 +364,126 @@ function drawReviews() {
     (!dated.length && !dr.length ? empty("No reviews to plan", "Reviews appear here once learners are assigned to you.") : "") });
 }
 
+/* ---------- Calendar: visits booked with learners ----------
+   A visit (on site, an observation or a progress review) is booked in Nisia, so it shows on the learner's Evia
+   calendar and the learner and their employer are told. Kept on the phone too, so the calendar works without signal;
+   booking, moving and cancelling need signal. Review due dates show on the same calendar. */
+const VKEY = "milos-visits-v1";
+let visits = (() => { try { return JSON.parse(localStorage.getItem(VKEY) || "[]") || []; } catch (_) { return []; } })(), visitsAt = 0, calMonth = null, calDay = null;
+const dkey = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const vDay = (v) => dkey(new Date(v.starts_at));
+const vTime = (v) => new Date(v.starts_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const vDate = (v) => new Date(v.starts_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const KIND = { visit: "Visit on site", observation: "Observation", review: "Progress review" };
+const vLen = (m) => m < 60 ? m + " min" : (m % 60 ? (m / 60).toFixed(1).replace(".0", "") : m / 60) + (m === 60 ? " hour" : " hours");
+const comingVisits = () => visits.filter((v) => Date.parse(v.starts_at) + (v.minutes || 60) * 6e4 > Date.now()).sort((a, b) => String(a.starts_at).localeCompare(b.starts_at));
+async function loadVisits(force) {
+  if (!navigator.onLine || (!force && Date.now() - visitsAt < 60000)) return visits;
+  const from = new Date(), to = new Date(); from.setDate(from.getDate() - 62); to.setDate(to.getDate() + 370);
+  try { visits = (await rpc("nisia_visits", { p_from: dkey(from), p_to: dkey(to) })) || []; visitsAt = Date.now(); try { localStorage.setItem(VKEY, JSON.stringify(visits)); } catch (_) {} }
+  catch (e) { console.warn("Milos: visits", e.message); }
+  return visits;
+}
+const visitRow = (v, withDate) => { const r = rows.find((x) => x.enrolment_id === v.enrolment_id);
+  return '<button type="button" class="m-row" data-visit="' + esc(v.id) + '">' + face(v.learner || (r && r.name)) + '<span class="m-row-main"><b>' + esc(v.learner || (r && r.name) || "Learner") + '</b><span class="sub">' +
+    esc([withDate ? vDate(v) : "", vTime(v), KIND[v.kind] || "Visit", v.place].filter(Boolean).join(" · ")) + '</span></span><span class="m-chev">' + IC.chev + '</span></button>'; };
+function bindVisits(scope) {
+  (scope || root).querySelectorAll("[data-visit]").forEach((b) => b.onclick = () => { const v = visits.find((x) => x.id === b.dataset.visit); if (v) visitSheet(v); });
+}
+function drawCalendar() {
+  const now = new Date(), today = dkey(now);
+  if (calMonth == null) calMonth = now.getFullYear() * 12 + now.getMonth();
+  const y = Math.floor(calMonth / 12), m = calMonth % 12, first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate(), lead = (first.getDay() + 6) % 7;
+  const byDay = {}; visits.forEach((v) => (byDay[vDay(v)] = byDay[vDay(v)] || []).push(v));
+  const dueDay = {}; rows.forEach((r) => { if (r.due && r.due.due) (dueDay[String(r.due.due).slice(0, 10)] = dueDay[String(r.due.due).slice(0, 10)] || []).push(r); });
+  let cells = ""; for (let i = 0; i < lead; i++) cells += '<span></span>';
+  for (let d = 1; d <= days; d++) { const k = dkey(new Date(y, m, d)), n = (byDay[k] || []).length;
+    cells += '<button type="button" class="m-cal-d' + (n ? " has" : "") + (dueDay[k] ? " due" : "") + (k === today ? " today" : "") + (k === calDay ? " picked" : "") + '" data-day="' + k + '" aria-label="' +
+      esc(new Date(k + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) + (n ? ", " + n + (n === 1 ? " visit" : " visits") : "") + (dueDay[k] ? ", review due" : "")) + '">' + d + (n ? '<i>' + n + '</i>' : "") + '</button>'; }
+  const pick = calDay && (byDay[calDay] || dueDay[calDay]);
+  const dayList = calDay ? '<p class="label m-sec">' + esc(new Date(calDay + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })) + '</p>' +
+    (pick ? '<section class="card m-list">' + (byDay[calDay] || []).map((v) => visitRow(v)).join("") + (dueDay[calDay] || []).map((r) => '<button type="button" class="m-row" data-id="' + r.learner_id + '">' + face(r.name) + '<span class="m-row-main"><b>' + esc(r.name) + '</b><span class="sub">Progress review due</span></span>' + pill(r.due) + '</button>').join("") + '</section>'
+      : '<p class="muted small m-cal-none">Nothing booked. <button type="button" class="m-link" id="bookDay">Book a visit this day</button></p>') : "";
+  const coming = comingVisits().slice(0, 8);
+  frame({ title: "Calendar", sub: "Visits with your learners. Each one shows on their Evia calendar.", body:
+    '<button type="button" class="btn primary wide" id="bookVisit">' + IC.plus + 'Book a visit</button>' +
+    '<section class="card m-cal"><div class="m-cal-head"><button type="button" class="m-cal-nav" data-m="-1" aria-label="Previous month">‹</button><b>' + esc(first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })) + '</b><button type="button" class="m-cal-nav" data-m="1" aria-label="Next month">›</button></div>' +
+      '<div class="m-cal-grid">' + ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => '<span class="m-cal-dow">' + d + '</span>').join("") + cells + '</div>' +
+      '<div class="m-cal-key"><span><i class="k-visit"></i>Visit booked</span><span><i class="k-due"></i>Review due</span></div></section>' +
+    dayList +
+    '<p class="label m-sec">Coming up</p>' + (coming.length ? '<section class="card m-list">' + coming.map((v) => visitRow(v, true)).join("") + '</section>' : empty("No visits booked", "Book a visit and it shows on the learner’s Evia calendar, so they know when you’re coming.")) });
+  root.querySelector("#bookVisit").onclick = () => bookVisit({});
+  const bd = root.querySelector("#bookDay"); if (bd) bd.onclick = () => bookVisit({ day: calDay });
+  root.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { calMonth += +b.dataset.m; calDay = null; drawCalendar(); });
+  root.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => { calDay = calDay === b.dataset.day ? null : b.dataset.day; drawCalendar(); });
+  root.querySelectorAll("[data-id]").forEach((b) => b.onclick = () => learner(rows.find((r) => r.learner_id === b.dataset.id)));
+  bindVisits();
+  if (Date.now() - visitsAt > 60000 && navigator.onLine) loadVisits().then(() => { if (view === "home" && tab === "calendar") drawCalendar(); });
+}
+/* One visit: what, when and where, then start the observation, open the learner, move or cancel it. */
+function visitSheet(v) {
+  const r = rows.find((x) => x.enrolment_id === v.enrolment_id), name = v.learner || (r && r.name) || "Learner";
+  const o = sheet('<p class="label">' + esc(KIND[v.kind] || "Visit") + '</p><h2>' + esc(name) + '</h2>' +
+    '<p class="m-visit-when">' + IC.cal + '<span><b>' + esc(new Date(v.starts_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })) + '</b><br>' + esc(vTime(v) + " · " + vLen(v.minutes || 60)) + '</span></p>' +
+    (v.place ? '<p class="m-visit-when">' + IC.pin + '<span>' + esc(v.place) + '</span></p>' : "") + (v.note ? '<p class="muted">' + esc(v.note) + '</p>' : "") +
+    '<p class="small muted">' + esc(firstName(name)) + ' can see this on their Evia calendar' + (v.booked_by && !v.mine ? ". Booked by " + v.booked_by : "") + '.</p>' +
+    '<div class="m-visit-acts">' + (r ? '<button type="button" class="btn primary wide" id="vObs">' + IC.eye + 'Start observation</button><button type="button" class="btn wide" id="vOpen">Open ' + esc(firstName(name)) + '</button>' : "") +
+      (v.mine !== false ? '<button type="button" class="btn wide" id="vMove">Change day or time</button><button type="button" class="btn wide danger" id="vCancel">Cancel visit</button>' : "") + '</div><p class="err" hidden></p>', "Visit");
+  const on = (id, fn) => { const b = o.querySelector("#" + id); if (b) b.onclick = fn; };
+  on("vObs", async () => { o.remove(); hit("visit.observe"); await learner(r); const b = root.querySelector("#obs"); if (b) b.click(); });
+  on("vOpen", () => { o.remove(); learner(r); });
+  on("vMove", () => { o.remove(); bookVisit({ v }); });
+  on("vCancel", async () => {
+    if (!confirm("Cancel this visit? " + firstName(name) + " is told.")) return;
+    const err = o.querySelector(".err");
+    if (!navigator.onLine) { err.textContent = "Cancelling a visit needs signal."; err.hidden = false; return; }
+    try { await rpc("nisia_cancel_visit", { p_id: v.id }); hit("visit.cancel"); visits = visits.filter((x) => x.id !== v.id); await loadVisits(true); o.remove(); toast("Visit cancelled. " + firstName(name) + " has been told."); redraw(); }
+    catch (e) { err.textContent = e.message; err.hidden = false; }
+  });
+}
+/* Book a visit (or move one): who, the day and time, how long, what for, and where. */
+function bookVisit({ r, v, day }) {
+  const tom = new Date(); tom.setDate(tom.getDate() + 1);
+  const at = v ? new Date(v.starts_at) : null, who0 = v ? v.enrolment_id : r ? r.enrolment_id : "";
+  const learnerOf = (id) => rows.find((x) => x.enrolment_id === id);
+  const opts = rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((x) => '<option value="' + esc(x.enrolment_id) + '"' + (x.enrolment_id === who0 ? " selected" : "") + '>' + esc(x.name) + '</option>').join("");
+  const sel = (name, list, cur) => '<select name="' + name + '">' + list.map(([k, t]) => '<option value="' + k + '"' + (String(k) === String(cur) ? " selected" : "") + '>' + t + '</option>').join("") + '</select>';
+  const o = sheet('<h2>' + (v ? "Change the visit" : "Book a visit") + '</h2><p class="muted">It goes on the learner’s Evia calendar, and they and their employer are told.</p>' +
+    '<form id="vF" class="m-form">' +
+      '<label>Learner' + (v ? '<input type="text" value="' + esc(v.learner || "") + '" disabled>' : '<select name="who" required><option value="">Choose a learner</option>' + opts + '</select>') + '</label>' +
+      '<div class="m-form-row"><label>Day<input type="date" name="day" required min="' + dkey(new Date()) + '" value="' + (at ? dkey(at) : day || dkey(tom)) + '"></label>' +
+        '<label>Time<input type="time" name="time" required value="' + (at ? vTime(v) : "10:00") + '"></label></div>' +
+      '<div class="m-form-row"><label>How long' + sel("len", [[30, "30 min"], [60, "1 hour"], [90, "1.5 hours"], [120, "2 hours"], [180, "3 hours"], [240, "4 hours"]], v ? v.minutes : 60) + '</label>' +
+        '<label>What for' + sel("kind", [["visit", "Visit on site"], ["observation", "Observation"], ["review", "Progress review"]], v ? v.kind : "observation") + '</label></div>' +
+      '<label>Where<input type="text" name="place" maxlength="200" placeholder="The site, or the employer’s address" value="' + esc(v ? v.place || "" : (learnerOf(who0) || {}).employer_name || "") + '"></label>' +
+      '<label>Note for the learner <span class="muted small">(optional)</span><textarea name="note" maxlength="1000" rows="2" placeholder="For example: bring your PPE and photos of the wall">' + esc(v ? v.note || "" : "") + '</textarea></label>' +
+      '<p class="err" hidden></p><button class="btn primary wide" type="submit">' + (v ? "Save" : "Book visit") + '</button></form>', "Book a visit");
+  const f = o.querySelector("#vF"), err = o.querySelector(".err");
+  const w = f.querySelector("[name=who]"), place = f.querySelector("[name=place]");
+  if (w) w.onchange = () => { const x = learnerOf(w.value); if (x && !place.value) place.value = x.employer_name || ""; };
+  f.onsubmit = async (e) => {
+    e.preventDefault(); err.hidden = true;
+    const d = new FormData(f), en = v ? v.enrolment_id : d.get("who"), when = new Date(d.get("day") + "T" + d.get("time"));
+    if (!en) { err.textContent = "Choose a learner."; err.hidden = false; return; }
+    if (isNaN(when)) { err.textContent = "Choose a day and time."; err.hidden = false; return; }
+    if (when < new Date(Date.now() - 36e5)) { err.textContent = "That time has already gone."; err.hidden = false; return; }
+    if (!navigator.onLine) { err.textContent = "Booking a visit needs signal, so the learner can be told. Try again when you’re back online."; err.hidden = false; return; }
+    const b = f.querySelector("[type=submit]"); b.disabled = true;
+    try {
+      await rpc("nisia_book_visit", { p_enrolment: en, p_starts_at: when.toISOString(), p_minutes: +d.get("len"), p_kind: d.get("kind"), p_place: d.get("place") || null, p_note: d.get("note") || null, p_id: v ? v.id : null });
+      hit(v ? "visit.move" : "visit.book"); await loadVisits(true); o.remove();
+      const x = learnerOf(en); toast((v ? "Visit changed. " : "Visit booked. ") + "It’s on " + firstName(x ? x.name : "the learner") + "’s Evia calendar.");
+      calMonth = when.getFullYear() * 12 + when.getMonth(); calDay = dkey(when); redraw();
+    } catch (x) { err.textContent = x.message; err.hidden = false; b.disabled = false; }
+  };
+}
+
 /* ---------- One learner: Overview, Portfolio and Reviews ---------- */
 async function learner(r, keep) {
   if (!keep) { learnerBack = view === "home" ? tab : "learners"; lTab = "overview"; }
   view = r;
   const y = keep ? scrollY : 0, back = learnerBack;
-  const head = { title: r.name, sub: esc(courseName(r.course_code)) + (r.employer_name ? " · " + esc(r.employer_name) : ""), back: ({ today: "Today", learners: "Learners", assess: "To assess", reviews: "Reviews" })[back] || "Learners" };
+  const head = { title: r.name, sub: esc(courseName(r.course_code)) + (r.employer_name ? " · " + esc(r.employer_name) : ""), back: ({ today: "What needs doing", learners: "Learners", assess: "To assess", reviews: "Reviews", calendar: "Calendar" })[back] || "Learners" };
   const goBack = () => { tab = back; home(); scrollTo(0, 0); };
   if (!keep) { frame({ ...head, body: '<div class="m-loading">' + EYES + '<p class="muted">Loading ' + esc(firstName(r.name)) + '…</p></div>' }); root.querySelector("#backBtn").onclick = goBack; }
   /* From the phone; downloaded now only if this learner hasn't been yet. */
@@ -396,7 +518,8 @@ async function learner(r, keep) {
         (F.timePct != null ? '<div class="m-track" aria-hidden="true"><i style="width:' + Math.min(100, F.ksb.pct) + '%"></i><span class="m-now" style="left:' + Math.min(100, Math.max(0, F.timePct)) + '%"><em>Now · ' + F.timePct + '% through</em></span></div><div class="m-track-ends"><span>' + esc(ukDate(F.start)) + '</span><span>' + esc(ukDate(F.end)) + '</span></div>' : "") + '</section>' +
       '<div class="m-stats">' + stat(F.otj.total + " h", "off-the-job" + (F.otj.expected != null ? " · " + F.otj.expected + " h expected" : ""), F.otj.onTrack === false) +
         stat(String(F.evidencePeriod), "evidence since " + (F.lastReview ? "the last review" : "the start")) + stat(r.paired ? ago(r.last_activity) : "Not yet", r.paired ? "last in Evia" : "Evia connected", !r.paired) + '</div>' +
-      '<div class="m-acts">' + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
+      (() => { const nv = comingVisits().find((x) => x.enrolment_id === r.enrolment_id); return nv ? '<section class="card m-list"><p class="label m-in">Next visit</p>' + visitRow(nv, true) + '</section>' : ""; })() +
+      '<div class="m-acts">' + act("bookV", IC.cal, "Book a visit", "It shows on their Evia calendar") + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
       employerHtml(D.E, r) +
       packCard(r) +
@@ -433,6 +556,8 @@ async function learner(r, keep) {
   const me = { name: who.name, member_id: r.org.member_id };
   root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { ...me, roles: r.org.roles || [] }, (sent) => { IDX = null; toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); lTab = "reviews"; learner(r, true); });
   root.querySelector("#pair").onclick = () => pairing(r);
+  root.querySelector("#bookV").onclick = () => bookVisit({ r });
+  bindVisits();
   mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet: (h, l) => sheet(h, l), toast, hit });
   const pb = root.querySelector("#packBtn"); if (pb) pb.onclick = () => choosePack(r);
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });

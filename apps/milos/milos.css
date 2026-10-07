@@ -420,3 +420,38 @@ body.milos h1,body.milos h2,body.milos h3,body.milos b,body.milos strong,.m-big,
 @keyframes mBeh{from{width:0}}
 @media (prefers-reduced-motion:reduce){.m-beh-bar i{animation:none}}
 @media (max-width:420px){.m-beh-row{grid-template-columns:minmax(0,1fr) 70px}.m-beh-row em{display:none}}
+
+/* The middle button: what needs doing (Milos's face). */
+.m-nav .m-nav-milos.on{background:#fff;box-shadow:0 10px 26px rgba(44,133,247,.38),0 0 0 8px var(--accent-soft)}
+/* Calendar: the month, with visits and review due dates. */
+.m-cal{padding:14px}
+.m-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.m-cal-head b{font-size:17px}
+.m-cal-nav{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:20px;line-height:1;color:var(--ink);cursor:pointer}
+.m-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.m-cal-dow{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);padding-bottom:2px}
+.m-cal-d{position:relative;aspect-ratio:1;border:0;border-radius:12px;background:#f2f4f7;color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.m-cal-d.has{background:var(--accent);color:#fff}
+.m-cal-d.due{box-shadow:inset 0 0 0 2px #e2a429}
+.m-cal-d.has.due{box-shadow:inset 0 0 0 2px #e2a429,inset 0 0 0 4px #fff}
+.m-cal-d.today{outline:2px solid var(--ink);outline-offset:1px}
+.m-cal-d.picked{transform:scale(1.08)}
+.m-cal-d i{position:absolute;top:3px;right:5px;font-style:normal;font-size:10px;font-weight:800;opacity:.85}
+.m-cal-key{display:flex;gap:16px;margin-top:10px;font-size:13px;color:var(--muted)}
+.m-cal-key span{display:inline-flex;align-items:center;gap:6px}
+.m-cal-key i{width:12px;height:12px;border-radius:4px}
+.m-cal-key .k-visit{background:var(--accent)}.m-cal-key .k-due{box-shadow:inset 0 0 0 2px #e2a429}
+.m-cal-none{margin:4px 4px 0}
+.m-link{border:0;background:none;color:var(--accent-text);font:inherit;font-weight:700;padding:0;cursor:pointer;text-decoration:underline}
+.m-in{margin:10px 16px 2px}
+.m-in-card{margin-top:10px;box-shadow:none;border:1px solid var(--line)}
+/* A visit, and booking one. */
+.m-visit-when{display:flex;gap:10px;align-items:flex-start;margin:10px 0}
+.m-visit-when svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--accent-text);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.m-visit-acts{display:grid;gap:8px;margin-top:14px}
+.m-visit-acts .btn svg,.btn.primary.wide svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-4px;margin-right:6px}
+.btn.danger{color:#c0392b}
+.m-form{display:grid;gap:12px;margin-top:12px}
+.m-form label{display:grid;gap:6px;font-size:13px;font-weight:700;color:var(--muted)}
+.m-form input,.m-form select,.m-form textarea{font:inherit;font-size:16px;font-weight:500;color:var(--ink);padding:11px 12px;border:1px solid #e3e6eb;border-radius:14px;background:#fff;width:100%;box-sizing:border-box}
+.m-form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
