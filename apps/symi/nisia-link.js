@@ -139,7 +139,9 @@ async function pullClasses() {
         return { id: x.id, name: x.name };
       });
       const fromNisia = { name: c.title, room: c.room || "", day: s.day || (r.weekdays || [])[0] || "", start: s.start || "09:00", end: s.end || "16:00", recurrence: r,
-        learners, nisiaClassId: c.id, managed: !!c.managed, nisiaUpdatedAt: c.updated_at, courseCode: c.course_code || "", archived: false };
+        learners, nisiaClassId: c.id, managed: !!c.managed, nisiaUpdatedAt: c.updated_at, archived: false };
+      /* The course the college set; a class with none keeps the one the tutor chose in Symi. */
+      if (c.course_code) fromNisia.courseCode = c.course_code;
       /* Breaks set in Nisia don't count towards the learners' hours. */
       if (Array.isArray(s.breaks)) fromNisia.breaks = s.breaks.filter((x) => x && x.start && x.end).map((x, i) => ({ id: "nb" + i + "-" + x.start, label: "Break " + (i + 1), start: x.start, end: x.end }));
       const reg = st.classes.find((x) => x.id === c.client_ref);

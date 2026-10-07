@@ -1,0 +1,332 @@
+/* Made by tools/build-symi-pics-css.mjs from apps/evia/ui.css: Evia's Teach me picture styles. Don't edit by hand. */
+.st-pic{--ui-ink:#172033;--ui-text:#344054;--ui-muted:#667085;--ui-on-accent:#fff;--yellow:#2ea36b;--yellow-ink:#1e6b45;--soft:#e8f5ee}
+.tp{display:block;width:100%;height:auto;max-height:180px}
+html body .tp text{font-size:11px;font-weight:650;fill:var(--ui-text,#344054);text-anchor:middle}
+html body .tp .tp-on{fill:#fff;font-size:10px;font-weight:800;letter-spacing:.05em}
+html body .tp .tp-big{font-size:34px;font-weight:800;fill:var(--ui-ink)}
+.tp-line{fill:none;stroke:var(--ui-ink,#172033);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tp-thin{fill:none;stroke:rgba(16,24,40,.25);stroke-width:1.4}
+.tp-cross{fill:none;stroke:#e2483d;stroke-width:4;stroke-linecap:round}
+.tp-bag{fill:#8b939e}
+.tp-bottle{fill:var(--yellow)}
+.tp-body{fill:var(--yellow);stroke:var(--ui-ink);stroke-width:2}
+html body .tp .tp-bubble+text{font-size:10.5px}
+.tp-tick{stroke:var(--ui-ink);stroke-width:1.2}
+.tp-dim{fill:none;stroke:var(--yellow-ink);stroke-width:2}
+html body .tp .tp-hand{font-size:10.5px;font-style:italic;fill:var(--ui-ink)}
+.tp-tie{fill:none;stroke:#4b5563;stroke-width:3;stroke-linecap:round}
+.tp-dpc{fill:none;stroke:#111;stroke-width:3}
+.tp-face{fill:none;stroke:var(--yellow-ink);stroke-width:2;stroke-dasharray:3 3}
+.tp-crk{fill:none;stroke:#1d2330;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.tp-bktl{fill:none;stroke:rgba(255,255,255,.16);stroke-width:2;stroke-linecap:round}
+.tp-rim{fill:none;stroke:#0d0f12;stroke-width:1.8}
+.tp-wire{fill:none;stroke:#98a1ab;stroke-width:1.3}
+.tp-edge{stroke:rgba(0,0,0,.22);stroke-width:1}
+.tp-shank{fill:none;stroke:#4b5563;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
+.tp-sheen{fill:none;stroke:rgba(255,255,255,.55);stroke-width:2.2;stroke-linecap:round}
+.tp-pour{fill:none;stroke:#7fb6e6;stroke-width:4;stroke-linecap:round}
+.tp-arrow,.tp-arrowh{fill:none;stroke:var(--yellow-ink);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tp-chev{fill:none;stroke:#98a2b3;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tp-num{fill:var(--yellow)}
+html body .tp .tp-numt{fill:var(--ui-on-accent);font-size:11px;font-weight:800}
+.tp-okm{fill:none;stroke:var(--yellow-ink);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.tp-frame{fill:none;stroke:#3a4250;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.tp-frame2{fill:none;stroke:#8792a2;stroke-width:3;stroke-linecap:round}
+.tp-shaft{fill:none;stroke:#3a4250;stroke-width:3;stroke-linecap:round}
+.tp-wheel3{fill:none;stroke:#2b3240;stroke-width:3.2}
+.tp-vent{fill:none;stroke:#aeb6c0;stroke-width:1.6;stroke-linecap:round}
+.tp-teeth{stroke:#9aa3ad;stroke-width:1.2}
+.tp-lip{fill:none;stroke:#1f2530;stroke-width:1.8}
+.tp-go{fill:#1fae5c;stroke:#0f5f33;stroke-width:1}
+.tp-lead{fill:none;stroke:#2b3240;stroke-width:2.4;stroke-linecap:round}
+.tp-pipe{fill:none;stroke:#8792a2;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.tp-hose{fill:none;stroke:#2f7fd1;stroke-width:3.4;stroke-linecap:round}
+.tp-toe{fill:none;stroke:#5b6370;stroke-width:1.4}
+.tp-strap{fill:none;stroke:#23303f;stroke-width:2.4}
+.tp-strap2{fill:none;stroke:#8a939e;stroke-width:1.2}
+.tp-sb{fill:#1c5ea8}
+.tp-sr{fill:#d52b1e}
+.tp-sy{fill:#f9b800}
+.tp-sg{fill:#0f8a4a}
+.tp-sw{fill:#fff}
+.tp-sk{fill:#111}
+.tp-syl{stroke:#111;stroke-width:6;stroke-linejoin:round}
+.tp-srl{fill:none;stroke:#d52b1e;stroke-width:10}
+.tp-skl{fill:none;stroke:#111;stroke-width:3.4;stroke-linecap:round}
+.tp-swl{fill:none;stroke:#fff;stroke-width:3.4;stroke-linecap:round}
+.tp-sbl{fill:none;stroke:#1c5ea8;stroke-width:2}
+html body .tp .tp-xs{font-size:9.5px;font-weight:600;fill:var(--ui-muted)}
+html body .tp .tp-sm{font-size:10px;font-weight:700;fill:var(--ui-ink)}
+html body .tp .tp-mid{font-size:24px;font-weight:800;fill:var(--ui-ink)}
+html body .tp .tp-ok{fill:var(--yellow-ink);font-weight:800}
+.tp-pop{animation:tpPop .45s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(var(--d) * 140ms + 150ms);transform-box:fill-box;transform-origin:50% 100%}
+.tp-slide{animation:tpSlide 2.4s ease-in-out infinite}
+.tp-fall circle,.tp-drop circle{animation:tpFall 1.5s ease-in infinite}
+.tp-fall circle:nth-child(2),.tp-drop circle:nth-child(2){animation-delay:.5s}
+.tp-fall circle:nth-child(3){animation-delay:1s}
+.tp-dig{animation:tpDig 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:0% 50%}
+@media (prefers-reduced-motion:reduce){.tp-pop,.tp-slide,.tp-fall circle,.tp-drop circle,.tp-dig{animation:none!important}}
+.tp-rain path{stroke:#7fb6e6;stroke-width:2;stroke-linecap:round}
+.tp-fold{fill:none;stroke:rgba(255,255,255,.28);stroke-width:2;stroke-linecap:round}
+.tp-face2{fill:#fff;stroke:var(--ui-ink);stroke-width:2.2}
+.tp-arc{fill:var(--soft);stroke:var(--yellow);stroke-width:2}
+.tp-tickc{stroke:var(--ui-ink);stroke-width:2;stroke-linecap:round}
+.tp-hand2{fill:none;stroke:var(--ui-ink);stroke-width:3;stroke-linecap:round}
+.tp-hub2{fill:var(--ui-ink)}
+.tm-art>.tp{width:100%;height:100%;max-height:none}
+.tm-art.explore .tp-lead,.tm-art.explore .tp-leaddot,.tm-art.explore .tp-cl{display:none}
+.tm-art.hot .tp-lead,.tm-art.hot .tp-leaddot,.tm-art.label .tp-lead,.tm-art.label .tp-leaddot,.tm-art.label .tp-cl{display:none}
+.tp-spall{fill:#e2a585;stroke:#9c4f35;stroke-width:.8}
+.tp-salt ellipse{fill:rgba(255,255,255,.78)}
+.tp-erode{fill:none;stroke:#5e4a3e;stroke-width:2.6}
+.tp-string{fill:none;stroke:#e2483d;stroke-width:1.4}
+.tp-string2{fill:none;stroke:#e2483d;stroke-width:1.6;stroke-dasharray:4 3}
+.tp-dripg{fill:#fff;stroke:#1f2530;stroke-width:1}
+.tp-drop2 circle{fill:#7fb6e6}
+.tp-tri{fill:color-mix(in srgb,var(--yellow) 14%,transparent);stroke:var(--yellow-ink);stroke-width:2}
+.tp-ground{fill:none;stroke:#6b4f2a;stroke-width:3}
+.tp-mark{fill:none;stroke:var(--yellow-ink);stroke-width:2.2;stroke-dasharray:4 2}
+.tp-exw{fill:#d52b1e;stroke:#fff;stroke-width:1.5}
+.tp-exf{fill:#f3e3b3}
+.tp-exc{fill:#111}
+.tp-exp{fill:#1c5ea8}
+.tp-horn{fill:none;stroke:#111;stroke-width:3;stroke-linejoin:round}
+.tp-hosex{fill:none;stroke:#111;stroke-width:2.4}
+.tp-weep{fill:#111}
+.tp-filler{fill:#f3d36b}
+.tp-seal{fill:#2b3240}
+.tp-rake{fill:none;stroke:var(--ui-ink);stroke-width:1.2}
+.tp-pitch{fill:none;stroke:var(--yellow-ink);stroke-width:1.4;stroke-dasharray:5 3}
+.tp-brace{fill:none;stroke:#b07c43;stroke-width:9;stroke-linecap:square}
+.tp-spindle{stroke:#cf9b5f;stroke-width:5}
+.tp-rail{stroke:#b07c43;stroke-width:9;stroke-linecap:round}
+.tp-sphere{fill:color-mix(in srgb,var(--yellow) 35%,transparent);stroke:var(--yellow-ink);stroke-width:1.5}
+.tp-blade2{stroke:#6b7280;stroke-width:2}
+.tp-zone1{fill:var(--yellow)}
+.tp-zone2{fill:color-mix(in srgb,var(--yellow) 45%,transparent)}
+.tp-holec{fill:#fff;stroke:#1f2530}
+.tp-cent{fill:none;stroke:#1f2530;stroke-width:.8;stroke-dasharray:4 3}
+.tp-valve{fill:#d52b1e}
+.tp-memb{fill:#2f6db5}
+.tp-memb2{fill:#2b3038}
+.tp-airflow{fill:none;stroke:#7fb6e6;stroke-width:2;stroke-dasharray:4 3}
+.tp-scribe{fill:none;stroke:#7a5230;stroke-width:1.5}
+.tp-vcl{fill:#e2483d}
+.tp-chamf{fill:rgba(255,255,255,.55);stroke:rgba(0,0,0,.25);stroke-width:.8}
+.tp-shadow2{fill:rgba(0,0,0,.28)}
+.tp-pipe3{fill:none;stroke:#c8642c;stroke-width:9;stroke-linecap:butt}
+.tp-bm{fill:var(--ui-ink);stroke:var(--ui-ink);stroke-width:1.6}
+.tp-teeth2{fill:none;stroke:#4b5563;stroke-width:1.4;stroke-linejoin:round}
+.tp-rod{fill:none;stroke:#c8935a;stroke-width:4;stroke-linecap:round}
+.tp-gridl{stroke:rgba(16,24,40,.12);stroke-width:1}
+.tp-floor{fill:#efe6d4}
+.tp-wallo{fill:none;stroke:var(--ui-ink);stroke-width:4}
+.tp-barx{fill:none;stroke:var(--yellow-ink);stroke-width:1.5}
+.tp-pie1{fill:#c8935a}
+.tp-pie2{fill:#b85a3c}
+.tp-pie3{fill:#dfe3e8;stroke:#9aa1ab}
+.tp-pie4{fill:#8b939e}
+.tp-rail2{fill:none;stroke:#cf9b5f;stroke-width:6}
+.tp-sand,.tp-dry2,.tp-bkt,.tp-steel,.tp-wood,.tp-tim,.tp-tim2,.tp-panel,.tp-door2,.tp-door3,.tp-lint,.tp-deck,.tp-peg,.tp-board,.tp-ply,.tp-brick,.tp-block,.tp-conc,.tp-wallb,.tp-insul,.tp-glass,.tp-hole2,.tp-can,.tp-tape,.tp-glove,.tp-goggle,.tp-mask,.tp-drum2,.tp-barrow,.tp-pen,.tp-guard,.tp-plug,.tp-blade,.tp-motor,.tp-mach,.tp-table,.tp-metal,.tp-metal2,.tp-hang,.tp-hinge,.tp-silo2,.tp-lintel,.tp-leadf,.tp-roof,.tp-scoop,.tp-navy,.tp-hivis,.tp-hat,.tp-head,.tp-trou,.tp-nitrile,.tp-lens,.tp-maskw,.tp-exbody,.tp-page,.tp-paper,.tp-bubble,.tp-tubk,.tp-lid,.tp-tarp,.tp-gravel,.tp-trench,.tp-wallp2,.tp-mould,.tp-box,.tp-access,.tp-coping,.tp-sill,.tp-pot,.tp-pipe2,.tp-vial,.tp-grip2,.tp-spall,.tp-aircrete,.tp-frame3,.tp-sandwet,.tp-dry,.tp-wet,.tp-mix{stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-bkt,.tp-steel,.tp-can,.tp-tape,.tp-glove,.tp-goggle,.tp-mask,.tp-drum2,.tp-barrow,.tp-pen,.tp-guard,.tp-plug,.tp-blade,.tp-motor,.tp-mach,.tp-table,.tp-metal,.tp-metal2,.tp-hang,.tp-hinge,.tp-silo2,.tp-lintel,.tp-scoop,.tp-hat,.tp-exbody,.tp-page,.tp-bubble,.tp-tubk,.tp-lid,.tp-coping,.tp-vial,.tp-grip2,.tp-wood,.tp-tim,.tp-tim2,.tp-panel,.tp-door2,.tp-door3,.tp-lint,.tp-deck,.tp-peg,.tp-board,.tp-brick,.tp-block,.tp-conc,.tp-wallb,.tp-glass,.tp-navy,.tp-hivis,.tp-trou,.tp-nitrile,.tp-lens{stroke-width:1.25}
+.tp-sand{fill:url(#tpg-sand) #e6c07a;stroke:#b3873f;stroke-width:1}
+.tp-grain{fill:#b88d45}
+.tp-cement{fill:#aeb4bc}
+.tp-lime{fill:#f3f0e8}
+.tp-water{fill:#86bde9}
+.tp-mix{fill:#b9ac93;stroke:#8c806a;stroke-width:1}
+.tp-wet{fill:url(#tpg-wet) #8e887c;stroke:#5f5a50;stroke-width:1}
+.tp-dry{fill:url(#tpg-dry) #d0c29d;stroke:#9b8d6b;stroke-width:1}
+.tp-dry2{fill:url(#tpg-dry) #cbbd98;stroke:#8f815f;stroke-width:1}
+.tp-sandwet{fill:#c29858;stroke:#8f6a33;stroke-width:1}
+.tp-bin{fill:#15181d}
+.tp-bkt{fill:url(#tpg-bkt) #30353d;stroke:#101216}
+.tp-tubk{fill:url(#tpg-tubk) #2b3038;stroke:#0f1114}
+.tp-lid{fill:#454c57;stroke:#0f1114}
+.tp-board{fill:url(#tpg-wood2) #b98a55;stroke:#6e4726}
+.tp-ply{fill:#ead3aa;stroke:#a57e4a;stroke-width:1}
+.tp-ply2{fill:#c49d6c}
+.tp-grey2{fill:#8b939e}
+.tp-can{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-canh{fill:none;stroke:#3b3630;stroke-width:2.6;stroke-linejoin:round}
+.tp-paper{fill:#fff;stroke:#a7afbb;stroke-width:1}
+.tp-drum2{fill:url(#tpg-yel) var(--yellow);stroke:#262b33}
+.tp-band{fill:rgba(0,0,0,.14)}
+.tp-motor{fill:#5b6572;stroke:#262b33}
+.tp-ring{fill:#3a4250}
+.tp-hole{fill:#1b1f25}
+.tp-silo2{fill:url(#tpg-mach) #e2e6eb;stroke:#3b3630}
+.tp-barrow{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-tyre{fill:#262a30}
+.tp-tarp{fill:url(#tpg-tarp) #2f6db5;stroke:#1d4a80;stroke-width:1.25}
+.tp-steel{fill:url(#tpg-steel) #b9c0c8;stroke:#454d57}
+.tp-honed{fill:var(--yellow)}
+.tp-wood{fill:url(#tpg-handle) #cf9356;stroke:#6e4726}
+.tp-grip{fill:none;stroke:#6e4726;stroke-width:3;stroke-linecap:round}
+.tp-grip2{fill:#e2483d;stroke:#8f231b}
+.tp-vial{fill:#c9f0a8;stroke:#3b3630;stroke-width:1}
+.tp-bub{fill:#fff}
+.tp-tape{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-blade{fill:#f7e48a;stroke:#3b3630}
+.tp-pen{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-glove{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-goggle{fill:url(#tpg-glass) #bfe0f5;stroke:#3b3630}
+.tp-mask{fill:url(#tpg-white) #f4f5f6;stroke:#3b3630}
+.tp-scoop{fill:url(#tpg-steel) #c5ccd4;stroke:#454d57}
+.tp-exbody{fill:url(#tpg-red) #d52b1e;stroke:#6e150e}
+.tp-exhead{fill:#2b3240}
+.tp-plug{fill:#f5c518;stroke:#3b3630}
+.tp-cable{fill:none;stroke:#f5c518;stroke-width:3.2;stroke-linecap:round}
+.tp-mach{fill:url(#tpg-mach) #dfe3e8;stroke:#3b3630}
+.tp-table{fill:url(#tpg-steeld) #8a929c;stroke:#3b3630}
+.tp-guard{fill:url(#tpg-yel) var(--yellow);stroke:#3b3630}
+.tp-hinge{fill:url(#tpg-steel) #a3abb5;stroke:#3a4250}
+.tp-knob{fill:#5b6572}
+.tp-nail{fill:#2b3240}
+.tp-metal{fill:url(#tpg-steel) #c5ccd4;stroke:#4b5563}
+.tp-metal2{fill:#e3e8ee;stroke:#4b5563}
+.tp-hang{fill:url(#tpg-steel) #b8c0c9;stroke:#3a4250}
+.tp-navy{fill:url(#tpg-navy) #344158;stroke:#1c2333}
+.tp-hivis{fill:url(#tpg-hivis) #f47c20;stroke:#a84c0b}
+.tp-refl{fill:#e6eaef}
+.tp-hat{fill:url(#tpg-hatb) #2f6fcf;stroke:#173f73}
+.tp-head{fill:#efc9a4;stroke:#8a5a3c;stroke-width:1}
+.tp-trou{fill:url(#tpg-trou) #3b4252;stroke:#1c2029}
+.tp-boot{fill:#22262c}
+.tp-nitrile{fill:#4f79b3;stroke:#2d4a72}
+.tp-lens{fill:url(#tpg-glass) #cfe8f7;stroke:#23303f}
+.tp-maskw{fill:#fbfbfb;stroke:#8a939e;stroke-width:1.1}
+.tp-bubble{fill:#fff;stroke:#3b3630}
+.tp-mortar{fill:#e2d9c7}
+.tp-mortar2{fill:#9d9786}
+.tp-mortar3{fill:#efe9dd}
+.tp-b1{fill:#c0553a}
+.tp-b2{fill:#cd6645}
+.tp-b3{fill:#b04a33}
+.tp-b1.tp-hd,.tp-b2.tp-hd,.tp-b3.tp-hd{fill:#963f28}
+.tp-b1.tp-cl,.tp-b2.tp-cl,.tp-b3.tp-cl{fill:#e0a283}
+.tp-bw .tp-b1,.tp-bw .tp-b2,.tp-bw .tp-b3,.tp-bw .tp-rec{stroke:#7c311f}
+.tp-bw .tp-bf{stroke:#a07c45}
+.tp-brick{fill:#c8603f;stroke:#7c311f}
+.tp-sill{fill:#b35a3c;stroke:#6e2e1c;stroke-width:1.25}
+.tp-bf{fill:#dcbc85}
+.tp-rec{fill:#7a3524}
+.tp-block{fill:url(#tpg-block) #bcc2ca;stroke:#59616c}
+.tp-wallb{fill:url(#tpg-block) #b9bec6;stroke:#6b7280}
+.tp-conc{fill:url(#tpg-conc) #c6cacf;stroke:#7d848d}
+.tp-aircrete{fill:#eeece6;stroke:#8a8f97;stroke-width:.8}
+.tp-coping{fill:url(#tpg-conc) #c8c3b8;stroke:#3b3630}
+.tp-lintel{fill:url(#tpg-steeld) #7c8591;stroke:#2f353e;stroke-width:1.1}
+.tp-insul{fill:url(#tpg-insul) #f3d36b;stroke:#a88520;stroke-width:1}
+.tp-hole2{fill:#dfeaf3;stroke:#5b636e;stroke-width:1}
+.tp-pot{fill:#b5653d;stroke:#6e3822;stroke-width:1.2}
+.tp-leadf{fill:#9aa3ad;stroke:#4b5563;stroke-width:1.1}
+.tp-roof{fill:url(#tpg-roof) #7b8490;stroke:#2b3240;stroke-width:1.2}
+.tp-tim{fill:url(#tpg-wood) #e6b373;stroke:#7a5230}
+.tp-tim2{fill:url(#tpg-wood2) #d49d5c;stroke:#7a5230}
+.tp-panel{fill:url(#tpg-wood2) #d9a46a;stroke:#7a5230}
+.tp-door3{fill:url(#tpg-wood) #e3b57c;stroke:#7a5230}
+.tp-door2{fill:#f3e6cd;stroke:#7a5230}
+.tp-lint{fill:url(#tpg-wood2) #b07c43;stroke:#6b4524}
+.tp-deck{fill:#caa36b;stroke:#7a5230}
+.tp-peg{fill:url(#tpg-handle) #c8935a;stroke:#6e4726}
+.tp-slot{fill:#5e3f22;stroke:#3f2a16;stroke-width:1;vector-effect:non-scaling-stroke}
+.tp-glass{fill:url(#tpg-glass) #d6ecf7;stroke:#7a5230}
+.tp-wallp{fill:#f4efe5}
+.tp-wallp2{fill:#ebe5d8;stroke:#b0a795;stroke-width:1}
+.tp-mould{fill:#fff;stroke:#b3aa96;stroke-width:1}
+.tp-box{fill:#f8f6f0;stroke:#a39a87;stroke-width:1.2}
+.tp-access{fill:#fff;stroke:#4b5563;stroke-width:1.2}
+.tp-frame3{fill:#f2f2ef;stroke:#a39a87;stroke-width:1}
+.tp-soil{fill:#a98460}
+.tp-backfill{fill:#c2a47c}
+.tp-gravel{fill:#d6cdb8;stroke:#9b927c;stroke-width:1}
+.tp-trench{fill:#cdb18a;stroke:#8a6d45;stroke-width:1}
+.tp-pipe2{fill:url(#tpg-copper) #c8793c;stroke:#7e4420;stroke-width:1}
+.tp-page{fill:#fff;stroke:#3b3630}
+.tp-shadow{fill:rgba(59,52,40,.13)}
+.tp-bar{fill:url(#tpg-yel) var(--yellow);stroke:var(--yellow-ink);stroke-width:1}
+.tp-pie1,.tp-pie2,.tp-pie3,.tp-pie4{stroke:#fff;stroke-width:1.5;stroke-linejoin:round}
+.tp-shine{fill:none;stroke:rgba(255,255,255,.62);stroke-width:1.5;stroke-linecap:round}
+.tp-shade{fill:rgba(40,30,18,.12)}
+.tp-lit{fill:rgba(255,255,255,.4)}
+.tp-steeld,.tp-cap,.tp-vialw,.tp-cuff,.tp-valve2,.tp-sack,.tp-sackt,.tp-capk,.tp-hubw,.tp-rubber,.tp-hubm,.tp-gauge,.tp-lever{stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-steeld{fill:url(#tpg-steeld) #7c8591;stroke:#2f353e;stroke-width:1.25}
+.tp-cap{fill:#3a3f47;stroke:#1f2328;stroke-width:1.25}
+.tp-vialw{fill:#2b3038;stroke:#1a1d22;stroke-width:1}
+.tp-vialx{fill:none;stroke:#2b3038;stroke-width:.8}
+.tp-edgel{fill:none;stroke:rgba(30,26,20,.35);stroke-width:.9}
+.tp-olk{fill:none;stroke:#3b3630;stroke-linecap:round;stroke-linejoin:round}
+.tp-stl{fill:none;stroke:#b9c0c9;stroke-linecap:round;stroke-linejoin:round}
+.tp-seam{fill:none;stroke:rgba(30,26,20,.28);stroke-width:1;stroke-linecap:round}
+.tp-cuff{fill:#8d96a3;stroke:#3b3630;stroke-width:1.25}
+.tp-rib{fill:none;stroke:rgba(20,24,30,.28);stroke-width:1}
+.tp-arm{fill:none;stroke:#2f3540;stroke-width:3;stroke-linecap:round}
+.tp-brow{fill:none;stroke:#2f3540;stroke-width:3.6;stroke-linecap:round}
+.tp-glint{fill:none;stroke:rgba(255,255,255,.95);stroke-width:2;stroke-linecap:round}
+.tp-strapw{fill:none;stroke:#7f8a97;stroke-width:1.8;stroke-linecap:round}
+.tp-clip{fill:none;stroke:#9aa3ad;stroke-width:2.6;stroke-linecap:round}
+.tp-valve2{fill:url(#tpg-steeld) #6d7682;stroke:#2f353e;stroke-width:1.25}
+.tp-slots{fill:none;stroke:#1f2328;stroke-width:1.2;stroke-linecap:round}
+.tp-sack{fill:url(#tpg-sack) #e8e0cf;stroke:#7d7461;stroke-width:1.25}
+.tp-sackt{fill:#cfc4ad;stroke:#7d7461;stroke-width:1.25}
+.tp-stitch{fill:none;stroke:#8a806b;stroke-width:.8}
+.tp-capk{fill:#2f343c;stroke:#15181c;stroke-width:1.25}
+.tp-leg{fill:none;stroke:#3b3630;stroke-width:2.4;stroke-linecap:round}
+.tp-gripk{fill:#2b3038}
+.tp-hubw{fill:#c3cad2;stroke:#3b3630;stroke-width:1}
+.tp-rimb{fill:none;stroke:#3b3630;stroke-width:2.6;stroke-linecap:round}
+.tp-exbase{fill:#2b3240}
+.tp-lever{fill:#2b3240;stroke:#15181c;stroke-width:.8}
+.tp-gauge{fill:#fff;stroke:#2b3240;stroke-width:1.2}
+.tp-rubber{fill:#3a3f47;stroke:#1f2328;stroke-width:1.25}
+.tp-hubm{fill:url(#tpg-steel) #c9ced6;stroke:#3b3630;stroke-width:1.25}
+.tp-screw{fill:#6d7682}
+.tp-wrap{fill:none;stroke:#e2483d;stroke-width:1.5;stroke-linecap:round}
+.tp-tool,.tp-brass,.tp-slotd,.tp-guard2,.tp-hhead{stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:1.25}
+.tp-tool{fill:url(#tpg-tool) #f2c12e;stroke:#3b3630}
+.tp-brass{fill:url(#tpg-brass) #d9b458;stroke:#6e5418}
+.tp-slotd{fill:#3a3f47;stroke:#1f2328;stroke-width:1}
+.tp-guard2{fill:url(#tpg-rubr) #d64533;stroke:#5c1a12}
+.tp-hhead{fill:url(#tpg-hhead) #3d434b;stroke:#15181c}
+.tp-shine,.tp-edgel,.tp-facet,.tp-ribw,.tp-vialx,.tp-lead{vector-effect:non-scaling-stroke}
+.tp-facet{fill:none;stroke:rgba(20,24,30,.16);stroke-width:1}
+.tp-ribw{fill:none;stroke:rgba(255,255,255,.22);stroke-width:1.2}
+.tp-pencil{fill:none;stroke:#26303c;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:3 1.6}
+.tp-bu,.tp-pir,.tp-clip2{stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-bu{fill:#c95f3f;stroke:#7c311f;stroke-width:.9}
+.tp-pir{fill:#f4e3a3;stroke:#b8942b;stroke-width:1}
+.tp-foil{fill:none;stroke:#aeb7c1;stroke-width:1.8;vector-effect:non-scaling-stroke}
+.tp-tie2{fill:none;stroke:#4b5563;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-clip2{fill:#eef1f4;stroke:#4b5563;stroke-width:1}
+.tp-dpc2{fill:#1f2328}
+.tp-bplan{fill:#d67a55;stroke:#7c311f;stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-peg2{fill:url(#tpg-wood2) #c8935a;stroke:#6e4726;stroke-width:1.1;vector-effect:non-scaling-stroke}
+.tp-board2{fill:url(#tpg-wood) #e3b57c;stroke:#7a5230;stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-batten{fill:#ecd2a8;fill-opacity:.8;stroke:#9c7a4d;stroke-width:1;stroke-dasharray:3 2;vector-effect:non-scaling-stroke}
+.tp-endg{fill:#d39a5e;stroke:#7a5230;stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-slotin{fill:#8a5a2e;stroke:#5e3f22;stroke-width:1;vector-effect:non-scaling-stroke}
+.tp-string4{fill:url(#tpg-wood2) #d7a768;fill-opacity:.55;stroke:#9c7a4d;stroke-width:1;vector-effect:non-scaling-stroke}
+.tp-machd,.tp-machl,.tp-knobk,.tp-stop{vector-effect:non-scaling-stroke}
+.tp-machd{fill:#5b6572;stroke:#262b33;stroke-width:1.25}
+.tp-machl{fill:none;stroke:rgba(40,46,56,.3);stroke-width:1.2}
+.tp-knobk{fill:#2b3038}
+.tp-blade3{stroke:#7b8591;stroke-width:1.6}
+.tp-stop{fill:#d52b1e;stroke:#7d1a12;stroke-width:1}
+.tp-lead{fill:none;stroke:#5b6472;stroke-width:.9}
+.tp-leaddot{fill:#3b3630}
+html body .tp .tp-view{font-size:8.5px;font-weight:800;letter-spacing:.09em;fill:#8a93a1;text-anchor:start;text-transform:uppercase}
+.tp-x-conc,.tp-x-block,.tp-x-soil,.tp-x-grainh,.tp-x-grainv{stroke:none;pointer-events:none}
+.tp-x-conc{fill:url(#tpp-conc)}
+.tp-x-block{fill:url(#tpp-block)}
+.tp-x-soil{fill:url(#tpp-soil)}
+.tp-x-grainh{fill:url(#tpp-grainh)}
+.tp-x-grainv{fill:url(#tpp-grainv)}
+.tp-olw{fill:none;stroke:#6e4726}
+.tp-olw.rc{stroke-linecap:round}
+.tp-olw.sq{stroke-linecap:square}
+.tp-olw.pipe{stroke:#7a3412}
+.tp-eraser,.tp-woodtip{stroke:#3b3630;stroke-width:1.25;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.tp-eraser{fill:#ef9a9a}
+.tp-woodtip{fill:#f0d3a2}
+.tp-lead2{fill:#3b3630}
