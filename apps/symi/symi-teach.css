@@ -102,3 +102,16 @@ body.st-open{overflow:hidden}
   #stPrint .st-table tr{break-inside:avoid}
   .st-print-mark{font-size:11px;color:#555;margin-bottom:6px}
 }
+/* Today's class: four steps in order */
+.st-flow-top{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e3e8e4;border-radius:18px;padding:16px 18px;margin-bottom:12px}
+.st-flow-top small{display:block;font-size:12.5px;font-weight:700;color:#5b7a69}.st-flow-top b{font-size:19px}
+.st-flow-dots{display:flex;gap:6px}.st-flow-dots i{width:26px;height:8px;border-radius:99px;background:#e3e8e4}.st-flow-dots i.ok{background:#2a9d63}
+.st-flow{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:10px}
+.st-step{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:center;background:#fff;border:1px solid #e3e8e4;border-radius:18px;padding:16px 18px}
+.st-step.st-next{border-color:#2a9d63;box-shadow:0 0 0 3px #d6efe1}
+.st-step-n{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#eef3f0;font-weight:800;font-size:17px;color:#22382c}
+.st-next .st-step-n{background:#2a9d63;color:#fff}
+.st-done .st-step-n{background:#e7f6ee;color:#1e6b45}
+.st-step-text b{display:block;font-size:17px}.st-step-text small{display:block;font-size:13.5px;color:#5b6a62;line-height:1.4;margin-top:2px}
+.st-step .st-btn{min-height:46px;white-space:nowrap}
+@media (max-width:720px){.st-step{grid-template-columns:40px minmax(0,1fr)}.st-step .st-btn{grid-column:1/-1;width:100%}}

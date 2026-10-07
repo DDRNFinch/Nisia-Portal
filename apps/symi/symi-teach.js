@@ -293,6 +293,7 @@ async function open(regId, what, key) {
   if (p.needsCourse) return chooseCourse(regId, what);
   if (!p.sessions.length) { frame(head(p.reg.name, p.course.name) + '<div class="st-body"><p class="st-err">This class has no days set yet. Set its days and dates, then come back.</p></div>'); return; }
   const k = key || App().today(), s = sessionAt(p, k) || nextSession(p, k) || p.sessions[p.sessions.length - 1];
+  if (what === "today") return todayFlow(p, s);
   if (what === "slides") return slides(p, s, () => close());
   if (what === "quiz") return quiz(p, s, () => close());
   if (what === "lesson") return lesson(p, s, () => schemeOfWork(p));
@@ -358,11 +359,13 @@ function lesson(p, s, back) {
   const ta = el.querySelector(".st-notes");
   if (ta) ta.oninput = () => { const all = read(NOTES, {}); if (ta.value.trim()) all[p.reg.id + ":" + s.date] = ta.value; else delete all[p.reg.id + ":" + s.date]; write(NOTES, all); };
 }
-function slides(p, s, back) {
+function slides(p, s, back, hooks) {
+  hooks = hooks || {};
   const list = slidesFor(p, s);
   let i = 0;
   const draw = () => {
     const x = list[i] || { title: "No slides", text: "" }, svg = x.pic ? pic(x.pic) : "";
+    if (i === list.length - 1 && hooks.onEnd) hooks.onEnd();
     const el = frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(p.reg.name) + ' · ' + esc(titleOf(s)) + '</span><span class="st-count">' + (i + 1) + ' / ' + list.length + '</span><button type="button" class="st-iconbtn" data-st-back aria-label="Close slides">×</button></header>' +
       '<article class="st-slide' + (x.cover ? " st-cover" : "") + (svg ? " st-has-pic" : "") + '"><div class="st-slide-text">' + (x.unit ? '<small>' + esc(x.unit) + '</small>' : "") + '<h1>' + esc(x.title) + '</h1>' + (x.text ? '<p>' + md(x.text) + '</p>' : "") +
         (x.points && x.points.length ? '<ul>' + x.points.map((pt) => '<li>' + (pt[0] ? '<b>' + md(pt[0]) + '</b> ' : "") + md(pt[1] || "") + '</li>').join("") + '</ul>' : "") + '</div>' +
@@ -373,19 +376,21 @@ function slides(p, s, back) {
     el.querySelector("[data-st-back]").onclick = back;
     const pv = el.querySelector("[data-prev]"), nx = el.querySelector("[data-next]"), dn = el.querySelector("[data-done]");
     if (pv) pv.onclick = view.prev; if (nx) nx.onclick = view.next;
-    if (dn) dn.onclick = () => quizFor(p, s).length ? quiz(p, s, back) : back();
+    if (dn) dn.onclick = () => quizFor(p, s).length ? quiz(p, s, back, hooks) : back();
     const sl = el.querySelector(".st-slide"); let x0 = null;
     sl.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
     sl.addEventListener("touchend", (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) (dx < 0 ? view.next : view.prev)(); });
   };
   draw();
 }
-function quiz(p, s, back) {
+function quiz(p, s, back, hooks) {
+  hooks = hooks || {};
   const list = quizFor(p, s);
   let i = 0, shown = false, got = 0;
   const L = "ABCDEFGH";
   const draw = () => {
     if (i >= list.length) {
+      if (hooks.onDone) hooks.onDone(got, list.length);
       const el = frame('<div class="st-deck"><header class="st-deckbar"><span>' + esc(titleOf(s)) + '</span><span></span><button type="button" class="st-iconbtn" data-st-back aria-label="Close">×</button></header>' +
         '<article class="st-slide st-cover"><div class="st-slide-text"><small>Quiz done</small><h1>' + got + ' of ' + list.length + ' right as a class</h1><p>Go over anything that tripped people up before the practical.</p></div></article>' +
         '<footer class="st-deckfoot"><button type="button" class="st-btn" data-again>Start again</button><span></span><button type="button" class="st-btn st-primary" data-done>Finish</button></footer></div>', "st-dark");
@@ -408,6 +413,49 @@ function quiz(p, s, back) {
     if (n) n.onclick = () => { i++; shown = false; draw(); };
   };
   draw();
+}
+
+/* ---------- Today's class: register, teach, quiz, finish ----------
+   One place to run the day, in order, each step ticked as it's done. Finishing the register confirms everyone's
+   hours, and the session (what was taught, and its KSBs) goes with them to each learner's Evia and to their assessor
+   in Milos (nisia-link.js sends it). */
+const FLOW = "symi.teach.flow.v1";
+const flowGet = (regId, k) => (read(FLOW, {})[regId + ":" + k]) || {};
+const flowSet = (regId, k, v) => { const all = read(FLOW, {}); all[regId + ":" + k] = Object.assign(all[regId + ":" + k] || {}, v); write(FLOW, all); };
+function todayFlow(p, s) {
+  const k = s.date, f = flowGet(p.reg.id, k), done = App().done(p.reg.id, k), check = s.parts.some((x) => x.check), codes = codesOf(s);
+  const steps = [
+    { id: "reg", title: "Take the register", sub: "Learners check in on Evia with the code on the screen. You mark anyone late or off.", btn: "Show the check-in code", ok: !!(f.reg || done) },
+    { id: "teach", title: "Teach", sub: titleOf(s) + " · " + slidesFor(p, s).length + " slides with pictures", btn: f.taught ? "Teach again" : "Start teaching", ok: !!f.taught },
+    { id: "quiz", title: check ? "Unit check" : "Class quiz", sub: quizFor(p, s).length + " questions" + (f.quiz ? " · " + f.quiz + " right as a class" : ""), btn: f.quiz ? "Do it again" : "Start the quiz", ok: !!f.quiz },
+    { id: "finish", title: "Finish the class", sub: done ? "Done. Everyone’s hours, and what you taught" + (codes.length ? " (" + codes.length + " KSBs)" : "") + ", are in their Evia and with their assessor in Milos."
+      : "Confirms everyone’s hours. What you taught" + (codes.length ? " (" + codes.slice(0, 8).join(", ") + (codes.length > 8 ? "…" : "") + ")" : "") + " goes to each learner’s Evia and their assessor in Milos.", btn: done ? "" : "Finish the register", ok: done },
+  ];
+  const next = steps.findIndex((x) => !x.ok);
+  const el = frame(head("Today’s class", p.reg.name + " · " + dayText(k, true)) +
+    '<div class="st-body"><section class="st-flow-top"><div><small>Session ' + s.n + ' of ' + p.sessions.length + '</small><b>' + esc(titleOf(s)) + '</b></div>' +
+      '<div class="st-flow-dots" aria-label="' + steps.filter((x) => x.ok).length + ' of 4 done">' + steps.map((x) => '<i class="' + (x.ok ? "ok" : "") + '"></i>').join("") + '</div></section>' +
+    '<ol class="st-flow">' + steps.map((x, i) => '<li class="st-step' + (x.ok ? " st-done" : "") + (i === next ? " st-next" : "") + '"><span class="st-step-n">' + (x.ok ? "✓" : i + 1) + '</span>' +
+      '<span class="st-step-text"><b>' + esc(x.title) + '</b><small>' + esc(x.sub) + '</small></span>' +
+      (x.btn ? '<button type="button" class="st-btn' + (i === next ? " st-primary" : "") + '" data-step="' + x.id + '">' + esc(x.btn) + '</button>' : "") + '</li>').join("") + '</ol>' +
+    '<div class="st-actions"><button type="button" class="st-btn" data-st-plan>Lesson plan</button></div></div>');
+  wire(el, null);
+  el.querySelector("[data-st-plan]").onclick = () => lesson(p, s, () => todayFlow(p, s));
+  const go = {
+    reg: () => {
+      flowSet(p.reg.id, k, { reg: true }); close();
+      const b = document.querySelector("[data-sn-show]") || document.querySelector("[data-sn-connect]");
+      if (b) b.click(); else App().toast("The register is below: tap each learner as they arrive.");
+    },
+    teach: () => slides(p, s, () => todayFlow(p, s), { onEnd: () => flowSet(p.reg.id, k, { taught: true }), onDone: (got, n) => flowSet(p.reg.id, k, { quiz: got + " of " + n }) }),
+    quiz: () => quiz(p, s, () => todayFlow(p, s), { onDone: (got, n) => flowSet(p.reg.id, k, { quiz: got + " of " + n }) }),
+    finish: () => {
+      close();
+      const b = document.querySelector("[data-finish-register]");
+      if (b) b.click(); else App().toast("You can finish the register once the class has started.");
+    },
+  };
+  el.querySelectorAll("[data-step]").forEach((b) => b.onclick = go[b.dataset.step]);
 }
 
 /* ---------- Printing: the scheme of work and lesson plans as documents ---------- */
@@ -458,7 +506,9 @@ async function paint() {
     else {
       const p = await planFor(regId), today = App().today(), s = sessionAt(p, today), nx = s || nextSession(p, today);
       html = nx ? '<span class="st-strip-text"><small>' + (s ? "Today" : esc(dayText(nx.date))) + ' · Session ' + nx.n + ' of ' + p.sessions.length + '</small><b>' + esc(titleOf(nx)) + '</b></span>' +
-          '<span class="st-strip-btns"><button type="button" class="blue-button" data-st="slides">Teach</button><button type="button" class="soft-button" data-st="quiz">Quiz</button><button type="button" class="soft-button" data-st="lesson">Lesson plan</button><button type="button" class="soft-button" data-st="sow">Scheme of work</button></span>'
+          '<span class="st-strip-btns">' + (s ? '<button type="button" class="blue-button" data-st="today">Start today’s class</button><button type="button" class="soft-button" data-st="slides">Teach</button>'
+            : '<button type="button" class="blue-button" data-st="slides">Teach</button><button type="button" class="soft-button" data-st="quiz">Quiz</button>') +
+          '<button type="button" class="soft-button" data-st="lesson">Lesson plan</button><button type="button" class="soft-button" data-st="sow">Scheme of work</button></span>'
         : '<span class="st-strip-text"><b>' + esc(p.course.name) + '</b><small>All ' + p.sessions.length + ' sessions are done.</small></span><button type="button" class="soft-button" data-st="sow">Scheme of work</button>';
     }
     strips[k] = html;

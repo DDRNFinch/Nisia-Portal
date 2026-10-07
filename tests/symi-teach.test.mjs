@@ -53,7 +53,27 @@ try {
   await page.waitForSelector(".st-strip [data-st=slides]", { timeout: 15000 });
   const strip = await page.textContent(".st-strip");
   await page.screenshot({ path: shots + "/symi-teach-register.png" });
-  check("The register shows today's session (session 4, three weeks in) with Teach, Quiz, Lesson plan and Scheme of work", /Today · Session 4 of 1[34]/.test(strip) && /Teach/.test(strip) && /Scheme of work/.test(strip), strip);
+  check("The register shows today's session (session 4, three weeks in) with Start today's class, Teach, Lesson plan and Scheme of work", /Today · Session 4 of 1[34]/.test(strip) && /Start today’s class/.test(strip) && /Teach/.test(strip) && /Scheme of work/.test(strip), strip);
+
+  /* Start today's class: register, teach, quiz, finish, in order, each ticked as it's done. */
+  await page.click(".st-strip [data-st=today]"); await page.waitForSelector(".st-flow");
+  const flow0 = await page.evaluate(() => ({ steps: [...document.querySelectorAll(".st-step b")].map((x) => x.textContent), next: (document.querySelector(".st-step.st-next b") || {}).textContent, finish: document.querySelectorAll(".st-step")[3].textContent }));
+  await page.screenshot({ path: shots + "/symi-teach-today.png" });
+  await page.click("#stSheet [data-step=teach]"); await page.waitForSelector(".st-slide h1");
+  for (let i = 0; i < 60 && (await page.$("#stSheet [data-next]")); i++) await page.keyboard.press("ArrowRight");
+  await page.click("#stSheet [data-done]"); await page.waitForSelector(".st-q");
+  for (let i = 0; i < 20 && !(await page.$("#stSheet [data-again]")); i++) { await page.click("#stSheet [data-show]"); await page.click(i % 3 ? "#stSheet [data-y]" : "#stSheet [data-n]"); }
+  await page.click("#stSheet [data-done]"); await page.waitForSelector(".st-flow");
+  const flow1 = await page.evaluate(() => ({ done: [...document.querySelectorAll(".st-step.st-done b")].map((x) => x.textContent), quiz: document.querySelectorAll(".st-step")[2].textContent, dots: document.querySelectorAll(".st-flow-dots i.ok").length }));
+  await page.screenshot({ path: shots + "/symi-teach-today-2.png" });
+  const sent = await page.evaluate(async () => { const T = window.SymiTeach, s = await T.sessionFor("t1"); return { codes: T.codesOf(s), lessons: T.lessonsOf(s).map((l) => l.title) }; });
+  check("Start today's class: four steps (register, teach, quiz, finish), teaching and the quiz ticked as they're done with the class score, and the KSBs taught named on Finish",
+    flow0.steps.join("|") === "Take the register|Teach|Class quiz|Finish the class" && flow0.next === "Take the register" && /Evia/.test(flow0.finish) && /Milos/.test(flow0.finish) && /S12|K17/.test(flow0.finish) &&
+    flow1.done.join("|") === "Teach|Class quiz" && / of \d+ right as a class/.test(flow1.quiz) && flow1.dots === 2 && sent.codes.length >= 4 && sent.lessons.length >= 1, JSON.stringify({ flow0, flow1, sent }));
+  await page.click("#stSheet [data-step=reg]"); await page.waitForTimeout(200);
+  const regStep = await page.evaluate(() => !document.querySelector("#stSheet") && !!document.querySelector(".sn-auth") && JSON.parse(localStorage.getItem("symi.teach.flow.v1"))[Object.keys(JSON.parse(localStorage.getItem("symi.teach.flow.v1")))[0]].reg === true);
+  check("…Take the register shows the check-in code (here, not signed in yet, it asks to connect to Nisia first)", regStep);
+  await page.evaluate(() => document.querySelectorAll(".sn-auth").forEach((x) => x.remove()));
 
   /* The scheme of work: every class day, the course's units spread over them, today's picked out. */
   await page.click(".st-strip [data-st=sow]"); await page.waitForSelector(".st-sow");
@@ -76,27 +96,27 @@ try {
   check("The tutor can add their own notes to a session (kept on the phone)", /Bring the spare mixer/.test(note), note);
 
   /* Teach: the slides, with Evia's pictures. */
-  await page.click("[data-st-slides]"); await page.waitForSelector(".st-slide h1");
+  await page.click("#stSheet [data-st-slides]"); await page.waitForSelector(".st-slide h1");
   const deck = { first: await page.textContent(".st-slide h1"), count: await page.textContent(".st-count") };
   let pics = 0;
-  for (let i = 0; i < 40; i++) { if (await page.$(".st-pic svg")) { pics++; if (pics === 1) await page.screenshot({ path: shots + "/symi-teach-slide.png" }); } if (!(await page.$("[data-next]"))) break; await page.keyboard.press("ArrowRight"); await page.waitForTimeout(40); }
+  for (let i = 0; i < 40; i++) { if (await page.$(".st-pic svg")) { pics++; if (pics === 1) await page.screenshot({ path: shots + "/symi-teach-slide.png" }); } if (!(await page.$("#stSheet [data-next]"))) break; await page.keyboard.press("ArrowRight"); await page.waitForTimeout(40); }
   check("Teach: full-screen slides from the Teach me lessons, with their pictures, moved on with the arrow keys", !!deck.first && /^1 \/ \d+/.test(deck.count) && Number(deck.count.split("/")[1]) >= 8 && pics >= 2, JSON.stringify(deck) + " pics " + pics);
 
   /* The class quiz from the end of the slides. */
-  await page.click("[data-done]"); await page.waitForSelector(".st-q");
+  await page.click("#stSheet [data-done]"); await page.waitForSelector(".st-q");
   const q1 = await page.textContent(".st-q h1"), opts = await page.$$eval(".st-opts li", (x) => x.length);
-  await page.click("[data-show]"); await page.waitForSelector(".st-right");
+  await page.click("#stSheet [data-show]"); await page.waitForSelector(".st-right");
   await page.screenshot({ path: shots + "/symi-teach-quiz.png" });
-  await page.click("[data-y]"); await page.waitForTimeout(100);
+  await page.click("#stSheet [data-y]"); await page.waitForTimeout(100);
   const moved = /^2 \//.test(await page.textContent(".st-count"));
   check("Class quiz: a question with lettered answers, the right one shown with why, and the class tally moves on", !!q1 && opts >= 2 && moved, q1 + " " + opts);
 
   /* Printing the scheme of work. */
   await page.evaluate(() => { window.print = () => { window.__printed = document.getElementById("stPrint").textContent; }; });
-  await page.click("[data-done]").catch(() => {}); await page.waitForTimeout(100);
+  await page.click("#stSheet [data-done]").catch(() => {}); await page.waitForTimeout(100);
   await page.evaluate(() => { const x = document.querySelector("#stSheet [data-st-close]"); if (x) x.click(); else { const b = document.querySelector("#stSheet [data-st-back]"); if (b) b.click(); } }); await page.waitForTimeout(150);
   if (await page.$("#stSheet")) await page.click("#stSheet [data-st-close]");
-  await page.click(".st-strip [data-st=sow]"); await page.waitForSelector("[data-st-print]"); await page.click("[data-st-print]"); await page.waitForTimeout(200);
+  await page.click(".st-strip [data-st=sow]"); await page.waitForSelector("#stSheet [data-st-print]"); await page.click("#stSheet [data-st-print]"); await page.waitForTimeout(200);
   const printed = await page.evaluate(() => window.__printed || "");
   check("The scheme of work prints as a document (dates, units, content, KSBs, assessment)", /Scheme of work/.test(printed) && /Mixing mortar/.test(printed) && /Unit check quiz/.test(printed), printed.slice(0, 200));
   await page.click("[data-st-close]");
@@ -106,7 +126,7 @@ try {
   await page.waitForFunction(() => /Preparing backgrounds|Solid plastering/.test((document.querySelector(".st-strip") || {}).textContent || ""), null, { timeout: 8000 });
   await page.click(".st-strip [data-st=lesson]"); await page.waitForSelector("#stSheet .st-doc");
   const plaster = await page.textContent("#stSheet .st-doc");
-  await page.click("[data-st-slides]"); await page.waitForSelector(".st-slide h1");
+  await page.click("#stSheet [data-st-slides]"); await page.waitForSelector(".st-slide h1");
   const pslides = await page.textContent(".st-count");
   check("A new course added in Nisia (Plastering, no Teach me lessons yet) gets its plan, slides and quiz from its own KSBs",
     /Plasterer/.test(plaster) && /(K1|K2|S2)/.test(plaster) && Number(pslides.split("/")[1]) >= 2, plaster.slice(0, 200));

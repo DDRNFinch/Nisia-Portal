@@ -455,3 +455,4 @@ body.milos h1,body.milos h2,body.milos h3,body.milos b,body.milos strong,.m-big,
 .m-form label{display:grid;gap:6px;font-size:13px;font-weight:700;color:var(--muted)}
 .m-form input,.m-form select,.m-form textarea{font:inherit;font-size:16px;font-weight:500;color:var(--ink);padding:11px 12px;border:1px solid #e3e6eb;border-radius:14px;background:#fff;width:100%;box-sizing:border-box}
 .m-form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-college .m-chips{margin:0;padding:0;overflow:visible;flex-wrap:wrap;gap:6px}.m-college .m-chip{padding:3px 9px;font-size:12px}

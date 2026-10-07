@@ -164,6 +164,19 @@ function lessonFor(st, regId, key) {
   const ksbs = [...new Set((r.linkedKSBs || []).map((k) => typeof k === "string" ? k : k && k.code).filter(Boolean))];
   return { title: String(r.title || f.topic || "").slice(0, 200) || null, summary: String(f.learningOutcomes || f.topic || "").slice(0, 1000) || null, ksbs };
 }
+/* What's taught that day: the lesson plan the tutor picked, else the session from the class's scheme of work
+   (symi-teach.js), so every finished register says what was taught and which KSBs it covered. */
+async function lessonOn(st, regId, key) {
+  const own = lessonFor(st, regId, key);
+  if (own) return own;
+  try {
+    const T = window.SymiTeach, s = T && await T.sessionFor(regId, key);
+    if (!s) return null;
+    const lessons = T.lessonsOf(s).map((l) => l.title);
+    return { title: (T.titleOf(s) + (lessons.length ? ": " + lessons.join(", ") : " (practical)")).slice(0, 200),
+      summary: (lessons.length ? "Taught: " + lessons.join("; ") + "." : "Practical: " + T.titleOf(s) + ".").slice(0, 1000), ksbs: T.codesOf(s) };
+  } catch (_) { return null; }
+}
 async function ensureSession(regId, key) {
   const st = App().getState(), reg = st.classes.find((c) => c.id === regId);
   if (!reg) throw new Error("That register has gone.");
@@ -174,7 +187,7 @@ async function ensureSession(regId, key) {
   if (!m) throw new Error("You’re not a tutor at that college in Nisia.");
   const classId = await A.send("saveClass", { p_org: org, p_client_ref: reg.id, p_title: String(reg.name || "Class").slice(0, 120), p_room: reg.room || null,
     p_schedule: { day: reg.day, start: reg.start, end: reg.end, breaks: (reg.breaks || []).map((x) => ({ start: x.start, end: x.end })), recurrence: reg.recurrence || null }, p_enrolments: people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId) });
-  const b = App().bounds(regId, key), lesson = lessonFor(st, regId, key) || {};
+  const b = App().bounds(regId, key), lesson = (await lessonOn(st, regId, key)) || {};
   const ses = await A.send("openSession", { p_class: classId, p_date: key, p_starts: b ? new Date(b.start).toISOString() : null, p_ends: b ? new Date(b.end).toISOString() : null,
     p_lesson: lesson.title || null, p_summary: lesson.summary || null, p_ksbs: lesson.ksbs || [] });
   const map = read(K.sessions, {}); map[regId + ":" + key] = { id: ses.id, org, member: m.member_id }; write(K.sessions, map);
@@ -370,7 +383,7 @@ async function showCheckIn(regId) {
       layer.querySelector("[data-close]").onclick = () => layer.remove(); return;
     }
   }
-  const st = App().getState(), reg = st.classes.find((c) => c.id === regId), lesson = lessonFor(st, regId, key);
+  const st = App().getState(), reg = st.classes.find((c) => c.id === regId), lesson = await lessonOn(st, regId, key);
   layer.innerHTML =
     '<header><div><small>CHECK IN · ' + esc(reg.name) + '</small><h2>' + esc(lesson && lesson.title || "Scan to check in") + '</h2></div>' +
       '<p class="sn-signal" hidden>No signal here: scans are kept on phones and sent when they can.</p><button type="button" class="sn-close" aria-label="Close">×</button></header>' +

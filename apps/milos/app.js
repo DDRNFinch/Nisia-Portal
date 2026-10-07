@@ -523,7 +523,7 @@ async function learner(r, keep) {
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
       employerHtml(D.E, r) +
       packCard(r) +
-      '<div id="absBox"></div>' +
+      '<div id="absBox"></div>' + '<div id="colBox"></div>' +
       insightsHtml(L.snapshot) + consistencyHtml(L.evidence) +
     '</div>' +
     /* Portfolio */
@@ -558,11 +558,32 @@ async function learner(r, keep) {
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelector("#bookV").onclick = () => bookVisit({ r });
   bindVisits();
+  mountCollege(root.querySelector("#colBox"), r);
   mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet: (h, l) => sheet(h, l), toast, hit });
   const pb = root.querySelector("#packBtn"); if (pb) pb.onclick = () => choosePack(r);
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
   root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: String(v.reviewed_at).slice(0, 10) }); });
+}
+/* At college: each class the tutor finished in Symi, what was taught (and its KSBs) and whether the learner was
+   there. Kept on the phone so it shows with no signal; brought up to date when there is. */
+async function mountCollege(box, r) {
+  if (!box) return;
+  const KEY = "milos-college-" + r.enrolment_id;
+  const draw = (rows) => {
+    if (!rows || !rows.length) { box.innerHTML = ""; return; }
+    const here = rows.filter((x) => x.status === "present").length, taught = new Set(rows.flatMap((x) => x.ksbs || [])), mins = rows.reduce((n, x) => n + (x.status === "present" ? x.minutes || 0 : 0), 0);
+    const pack = coursePack(r.course_code, r.enrolment_id), name = (k) => ((pack && pack.ksbs) || []).find((x) => x[0] === k)?.[1] || k;
+    const tag = (x) => x.status === "present" ? (x.late ? '<span class="pill warn">Late</span>' : '<span class="pill good">Here</span>') : x.status === "absent" ? '<span class="pill ' + (x.reason ? "idle" : "bad") + '">' + esc(x.reason ? "Off: " + x.reason : "Absent") + '</span>' : '<span class="pill idle">Not marked</span>';
+    box.innerHTML = '<section class="card m-list m-college"><p class="label m-in">At college</p>' +
+      '<p class="m-card-sub m-in">' + here + ' of ' + rows.length + ' sessions · ' + Math.round(mins / 6) / 10 + ' h · ' + taught.size + (pack && pack.nvq ? " criteria" : " KSBs") + ' taught</p>' +
+      rows.slice(0, 5).map((x) => '<div class="m-row"><span class="m-row-main"><b>' + esc(x.lesson || x.class) + '</b><span class="sub">' + esc(ukDate(x.session_date)) + ' · ' + esc(x.class) + '</span>' +
+        '<span class="m-row-tags">' + tag(x) + ((x.ksbs || []).length ? '<span class="m-chips">' + x.ksbs.slice(0, 10).map((k) => '<span class="m-chip" title="' + esc(name(k)) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</span></span></div>').join("") + '</section>';
+  };
+  try { draw(JSON.parse(localStorage.getItem(KEY) || "null")); } catch (_) {}
+  if (!navigator.onLine) return;
+  try { const rows = (await rpc("nisia_learner_college", { p_enrolment: r.enrolment_id })) || []; try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch (_) {} if (box.isConnected) draw(rows); }
+  catch (e) { console.warn("Milos: college", e.message); }
 }
 /* From the employer (Paros): their witness testimonies and how they rate the apprentice's behaviours. */
 const WITNESS = ["", "Getting there", "Competent", "Excellent"], BEHAVE = ["", "Needs support", "Developing", "Good", "Excellent"];

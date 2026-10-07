@@ -68,9 +68,9 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.32.1");
+    localStorage.setItem("symi-last-seen-release-v1", "0.33.0");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
-      classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
+      classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
   });
   await page.goto(url); await page.waitForTimeout(1500);
@@ -127,6 +127,8 @@ try {
   const w = Math.floor(Date.now() / 1000 / 20), shown = (await page.textContent(".sn-checkin .sn-code")).replace(/\s/g, "");
   const ok = [w, w - 1].some((x) => expected(x).short === shown);
   const sess = posted.find((x) => x.t === "openSession"), cls = posted.find((x) => x.t === "saveClass");
+  check("Today's session goes to Nisia with what's taught from the class's scheme of work, and its KSBs (they go with each learner's hours to Evia and Milos)",
+    !!sess && /Mixing mortar/.test(sess.body.p_lesson || "") && (sess.body.p_ksbs || []).length >= 8 && (sess.body.p_ksbs || []).includes("S14"), JSON.stringify(sess && sess.body));
   check("Show check-in code: the class, its Nisia learners and today's session go to Nisia, and the code is the one Nisia checks (changing every 20 seconds)",
     /0 of 1 checked in/.test(barText) && ok && !!(await page.$(".sn-checkin .sn-qr canvas, .sn-checkin .sn-qr img, .sn-checkin .sn-qr svg")) && !!cls && cls.body.p_client_ref === "r1" && cls.body.p_org === "O1" &&
     cls.body.p_enrolments.length === 2 && cls.body.p_enrolments.includes("E1") && !!sess && sess.body.p_class === "CLS1" && !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify({ shown, exp: expected(w).short, cls: cls && cls.body }));
