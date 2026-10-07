@@ -645,10 +645,33 @@
     else assistantMain();
     stabiliseAssistantFace();
   }
+  /* Symi's face: what needs doing today (registers to take or finish, learners not here yet, days off coming up),
+     then quick ways to make something new. Pages are in the bar along the bottom. */
+  function todoItems(){
+    const key=todayKey(),items=[];
+    for(const reg of state.classes.filter(c=>!c.archived)){
+      if(!registerOccursOn(reg,key)||!registerDateActive(reg,key))continue;
+      const t=sessionTimingState(reg,key),people=reg.learners||[],a=state.attendance[attendanceKey(reg.id,key)]||{},here=people.filter(l=>a[l.id]&&(a[l.id].runningSince||(a[l.id].intervals||[]).length)).length;
+      if(t.code==='completed')continue;
+      if(t.code==='ended')items.push({reg:reg.id,urgent:true,title:`Finish today’s register: ${reg.name}`,sub:'The session has ended. Check the marks and finish it.'});
+      else if(['live','break','open-early'].includes(t.code))items.push({reg:reg.id,urgent:true,title:`Take the register: ${reg.name}`,sub:people.length?`${here} of ${people.length} here so far`+(people.length-here?` · ${people.length-here} not in yet`:''):'No learners on this register yet.'});
+      else items.push({reg:reg.id,title:`${reg.name} at ${reg.start||'09:00'}`,sub:`Today${reg.room?' · '+reg.room:''} · ${people.length} learner${people.length===1?'':'s'}`});
+    }
+    /* Days off learners have booked in Evia (from Nisia), for the next week. */
+    let off=[];try{off=JSON.parse(localStorage.getItem('symi.nisia.absences.v1')||'[]')}catch(_){}
+    const week=new Date(key+'T12:00:00');week.setDate(week.getDate()+7);const until=week.toISOString().slice(0,10);
+    for(const b of off){
+      if(!b||b.ends_on<key||b.starts_on>until)continue;const l=state.learners.find(x=>x.nisia&&x.nisia.enrolmentId===b.enrolment_id);if(!l)continue;
+      const day=b.starts_on<=key?'today':new Date(b.starts_on+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+      items.push({learner:l.id,title:`${l.name} is off ${day}`,sub:b.reason||'Booked off'});
+    }
+    return items;
+  }
   function assistantMain(){
-    assistantRoute='main';const reg=activeRegister(),rs=registerStats(reg);
-    copy('What do you need?','Everything is organised into four clear areas.');
-    content.innerHTML=`<div class="ta-menu as-main v39-main"><button data-assistant="learners"><strong>Learners</strong><span>${state.learners.length} saved.</span></button><button data-assistant="classes"><strong>Classes</strong><span>${state.teachingClasses.length} class${state.teachingClasses.length===1?'':'es'} set up.</span></button><button data-assistant="registers"><strong>Registers</strong><span>${reg?`${esc(reg.name)} · ${rs.running} live`:'Attendance and learner timers.'}</span></button><button data-assistant="resources"><strong>Courses</strong><span>${state.courses.length} course${state.courses.length===1?'':'s'} · SOW, lessons, slides and quizzes.</span></button></div>`;
+    assistantRoute='main';const items=todoItems(),n=items.filter(x=>!x.learner&&x.urgent).length;
+    copy(items.length?(n?`${n} thing${n===1?'':'s'} need${n===1?'s':''} you now`:'Here’s your day'):'Nothing needs you right now',items.length?'Tap one to go straight to it.':'Your registers are up to date.');
+    content.innerHTML=`<div class="sy-todo">${items.map(x=>`<button type="button" class="sy-todo-row${x.urgent?' urgent':''}" ${x.reg?`data-todo-register="${attr(x.reg)}"`:`data-todo-learner="${attr(x.learner)}"`}><span><strong>${esc(x.title)}</strong><small>${esc(x.sub)}</small></span><i aria-hidden="true">›</i></button>`).join('')}</div>`+
+      `<p class="sy-todo-label">Make something new</p><div class="sy-todo-new"><button type="button" data-assistant-action="classes:create">Class</button><button type="button" data-assistant-action="registers:create">Register</button><button type="button" data-assistant-add-learner>Learner</button><button type="button" data-assistant-action="resources:create">Resource</button><button type="button" data-assistant-action="create:quiz">Quiz</button><button type="button" data-assistant-action="resources:import">Import</button></div>`;
     window.EviaAnimations?.react?.('analysing');
   }
   function assistantLearners(q=''){
@@ -1283,6 +1306,8 @@
   content.addEventListener('click',event=>{
     const b=event.target.closest('button');if(!b)return;
     if(b.dataset.assistant){assistantRoute=b.dataset.assistant;return renderAssistant();}
+    if(b.dataset.todoRegister){closeAssistant();state.activeClassId=b.dataset.todoRegister;state.view='registers';return save();}
+    if(b.dataset.todoLearner){closeAssistant();state.selectedLearnerId=b.dataset.todoLearner;state.view='learner';return save();}
     if(b.hasAttribute('data-assistant-add-learner'))return openLearnerDialog();
     if(b.dataset.assistantLearner){state.selectedLearnerId=b.dataset.assistantLearner;closeAssistant();state.view='learner';save();return;}
 

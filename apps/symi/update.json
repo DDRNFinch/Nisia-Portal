@@ -1,8 +1,9 @@
 {
-  "version": "0.30.3",
-  "title": "See days off before the day",
+  "version": "0.31.0",
+  "title": "A simpler Symi",
   "details": [
-    "A register shows who has booked off for its coming classes, with the reason, before the day",
-    "Class changes reach your learners' Evia within a minute"
+    "Registers, Learners, Resources and Timetable along the bottom",
+    "Tap Symi to see what needs doing today: registers to take, and learners off this week",
+    "Classes now sit with your registers, and courses and games with your resources"
   ]
 }
