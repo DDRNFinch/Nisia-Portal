@@ -64,7 +64,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.30.2");
+    localStorage.setItem("symi-last-seen-release-v1", "0.30.3");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -176,6 +176,12 @@ try {
   const changed = posted.filter((x) => x.t === "saveClass").slice(savedBefore);
   check("Changing a class reaches Nisia straight away (new times and weekly dates), so Evia can show the classes coming up",
     changed.some((x) => x.body.p_schedule && x.body.p_schedule.end === "23:59" && x.body.p_schedule.recurrence && x.body.p_schedule.recurrence.type === "weekly"), JSON.stringify(changed.map((x) => x.body.p_schedule)));
+  /* With the class weekly now, the register shows days off booked for the coming classes (Amira's booking), before the day. */
+  await page.waitForFunction(() => /Coming up: Amira off/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
+  const ahead = await page.evaluate(() => ((document.querySelector(".sn-ahead") || {}).textContent || ""));
+  await page.evaluate(() => { const b = document.querySelector(".sn-bar"); if (b) b.scrollIntoView({ block: "center" }); });
+  await page.screenshot({ path: path.join(root, "tests", "shots", "symi-coming-up.png") });
+  check("The register shows days off booked for the coming classes, before the day", /^Coming up: Amira off \w{3} \d{1,2} \w{3}, \w{3} \d{1,2} \w{3} and \w{3} \d{1,2} \w{3} \(Ill\)$/.test(ahead), ahead);
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

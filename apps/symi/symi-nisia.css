@@ -75,6 +75,7 @@
 .sn-mark{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:5px 11px;border-radius:999px;border:1px dashed #c3ccd6;background:#fff;color:#5b6675;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;animation:snIn .3s ease both;transition:transform .15s}
 .sn-mark:active{transform:scale(.94)}
 .sn-mark.sn-still{animation:none}
+.sn-ahead{display:block;flex-basis:100%;margin-top:6px;font-size:13px;font-weight:600;color:#5b6675}
 .sn-mark.here{border:0;background:#eaf8f0;color:#2f7d56}
 .sn-mark.late{border:0;background:#fff4d6;color:#8a6100}
 .sn-mark.why{border:0;background:#eef2f7;color:#3d4a5a}

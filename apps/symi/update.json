@@ -1,8 +1,8 @@
 {
-  "version": "0.30.2",
-  "title": "Class changes reach Evia straight away",
+  "version": "0.30.3",
+  "title": "See days off before the day",
   "details": [
-    "When you change a class's times, dates or learners, Nisia and your learners' Evia know within a minute, not the next day",
-    "Here, Late and Absent marks on the register stay still instead of flickering"
+    "A register shows who has booked off for its coming classes, with the reason, before the day",
+    "Class changes reach your learners' Evia within a minute"
   ]
 }

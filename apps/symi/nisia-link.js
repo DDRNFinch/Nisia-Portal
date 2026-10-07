@@ -417,7 +417,16 @@ function decorate() {
     }
     else if (["early", "not-today"].includes(code) && (off.length || readyOffline(regId, key))) bar.innerHTML = '<span>Today ' + pills + '</span>';
     else if (code === "ended") bar.innerHTML = '<span>Session ended. Check the marks, then Finish.</span>';
-    else return;
+    /* Days off booked for this register's coming classes (the next four weeks), so the tutor knows before the day. */
+    const ahead = new Map(), day = (k) => { const d = new Date(k + "T12:00:00"); return d.toLocaleDateString("en-GB", { weekday: "short" }) + " " + d.getDate() + " " + d.toLocaleDateString("en-GB", { month: "short" }); };
+    if (signedIn) for (let i = 1; i <= 28; i++) {
+      const k = addDays(key, i);
+      if (!App().occursOn(regId, k)) continue;
+      people.forEach((p) => { const b = bookedFor(p.nisia.enrolmentId, k); if (!b) return; const g = p.id + "|" + b.reason; if (!ahead.has(g)) ahead.set(g, { name: first(p.name), reason: b.reason, days: [] }); ahead.get(g).days.push(day(k)); });
+    }
+    const listed = (a) => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+    if (ahead.size) bar.insertAdjacentHTML("beforeend", '<small class="sn-ahead">Coming up: ' + [...ahead.values()].slice(0, 4).map((x) => esc(x.name) + ' off ' + esc(listed(x.days)) + ' (' + esc(x.reason) + ')').join(" · ") + '</small>');
+    if (!bar.innerHTML) return;
     host.insertBefore(bar, host.children[1] || null);
     const c = bar.querySelector("[data-sn-connect]"); if (c) c.onclick = openSignIn;
     const sh = bar.querySelector("[data-sn-show]"); if (sh) sh.onclick = () => showCheckIn(regId);
