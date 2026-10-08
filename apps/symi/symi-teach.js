@@ -192,9 +192,20 @@ async function planFor(regId) {
 const sessionAt = (p, key) => p.sessions.find((s) => s.date === key) || null;
 const nextSession = (p, key) => p.sessions.find((s) => s.date >= key) || null;
 const codesOf = (s) => [...new Set(s.review ? [] : s.parts.flatMap((x) => x.unit.codes))];
-const titleOf = (s) => s.review ? "Course review and assessment" : s.parts.map((x) => x.unit.name).filter((v, i, a) => a.indexOf(v) === i).join(" · ") || "Practical";
+const titleOf = (s) => s.title ? s.title : s.review ? "Course review and assessment" : s.parts.map((x) => x.unit.name).filter((v, i, a) => a.indexOf(v) === i).join(" · ") || "Practical";
 const lessonsOf = (s) => s.parts.flatMap((x) => x.lessons);
+/* A college resource the tutor put into a session (Resources › College › Use in a session) takes the place of the
+   course's own slides or quiz for that day. Kept on the phone, content and all, so it works with no signal. */
+const SWAP = "symi.teach.swap.v1";
+const swapOf = (p, s) => (read(SWAP, {})[p.reg.id + ":" + s.date]) || {};
+function swapInto(regId, date, item) {
+  const all = read(SWAP, {}), k = regId + ":" + date, cur = all[k] || {};
+  if (item.kind === "slides") cur.slides = { title: item.title, list: item.list }; else if (item.kind === "quiz") cur.quiz = { title: item.title, list: item.list };
+  all[k] = cur; write(SWAP, all);
+}
 function slidesFor(p, s) {
+  const sw = swapOf(p, s).slides;
+  if (sw) return [{ title: sw.title, unit: p.library ? "College resource" : "Session " + s.n + " · " + dayText(s.date), cover: true, text: "From your college’s resources." }].concat(sw.list);
   if (s.review) return [{ title: "Course review", unit: p.course.name, text: "Everything we’ve covered. What do you remember, and what are you unsure of?", cover: true }]
     .concat(p.course.units.map((u) => ({ title: u.name, text: "", points: u.lessons.filter((l) => l.slides.length).slice(0, 4).map((l) => [l.title, plain(l.blurb)]) })));
   const lessons = lessonsOf(s);
@@ -214,6 +225,8 @@ function slidesFor(p, s) {
   return out;
 }
 function quizFor(p, s) {
+  const sq = swapOf(p, s).quiz;
+  if (sq) return sq.list;
   if (s.review) return p.course.units.flatMap((u) => u.lessons.flatMap((l) => l.quiz).filter((q) => q.opts).slice(0, 2));
   const fromLessons = lessonsOf(s).flatMap((l) => l.quiz);
   const challenge = s.parts.filter((x) => x.check).flatMap((x) => x.unit.lessons.filter((l) => !l.slides.length).flatMap((l) => l.quiz));
@@ -387,7 +400,7 @@ function slides(p, s, back, hooks) {
    the screen counts them in); otherwise hands up, the tutor tapping whether most of the class got it. */
 function quiz(p, s, back, hooks) {
   const N = window.SymiNisia;
-  if (N && N.live() && quizFor(p, s).some((q) => q.opts)) return liveQuiz(p, s, back, hooks);
+  if (N && N.live() && !p.library && quizFor(p, s).some((q) => q.opts)) return liveQuiz(p, s, back, hooks);
   return handsQuiz(p, s, back, hooks);
 }
 async function liveQuiz(p, s, back, hooks) {
@@ -581,5 +594,24 @@ const repaint = () => { const st = App() && App().getState(), reg = st && (st.cl
 new MutationObserver(() => repaint()).observe(document.getElementById("staffApp") || document.body, { childList: true, subtree: true });
 setTimeout(repaint, 300);
 
-window.SymiTeach = { open, planFor, sessionFor: async (regId, key) => { const p = await planFor(regId); return p.sessions ? sessionAt(p, key || App().today()) : null; }, titleOf, codesOf, lessonsOf, slidesFor, quizFor };
+/* ---------- From Resources: any lesson of any course, without a class ---------- */
+async function playLibrary(code, unitName, lessonId, what) {
+  frame(head("Teaching", "Getting the lessons ready…") + '<div class="st-body"><p class="st-loading">Getting the lessons ready…</p></div>');
+  let c; try { c = await course(code); } catch (e) { frame(head("Teaching", "") + '<div class="st-body"><p class="st-err">' + esc(e.message) + '</p></div>'); wire(sheet, null); return; }
+  const u = c.units.find((x) => x.name === unitName) || c.units[0], l = lessonId ? u.lessons.find((x) => x.id === lessonId) : null;
+  const s = { n: 1, date: App().today(), week: 1, parts: [{ unit: u, lessons: l ? [l] : u.lessons.filter((x) => x.slides.length), check: !l }] };
+  const p = { library: true, reg: { id: "library", name: c.name, start: "09:00", end: "16:00", breaks: [], learners: [] }, course: c, sessions: [s], teach: 0 };
+  return what === "quiz" ? handsQuiz(p, s, close) : slides(p, s, close);
+}
+/* A deck or quiz from somewhere else (a college resource), shown the same way. */
+function playList(title, what, list) {
+  const s = { n: 1, date: App().today(), week: 1, parts: [], title }, p = { library: true, reg: { id: "library", name: title }, course: { units: [] }, sessions: [s], teach: 0 };
+  const all = read(SWAP, {}), k = "library:" + s.date, keep = all[k];
+  all[k] = what === "quiz" ? { quiz: { title, list } } : { slides: { title, list } }; write(SWAP, all);
+  const done = () => { const a = read(SWAP, {}); if (keep) a[k] = keep; else delete a[k]; write(SWAP, a); close(); };
+  return what === "quiz" ? handsQuiz(p, s, done) : slides(p, s, done);
+}
+async function upcoming(regId) { const p = await planFor(regId); if (!p.sessions) return []; const t = App().today(); return p.sessions.filter((x) => x.date >= t).slice(0, 30).map((x) => ({ date: x.date, n: x.n, title: titleOf(x) })); }
+
+window.SymiTeach = { open, planFor, course, courseList, playLibrary, playList, swapInto, upcoming, dayText, sessionFor: async (regId, key) => { const p = await planFor(regId); return p.sessions ? sessionAt(p, key || App().today()) : null; }, titleOf, codesOf, lessonsOf, slidesFor, quizFor };
 })();

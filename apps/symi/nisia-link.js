@@ -592,4 +592,10 @@ window.SymiNisia = {
   quizStart: async (regId, key, title, questions) => { const s = await ensureSession(regId, key); return A.send("quizStart", { p_session: s.id, p_title: String(title || "Class quiz").slice(0, 200), p_questions: questions }); },
   quizStep: (id, current, revealed, finished) => A.send("quizStep", { p_quiz: id, p_current: current, p_revealed: !!revealed, p_finished: !!finished }),
   quizState: (id) => A.send("quizState", { p_quiz: id }),
+  /* The college's shared resources (Resources › College). */
+  college: () => (tutorOrgs()[0] || null),
+  resources: async () => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Nisia."); return A.send("collegeResources", { p_org: o.organisation_id }); },
+  share: async (kind, title, opts) => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Nisia.");
+    return A.send("shareResource", { p_org: o.organisation_id, p_kind: kind, p_title: title, p_course: (opts && opts.course) || null, p_unit: (opts && opts.unit) || null, p_content: (opts && opts.content) || {}, p_url: (opts && opts.url) || null }); },
+  unshare: (id) => A.send("unshareResource", { p_id: id }),
 };

@@ -95,7 +95,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -141,7 +141,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
@@ -838,6 +838,40 @@ async function todayPage(quiet) {
     '<p class="small muted">Learners check in on Evia with the code on the tutor’s Symi screen, or the tutor marks them. Days booked off in Evia, Symi, Milos or Paros show here.</p>');
   root.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => { S.todayDay = b.dataset.day; todayPage(); });
   const tc = root.querySelector("#toClasses"); if (tc) tc.onclick = () => go("classes");
+}
+
+/* ---------- Resources: what the college shares with its tutors (Symi › Resources › College) ----------
+   Tutors share their own slides, quizzes and lesson plans from Symi; admins and tutors add links here to files the
+   college keeps elsewhere. Whoever shared one, or an admin, can take it down. */
+const KIND_NAMES = { slides: "Slides", quiz: "Quiz", lesson: "Lesson plan", link: "Link" };
+async function resourcesPage() {
+  const D = S.data;
+  shell('<p class="loading">Loading resources…</p>');
+  let rows;
+  try { rows = await rpc("nisia_college_resources", { p_org: S.org }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const count = (k) => rows.filter((r) => r.kind === k).length;
+  shell('<div class="topbar"><div><div class="label">' + esc(D.summary ? D.summary.name : mine(S.org).organisation) + '</div><h1>Resources</h1></div><div class="actions"><button class="btn primary" type="button" id="addRes">' + ICON.plus + 'Add a link</button></div></div>' +
+    '<p class="hint">Your college’s own teaching resources, in every tutor’s Symi (Resources › College). Tutors share their slides, quizzes and lesson plans from Symi; add links here to files you keep elsewhere, like PowerPoints or videos. Every course also comes with its own lessons, slides and quizzes in Symi.</p>' +
+    '<section class="stats" style="grid-template-columns:repeat(4,minmax(0,1fr))">' + [["slides", "Slides"], ["quiz", "Quizzes"], ["lesson", "Lesson plans"], ["link", "Links"]].map(([k, t]) => '<div class="stat"><span class="label">' + t + '</span><span class="big num">' + count(k) + '</span></div>').join("") + '</section>' +
+    '<div class="table-wrap" style="margin-top:18px"><table><thead><tr><th>Resource</th><th>Type</th><th>Course</th><th>Shared by</th><th>Added</th><th></th></tr></thead><tbody>' +
+    (rows.length ? rows.map((r) => '<tr class="static"><td><b>' + esc(r.title) + '</b>' + (r.unit ? '<br><span class="small muted">' + esc(r.unit) + '</span>' : "") + (r.url ? '<br><a class="small" href="' + esc(r.url) + '" target="_blank" rel="noopener">Open link</a>' : "") + '</td>' +
+      '<td><span class="pill idle">' + esc(KIND_NAMES[r.kind] || r.kind) + '</span></td><td class="small">' + esc(r.course_code ? courseName(r.course_code) : "Any") + '</td><td class="small">' + esc(r.shared_by || "") + '</td><td class="small">' + esc(ukDate(String(r.created_at).slice(0, 10))) + '</td>' +
+      '<td>' + (r.can_remove ? '<button class="btn small" type="button" data-down="' + esc(r.id) + '">Take down</button>' : "") + '</td></tr>').join("")
+      : '<tr class="static"><td colspan="6" class="empty">Nothing shared yet. Tutors share from Symi, or add a link here.</td></tr>') + '</tbody></table></div>');
+  root.querySelector("#addRes").onclick = () => {
+    const m = modal("Add a link", '<form class="form-grid" id="rf" novalidate><label class="field full">Name<input name="title" required maxlength="200" placeholder="e.g. Cavity walls PowerPoint"></label>' +
+      '<label class="field full">Link<input name="url" type="url" required placeholder="https://"></label>' +
+      '<label class="field">Course<select name="course"><option value="">Any course</option>' + COURSES.map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join("") + '</select></label>' +
+      '<label class="field">Unit <small>(optional)</small><input name="unit" maxlength="200"></label><p class="err full"></p><button class="btn primary wide full" type="submit">Share with your tutors</button></form>');
+    const f = m.querySelector("#rf"), err = f.querySelector(".err");
+    f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Sharing…", async () => {
+      err.textContent = ""; const v = formData(f);
+      try { await rpc("nisia_share_resource", { p_org: S.org, p_kind: "link", p_title: v.title, p_course: v.course || null, p_unit: v.unit || null, p_content: {}, p_url: (v.url || "").trim() }); hit("resource.link"); closeModal(); toast("Shared. It’s in every tutor’s Symi."); resourcesPage(); }
+      catch (x) { err.textContent = x.message; }
+    }); };
+  };
+  root.querySelectorAll("[data-down]").forEach((b) => b.onclick = () => { if (!confirm("Take this down? Tutors won’t see it any more.")) return;
+    busy(b, "…", async () => { try { await rpc("nisia_unshare_resource", { p_id: b.dataset.down }); toast("Taken down"); resourcesPage(); } catch (x) { toast(x.message); } }); });
 }
 
 /* ---------- Classes: set up once here, they're the tutor's registers in Symi and the learners' college days in Evia ---------- */

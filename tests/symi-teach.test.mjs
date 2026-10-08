@@ -38,7 +38,12 @@ try {
     const day = now.toLocaleDateString("en-GB", { weekday: "long" });
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Amira Khan", externalId: "" }, { id: "x3", name: "Jordan Pike", externalId: "" }];
     localStorage.setItem("symi-last-seen-release-v1", build);
-    localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
+    localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [
+        { id: "old1", type: "lesson-plan", kind: "created", title: "Week 1 · K1 · Combined session", notes: "Generated from K1, S1. Tutor editable.", courseId: "c0", fields: { resources: "Add the tools, equipment, drawings, specifications, handouts, images or digital resources required for this subject." } },
+        { id: "old2", type: "presentation", kind: "created", title: "Week 1 · K1", courseId: "c0", slides: [{ title: "Tutor explanation", text: "Add the subject-specific explanation in short sentences.\nAdd an image or diagram that supports the explanation." }] },
+        { id: "old3", type: "sow", kind: "created", title: "Old course · Scheme of Work", courseId: "c0", notes: "DfE/Ofsted-aligned planning structure. Tutor controlled." },
+        { id: "mine1", type: "presentation", kind: "created", title: "My cavity wall slides", courseId: "", slides: [{ title: "Wall ties", text: "Every 900 mm across, 450 mm up." }], createdAt: "2026-09-01T10:00:00Z" }],
+      courses: [{ id: "c0", name: "Old course", ksbs: [], lessonPlanIds: ["old1"], sowId: "old3" }],
       classes: [{ id: "t1", name: "L2 Bricklaying", day, room: "Workshop 2", start: "09:00", end: "16:00", courseCode: "bricklayer",
         breaks: [{ id: "b1", label: "Break 1", start: "10:30", end: "10:45" }, { id: "b2", label: "Break 2", start: "12:30", end: "13:00" }], learners: L,
         recurrence: { type: "weekly", interval: 1, weekdays: [day], monthDays: [], startDate: k(from), endDate: k(to), anchorDate: k(from), onceDate: "" } }],
@@ -159,6 +164,43 @@ try {
     /Plasterer/.test(plaster) && /(K1|K2|S2)/.test(plaster) && Number(pslides.split("/")[1]) >= 2, plaster.slice(0, 200));
   for (let i = 0; i < 4 && (await page.$("#stSheet")); i++) { await page.keyboard.press("Escape"); await page.waitForTimeout(120); }
   const closed = !(await page.$("#stSheet"));
+
+  /* Resources: the course's own lessons first, the college's, community (soon), and the tutor's own. */
+  await page.evaluate(() => window.SamosApp.mutate((st) => { st.classes[0].courseCode = "bricklayer"; st.view = "resources"; }, true));
+  await page.waitForSelector(".sl-unit .sl-row");
+  const lib = await page.evaluate(() => ({ tabs: [...document.querySelectorAll(".sl-tabs [data-sl-tab]")].map((b) => b.textContent).join("|"), on: document.querySelector(".sl-tabs .on").dataset.slTab,
+    course: document.querySelector("[data-sl-course]").value, units: document.querySelectorAll(".sl-unit").length, first: document.querySelector(".sl-unit summary").textContent }));
+  await page.screenshot({ path: shots + "/symi-library-course.png", fullPage: true });
+  await page.click(".sl-unit[open] [data-play=slides]"); await page.waitForSelector("#stSheet .st-slide h1");
+  const libSlides = await page.textContent("#stSheet .st-count");
+  await page.click("#stSheet [data-st-back]");
+  check("Resources opens on the course: the class's own course (Bricklayer), every unit with its lessons, each one ready to teach with the same slides as the register",
+    /Course\|College\|Community soon\|My resources/.test(lib.tabs) && lib.on === "course" && lib.course === "bricklayer" && lib.units === 10 && /Mixing mortar/.test(lib.first) && /^1 \/ \d+/.test(libSlides), JSON.stringify(lib) + " " + libSlides);
+  await page.click('[data-sl-tab="mine"]'); await page.waitForSelector(".sl-tabs .on[data-sl-tab=mine]");
+  const mineView = await page.evaluate(() => ({ text: document.getElementById("staffApp").textContent, kept: JSON.parse(localStorage.getItem("symi.library.cleared.v1") || "[]").map((r) => r.id).join(), share: !!document.querySelector("[data-sl-share]"), left: window.SamosApp.getState().resources.map((r) => r.id).join() }));
+  await page.screenshot({ path: shots + "/symi-library-mine.png", fullPage: true });
+  check("My resources: the tutor's own slides stay, the old blank ones Symi made are cleared (kept in a backup), and each can be shared with the college",
+    /My cavity wall slides/.test(mineView.text) && !/Week 1 · K1/.test(mineView.text) && !/Official courses/.test(mineView.text) && mineView.kept === "old1,old2,old3" && mineView.left === "mine1" && mineView.share, JSON.stringify(mineView).slice(0, 400));
+  await page.click('[data-sl-tab="community"]'); await page.waitForSelector(".sl-soon");
+  check("Community: coming soon, saying how it will work", /Coming soon/.test(await page.textContent(".sl-soon")) && /checked/.test(await page.textContent(".sl-soon")));
+  await page.click('[data-sl-tab="college"]'); await page.waitForSelector(".sl-body .sl-empty");
+  const signedOut = await page.textContent(".sl-body");
+  await page.evaluate(() => { const C = window.__college = { shared: [] }; window.SymiNisia = Object.assign(window.SymiNisia || {}, { live: () => false, college: () => ({ organisation: "Walsall College", organisation_id: "O1" }),
+    resources: async () => [{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: { slides: [{ title: "English bond", text: "Alternate courses of headers and stretchers." }, { title: "Flemish bond", text: "Headers and stretchers in every course." }] }, shared_by: "Priya Shah", can_remove: true },
+      { id: "R2", kind: "link", title: "Cavity walls PowerPoint", course_code: "bricklayer", url: "https://example.com/c.pptx", shared_by: "Sarah Mitchell", can_remove: false }],
+    share: async (kind, title, opts) => { C.shared.push({ kind, title, opts }); return "R9"; }, unshare: async () => {} }); });
+  await page.click('[data-sl-tab="community"]'); await page.click('[data-sl-tab="college"]'); await page.waitForSelector(".sl-list .sl-row");
+  const college = await page.textContent(".sl-list");
+  await page.screenshot({ path: shots + "/symi-library-college.png", fullPage: true });
+  await page.click('.sl-row[data-rid="R1"] [data-c="use"]'); await page.waitForFunction(() => !!(document.querySelector(".sl-sheet select[name=date]") || {}).value);
+  const date = await page.$eval(".sl-sheet select[name=date]", (x) => x.value); await page.click(".sl-sheet button[type=submit]"); await page.waitForTimeout(200);
+  const swapped = await page.evaluate(async (d) => { const T = window.SymiTeach, p = await T.planFor("t1"), s = p.sessions.find((x) => x.date === d); return T.slidesFor(p, s).map((x) => x.title).slice(0, 3).join("|"); }, date);
+  check("College: signed out it asks to connect; signed in, what the college shares (slides, links), and slides put into a session become that session's Teach",
+    /Sign in to Nisia/.test(signedOut) && /Brick bonds deck/.test(college) && /Cavity walls PowerPoint/.test(college) && /Shared by Priya Shah/.test(college) && /Brick bonds deck\|English bond\|Flemish bond/.test(swapped), swapped);
+  await page.click('[data-sl-tab="mine"]'); await page.waitForSelector("[data-sl-share]"); await page.click("[data-sl-share]"); await page.waitForTimeout(200);
+  const shared = await page.evaluate(() => window.__college.shared[0]);
+  check("…and the tutor's own slides are shared with the college from My resources, content and all", !!shared && shared.kind === "slides" && shared.title === "My cavity wall slides" && shared.opts.content.slides[0].title === "Wall ties", JSON.stringify(shared));
+  await page.evaluate(() => { delete window.SymiNisia; localStorage.removeItem("symi.teach.swap.v1"); window.SamosApp.openRegisters(); });
 
   /* On a phone. */
   await page.evaluate(() => window.SamosApp.mutate((st) => { st.classes[0].courseCode = "bricklayer"; }, true));

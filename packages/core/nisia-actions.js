@@ -26,6 +26,9 @@
     quizStart: { fn: "symi_quiz_start" },
     quizStep: { fn: "symi_quiz_step" },
     quizState: { fn: "symi_quiz_state" },
+    collegeResources: { fn: "nisia_college_resources" },
+    shareResource: { fn: "nisia_share_resource" },
+    unshareResource: { fn: "nisia_unshare_resource" },
     /* Learners (Evia) */
     whatsNew: { fn: "nisia_whats_new" },
     checkIn: { fn: "nisia_check_in", keep: true, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },

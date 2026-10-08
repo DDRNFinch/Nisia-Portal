@@ -19,7 +19,7 @@
   /* The pages that share a tab, with a row to move between them at the top. */
   const GROUPS = {
     registers: [["registers", "Registers", () => S.openRegisters()], ["classes", "Classes", () => go("classes", { selectedTeachingClassId: null })]],
-    resources: [["resources", "All resources", () => go("resources", { resourceFilter: "all", resourceCourseFilter: "" })], ["courses", "Courses", () => go("courses", { selectedCourseId: null })], ["games", "Games", () => go("games")]],
+    /* Resources has its own tabs (symi-library.js): Course, College, Community, My resources. */
   };
   const TAB_OF = { home: "home", registers: "registers", classes: "registers", class: "registers", learners: "learners", learner: "learners", resources: "resources", resource: "resources", courses: "resources", games: "resources" };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);

@@ -1,4 +1,4 @@
-const BUILD='0.33.1';
+const BUILD='0.34.0';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',
@@ -25,7 +25,7 @@ const ASSETS=[
   `./symi-standard-ui-v024.js?v=${BUILD}`,
   `./symi-home-polish-v025.js?v=${BUILD}`,
   `./symi-updater-v027.js?v=${BUILD}`,
-  `./symi-nisia.css?v=${BUILD}`,`./symi-look.css?v=${BUILD}`,`./symi-look.js?v=${BUILD}`,`./symi-teach.js?v=${BUILD}`,`./symi-teach.css?v=${BUILD}`,`./symi-teach-pics.css?v=${BUILD}`,
+  `./symi-nisia.css?v=${BUILD}`,`./symi-look.css?v=${BUILD}`,`./symi-look.js?v=${BUILD}`,`./symi-teach.js?v=${BUILD}`,`./symi-library.js?v=${BUILD}`,`./symi-library.css?v=${BUILD}`,`./symi-teach.css?v=${BUILD}`,`./symi-teach-pics.css?v=${BUILD}`,
   `../evia/teach-kit.js?v=${BUILD}`,`../evia/teach-pics.js?v=${BUILD}`,`../evia/practice-tasks.js?v=${BUILD}`,`../evia/teach-bricklayer.js?v=${BUILD}`,`../evia/teach-joiner.js?v=${BUILD}`,`../evia/teach-site.js?v=${BUILD}`,`../evia/teach-trowel3.js?v=${BUILD}`,
   '../../packages/core/packs.js','../../packages/core/courses.js','./fonts/inter-latin-wght-normal.woff2',`./nisia-link.js?v=${BUILD}`,
   '../../packages/vendor/supabase-2.45.4.js','../../packages/core/nisia.js','../../packages/core/nisia-actions.js','../../packages/core/signin.js','../../packages/core/usage.js',

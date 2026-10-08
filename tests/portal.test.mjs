@@ -49,6 +49,8 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
     /* Classes set up here: they become the tutor's registers in Symi. */
     if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
+    if (p === "/rest/v1/rpc/nisia_college_resources") return json((S.res || []).concat([{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: {}, url: null, shared_by: "Priya Shah", mine: false, can_remove: true, created_at: "2026-10-01T10:00:00Z" }]));
+    if (p === "/rest/v1/rpc/nisia_share_resource") { S.res = (S.res || []).concat([{ id: "R2", kind: body.p_kind, title: body.p_title, course_code: body.p_course, unit: body.p_unit, url: body.p_url, shared_by: "Sarah Mitchell", can_remove: true, created_at: "2026-10-08T10:00:00Z" }]); S.shared = body; return json("R2"); }
     if (p === "/rest/v1/rpc/nisia_today") return json([
       { id: "T1", title: "L2 Bricklaying Tuesday", room: "Workshop 2", tutor: "Priya Shah", schedule: { start: "09:00", end: "16:00", recurrence: { type: "weekly", weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], startDate: "2020-01-01" } },
         session_status: "open", ksbs: [], learners: [
@@ -276,6 +278,14 @@ try {
     check("…with its breaks (edited, not counted as teaching), teaching time per day and in total, and a learner search for big colleges",
       JSON.stringify(sc.p_schedule.breaks) === JSON.stringify([{ start: "10:30", end: "10:45" }, { start: "12:30", end: "13:15" }]) && /6h teaching a day/.test(teachText) && /12 days/.test(teachText) && /72h teaching in total/.test(teachText) &&
       noneShown && rowsShown === 1 && /1 chosen/.test(chosenText) && /6h teaching/.test(await page.textContent("table")), teachText + " | " + rowsShown + " | " + chosenText);
+    /* Resources: what the college shares with its tutors in Symi; admins add links to files kept elsewhere. */
+    await page.click("nav [data-go=resources]"); await page.waitForSelector("#addRes");
+    await page.click("#addRes"); await page.waitForSelector("#rf");
+    await page.fill("#rf [name=title]", "Cavity walls PowerPoint"); await page.fill("#rf [name=url]", "https://college.example/cavity.pptx"); await page.selectOption("#rf [name=course]", "bricklayer");
+    await page.click("#rf button[type=submit]"); await page.waitForFunction(() => !document.querySelector("#rf")); await page.waitForTimeout(300);
+    const resText = await page.textContent("#main"); await page.screenshot({ path: shots + "/9e-resources.png", fullPage: true });
+    check("Resources: the college's shared slides, quizzes and links (in every tutor's Symi), and an admin adds a link to a file kept elsewhere",
+      /Brick bonds deck/.test(resText) && /Cavity walls PowerPoint/.test(resText) && fake.S.shared && fake.S.shared.p_kind === "link" && fake.S.shared.p_url === "https://college.example/cavity.pptx" && fake.S.shared.p_course === "bricklayer", resText.slice(0, 300));
     /* Today: every class on today, with who's in, late, booked off and not in yet, live from Symi. */
     await page.click("nav [data-go=today]"); await page.waitForSelector(".today-class"); await page.screenshot({ path: shots + "/9d-today.png", fullPage: true });
     const tt = await page.textContent("#main");
