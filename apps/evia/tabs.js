@@ -56,7 +56,7 @@
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
       return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
     /* The Shop: a big button under the player card, so learners can't miss where their coins go. */
-    const shopBtn=R?'<button type="button" class="tg-shop-big" id="tg-shop"><span class="tg-shop-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span><span class="tg-shop-txt"><strong>Shop</strong><small>Spend your '+bal+' coins on new looks for Evia and mini games</small></span><span class="tg-shop-go" aria-hidden="true">›</span></button>':"";
+    const shopBtn=R?'<button type="button" class="tg-shop-big" id="tg-shop"><span class="tg-shop-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span><span class="tg-shop-txt"><strong>Shop</strong><small>Spend your '+bal+' coins on new looks for Evia</small></span><span class="tg-shop-go" aria-hidden="true">›</span></button>':"";
     scr().innerHTML=head("Learn")+player+shopBtn+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
     const shop=document.getElementById("tg-shop");if(shop)shop.onclick=()=>nav("rewards");
     const et=document.getElementById("tg-epa");if(et)et.onclick=()=>window.eviaOpenEpa&&window.eviaOpenEpa();
@@ -84,16 +84,15 @@
       '<span class="tg-epa-copy"><small>'+(nvq?"Knowledge":"End-point assessment")+'</small><strong>'+(nvq?"Knowledge tests":"EPA practice")+'</strong><span>'+(nvq?"Quick practice and full knowledge tests":"Quick practice, full mocks and professional discussion")+'</span></span>'+
       '<span class="tg-epa-score">'+(best==null?'<b>Start</b><small>No tests yet</small>':'<b>'+best+'%</b><small>best · last '+last.pct+'%</small>')+'</span></button>';
   }
-  /* Mini games: unlocked in Rewards, played here. */
+  /* Mini games: all free, played here. */
   const LOCK='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
-  const SHOTS=["brickle","crossword","flappy","showdown","siterun","quest"]; /* games/<key>.jpg (siterun and quest are parked) */
+  const SHOTS=["battle","brickle","crossword","flappy","showdown","siterun","quest"]; /* games/<key>.jpg (siterun and quest are parked) */
   function games(){
     const G=window.eviaGames,R=window.eviaRewards;if(!G||!R)return "";
     const PRICE={common:30,rare:80,epic:180},room=R.gameRoom(),earned=R.GAME_DAILY-room;
     return '<section class="tt-games"><div class="tt-games-head"><h2 class="ui-section-label">Mini games</h2><span>'+(room?earned+" of "+R.GAME_DAILY+" game coins today":"Today’s game coins collected")+'</span></div>'+
-      (G.GAMES.some(g=>g.key==="battle")?'<button type="button" class="bt-banner" data-game="game-battle" data-key="battle"><span class="bt-banner-ic" aria-hidden="true">'+G.iconFor("battle")+'</span><span><strong>Question Battle</strong><small>Battle a classmate live. Throw questions, block theirs.</small></span><span class="bt-banner-go">Battle</span></button>':"")+
       (window.eviaLeaderboard?'<button type="button" class="lb-open-btn" id="lb-open"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span><strong>Leaderboards</strong><small>This month at your college · top 3 win coins</small></span><span aria-hidden="true">›</span></button>':"")+'<div class="tg-games">'+
-      G.GAMES.filter(g=>g.key!=="battle").map(g=>{const own=R.owns(g.id);
+      G.GAMES.map(g=>{const own=R.owns(g.id);
         /* Top three-quarters: a screenshot of the game. Bottom quarter: its name and what it is. */
         return '<button type="button" class="tt-game tg-game g-'+g.key+(own?"":" locked")+'" data-game="'+g.id+'" data-key="'+g.key+'" aria-label="'+esc(g.label+". "+g.about+(own?"":" Unlock in Rewards."))+'">'+
           '<span class="tg-shot">'+(SHOTS.includes(g.key)?'<img src="games/'+g.key+'.jpg" alt="" loading="lazy" decoding="async">':'<span class="tg-game-ic" aria-hidden="true">'+G.iconFor(g.key)+'</span>')+

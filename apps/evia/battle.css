@@ -106,14 +106,6 @@
 .bt-review p{margin:8px 0 0;font-size:14px;line-height:1.4}
 .bt-end-btns{display:grid;gap:8px;width:100%}
 
-/* Learn page: the battle banner above the games */
-.bt-banner{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 12px;padding:14px 16px;border-radius:18px;border:0;background:linear-gradient(135deg,#17150f,#3a2f12);color:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.15)}
-.bt-banner .bt-banner-ic{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:14px;background:var(--accent-fill,var(--yellow,#e7b900))}
-.bt-banner svg{width:30px;height:30px;fill:none;stroke:#17150f;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.bt-banner>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px}
-.bt-banner strong{font-size:17px}.bt-banner small{font-size:13px;color:#e4dcc4}
-.bt-banner .bt-banner-go{flex:none;padding:8px 14px;border-radius:999px;background:var(--accent-fill,var(--yellow,#e7b900));color:#17150f;font-weight:800;font-size:14px}
-
 @media (max-width:360px){.bt-card{min-height:130px;padding:10px}.bt-card .bt-q{font-size:13px}}
-@media (prefers-reduced-motion:reduce){.bt *,.bt-banner{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){.bt *{animation:none!important;transition:none!important}}
 html[data-reduced-motion] .bt *{animation:none!important;transition:none!important}

@@ -584,20 +584,17 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       return out;
     });
     check("Problem log: no hidden script problems, errors are counted once each, shown in Profile to send to a tutor, and synced",Object.values(pl).every(v=>v===true),JSON.stringify(pl));
-    // Mini games: locked until unlocked in Rewards, played from Teach me, small coins with a daily cap.
+    // Mini games: all free (no coins to learn), each with its picture, played from Learn, small coins with a daily cap.
     const gm=await page.evaluate(async()=>{
       const w=ms=>new Promise(r=>setTimeout(r,ms)),R=window.eviaRewards,G=window.eviaGames,out={},keep=localStorage.getItem("evia7-rewards");
       localStorage.setItem("evia7-rewards",JSON.stringify({bank:500,spent:0,owned:[],hat:"",pity:0,seenAch:[],lastXp:1e9,day:"",workV:1,paid:{}}));
       nav("teach");await w(500);
-      out.locked=document.querySelectorAll(".tt-game.locked").length===4;
+      out.free=!document.querySelector(".tt-game.locked")&&document.querySelectorAll(".tt-game").length===5&&document.querySelectorAll(".tt-game .tg-shot img").length===5&&document.querySelector(".tt-game").dataset.key==="battle";
       /* The Teach me card shows medals, the streak and coins: no XP or levels. */
       out.medals=!!document.querySelector(".tg-player .tg-medals")&&!/\bXP\b|Level \d/.test(document.querySelector(".tg-player").textContent);
       /* The camera always carries the photo-consent line (opened without a real camera, then closed). */
       if(window.eviaCamera&&window.eviaCamera.open){window.eviaCamera.open({title:"Test",prompts:[],onDone(){}});await w(300);out.consent=/not people/.test((document.querySelector(".cam-consent")||{}).textContent||"");const cx=document.querySelector("[data-cam-close]");if(cx)cx.click();await w(300);document.querySelectorAll(".cam").forEach(c=>c.remove());document.body.classList.remove("cam-open")}
-      document.querySelector('[data-game="game-brickle"]').click();await w(700);
-      out.toRewards=screen==="rewards"&&!!document.querySelector('#rw-game-brickle [data-buy]');
-      document.querySelector('#rw-game-brickle [data-buy]').click();await w(300);document.querySelectorAll(".rw-over").forEach(o=>o.remove());
-      out.owned=R.owns("game-brickle");
+      out.owned=R.owns("game-brickle")&&R.owns("game-flappy")&&R.owns("game-battle")&&!R.catalogue().some(i=>i.kind==="game");
       out.score=G.score("ALLEY","LEVEL").join()==="no,near,near,hit,no";
       nav("teach");await w(400);document.querySelector('[data-game="game-brickle"]').click();await w(400);
       const d=new Date(),L=G.WORDS[G.group()],word=L[Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)%L.length][0];
@@ -621,7 +618,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       if(keep)localStorage.setItem("evia7-rewards",keep);else localStorage.removeItem("evia7-rewards");
       return out;
     });
-    check("Teach me card shows medals (no XP or levels); the camera reminds learners not to photograph people. Mini games: locked until bought in Rewards, then T.R.A.D.E, the crossword and Flappy Evia play from Teach me (Site Run and Site Quest are parked) and pay capped coins",Object.values(gm).every(Boolean),JSON.stringify(gm));
+    check("Teach me card shows medals (no XP or levels); the camera reminds learners not to photograph people. Mini games: all free with a picture each (Question Battle first), T.R.A.D.E, the crossword and Flappy Evia play from Learn (Site Run and Site Quest are parked) and pay capped coins",Object.values(gm).every(Boolean),JSON.stringify(gm));
     /* Site Showdown: right moves beat enemies, wrong ones cost a heart and stay crossed out, a boss every 5 wins with
        1 step, then 2, and three wrong moves end the run with the best score kept. */
     const sd=await page.evaluate(async()=>{

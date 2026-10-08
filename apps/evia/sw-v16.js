@@ -1,4 +1,4 @@
-const VERSION = "2026-10-07-evia7-v233";
+const VERSION = "2026-10-07-evia7-v234";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -65,7 +65,7 @@ const APP_SHELL = [
   "./games/brickle.jpg","./guide-pics/build-1.jpg","./guide-pics/build-2.jpg","./guide-pics/build-3.jpg",
   "./games/crossword.jpg",
   "./games/flappy.jpg",
-  "./games/showdown.jpg",
+  "./games/showdown.jpg","./games/battle.jpg",
   "./manifest.json",
   "./icon.svg",
   "./icon-180.png",

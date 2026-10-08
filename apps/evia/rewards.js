@@ -66,14 +66,13 @@
     Object.keys(PPE).forEach(id=>out.push(Object.assign({id,kind:"hat"},PPE[id])));
     Object.keys(EXPR).forEach(k=>out.push({id:"expr-"+k,kind:"expr",key:k,label:EXPR[k].label,rarity:EXPR[k].rarity,about:EXPR[k].about}));
     Object.keys(SHAPE_R).forEach(k=>S[k]&&out.push({id:"shape-"+k,kind:"shape",key:k,label:S[k].label+" Evia",rarity:SHAPE_R[k],about:S[k].orb?(S[k].orb.style==="glass"?"An advanced Evia: a glass orb whose light moves when she talks.":"An advanced Evia: a living sphere of light."):"A new shape for Evia."}));
-    ((window.eviaGames&&window.eviaGames.GAMES)||[]).filter(g=>!FREE_GAMES.includes(g.id)).forEach(g=>out.push({id:g.id,kind:"game",key:g.key,label:g.label,rarity:g.rarity,about:g.about}));
-    Object.keys(COLOUR_R).forEach(k=>T[k]&&out.push({id:"colour-"+k,kind:"colour",key:k,label:T[k].label,rarity:COLOUR_R[k],about:T[k].legendary?"Legendary. The whole app in "+({site:"site yellow and black, with hazard stripes",rainbow:"every colour of the rainbow",neon:"glowing neon",galaxy:"deep-space purples",sunset:"a sunset glow"}[k]||T[k].label.toLowerCase())+".":"Evia and the app in "+T[k].label.toLowerCase()+"."}));
+        Object.keys(COLOUR_R).forEach(k=>T[k]&&out.push({id:"colour-"+k,kind:"colour",key:k,label:T[k].label,rarity:COLOUR_R[k],about:T[k].legendary?"Legendary. The whole app in "+({site:"site yellow and black, with hazard stripes",rainbow:"every colour of the rainbow",neon:"glowing neon",galaxy:"deep-space purples",sunset:"a sunset glow"}[k]||T[k].label.toLowerCase())+".":"Evia and the app in "+T[k].label.toLowerCase()+"."}));
     return out;
   }
   const item=id=>catalogue().find(x=>x.id===id);
   /* Question Battle is free for everyone (battle.js). */
-  const FREE_GAMES=["game-battle"];
-  const owns=id=>FREE_GAMES.includes(id)||read().owned.includes(id);
+  /* Every mini game is free: learners never pay coins to learn. */
+  const owns=id=>!!(window.eviaGames&&window.eviaGames.GAMES.some(g=>g.id===id))||read().owned.includes(id);
   /* Theme.js asks this: is a shape or colour locked, and if so, what rarity? */
   function locked(kind,name){
     const F=window.eviaFree||{themes:[],shapes:[]};
@@ -329,7 +328,7 @@
     const list=all.filter(x=>x.kind===tab).sort((a,b)=>ORDER.indexOf(a.rarity)-ORDER.indexOf(b.rarity));
     scr().innerHTML='<div id="rw-page"><header class="ui-page-head"><h1>Rewards</h1><span>'+got+' of '+all.length+' collected</span></header>'+
       '<section class="rw-bal"><div>'+coin+'<b>'+bal+'</b></div><p>Coins</p><details class="rw-earn"><summary>How to earn coins</summary><ul>'+EARN.map(e=>'<li><span>'+e[0]+'</span><b>'+e[1]+'</b></li>').join("")+'</ul><p>Improve your evidence later and you get the difference.</p></details></section>'+
-      '<div class="rw-tabs" role="tablist">'+[["hat","Kit"],["expr","Faces"],["shape","Shapes"],["colour","Colours"],["game","Games"]].map(t=>'<button type="button" role="tab" aria-selected="'+(tab===t[0])+'" class="'+(tab===t[0]?"on":"")+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join("")+'</div>'+
+      '<div class="rw-tabs" role="tablist">'+[["hat","Kit"],["expr","Faces"],["shape","Shapes"],["colour","Colours"]].map(t=>'<button type="button" role="tab" aria-selected="'+(tab===t[0])+'" class="'+(tab===t[0]?"on":"")+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join("")+'</div>'+
       '<div class="rw-grid">'+list.map(it=>{const own=r.owned.includes(it.id),on=own&&inUse(it),price=RARITY[it.rarity].price;
         return '<div class="rw-item r-'+it.rarity+(own?" own":"")+(on?" on":"")+'" id="rw-'+it.id+'">'+tag(it.rarity)+preview(it)+'<strong>'+esc(it.label)+'</strong><small>'+esc(it.about)+'</small>'+
           (own?'<button type="button" class="rw-btn'+(on?" on":"")+'" data-use="'+it.id+'">'+(on?(it.kind==="hat"?"Wearing":"In use"):(it.kind==="hat"?"Wear":it.kind==="game"?"Play":"Use"))+'</button>'

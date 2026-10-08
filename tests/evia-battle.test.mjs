@@ -94,11 +94,12 @@ try {
   const amy = await phone("amy", "Amy Clarke", { "evia7-theme": "blue", "evia7-shape": "cloud", "evia7-leaderboard": JSON.stringify({ on: true, name: "Amy C" }) });
   const ben = await phone("ben", "Ben Okafor", { "evia7-theme": "rainbow", "evia7-shape": "cat" });
 
-  const learn = await amy.evaluate(() => ({ banner: !!document.querySelector("#screen .bt-banner"), first: document.querySelector("#screen .tt-games-head + .bt-banner") !== null, inGrid: !!document.querySelector('.tg-games [data-key="battle"]') }));
+  const learn = await amy.evaluate(() => { const t = [...document.querySelectorAll("#screen .tg-games .tt-game")]; return { first: t[0] && t[0].dataset.key, pic: !!(t[0] && t[0].querySelector('img[src="games/battle.jpg"]')), locked: t.filter((x) => x.classList.contains("locked")).length, tiles: t.length }; });
+  await amy.evaluate(() => document.querySelector('#screen [data-key="battle"]').scrollIntoView({ block: "center" })); await amy.waitForTimeout(300);
   await amy.screenshot({ path: shots + "/evia-battle-learn.png" });
-  check("Learn: Question Battle is a big banner at the top of the games (not a locked tile)", learn.banner && learn.first && !learn.inGrid, JSON.stringify(learn));
+  check("Learn: Question Battle is first in the games, with its picture, and every game is free", learn.first === "battle" && learn.pic && learn.locked === 0 && learn.tiles >= 4, JSON.stringify(learn));
 
-  await amy.click("#screen .bt-banner"); await amy.waitForSelector(".bt-lobby");
+  await amy.click('#screen [data-key="battle"]'); await amy.waitForSelector(".bt-lobby");
   const lobby = await text(amy);
   await amy.screenshot({ path: shots + "/evia-battle-lobby.png" });
   check("The lobby: Amy's own Evia, the rules (5 HP, 4 cards then 4 fresh, boss cards) and Find a battle", /Amy C\./.test(lobby) && /5 HP/.test(lobby) && /4 fresh/.test(lobby) && /Boss/.test(lobby) && !!(await amy.$(".bt-lobby .rw-evia.shape-cloud")) && !!(await amy.$("[data-find]")), lobby);
@@ -107,7 +108,7 @@ try {
   await amy.screenshot({ path: shots + "/evia-battle-waiting.png" });
   check("Finding: Amy waits for someone at her college", /Looking for someone/.test(await text(amy)) && live().status === "waiting");
 
-  await ben.click("#screen .bt-banner"); await ben.waitForSelector("[data-find]"); await ben.click("[data-find]");
+  await ben.click('#screen [data-key="battle"]'); await ben.waitForSelector("[data-find]"); await ben.click("[data-find]");
   await until(ben, () => !!document.querySelector(".bt-vs,.bt-play")); await until(amy, () => !!document.querySelector(".bt-vs,.bt-play"));
   await ben.screenshot({ path: shots + "/evia-battle-vs.png" });
   const vs = { amy: await text(amy), ben: await text(ben) };

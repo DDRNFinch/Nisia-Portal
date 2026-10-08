@@ -485,7 +485,7 @@
     {target:'[data-nav="calendar"]',tap:true,text:"Tap <strong>Calendar</strong>."},
     {seen:"calendar",text:"Your college days, set by your tutor, and your learning hours. Can’t make college? Tell me from here."},
     {target:'[data-nav="teach"]',tap:true,text:"Tap <strong>Learn</strong>."},
-    {seen:"teach",target:"#tg-shop",text:"Lessons, tests and games, like the one you just did. Each earns <strong>coins</strong>: spend them in the <strong>Shop</strong> on new looks for me and mini games."},
+    {seen:"teach",target:"#tg-shop",text:"Lessons, tests and games, like the one you just did. Each earns <strong>coins</strong>: spend them in the <strong>Shop</strong> on new looks for me."},
     {seen:"evia",target:"#evia-fab",text:"And this is me. Tap me any time for help, evidence checks and practice tests."},
     {nav:"course",target:"#profile-btn",tap:true,text:"Last one: tap your <strong>profile</strong>."},
     {profile:true,seen:"profile"}

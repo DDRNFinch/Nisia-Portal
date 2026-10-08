@@ -185,4 +185,5 @@
   }
   const icon='<svg viewBox="0 0 24 24"><path d="M5 19 19 5M14 5h5v5"/><path d="M19 19 5 5M10 5H5v5"/><circle cx="12" cy="12" r="2.2"/></svg>';
   G.register({id:"game-battle",key:"battle",label:"Question Battle",rarity:"common",about:"Battle a classmate live. Throw questions at their Evia; answer theirs to block."},run,icon);
+  const i=G.GAMES.findIndex(g=>g.key==="battle");if(i>0)G.GAMES.unshift(G.GAMES.splice(i,1)[0]); /* first in the games */
 })();
