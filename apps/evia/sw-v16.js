@@ -1,4 +1,4 @@
-const VERSION = "2026-10-07-evia7-v232";
+const VERSION = "2026-10-07-evia7-v233";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -6,14 +6,14 @@ const APP_SHELL = [
   "./index.html",
   "./styles.css",
   "./polish.css",
-  "./ui.css","./legendary.css",
+  "./ui.css","./legendary.css","./battle.css",
   "./premium.css",
   "./accessibility.css",
   "./accessibility.js",
   "./vendor/fonts/lexend-latin-400-normal.woff2",
   "./vendor/fonts/lexend-latin-600-normal.woff2",
   "./vendor/fonts/inter-latin-wght-normal.woff2",
-  "./errors.js","./install.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./vendor/supabase-2.45.4.js",
+  "./errors.js","./install.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./battle.js","./vendor/supabase-2.45.4.js",
   "./storage.js",
   "./app.js",
   "./data.js",

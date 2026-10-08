@@ -11,6 +11,7 @@
   const PRIZES=[100,60,30];
   /* What each board counts: a best (max), or how many (add, with a daily limit so replays don't pile up). */
   const GAMES={
+    battle:{label:"Question Battle",mode:"add",perDay:20,unit:["win","wins"],what:"Battles won"},
     showdown:{label:"Site Showdown",mode:"max",unit:["win","wins"],what:"Best run"},
     flappy:{label:"Flappy Evia",mode:"max",unit:["point","points"],what:"Best score"},
     brickle:{label:"T.R.A.D.E",mode:"add",perDay:1,unit:["word","words"],what:"Daily words solved"},

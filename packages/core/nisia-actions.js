@@ -34,6 +34,11 @@
     checkIn: { fn: "nisia_check_in", keep: true, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },
     quizNow: { fn: "evia_quiz_now" },
     quizAnswer: { fn: "evia_quiz_answer" },
+    battleFind: { fn: "evia_battle_find" },
+    battleState: { fn: "evia_battle_state" },
+    battleAttack: { fn: "evia_battle_attack" },
+    battleAnswer: { fn: "evia_battle_answer" },
+    battleLeave: { fn: "evia_battle_leave" },
     /* Employers (Paros) */
     addWitness: { fn: "paros_add_witness" },
     rateBehaviours: { fn: "paros_rate_behaviours" },

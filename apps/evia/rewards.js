@@ -66,12 +66,14 @@
     Object.keys(PPE).forEach(id=>out.push(Object.assign({id,kind:"hat"},PPE[id])));
     Object.keys(EXPR).forEach(k=>out.push({id:"expr-"+k,kind:"expr",key:k,label:EXPR[k].label,rarity:EXPR[k].rarity,about:EXPR[k].about}));
     Object.keys(SHAPE_R).forEach(k=>S[k]&&out.push({id:"shape-"+k,kind:"shape",key:k,label:S[k].label+" Evia",rarity:SHAPE_R[k],about:S[k].orb?(S[k].orb.style==="glass"?"An advanced Evia: a glass orb whose light moves when she talks.":"An advanced Evia: a living sphere of light."):"A new shape for Evia."}));
-    ((window.eviaGames&&window.eviaGames.GAMES)||[]).forEach(g=>out.push({id:g.id,kind:"game",key:g.key,label:g.label,rarity:g.rarity,about:g.about}));
+    ((window.eviaGames&&window.eviaGames.GAMES)||[]).filter(g=>!FREE_GAMES.includes(g.id)).forEach(g=>out.push({id:g.id,kind:"game",key:g.key,label:g.label,rarity:g.rarity,about:g.about}));
     Object.keys(COLOUR_R).forEach(k=>T[k]&&out.push({id:"colour-"+k,kind:"colour",key:k,label:T[k].label,rarity:COLOUR_R[k],about:T[k].legendary?"Legendary. The whole app in "+({site:"site yellow and black, with hazard stripes",rainbow:"every colour of the rainbow",neon:"glowing neon",galaxy:"deep-space purples",sunset:"a sunset glow"}[k]||T[k].label.toLowerCase())+".":"Evia and the app in "+T[k].label.toLowerCase()+"."}));
     return out;
   }
   const item=id=>catalogue().find(x=>x.id===id);
-  const owns=id=>read().owned.includes(id);
+  /* Question Battle is free for everyone (battle.js). */
+  const FREE_GAMES=["game-battle"];
+  const owns=id=>FREE_GAMES.includes(id)||read().owned.includes(id);
   /* Theme.js asks this: is a shape or colour locked, and if so, what rarity? */
   function locked(kind,name){
     const F=window.eviaFree||{themes:[],shapes:[]};
@@ -363,7 +365,15 @@
   /* The expression in use goes on <html>, so every Evia in the app shows it (moods still win for a moment). */
   function applyExpr(){const r=read(),on=r.expr&&owns("expr-"+r.expr);if(on)document.documentElement.setAttribute("data-evia-expr",r.expr);else document.documentElement.removeAttribute("data-evia-expr")}
   applyExpr();
-  window.eviaRewards={carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
+  /* How the learner's Evia looks (shape, colour, face, what's worn), and that look drawn for someone else's screen. */
+  function myLook(){const r=read(),ok=id=>id&&owns(id)?id:"";return {shape:window.eviaCurrentShape?window.eviaCurrentShape():"circle",theme:localStorage.getItem("evia7-theme")||"yellow",expr:(r.expr&&owns("expr-"+r.expr))?r.expr:"",
+    wear:{hat:ok(r.hat),eyes:ok(r.eyes),ears:ok(r.ears),body:ok(r.body),face:ok(r.face)}}}
+  function lookHtml(l,cls){
+    l=l||{};const T=window.eviaThemes||{},t=T[l.theme]||T.yellow||{accent:"#e7b900"},S=window.eviaShapes||{},shape=S[l.shape]?l.shape:"circle",w=l.wear||{};
+    const paint=t.legendary&&window.eviaThemePaint?window.eviaThemePaint(l.theme):t.accent;
+    return '<span class="rw-evia evia-shape-avatar shape-'+shape+(cls?" "+cls:"")+'" style="--yellow:'+t.accent+';--evia-shape-stroke:'+t.accent+';--accent-fill:'+paint+'"'+(t.legendary?' data-legendary data-colour="'+esc(l.theme)+'"':"")+(w.eyes?' data-eyes="'+esc(w.eyes)+'"':"")+'><span class="evia-face"'+(l.expr?' data-x="'+esc(l.expr)+'"':"")+'><i></i><i></i></span>'+kitHtml(shape,w)+'</span>';
+  }
+  window.eviaRewards={myLook,lookHtml,carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
   setTimeout(()=>{sync();wearOn()},500);
   /* Keep the hat on when Evia's shape changes. */

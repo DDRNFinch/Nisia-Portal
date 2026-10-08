@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="evia-version" content="evia7-v232">
+<meta name="evia-version" content="evia7-v233">
 <meta name="theme-color" content="#fffdfa">
 <meta name="description" content="Evia apprenticeship tracking">
 <meta name="evia-build-policy" content="network-first-v1">
@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="premium.css?v=pm-v3">
 <link rel="stylesheet" href="accessibility.css?v=a11y-v2">
 <link rel="stylesheet" href="legendary.css?v=leg-v1">
+<link rel="stylesheet" href="battle.css?v=bt-v1">
 <style>
 html.evia-booting body{visibility:hidden}
 .evia-storage-block p{margin:6px 0;font-size:12.5px;line-height:1.5;color:#667085}.evia-storage-block .evia-storage-last{font-weight:700;color:#344054}.evia-storage-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.evia-storage-actions .secondary{display:flex;align-items:center;justify-content:center;min-height:44px;text-align:center;cursor:pointer}
@@ -79,7 +80,7 @@ html.evia-booting body{visibility:hidden}
 <script src="errors.js?v=errors-v1"></script>
 <script src="install.js?v=install-v2"></script>
 <script src="packs.js?v=packs-v3"></script>
-<script src="storage.js?v=storage-v6" data-app-scripts="data.js?v=data-v12 nisia-actions.js?v=actions-2 nisia.js?v=nisia-v17 checkin.js?v=checkin-v2 @course-pack-early ksb-official.js?v=ksb-v2 app.js polish.js theme.js?v=evia-theme-v12 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v27 profile.js?v=profile-v14 eportfolio.js?v=eport-v17 test-banks.js?v=banks-v2 review.js?v=tests-v13 repair.js?v=repair-v3 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v2 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v3 guide.js?v=guide-v9 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v15 practice.js?v=practice-v11 reviews.js?v=reviews-v14 ui.js?v=ui-v44 progress.js?v=pv-v13 epa-guide.js?v=guide-v1 discussion.js?v=disc-v5 evia-coach.js?v=coach-v21 evia-brain.js?v=brain-v8 evia-todo.js?v=todo-v5 camera.js?v=camera-v7 photo-tips.js?v=tips-v2 writing.js?v=writing-v2 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v16 calendar.js?v=cal-v4 games.js?v=games-v7 showdown-data.js?v=sd-v3 showdown.js?v=sd-v2 leaderboard.js?v=lb-v2 rewards.js?v=rw-v18 orbs.js?v=orbs-v2 tips.js?v=tips-v2 usage.js?v=usage-v1 class-quiz.js?v=cq-v1"></script>
+<script src="storage.js?v=storage-v6" data-app-scripts="data.js?v=data-v12 nisia-actions.js?v=actions-2 nisia.js?v=nisia-v17 checkin.js?v=checkin-v2 @course-pack-early ksb-official.js?v=ksb-v2 app.js polish.js theme.js?v=evia-theme-v12 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v27 profile.js?v=profile-v14 eportfolio.js?v=eport-v17 test-banks.js?v=banks-v2 review.js?v=tests-v13 repair.js?v=repair-v3 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v2 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v3 guide.js?v=guide-v9 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v15 practice.js?v=practice-v11 reviews.js?v=reviews-v14 ui.js?v=ui-v44 progress.js?v=pv-v13 epa-guide.js?v=guide-v1 discussion.js?v=disc-v5 evia-coach.js?v=coach-v21 evia-brain.js?v=brain-v8 evia-todo.js?v=todo-v5 camera.js?v=camera-v7 photo-tips.js?v=tips-v2 writing.js?v=writing-v2 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v17 calendar.js?v=cal-v4 games.js?v=games-v7 showdown-data.js?v=sd-v3 showdown.js?v=sd-v2 leaderboard.js?v=lb-v3 rewards.js?v=rw-v19 orbs.js?v=orbs-v2 tips.js?v=tips-v2 usage.js?v=usage-v1 class-quiz.js?v=cq-v1 battle.js?v=bt-v1"></script>
 <script>
 (function(){
   if (!("serviceWorker" in navigator)) return;
@@ -89,7 +90,7 @@ html.evia-booting body{visibility:hidden}
   navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloading||!hadController||Date.now()-openedAt>8000)return;reloading=true;window.location.reload();});
   window.addEventListener("load", async function(){
     try {
-      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v232",{updateViaCache:"none"});
+      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v233",{updateViaCache:"none"});
       await registration.update().catch(()=>{}); /* fails harmlessly with no signal */
       const activateWaiting=worker=>{if(!worker)return;worker.postMessage({type:"SKIP_WAITING"});};
       if(registration.waiting) activateWaiting(registration.waiting);

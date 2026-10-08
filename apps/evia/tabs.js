@@ -91,8 +91,9 @@
     const G=window.eviaGames,R=window.eviaRewards;if(!G||!R)return "";
     const PRICE={common:30,rare:80,epic:180},room=R.gameRoom(),earned=R.GAME_DAILY-room;
     return '<section class="tt-games"><div class="tt-games-head"><h2 class="ui-section-label">Mini games</h2><span>'+(room?earned+" of "+R.GAME_DAILY+" game coins today":"Today’s game coins collected")+'</span></div>'+
+      (G.GAMES.some(g=>g.key==="battle")?'<button type="button" class="bt-banner" data-game="game-battle" data-key="battle"><span class="bt-banner-ic" aria-hidden="true">'+G.iconFor("battle")+'</span><span><strong>Question Battle</strong><small>Battle a classmate live. Throw questions, block theirs.</small></span><span class="bt-banner-go">Battle</span></button>':"")+
       (window.eviaLeaderboard?'<button type="button" class="lb-open-btn" id="lb-open"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span><strong>Leaderboards</strong><small>This month at your college · top 3 win coins</small></span><span aria-hidden="true">›</span></button>':"")+'<div class="tg-games">'+
-      G.GAMES.map(g=>{const own=R.owns(g.id);
+      G.GAMES.filter(g=>g.key!=="battle").map(g=>{const own=R.owns(g.id);
         /* Top three-quarters: a screenshot of the game. Bottom quarter: its name and what it is. */
         return '<button type="button" class="tt-game tg-game g-'+g.key+(own?"":" locked")+'" data-game="'+g.id+'" data-key="'+g.key+'" aria-label="'+esc(g.label+". "+g.about+(own?"":" Unlock in Rewards."))+'">'+
           '<span class="tg-shot">'+(SHOTS.includes(g.key)?'<img src="games/'+g.key+'.jpg" alt="" loading="lazy" decoding="async">':'<span class="tg-game-ic" aria-hidden="true">'+G.iconFor(g.key)+'</span>')+
