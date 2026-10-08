@@ -15,8 +15,26 @@
     forest:{label:"Forest",accent:"#2f7d4f",soft:"#e8f3ec",line:"#b3d6c0",ink:"#1d4f32",bg:"#f8fbf9"},
     rose:{label:"Rose",accent:"#d9466f",soft:"#fcebf0",line:"#f2b8c9",ink:"#97244a",bg:"#fff9fb"},
     navy:{label:"Navy",accent:"#24407a",soft:"#e9eef8",line:"#b8c6e3",ink:"#172a52",bg:"#f8f9fc"},
-    graphite:{label:"Graphite",accent:"#4b5563",soft:"#eef0f3",line:"#cbd0d7",ink:"#1f2937",bg:"#f9fafb"}
+    graphite:{label:"Graphite",accent:"#4b5563",soft:"#eef0f3",line:"#cbd0d7",ink:"#1f2937",bg:"#f9fafb"},
+    /* Legendary: the whole app in a gradient (or, for Site, hazard stripes), Evia's outline too (legendary.css). */
+    rainbow:{label:"Rainbow",accent:"#8b5cf6",soft:"#f6f1ff",line:"#dccbfb",ink:"#5b32b0",bg:"#fffdfd",legendary:true,
+      stops:["#ff4d4d","#ff9f1a","#ffd60a","#2ecc71","#2f80ed","#8b5cf6","#ff4d9a","#ff4d4d"]},
+    neon:{label:"Neon",accent:"#ff2bd6",soft:"#fdeaff",line:"#f6a8ec",ink:"#9b0a82",bg:"#fdf8ff",legendary:true,stops:["#ff2bd6","#7a5cff","#00d9ff"]},
+    site:{label:"Site",accent:"#ffc400",soft:"#fff4c7",line:"#e6b000",ink:"#1a1a1a",bg:"#fffcef",legendary:true,stripes:["#ffc400","#1a1a1a"]},
+    galaxy:{label:"Galaxy",accent:"#6d4aff",soft:"#efeaff",line:"#c9bcff",ink:"#3b2399",bg:"#fbfaff",legendary:true,stops:["#24116e","#6d4aff","#c13cff","#ff6ec7"]},
+    sunset:{label:"Sunset",accent:"#ff6b4a",soft:"#fff0ea",line:"#ffc2ae",ink:"#a3361c",bg:"#fffaf7",legendary:true,stops:["#ffb347","#ff6b4a","#e84a8a","#8e44ad"]}
   };
+  /* A legendary colour's paint: a gradient across its colours, or hazard stripes. */
+  const paintOf=t=>t.stripes?"repeating-linear-gradient(-45deg,"+t.stripes[0]+" 0 9px,"+t.stripes[1]+" 9px 18px)":t.stops?"linear-gradient(110deg,"+t.stops.join(",")+")":"";
+  /* Evia's outline is an SVG line, so it gets an SVG gradient (or stripe pattern) of the same colours. */
+  /* One for the colour in use (#evia-legend) and one for each legendary colour, for the store and the picker. */
+  function legendDefs(t){
+    let d=document.getElementById("evia-legend-defs");
+    if(!d){if(!document.body)return;d=document.createElementNS("http://www.w3.org/2000/svg","svg");d.id="evia-legend-defs";d.setAttribute("aria-hidden","true");d.style.cssText="position:absolute;width:0;height:0;overflow:hidden";document.body.appendChild(d)}
+    const one=(id,x)=>x.stripes?'<pattern id="'+id+'" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="'+x.stripes[0]+'"/><rect width="6" height="12" fill="'+x.stripes[1]+'"/></pattern>'
+      :'<linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="1">'+x.stops.map((c,i,a)=>'<stop offset="'+(i/(a.length-1))+'" stop-color="'+c+'"/>').join("")+'</linearGradient>';
+    d.innerHTML="<defs>"+(t&&t.legendary?one("evia-legend",t):"")+Object.keys(THEMES).filter(k=>THEMES[k].legendary).map(k=>one("evia-legend-"+k,THEMES[k])).join("")+"</defs>";
+  }
   /* Free for everyone and shown on the first-run pickers; the rest are unlocked in Rewards (rewards.js). */
   const FREE_THEMES=["yellow","green","blue"],FREE_SHAPES=["circle","squircle","cloud"];
   const KEY="evia7-theme";
@@ -110,7 +128,12 @@
     root.setProperty("--yellow-line",t.line);
     root.setProperty("--yellow-ink",t.ink);
     root.setProperty("--bg",t.bg);
+    /* Buttons, bars and highlights take the gradient; Site keeps its yellow there (stripes behind words can't be read). */
+    if(t.legendary&&!t.stripes)root.setProperty("--accent-fill",paintOf(t));else root.removeProperty("--accent-fill");
+    if(t.legendary)root.setProperty("--evia-legend",paintOf(t));else root.removeProperty("--evia-legend");
+    document.documentElement.toggleAttribute("data-evia-legendary",!!t.legendary);
     document.documentElement.setAttribute("data-evia-theme",THEMES[name]?name:"yellow");
+    if(document.body)legendDefs(t);else document.addEventListener("DOMContentLoaded",()=>legendDefs(THEMES[currentTheme()]),{once:true});
   }
   function currentTheme(){return localStorage.getItem(KEY)||"yellow"}
   function currentShape(){const saved=({sun:"gear"})[localStorage.getItem(SHAPE_KEY)]||localStorage.getItem(SHAPE_KEY);return SHAPES[saved]?saved:"circle"}
@@ -136,7 +159,7 @@
 
   function faceMarkup(name,t,selected){
     const shape=currentShape(),lock=locked("colour",name);
-    return '<button type="button" class="evia-theme-option'+(selected?" selected":"")+(lock?" locked":"")+'" data-theme="'+name+'" aria-label="'+t.label+' Evia'+(lock?", locked":"")+'" style="--opt-accent:'+t.accent+'">'+
+    return '<button type="button" class="evia-theme-option'+(selected?" selected":"")+(lock?" locked":"")+'" data-theme="'+name+'" aria-label="'+t.label+' Evia'+(lock?", locked":"")+'" style="--opt-accent:'+t.accent+(t.legendary?';--opt-legend:'+paintOf(t):"")+'"'+(t.legendary?' data-legendary':"")+'>'+
       '<span class="evia-theme-avatar shape-'+SHAPES[shape].className+'"><span class="evia-face"><i></i><i></i></span></span>'+
       '<strong>'+t.label+'</strong>'+lockTag(lock)+
     '</button>';
@@ -253,6 +276,7 @@
   }
 
   window.eviaThemes=THEMES;
+  window.eviaThemePaint=name=>THEMES[name]?paintOf(THEMES[name]):"";
   window.eviaSetTheme=setTheme;
   window.eviaCurrentTheme=currentTheme;
   /* One full-screen step hands over to the next: the next one fades in on top, then the old one goes, so the app

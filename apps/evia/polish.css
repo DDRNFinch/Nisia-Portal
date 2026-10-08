@@ -111,7 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text"
 .signal-bar-1{height:8px}
 .signal-bar-2{height:14px}
 .signal-bar-3{height:20px}
-.signal-bar.filled{background:var(--yellow)}
+.signal-bar.filled{background:var(--accent-fill,var(--yellow))}
 .bottom-nav{
   height:72px;
   border-radius:36px;
@@ -153,7 +153,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text"
 .ksb-tile{position:relative;min-width:0;aspect-ratio:1.35;border:1px solid #e3e7ed;background:#f8f9fb;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#657184;font-weight:750;font-size:13px;cursor:pointer;transition:transform .16s ease,background .16s ease,border-color .16s ease}
 .ksb-tile:hover{transform:translateY(-1px)}
 .ksb-tile.met{background:var(--soft);border-color:var(--yellow-line);color:var(--yellow-ink)}
-.ksb-tile i{position:absolute;right:5px;top:4px;width:18px;height:18px;border-radius:50%;background:var(--yellow);color:#fff;font-style:normal;font-size:11px;display:grid;place-items:center}
+.ksb-tile i{position:absolute;right:5px;top:4px;width:18px;height:18px;border-radius:50%;background:var(--accent-fill,var(--yellow));color:#fff;font-style:normal;font-size:11px;display:grid;place-items:center}
 .ksb-modal-overlay{position:fixed;inset:0;z-index:3000;background:rgba(20,28,42,.22);display:flex;align-items:flex-end;justify-content:center;padding:14px}
 .ksb-modal{width:min(640px,100%);max-height:82vh;overflow:auto;background:#fff;border-radius:24px;padding:20px;box-shadow:0 18px 50px rgba(16,24,40,.18)}
 .ksb-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}

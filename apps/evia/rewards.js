@@ -59,7 +59,7 @@
     robot:{label:"Robot eyes",rarity:"rare",about:"Beep boop, ready to learn."},
     sideeye:{label:"Side eye",rarity:"epic",about:"Did someone leave the mixer running?"}
   };
-  const COLOUR_R={orange:"common",sky:"common",coral:"common",purple:"rare",pink:"rare",red:"rare",gold:"rare",forest:"rare",rose:"rare",teal:"epic",midnight:"epic",navy:"epic",graphite:"epic"};
+  const COLOUR_R={orange:"common",sky:"common",coral:"common",purple:"rare",pink:"rare",red:"rare",gold:"rare",forest:"rare",rose:"rare",teal:"epic",midnight:"epic",navy:"epic",graphite:"epic",rainbow:"legendary",neon:"legendary",site:"legendary",galaxy:"legendary",sunset:"legendary"};
   function catalogue(){
     const out=[],S=window.eviaShapes||{},T=window.eviaThemes||{};
     Object.keys(HATS).forEach(id=>out.push(Object.assign({id,kind:"hat",slot:"hat"},HATS[id])));
@@ -67,7 +67,7 @@
     Object.keys(EXPR).forEach(k=>out.push({id:"expr-"+k,kind:"expr",key:k,label:EXPR[k].label,rarity:EXPR[k].rarity,about:EXPR[k].about}));
     Object.keys(SHAPE_R).forEach(k=>S[k]&&out.push({id:"shape-"+k,kind:"shape",key:k,label:S[k].label+" Evia",rarity:SHAPE_R[k],about:S[k].orb?(S[k].orb.style==="glass"?"An advanced Evia: a glass orb whose light moves when she talks.":"An advanced Evia: a living sphere of light."):"A new shape for Evia."}));
     ((window.eviaGames&&window.eviaGames.GAMES)||[]).forEach(g=>out.push({id:g.id,kind:"game",key:g.key,label:g.label,rarity:g.rarity,about:g.about}));
-    Object.keys(COLOUR_R).forEach(k=>T[k]&&out.push({id:"colour-"+k,kind:"colour",key:k,label:T[k].label,rarity:COLOUR_R[k],about:"Evia and the app in "+T[k].label.toLowerCase()+"."}));
+    Object.keys(COLOUR_R).forEach(k=>T[k]&&out.push({id:"colour-"+k,kind:"colour",key:k,label:T[k].label,rarity:COLOUR_R[k],about:T[k].legendary?"Legendary. The whole app in "+({site:"site yellow and black, with hazard stripes",rainbow:"every colour of the rainbow",neon:"glowing neon",galaxy:"deep-space purples",sunset:"a sunset glow"}[k]||T[k].label.toLowerCase())+".":"Evia and the app in "+T[k].label.toLowerCase()+"."}));
     return out;
   }
   const item=id=>catalogue().find(x=>x.id===id);
@@ -316,7 +316,7 @@
     if(it.kind==="game")return '<span class="rw-game" aria-hidden="true">'+(window.eviaGames?window.eviaGames.iconFor(it.key):"")+'</span>';
     const T=window.eviaThemes||{},shape=it.kind==="shape"?it.key:(window.eviaCurrentShape?window.eviaCurrentShape():"circle");
     const x=it.kind==="expr"?' data-x="'+it.key+'"':"";
-    const wear=it.kind==="hat"?{[it.slot||"hat"]:it.id}:{},col=it.kind==="colour"?' style="--yellow:'+T[it.key].accent+';--evia-shape-stroke:'+T[it.key].accent+'"':"";
+    const wear=it.kind==="hat"?{[it.slot||"hat"]:it.id}:{},col=it.kind==="colour"?' style="--yellow:'+T[it.key].accent+';--evia-shape-stroke:'+T[it.key].accent+';--accent-fill:'+(T[it.key].legendary&&window.eviaThemePaint?window.eviaThemePaint(it.key):T[it.key].accent)+'"'+(T[it.key].legendary?' data-legendary data-colour="'+it.key+'"':""):"";
     return '<span class="rw-evia evia-shape-avatar shape-'+shape+'"'+col+(wear.eyes?' data-eyes="'+wear.eyes+'"':"")+'><span class="evia-face"'+x+'><i></i><i></i></span>'+kitHtml(shape,wear)+'</span>';
   }
   const tag=r=>'<span class="rw-tag r-'+r+'">'+RARITY[r].label+'</span>';

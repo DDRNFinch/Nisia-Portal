@@ -1,0 +1,54 @@
+/* Legendary Evia colours (theme.js): Rainbow, Neon, Site, Galaxy and Sunset. Like every Evia colour they set the
+   accent, its tints and the page; on top, buttons, bars and highlights take the gradient (--accent-fill), Evia's
+   outline takes it too (an SVG gradient, #evia-legend), and each has its own touch: Rainbow flows, Neon glows,
+   Site has hazard stripes, Galaxy has stars, Sunset warms the page. */
+html[data-evia-theme="rainbow"],html[data-evia-theme="neon"],html[data-evia-theme="galaxy"],html[data-evia-theme="sunset"]{--ui-on-accent:#fff}
+html[data-evia-theme="site"]{--ui-on-accent:#1a1a1a}
+html[data-evia-legendary] body .primary{text-shadow:0 1px 2px rgba(0,0,0,.18)}
+html[data-evia-theme="site"] body .primary{text-shadow:none}
+
+/* Evia: an outline in the colours (SVG shapes), or a ring of them (circle and squircle). */
+html[data-evia-legendary] :is(.evia-fab,.evia-mini,.evia-welcome-face,.target-evia,.evia-shape-avatar:not(.rw-evia)) .evia-outline-body{stroke:url(#evia-legend)!important}
+/* Previews of a legendary colour (store and picker) draw in that colour's own gradient. */
+.rw-evia[data-colour="rainbow"] .evia-outline-body,.evia-theme-option[data-theme="rainbow"] .evia-outline-body{stroke:url(#evia-legend-rainbow)!important}
+.rw-evia[data-colour="neon"] .evia-outline-body,.evia-theme-option[data-theme="neon"] .evia-outline-body{stroke:url(#evia-legend-neon)!important}
+.rw-evia[data-colour="site"] .evia-outline-body,.evia-theme-option[data-theme="site"] .evia-outline-body{stroke:url(#evia-legend-site)!important}
+.rw-evia[data-colour="galaxy"] .evia-outline-body,.evia-theme-option[data-theme="galaxy"] .evia-outline-body{stroke:url(#evia-legend-galaxy)!important}
+.rw-evia[data-colour="sunset"] .evia-outline-body,.evia-theme-option[data-theme="sunset"] .evia-outline-body{stroke:url(#evia-legend-sunset)!important}
+html[data-evia-legendary] :is(.evia-fab,.evia-mini,.evia-welcome-face,.target-evia,.evia-shape-avatar):not(.evia-svg-shape):not(:has(.evia-orb)){border-color:transparent!important;background:linear-gradient(#fff,#fff) padding-box,var(--evia-legend) border-box!important}
+html[data-evia-theme="site"] .evia-outline-body{stroke-width:calc(var(--evia-shape-width,3px) + 1px)}
+
+/* In the store and the colour picker: each legendary colour shows its own paint. */
+.rw-evia[data-legendary]{background:var(--opt-legend,var(--accent-fill))!important}
+.evia-theme-option[data-legendary] .evia-theme-avatar:not(.evia-svg-shape){border-color:transparent!important;background:linear-gradient(#fff,#fff) padding-box,var(--opt-legend) border-box!important}
+.evia-theme-option[data-legendary] strong{background:var(--opt-legend);-webkit-background-clip:text;background-clip:text;color:transparent}
+html[data-evia-theme="site"] .evia-theme-option[data-legendary][data-theme="site"] strong,.evia-theme-option[data-theme="site"] strong{background:none;color:#1a1a1a}
+
+/* Rainbow: the colours flow, slowly. */
+html[data-evia-theme="rainbow"] body .primary,html[data-evia-theme="rainbow"] :is(.evia-fab,.evia-mini):not(.evia-svg-shape){background-size:300% 100%!important;animation:evia-flow 9s linear infinite}
+html[data-evia-theme="rainbow"] :is(.evia-fab,.evia-mini):not(.evia-svg-shape){background-size:100% 100%,300% 100%!important}
+@keyframes evia-flow{from{background-position:0 0}to{background-position:150% 0}}
+html[data-evia-theme="rainbow"] body{background:linear-gradient(180deg,#fff7f7 0,#fffdf3 22%,#f5fff8 46%,#f4f8ff 70%,#fbf5ff 100%) fixed}
+
+/* Neon: everything that's the colour glows. */
+html[data-evia-theme="neon"] body .primary{box-shadow:0 0 0 1px rgba(255,43,214,.25),0 6px 18px rgba(255,43,214,.35),0 0 26px rgba(0,217,255,.28)!important}
+html[data-evia-theme="neon"] .evia-fab{box-shadow:0 0 14px rgba(255,43,214,.55),0 0 30px rgba(0,217,255,.35)!important}
+html[data-evia-theme="neon"] .evia-outline{filter:drop-shadow(0 0 4px rgba(255,43,214,.7)) drop-shadow(0 0 10px rgba(0,217,255,.45))}
+html[data-evia-theme="neon"] .evia-face i{box-shadow:0 0 6px rgba(255,43,214,.6)}
+html[data-evia-theme="neon"] body{background:radial-gradient(circle at 100% -10%,#ffd6f6 0,transparent 26rem),radial-gradient(circle at -10% 110%,#d2f8ff 0,transparent 26rem),#fdf8ff fixed}
+
+/* Site: yellow and black, with hazard stripes along the top and bottom of the screen. */
+html[data-evia-theme="site"] body{background:linear-gradient(180deg,#fff 0,#fffcef 72%) fixed}
+html[data-evia-theme="site"] body::before,html[data-evia-theme="site"] body::after{content:"";position:fixed;left:0;right:0;height:7px;z-index:2;pointer-events:none;background:repeating-linear-gradient(-45deg,#ffc400 0 9px,#1a1a1a 9px 18px)}
+html[data-evia-theme="site"] body::before{top:0}
+html[data-evia-theme="site"] body::after{bottom:0}
+html[data-evia-theme="site"] body .primary{border:2px solid #1a1a1a!important}
+
+/* Galaxy: a sky of small stars behind the page. */
+html[data-evia-theme="galaxy"] body{background:radial-gradient(1.2px 1.2px at 12% 18%,#b9a8ff 99%,transparent),radial-gradient(1px 1px at 68% 9%,#ff9fdc 99%,transparent),radial-gradient(1.4px 1.4px at 86% 34%,#9d86ff 99%,transparent),radial-gradient(1px 1px at 28% 62%,#c9b8ff 99%,transparent),radial-gradient(1.2px 1.2px at 52% 82%,#ffb3e4 99%,transparent),radial-gradient(1px 1px at 92% 74%,#b9a8ff 99%,transparent),radial-gradient(circle at 100% -10%,#e4dcff 0,transparent 28rem),#fbfaff;background-attachment:fixed}
+html[data-evia-theme="galaxy"] .evia-fab{box-shadow:0 8px 22px rgba(109,74,255,.3)!important}
+
+/* Sunset: a warm glow over the page. */
+html[data-evia-theme="sunset"] body{background:radial-gradient(circle at 100% -10%,#ffd7c2 0,transparent 26rem),radial-gradient(circle at 0 115%,#f7d4ec 0,transparent 26rem),linear-gradient(180deg,#fff 0,#fffaf7 72%) fixed}
+
+@media (prefers-reduced-motion:reduce){html[data-evia-theme="rainbow"] body .primary,html[data-evia-theme="rainbow"] .evia-fab,html[data-evia-theme="rainbow"] .evia-mini{animation:none!important}}
