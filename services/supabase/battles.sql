@@ -2,7 +2,7 @@
 -- (dealt on the phone from their course's checked questions; a fresh 4 when the hand's used). They take turns: the
 -- attacker throws a card, the defender has a few seconds to answer. Right: blocked. Wrong or too slow: hit (a boss
 -- card hits for 2, and blocking one heals 1). First to 0 HP loses. The right answer never reaches the defender's phone
--- before they answer. Only first name and initial, and their Evia, are shown; there's no chat.
+-- before they answer. A card can carry the name of a lesson picture (a chart, a delivery note) that both phones draw. Only first name and initial, and their Evia, are shown; there's no chat.
 --
 --   evia_battle_find     find an opponent at your college (or wait for one); rejoins a battle you're in
 --   evia_battle_state    the battle as you see it (and moves it on when time runs out)
@@ -49,7 +49,7 @@ begin
   update public.battles set
     hp_a = case when d = 'a' then hp else hp_a end, hp_b = case when d = 'b' then hp else hp_b end,
     last = jsonb_build_object('seq', v.moves + 1, 'by', v.turn, 'q', v.card ->> 'q', 'opts', v.card -> 'opts', 'kind', v.card ->> 'kind',
-      'a', (v.card ->> 'a')::int, 'why', v.card ->> 'why', 'choice', p_choice, 'correct', ok, 'dmg', dmg, 'heal', heal, 'timeout', p_choice is null),
+      'a', (v.card ->> 'a')::int, 'why', v.card ->> 'why', 'pic', v.card ->> 'pic', 'choice', p_choice, 'correct', ok, 'dmg', dmg, 'heal', heal, 'timeout', p_choice is null),
     moves = v.moves + 1, card = null,
     status = case when hp <= 0 then 'done' else 'playing' end, winner = case when hp <= 0 then v.turn else null end,
     turn = case when hp <= 0 then v.turn else d end, phase = case when hp <= 0 then null else 'pick' end,
@@ -107,7 +107,7 @@ begin
     'hp_me', case when me = 'a' then v.hp_a else v.hp_b end, 'hp_them', case when me = 'a' then v.hp_b else v.hp_a end,
     'me', jsonb_build_object('name', case when me = 'a' then v.a_name else v.b_name end, 'look', case when me = 'a' then v.a_look else v.b_look end, 'course', case when me = 'a' then v.a_course else v.b_course end),
     'them', jsonb_build_object('name', case when me = 'a' then v.b_name else v.a_name end, 'look', case when me = 'a' then v.b_look else v.a_look end, 'course', case when me = 'a' then v.b_course else v.a_course end),
-    'card', case when v.phase = 'answer' then jsonb_build_object('q', v.card ->> 'q', 'opts', v.card -> 'opts', 'kind', v.card ->> 'kind') end,
+    'card', case when v.phase = 'answer' then jsonb_build_object('q', v.card ->> 'q', 'opts', v.card -> 'opts', 'kind', v.card ->> 'kind', 'pic', v.card ->> 'pic') end,
     'secs_left', case when v.status = 'playing' then greatest(0, ceil(extract(epoch from v.deadline - now())))::int end,
     'last', v.last);
 end $$;
@@ -125,7 +125,8 @@ begin
     or jsonb_array_length(p_card -> 'opts') not between 2 and 6 or (p_card ->> 'a')::int not between 0 and jsonb_array_length(p_card -> 'opts') - 1
     then raise exception 'That card can’t be played.'; end if;
   secs := case k when 'quick' then 15 when 'trap' then 20 when 'boss' then 30 else 25 end;
-  update public.battles set card = jsonb_build_object('q', p_card ->> 'q', 'opts', p_card -> 'opts', 'a', (p_card ->> 'a')::int, 'why', left(coalesce(p_card ->> 'why', ''), 600), 'kind', k),
+  update public.battles set card = jsonb_build_object('q', p_card ->> 'q', 'opts', p_card -> 'opts', 'a', (p_card ->> 'a')::int, 'why', left(coalesce(p_card ->> 'why', ''), 600), 'kind', k,
+      'pic', case when p_card ->> 'pic' ~ '^[a-z0-9-]{1,40}$' then p_card ->> 'pic' end),
     phase = 'answer', deadline = now() + make_interval(secs => secs), updated_at = now() where id = p_id;
 end $$;
 

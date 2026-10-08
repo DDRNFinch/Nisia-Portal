@@ -29,7 +29,10 @@
         else if(s.t==="scene"&&s.opts){const ok=s.opts.findIndex(o=>o.ok);c={q:(s.say?(s.who?s.who+": ":"")+"“"+s.say+"” ":"")+s.q,opts:s.opts.map(o=>o.text),a:ok<0?0:ok,why:(s.opts[ok]||{}).why||"",kind:"trap"}}
         else if(s.t==="spot"&&s.lines)c={q:s.q,opts:s.lines.slice(),a:s.a,why:s.why,kind:"think",fixed:true};
         else if(s.t==="next"&&s.opts)c={q:"What comes next? "+(s.seq||[]).join(" → ")+" → …",opts:s.opts.slice(),a:0,why:s.why,kind:"think"};
-        if(!c||!c.q||!c.opts||c.opts.length<2)return;
+        /* Skip questions answered with pictures; a question about a picture (a chart, a delivery note) carries it. */
+        if(!c||!c.q||!c.opts||c.opts.length<2||c.opts.some(o=>typeof o!=="string"))return;
+        if(s.pic)c.pic=s.pic;
+        if(s.t==="spot")c.q=c.q.replace(/\s*Tap the (sentence with a )?mistake\.?$/i," Which one has the mistake?").trim();
         if(challenge&&c.kind==="think"&&Math.random()<.35)c.kind="boss";
         c.topic=label||u.unit;out.push(c);
       });
@@ -44,9 +47,9 @@
   }
   /* A card ready to throw: its answers in a new order (true/false and "spot the line" keep theirs). */
   function ready(c){
-    if(c.fixed)return {q:c.q,opts:c.opts,a:c.a,why:c.why||"",kind:c.kind,topic:c.topic};
+    if(c.fixed)return {q:c.q,opts:c.opts,a:c.a,why:c.why||"",kind:c.kind,topic:c.topic,pic:c.pic};
     const order=shuffle(c.opts.map((o,i)=>i));
-    return {q:c.q,opts:order.map(i=>c.opts[i]),a:order.indexOf(c.a),why:c.why||"",kind:c.kind,topic:c.topic};
+    return {q:c.q,opts:order.map(i=>c.opts[i]),a:order.indexOf(c.a),why:c.why||"",kind:c.kind,topic:c.topic,pic:c.pic};
   }
   function deal(deck,used){const left=deck.filter(c=>!used.has(c.q)),from=left.length>=HAND?left:deck;return shuffle(from).slice(0,HAND).map(c=>{used.add(c.q);return ready(c)})}
 
@@ -55,6 +58,8 @@
     let L=window.eviaData&&window.eviaData.learner?window.eviaData.learner():{};if(Array.isArray(L))L=L[0];const parts=String(L&&L.name||"").trim().split(/\s+/);
     return {name:parts[0]?parts[0]+(parts[1]?" "+parts[1][0]+".":""):"Player",course:typeof course!=="undefined"?course:"",look:R()&&R().myLook?R().myLook():{}};
   }
+  /* A lesson picture, drawn on this phone from its name (both phones have the same pictures). */
+  const picHtml=name=>{const U=(window.EVIA_TEACH||{}).ui;const h=name&&U&&U.pic?U.pic(name,{maxH:150}):"";return h?'<div class="bt-pic">'+h+'</div>':""};
   const avatar=(look,cls)=>R()&&R().lookHtml?R().lookHtml(look,"bt-av "+(cls||"")):'<span class="bt-av"></span>';
   const hearts=(n,cls)=>'<span class="bt-hp '+(cls||"")+'" aria-label="'+n+' of '+HP+' HP">'+Array.from({length:HP},(_,i)=>'<i class="'+(i<n?"on":"")+'"></i>').join("")+'</span>';
 
@@ -130,15 +135,15 @@
       let arena="",bottom="";
       if(phase==="pick"&&myTurn){
         arena='<div class="bt-say"><b>Your attack!</b><span>Pick a card to throw at '+esc(st.them.name)+'</span></div>';
-        bottom='<div class="bt-hand">'+hand.map((c,i)=>'<button type="button" class="bt-card k-'+c.kind+'" data-card="'+i+'"><span class="bt-kind">'+KIND[c.kind][0]+'<small>'+KIND[c.kind][1]+'</small></span><span class="bt-topic">'+esc(c.topic||"")+'</span><span class="bt-q">'+esc(c.q)+'</span></button>').join("")+'</div><p class="bt-left">'+hand.length+' of 4 cards left</p>';
+        bottom='<div class="bt-hand">'+hand.map((c,i)=>'<button type="button" class="bt-card k-'+c.kind+'" data-card="'+i+'"><span class="bt-kind">'+KIND[c.kind][0]+'<small>'+KIND[c.kind][1]+'</small></span><span class="bt-topic">'+esc(c.topic||"")+'</span><span class="bt-q">'+esc(c.q)+'</span>'+(c.pic?'<span class="bt-pictag">With a picture</span>':"")+'</button>').join("")+'</div><p class="bt-left">'+hand.length+' of 4 cards left</p>';
       }else if(phase==="pick"){
         arena='<div class="bt-say"><b>'+esc(st.them.name)+' is choosing an attack…</b><span>Get ready to block.</span></div>';
         bottom='<p class="bt-left">'+hand.length+' of 4 cards in your hand</p>';
       }else if(phase==="answer"&&myTurn){
-        arena='<div class="bt-flying up"><span class="bt-kind">'+KIND[(st.card||{}).kind||"think"][0]+'</span><p>'+esc((st.card||{}).q||"")+'</p></div><div class="bt-say"><span>Will '+esc(st.them.name)+' block it?</span></div>';
+        arena='<div class="bt-flying up"><span class="bt-kind">'+KIND[(st.card||{}).kind||"think"][0]+'</span><p>'+esc((st.card||{}).q||"")+'</p></div>'+picHtml((st.card||{}).pic)+'<div class="bt-say"><span>Will '+esc(st.them.name)+' block it?</span></div>';
       }else if(phase==="answer"){
         const c=st.card||{};
-        arena='<div class="bt-incoming"><span class="bt-kind k-'+esc(c.kind)+'">QUESTION ATTACK · '+KIND[c.kind||"think"][0]+'</span><p class="bt-iq">'+esc(c.q||"")+'</p></div>';
+        arena='<div class="bt-incoming"><span class="bt-kind k-'+esc(c.kind)+'">QUESTION ATTACK · '+KIND[c.kind||"think"][0]+'</span><p class="bt-iq">'+esc(c.q||"")+'</p></div>'+picHtml(c.pic);
         bottom='<div class="bt-answers">'+(c.opts||[]).map((o,i)=>'<button type="button" data-ans="'+i+'"><i>'+"ABCDEF"[i]+'</i><span>'+esc(o)+'</span></button>').join("")+'</div>';
       }
       if(hold)bottom="";
@@ -155,7 +160,7 @@
     function tickNow(){const c=body.querySelector(".bt-clock");if(c&&st&&st.status==="playing"){c.textContent=clock+"s";c.classList.toggle("low",clock<=5)}}
     async function throwCard(i,btn){
       if(busy)return;busy=true;const c=hand[i];btn.classList.add("bt-throw");buzz(25);
-      try{await A().send("battleAttack",{p_id:id,p_card:{q:c.q,opts:c.opts,a:c.a,why:c.why,kind:c.kind}});hand.splice(i,1);await wait(reduced()?0:450)}
+      try{await A().send("battleAttack",{p_id:id,p_card:{q:c.q,opts:c.opts,a:c.a,why:c.why,kind:c.kind,pic:c.pic||null}});hand.splice(i,1);await wait(reduced()?0:450)}
       catch(e){btn.classList.remove("bt-throw");if(window.eviaToast)window.eviaToast(e.message)}
       busy=false;shown="";poll();
     }
@@ -185,5 +190,6 @@
   }
   const icon='<svg viewBox="0 0 24 24"><path d="M5 19 19 5M14 5h5v5"/><path d="M19 19 5 5M10 5H5v5"/><circle cx="12" cy="12" r="2.2"/></svg>';
   G.register({id:"game-battle",key:"battle",label:"Question Battle",rarity:"common",about:"Battle a classmate live. Throw questions at their Evia; answer theirs to block."},run,icon);
+  G.battleCards=mixed=>pool(mixed); /* (for the tests) */
   const i=G.GAMES.findIndex(g=>g.key==="battle");if(i>0)G.GAMES.unshift(G.GAMES.splice(i,1)[0]); /* first in the games */
 })();

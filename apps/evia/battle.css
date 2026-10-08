@@ -63,6 +63,12 @@
 @keyframes btFlyUp{from{transform:translateY(120px) scale(.7) rotate(-6deg);opacity:0}}
 @keyframes btFlyDown{from{transform:translateY(-120px) scale(.7) rotate(6deg);opacity:0}}
 
+/* A lesson picture with the question */
+.bt-pic{padding:8px;border-radius:16px;background:#fff;border:1px solid #ece6d6}
+.bt-pic .tm-pic{margin:0}
+.bt-pictag{margin-top:auto;padding:3px 8px;border-radius:999px;background:#eef5ff;color:#1a5ea8;font-size:11.5px;font-weight:700}
+.bt-card.k-boss .bt-pictag{background:#3a3320;color:#ffd54a}
+
 /* The hand */
 .bt-hand{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .bt-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:150px;padding:12px;border-radius:16px;border:2px solid #ece6d6;background:#fff;text-align:left;font:inherit;color:inherit;cursor:pointer;box-shadow:0 4px 0 #ece6d6;transition:transform .15s}

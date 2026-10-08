@@ -38,7 +38,7 @@ function resolve(v, choice) {
 function view(v, who) {
   const me = sideOf(v, who), them = other(me);
   return JSON.parse(JSON.stringify({ id: v.id, side: me, status: v.status, turn: v.turn, phase: v.phase, moves: v.moves, winner: v.winner, hp_me: v["hp_" + me], hp_them: v["hp_" + them],
-    me: v[me + "_who"], them: v[them + "_who"] || {}, card: v.phase === "answer" ? { q: v.card.q, opts: v.card.opts, kind: v.card.kind } : null, secs_left: v.status === "playing" ? 20 : null, last: v.last }));
+    me: v[me + "_who"], them: v[them + "_who"] || {}, card: v.phase === "answer" ? { q: v.card.q, opts: v.card.opts, kind: v.card.kind, pic: v.card.pic || null } : null, secs_left: v.status === "playing" ? 20 : null, last: v.last }));
 }
 function nisia(who, name, a) {
   B.log.push([who, name]);
@@ -53,7 +53,7 @@ function nisia(who, name, a) {
   if (name === "battleState") return view(v, who);
   if (name === "battleAttack") {
     if (v.phase !== "pick" || sideOf(v, who) !== v.turn) throw new Error("It isn’t your turn.");
-    v.card = { ...a.p_card }; v.phase = "answer"; return null;
+    v.card = { ...a.p_card }; if (B.swap) { v.card = { ...B.swap, kind: "think" }; B.swap = null; } v.phase = "answer"; return null;
   }
   if (name === "battleAnswer") {
     if (v.phase !== "answer" || sideOf(v, who) === v.turn) throw new Error("Nothing to answer.");
@@ -123,11 +123,16 @@ try {
     (await amy.$$eval(".bt-card .bt-kind", (k) => k.every((x) => /Quickfire|Thinking|Trap|Boss/.test(x.textContent)))));
   const firstHand = await amy.$$eval(".bt-card .bt-q", (q) => q.map((x) => x.textContent));
 
+  const deck = await amy.evaluate(() => { const all = window.eviaGames.battleCards(false).concat(window.eviaGames.battleCards(true)); return { n: all.length, pics: all.filter((c) => c.pic).map((c) => c.pic), bad: all.filter((c) => c.opts.some((o) => typeof o !== "string") || /Tap the/i.test(c.q)).map((c) => c.q), bars: all.find((c) => c.pic === "bars") }; });
+  check("Every card makes sense on its own: questions about a picture carry it, none answered with pictures or 'tap'", deck.n > 50 && deck.pics.includes("bars") && deck.bad.length === 0, JSON.stringify({ n: deck.n, pics: deck.pics, bad: deck.bad }));
+  B.swap = deck.bars; /* Amy's first throw is the bar chart question */
+
   /* Amy throws: Ben gets the question (without the answer) and answers wrong. */
   await amy.click('[data-card="0"]');
   await until(ben, () => document.querySelectorAll(".bt-answers button").length >= 2);
   await ben.screenshot({ path: shots + "/evia-battle-incoming.png" });
   const seen = await ben.evaluate(() => document.querySelector(".bt-incoming").textContent);
+  check("A question about a chart shows Ben the chart", /deliveries/.test(seen) && !!(await ben.$(".bt-pic .tm-pic svg")));
   check("Ben gets a question attack with a clock and the answers to block with", /QUESTION ATTACK/.test(seen) && !!(await ben.$(".bt-clock")) && live().card && live().phase === "answer");
   const lose = live().card.kind === "boss" ? 2 : 1, wrong = (live().card.a + 1) % live().card.opts.length;
   await ben.click(`[data-ans="${wrong}"]`);
