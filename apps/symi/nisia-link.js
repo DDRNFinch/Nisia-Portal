@@ -20,7 +20,7 @@ import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
 /* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
 const A = window.NisiaActions;
 A.use(rpc, { app: "symi" });
-import { auth, inviteCode } from "../../packages/core/signin.js";
+import { auth, inviteCode, resetCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 startUsage("symi", window.SYMI_BUILD || "");
 
@@ -580,7 +580,7 @@ setInterval(() => { if (signedIn && !document.hidden) { sendFinished(); flush();
 setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() => {}); }, 5 * 60000);
 (async () => {
   chip();
-  if (inviteCode()) return openSignIn();
+  if (inviteCode() || resetCode() || /[?&]reset=email/.test(location.search)) return openSignIn();
   if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
 })();
 

@@ -17,6 +17,16 @@ function autoSend(f) {
 
 const PW_RULE = "At least 10 characters, with upper and lower case letters, a number and a symbol.";
 
+/* Forgotten passwords: a reset link from the college's admin (#reset=CODE), or the reset email Nisia sends (it comes
+   back to this page with ?reset=email and a recovery session). */
+export function resetCode() {
+  const m = /[#&]reset=([A-Za-z0-9-]+)/.exec(location.hash);
+  return m ? m[1] : "";
+}
+const RECOVERING = /[?&]reset=email/.test(location.search) || /type=recovery/.test(location.hash);
+let recovered = false;
+db.auth.onAuthStateChange((ev) => { if (ev === "PASSWORD_RECOVERY") recovered = true; });
+
 export function inviteCode() {
   const m = /[#&]invite=([A-Za-z0-9-]+)/.exec(location.hash);
   return m ? m[1] : "";
@@ -43,6 +53,10 @@ export async function auth(root, o) {
   if (!o.badged) { const ready = o.onReady; o = { ...o, badged: true, onReady: (...a) => { testBadge(); return ready(...a); } }; }
   const code = inviteCode();
   if (code) return acceptInvite(root, o, code);
+  const rc = resetCode();
+  if (rc) return resetForm(root, o, rc);
+  /* Back from the reset email: once they're through their authenticator code, they choose a new password. */
+  if ((RECOVERING || recovered) && !o.recovering) { const ready = o.onReady; o = { ...o, recovering: true, onReady: () => newPasswordForm(root, { ...o, onReady: ready }) }; }
   const s = await state();
   if (s.step === "ready") return o.onReady();
   if (s.step === "needs-setup") return setupAuthenticator(root, o);
@@ -70,6 +84,7 @@ function signInForm(root, o, email, err) {
     '<label class="field">Password<input id="pw" name="password" type="password" autocomplete="current-password" required></label>' +
     '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
     '<button class="btn primary wide" type="submit">Sign in</button>' +
+    '<button class="btn ghost" type="button" id="forgot">Forgotten your password?</button>' +
     (known ? '<button class="btn ghost" type="button" id="notMe">Not you? Use a different email</button>' : "") +
     '<button class="btn ghost" type="button" id="haveInvite">New here? I have an invite</button></form>');
   const f = root.querySelector("#f");
@@ -80,8 +95,75 @@ function signInForm(root, o, email, err) {
     catch (x) { signInForm(root, o, f.email.value, x.message); }
   };
   root.querySelector("#haveInvite").onclick = () => pasteInvite(root, o);
+  root.querySelector("#forgot").onclick = () => forgotForm(root, o, f.email.value);
   const nm = root.querySelector("#notMe"); if (nm) nm.onclick = () => { keepEmail(""); signInForm(root, o, ""); };
   (email ? f.pw : f.email).focus();
+}
+
+/* Forgotten password: an email with a link, or (if that doesn't come) a reset link from the college's admin. */
+function forgotForm(root, o, email, done, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    (done ? '<p class="ok-note" style="background:#ecfdf3;color:#05603a;border-radius:12px;padding:12px 14px;line-height:1.45;margin:0">If <b>' + esc(done) + '</b> has a Nisia account, a link to choose a new password is on its way. Open it on this device. It can take a few minutes; check your junk folder too.</p>'
+      : '<label class="field">Your email<input id="email" type="email" autocomplete="username" value="' + esc(email || "") + '" required></label>' +
+        '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Email me a reset link</button>') +
+    '<p class="muted small">No email? Ask your college’s Nisia admin: they can make you a reset link in Nisia (Staff, then your name).</p>' +
+    '<button class="btn ghost" type="button" id="back">Back to sign in</button></form>', "Forgotten your password? We’ll send you a link to choose a new one.");
+  root.querySelector("#back").onclick = () => signInForm(root, o, email);
+  const f = root.querySelector("#f");
+  if (done) return;
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = f.email.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return forgotForm(root, o, v, null, "Type the email you sign in with.");
+    const b = f.querySelector("button[type=submit]"); b.disabled = true; b.textContent = "Sending…";
+    const { error } = await db.auth.resetPasswordForEmail(v, { redirectTo: location.origin + location.pathname + "?reset=email" });
+    if (error) return forgotForm(root, o, v, null, /rate|seconds/i.test(error.message) ? "A link was sent a moment ago. Wait a minute, then try again." : error.message);
+    keepEmail(v); forgotForm(root, o, v, v);
+  };
+  f.email.focus();
+}
+/* A reset link from the college's admin: choose a new password, then sign in as usual. */
+function resetForm(root, o, code, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">New password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + '</small></label>' +
+    '<label class="field">Type it again<input id="pw2" type="password" autocomplete="new-password"></label>' +
+    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Nisia. It works in every Nisia app.");
+  const f = root.querySelector("#f");
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (f.pw.value !== f.pw2.value) return resetForm(root, o, code, "Those two don’t match. Type the same password twice.");
+    const b = f.querySelector("button"); b.disabled = true; b.textContent = "Saving…";
+    const { data: email, error } = await db.rpc("nisia_redeem_reset", { p_code: code, p_password: f.pw.value });
+    if (error) return resetForm(root, o, code, error.message);
+    history.replaceState(null, "", location.pathname + location.search);
+    keepEmail(email);
+    try { await signOut(); } catch (_) {}
+    try { await signIn(email, f.pw.value); return auth(root, o); } catch (x) { signInForm(root, o, email, x.message); }
+  };
+  f.pw.focus();
+}
+/* Back from the reset email, signed in (and through the authenticator code): the new password. */
+function newPasswordForm(root, o, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">New password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + '</small></label>' +
+    '<label class="field">Type it again<input id="pw2" type="password" autocomplete="new-password"></label>' +
+    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Nisia. It works in every Nisia app.");
+  const f = root.querySelector("#f");
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (f.pw.value !== f.pw2.value) return newPasswordForm(root, o, "Those two don’t match. Type the same password twice.");
+    const p = f.pw.value;
+    if (p.length < 10 || !/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p) || !/[^A-Za-z0-9]/.test(p)) return newPasswordForm(root, o, PW_RULE);
+    const b = f.querySelector("button"); b.disabled = true; b.textContent = "Saving…";
+    const { error } = await db.auth.updateUser({ password: p });
+    if (error) return newPasswordForm(root, o, error.message);
+    history.replaceState(null, "", location.pathname);
+    o.onReady();
+  };
+  f.pw.focus();
 }
 
 /* For when the invite link opens without its code (some apps' browsers drop the part after #): paste it instead. */

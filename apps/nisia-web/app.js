@@ -469,8 +469,20 @@ function editStaff(s) {
     '<div class="field"><span>Email</span><p class="small muted" style="margin:0">' + esc(s.email) + ' (their sign-in; to change it, invite them again with the new email)</p></div>' +
     '<div class="field"><span>Roles</span><div class="choice">' + ROLE_NAMES.map(([v, t]) => '<label><input type="checkbox" name="roles" value="' + v + '"' + (s.roles.includes(v) ? " checked" : "") + '> ' + t + '</label>').join("") + '</div></div>' +
     '<label class="choice-row"><input type="checkbox" name="active"' + (s.active ? " checked" : "") + '> Can sign in (untick to switch them off; their records stay)</label>' +
-    '<p class="err"></p><button class="btn primary wide" type="submit">Save</button></form>');
+    '<p class="err"></p><button class="btn primary wide" type="submit">Save</button>' +
+    '<div class="field" id="resetBox"><span>Forgotten their password?</span><button class="btn" type="button" id="resetPw">Make a reset link</button>' +
+    '<small class="muted">A link to choose a new password, for you to send them (text, email or Teams). It works once, within 24 hours. They still use their authenticator app to sign in.</small></div></form>');
   const f = m.querySelector("#f");
+  m.querySelector("#resetPw").onclick = (e) => busy(e.currentTarget, "Making it…", async () => {
+    try {
+      const r = await rpc("nisia_password_reset_link", { p_member: s.member_id });
+      const link = location.origin + location.pathname + "#reset=" + r.code;
+      m.querySelector("#resetBox").innerHTML = '<span>Reset link for ' + esc(r.email) + '</span><input class="input" readonly value="' + esc(link) + '" id="resetLink">' +
+        '<button class="btn primary" type="button" id="copyReset">Copy the link</button><small class="muted">Send it to them. It works once, until ' + esc(new Date(r.expires_at).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })) + '.</small>';
+      hit("staff.reset");
+      m.querySelector("#copyReset").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Copied"); } catch (_) { m.querySelector("#resetLink").select(); } };
+    } catch (x) { f.querySelector(".err").textContent = x.message; }
+  });
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
     try {
       await call("nisia-admin", { action: "update_staff", member_id: s.member_id, name: f.name.value, roles: [...f.querySelectorAll("[name=roles]:checked")].map((x) => x.value), active: f.active.checked });

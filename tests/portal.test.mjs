@@ -37,6 +37,9 @@ function fakeSupabase(persona) {
     S.calls.push(p + (body.action ? ":" + body.action : ""));
     if (p === "/auth/v1/token") return body.password === persona.password ? json(session()) : json({ error: "invalid_grant", error_description: "Invalid login credentials", msg: "Invalid login credentials" }, 400);
     if (p === "/auth/v1/user") return json(user());
+    if (p === "/auth/v1/recover") { S.recover = { body, redirect: u.searchParams.get("redirect_to") || body.redirect_to || "" }; return json({}); }
+    if (p === "/rest/v1/rpc/nisia_redeem_reset") { if (body.p_code !== "ABCD1234EFGH5678") return json({ code: "P0001", message: "That reset link has expired or been used. Ask your college admin for a new one." }, 400); persona.password = body.p_password; S.redeemed = body; return json(persona.email); }
+    if (p === "/rest/v1/rpc/nisia_password_reset_link") { S.resetFor = body.p_member; return json({ code: "ABCD1234EFGH5678", email: "m.ellis@brookfield.example", expires_at: new Date(Date.now() + 864e5).toISOString() }); }
     if (p === "/auth/v1/logout") return S.sessionGone ? json({ code: 403, error_code: "session_not_found", msg: "Session not found" }, 403) : route.fulfill({ status: 204 });
     if (p === "/auth/v1/factors") { S.factors = [{ id: "f1", factor_type: "totp", status: "unverified", friendly_name: "Nisia" }]; return json({ id: "f1", type: "totp", totp: { qr_code: "data:image/svg+xml;utf-8,<svg xmlns='http://www.w3.org/2000/svg'/>", secret: "ABCDEF", uri: "otpauth://x" } }); }
     if (/\/auth\/v1\/factors\/f1$/.test(p) && req.method() === "DELETE") { S.factors = []; return json({ id: "f1" }); }
@@ -246,6 +249,12 @@ try {
     check("A wrong password is refused", /don’t match/.test(await page.textContent(".err")));
     await page.click("#haveInvite"); await page.fill("#code", "https://example.org/nisia-app/#invite=GOOD-INVITE-CODE-01");
     check("An invite can be pasted on the sign-in page", /invite=/.test(await page.inputValue("#code")) && !!(await page.$("#back")));
+    /* Forgotten password: an email with a link back to this page. */
+    await page.click("#back"); await page.waitForSelector("#forgot"); await page.click("#forgot"); await page.waitForSelector("#email");
+    await page.fill("#email", "s.mitchell@brookfield.example"); await page.click("button[type=submit]"); await page.waitForTimeout(400);
+    const forgot = await page.textContent("form"); await page.screenshot({ path: shots + "/5b-forgot.png" });
+    check("Forgotten your password? sends a reset email that comes back to the app, and says to ask the college admin if it doesn't come",
+      /on its way/.test(forgot) && /college’s Nisia admin/.test(forgot) && fake.S.recover && fake.S.recover.body.email === "s.mitchell@brookfield.example" && /reset=email/.test(fake.S.recover.redirect), JSON.stringify(fake.S.recover));
     await page.click("#back"); await page.waitForSelector("#email"); await page.fill("#email", "s.mitchell@brookfield.example");
     await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector("#c"); await page.fill("#c", "123456"); /* goes by itself once 6 digits are in */
@@ -307,7 +316,10 @@ try {
     check("A completed review opens in Nisia, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);
     await page.click(".modal .x");
     await page.click("nav [data-go=staff]"); await page.waitForSelector("[data-edit=m2]");
-    await page.click("[data-edit=m2]"); await page.fill(".modal [name=name]", "Mark T Ellis"); await page.check('.modal [name=roles][value="tutor"]');
+    await page.click("[data-edit=m2]"); await page.click("#resetPw"); await page.waitForSelector("#resetLink");
+    const resetLink = await page.inputValue("#resetLink");
+    check("College admin makes a password reset link for a member of staff, to send them", /#reset=ABCD1234EFGH5678$/.test(resetLink) && fake.S.resetFor === "m2", resetLink);
+    await page.click(".modal .x"); await page.click("[data-edit=m2]"); await page.fill(".modal [name=name]", "Mark T Ellis"); await page.check('.modal [name=roles][value="tutor"]');
     await page.click(".modal button[type=submit]"); await page.waitForTimeout(500);
     check("College admin edits a member of staff (name and roles), and switching off is inside that window", fake.S.staff[0].name === "Mark T Ellis" && fake.S.staff[0].roles.join() === "assessor,tutor" && fake.S.staff[0].active === true && !(await page.$("[data-toggle]"))); await page.waitForSelector("#inv"); await page.click("#inv");
     await page.fill("[name=name]", "Priya Shah"); await page.fill("[name=email]", "p.shah@brookfield.example"); await page.click("#f button[type=submit]");
@@ -368,6 +380,19 @@ try {
     await page.click("#notMe"); const cleared = await page.evaluate(() => document.getElementById("email").value === "" && !localStorage.getItem("nisia-last-email"));
     check("…and “Not you?” forgets it", cleared);
     check("No script errors (college portal)", !errors.length, errors.join(" | "));
+    await ctx.close();
+  }
+  // A reset link from the college admin: a new password, then signing in as usual (with the authenticator code).
+  {
+    const { page, ctx, errors, fake } = await open({ id: "u-mark", email: "m.ellis@brookfield.example", password: "Old-forgotten1!", name: "Mark Ellis", factors: [{ id: "f1", factor_type: "totp", status: "verified" }],
+      memberships: [{ organisation_id: "o1", organisation: "Brookfield College", status: "active", member_id: "m2", roles: ["assessor"] }] }, "#reset=ABCD1234EFGH5678");
+    await page.waitForSelector("#pw2"); await page.fill("#pw", "New-pass-2026!"); await page.fill("#pw2", "New-pass-2026?"); await page.click("button[type=submit]"); await page.waitForTimeout(200);
+    const mismatch = await page.textContent(".err");
+    await page.fill("#pw", "New-pass-2026!"); await page.fill("#pw2", "New-pass-2026!"); await page.click("button[type=submit]");
+    await page.waitForSelector("#c");
+    check("A reset link: choose a new password (typed twice), then straight on to the authenticator code; the link is gone from the address",
+      /don’t match/.test(mismatch) && fake.S.redeemed && fake.S.redeemed.p_password === "New-pass-2026!" && !/reset=/.test(page.url()), page.url());
+    check("No script errors (reset link)", !errors.length, errors.join(" | "));
     await ctx.close();
   }
 } catch (e) { check("Test run finished", false, e.message); }

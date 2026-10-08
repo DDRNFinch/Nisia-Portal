@@ -5,7 +5,7 @@
    everything the assessor does (observations, sign-offs, reviews) is saved on the phone first and sent when there's
    signal (store.js). Everything is read from Nisia under the college's own rules. */
 import { db, rpc, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
-import { auth, inviteCode } from "../../packages/core/signin.js";
+import { auth, inviteCode, resetCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
@@ -54,7 +54,7 @@ const EYES = '<span class="av" aria-hidden="true"><i></i><i></i></span>';
 const AUTH = { title: "Milos", subtitle: "For assessors", onReady: () => home(true) };
 async function start() {
   let have = null; try { have = await withTimeout(cached(), 5000); } catch (_) {}
-  if (have && localStorage.getItem(AUTH_KEY) && !inviteCode()) return home(true);
+  if (have && localStorage.getItem(AUTH_KEY) && !inviteCode() && !resetCode() && !/[?&]reset=email/.test(location.search)) return home(true);
   try { await withTimeout(auth(root, AUTH), 15000); }
   catch (e) {
     root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Milos couldn’t reach Nisia: " + e.message : "You’re offline, and there are no learners on this phone yet. Connect to the internet once to download them.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>';
