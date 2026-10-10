@@ -215,7 +215,10 @@
   /* Open a My progress section: scroll to its card and open its detail. */
   function openProgress(id){
     K().closeChat();
-    setTimeout(()=>{nav("learning");setTimeout(()=>waitFor("#pv-"+id,el=>{flash(el);if(window.eviaProgressDeep)setTimeout(()=>window.eviaProgressDeep(id),500)}),350)},60);
+    /* KSBs live in "Where you are"; sections not listed on the page (tests, Teach me…) just open their detail. */
+    if(id==="ksb")id="where";
+    setTimeout(()=>{nav("learning");setTimeout(()=>{if(!document.getElementById("pv-"+id)){if(window.eviaProgressDeep)window.eviaProgressDeep(id);return}
+      waitFor("#pv-"+id,el=>{flash(el);if(window.eviaProgressDeep)setTimeout(()=>window.eviaProgressDeep(id),500)})},350)},60);
   }
 
   /* ---------- Evidence check: one piece of evidence, its quality and what's still missing ---------- */

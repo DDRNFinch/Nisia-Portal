@@ -48,7 +48,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       for(const id of ["review","otj","conf"]){document.getElementById("pv-"+id).click();await w(250);out[id]=[...document.querySelectorAll("#modal-root .pv-deep-acts .pv-act")].map(b=>b.textContent);document.getElementById("modal-root").innerHTML="";await w(50)}
       return out});
     check("Each section's buttons are inside its deep dive",deepActs.review.includes("My review")&&deepActs.otj.includes("Log hours")&&deepActs.conf.includes("Find a college task"),JSON.stringify(deepActs));
-    check("My progress shows a chart card for each area, with no action buttons",await page.evaluate(()=>screen==="learning"&&["where","ksb","otj","tests","conf","act","quality","targets","ach"].every(id=>document.getElementById("pv-"+id))&&!document.querySelector("#screen .primary,#screen .pg-action")));
+    check("My progress shows a card for each area (KSBs inside Where you are; no repeats of Topics and Learn), with no action buttons",await page.evaluate(()=>screen==="learning"&&["where","otj","conf","quality","targets"].every(id=>document.getElementById("pv-"+id))&&!["ksb","tests","act","ach","teach","guide"].some(id=>document.getElementById("pv-"+id))&&!document.querySelector("#screen .primary,#screen .pg-action")));
+    check("Where you are lists the KSBs, and tapping one opens it with a way back",await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));document.getElementById("pv-where").click();await w(300);const ok=/Your KSBs/.test(document.querySelector(".pv-sheet").textContent)&&document.querySelectorAll(".pv-sheet .pv-ksb").length>10;document.getElementById("modal-root").innerHTML="";return ok}));
     await page.click("#pv-otj");await page.waitForTimeout(500);
     check("Tapping a card opens its deep dive with a how-to note",await page.evaluate(()=>/Learning hours/.test(document.getElementById("pv-sheet-title").textContent)&&!!document.querySelector(".pv-sheet .pv-note")&&!!document.querySelector(".pv-sheet .pv-cols")));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true})});await page.waitForTimeout(300);
@@ -258,15 +259,15 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{const x=document.querySelector(".tm .tm-x");if(x)x.click()});await page.waitForTimeout(300);
     // My progress: the Teach me tile (average score, areas completed, medals) and its deep dive; no real-life scenarios.
     await page.evaluate(()=>nav("learning"));await page.waitForTimeout(700);
-    const tt=await page.evaluate(()=>{const c=document.getElementById("pv-teach");return {tile:!!c&&/Teach me/.test(c.textContent)&&c.closest(".pv-more")!==null,noScenarios:!document.getElementById("pv-scen")&&!window.eviaScenarios}});
-    await page.evaluate(()=>document.getElementById("pv-teach").click());await page.waitForTimeout(700);
+    const tt=await page.evaluate(()=>({tile:!document.getElementById("pv-teach"),noScenarios:!document.getElementById("pv-scen")&&!window.eviaScenarios}));
+    await page.evaluate(()=>window.eviaProgressDeep("teach"));await page.waitForTimeout(700);
     tt.deep=await page.evaluate(()=>{const t=document.querySelector(".pv-sheet");return !!t&&/medal/.test(t.textContent)&&/EDI and safeguarding/.test(t.textContent)&&document.querySelectorAll(".pv-sheet .pv-teach-h").length>=2});
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
-    check("My progress: Teach me in the More list, a deep dive by subject, and no old scenarios",Object.values(tt).every(Boolean),JSON.stringify(tt));
+    check("My progress: Teach me is left to Learn (its detail still opens by subject), and no old scenarios",Object.values(tt).every(Boolean),JSON.stringify(tt));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
-    check("The first-run demo can point at the KSB card on My progress",!!await page.$("#pv-ksb"));
+    check("The first-run demo can point at Where you are on My progress",!!await page.$("#pv-where"));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
     check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month .pv-acal-d").length>=28&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
@@ -342,7 +343,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{const e=data().u;["Cavity wall","Blockwork","Solid wall","Openings"].forEach((t,i)=>{const u=e.find(x=>x[0]===t);evidence.push({id:"w"+i,c:course,u:t,k:u[1].map(code),w:"x",p:[],savedAt:new Date().toISOString()})});persist()});
     check("Unit 235 needs all six of its jobs, not just some",await page.evaluate(()=>{const before=window.eviaNvq.evidenced().has("235.7.3");const u=data().u.find(x=>x[0]==="Cills, cappings and copings");evidence.push({id:"w9",c:course,u:u[0],k:u[1].map(code),w:"x",p:[],savedAt:new Date().toISOString()});return !before&&window.eviaNvq.evidenced().has("235.7.3")}));
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
-    check("NVQ My progress says criteria, not KSBs, and its units deep dive shows unit rings",await page.evaluate(async()=>{const ok=!/KSB/.test(document.getElementById("screen").innerText);window.eviaProgressDeep("ksb");await new Promise(r=>setTimeout(r,300));const r=ok&&!!document.querySelector(".pv-sheet [data-nvq-unit='313']");document.getElementById("modal-root").innerHTML="";return r}));
+    check("NVQ My progress says criteria, not KSBs, and its units deep dive shows unit rings",await page.evaluate(async()=>{const ok=!/KSB/.test(document.getElementById("screen").innerText);window.eviaProgressDeep("where");await new Promise(r=>setTimeout(r,300));const r=ok&&!!document.querySelector(".pv-sheet [data-nvq-unit='313']");document.getElementById("modal-root").innerHTML="";return r}));
     await page.evaluate(()=>{course="bricklayer";persist();nav("home")});await page.waitForTimeout(450);
 
     // Page headings, draft tags, the strength key, the backup reminder, clean test screens and the OTJ PDF.
@@ -374,7 +375,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>openUnit(0,"write"));await page.waitForTimeout(700);
     check("The evidence pack shows no score, just a link to how to build a strong portfolio",stHow&&await page.evaluate(()=>!document.getElementById("st-meter")&&document.querySelectorAll(".eg-sheet .fr-mention .compact-prompts").length===1));
     await page.evaluate(()=>{const w=document.getElementById("write");w.value="";w.dispatchEvent(new Event("input"));nav("learning")});await page.waitForTimeout(600);
-    await page.evaluate(()=>{window._camSupported=window.eviaCamera.supported;window.eviaCamera.supported=()=>false;document.getElementById("pv-guide").click()});await page.waitForTimeout(400);
+    await page.evaluate(()=>{window._camSupported=window.eviaCamera.supported;window.eviaCamera.supported=()=>false;window.eviaProgressDeep("guide")});await page.waitForTimeout(400);
     const sg=await page.evaluate(async()=>{const out={five:document.querySelectorAll("[data-dot]").length===5,first:/Every job can count/.test(document.getElementById("st-title").textContent)&&!!document.querySelector(".sg-say .evia-mini")};
       const titles=[];for(let i=0;i<4;i++){document.getElementById("sg-next").click();await new Promise(r=>setTimeout(r,60));titles.push(document.getElementById("st-title").textContent)}
       out.bars=/strength bars/i.test(titles[2])&&document.querySelectorAll(".sg-level .unit-strength-bars").length===0;

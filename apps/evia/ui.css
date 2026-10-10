@@ -753,6 +753,7 @@ html body .bottom-nav{grid-template-columns:1fr 104px 1fr}
 .pv-big{margin-top:6px;font-size:34px;font-weight:800;letter-spacing:-.03em;color:var(--ui-ink);line-height:1.05}
 .pv-big small,.pv-deep-hero small{font-size:16px;font-weight:700;color:var(--ui-muted);letter-spacing:0}
 .pv-sub{margin-top:3px;font-size:13.5px;color:var(--ui-muted)}
+.pv-deep-h{margin:22px 0 10px;font-size:17px;display:flex;align-items:baseline;gap:8px}.pv-deep-h small{font-size:13.5px;font-weight:600;color:var(--ui-muted)}
 .pv-chart{display:block;margin-top:14px}
 .pv-empty{display:block;padding:14px;border-radius:14px;background:#f6f7f9;font-size:13px;color:var(--ui-muted);text-align:center}
 .pv-verdict{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-weight:700}

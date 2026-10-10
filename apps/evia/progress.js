@@ -336,6 +336,21 @@
       return;
     }
     const {S,a,verdict}=D,T=term();
+    /* The KSB list (or an NVQ's units), shown in "Where you are"; back returns to that sheet. */
+    const ksbList=()=>{
+      if(nvqOn())return window.eviaNvq.progressHtml(a);
+      const all=allK(),groups=[["K","Knowledge"],["S","Skills"],["B","Behaviours"]];
+      return groups.map(([l,n])=>{
+        const items=all.filter(x=>x[0].startsWith(l));if(!items.length)return"";
+        const d=items.filter(x=>a.evidenced.has(x[0])).length,w=a.signoff?items.filter(x=>a.possible.has(x[0])).length:0,aims=a.aims||[];
+        return '<div class="pv-ksb-group"><div class="pv-ksb-head">'+ring(Math.round(d/items.length*100),40,5,null,Math.round(w/items.length*100))+'<span><strong>'+n+'</strong><small>'+d+' of '+items.length+(a.signoff?' signed off'+(w?' · '+w+' waiting':''):' with evidence')+'</small></span></div><div class="pv-ksb-grid">'+items.map(x=>'<button type="button" class="pv-ksb'+(a.evidenced.has(x[0])?" met":a.signoff&&a.possible.has(x[0])?" maybe":"")+(aims.includes(x[0])?" aim":"")+'" data-ksb="'+esc(x[0])+'">'+esc(x[0])+'</button>').join("")+'</div></div>';
+      }).join("")+(a.signoff?'<p class="pv-key"><span class="pv-ksb met">K1</span> signed off by your assessor <span class="pv-ksb maybe">K2</span> evidence added, waiting <span class="pv-ksb aim">K3</span> aiming for</p>':"");
+    };
+    const bindKsb=(el,back)=>{
+      if(nvqOn()){if(window.eviaNvq.bindProgress)window.eviaNvq.bindProgress(back);return}
+      const all=allK();
+      el.querySelectorAll("[data-ksb]").forEach(b=>b.onclick=()=>{const it=all.find(x=>x[0]===b.dataset.ksb);if(it&&typeof ksbDetail==="function")ksbDetail(it[0],it[1],a.evidenced.has(it[0]),back)});
+    };
     if(id==="where"){
       const p=window.eviaData.learner(),rd=window.eviaReviewDue&&window.eviaReviewDue();
       const el=sheet("MY PROGRESS","Where you are",
@@ -349,7 +364,9 @@
           (p.start&&p.end?stat("Course dates",longDate(p.start)+" – "+longDate(p.end)):"")+
           (rd?stat("Next review",rd.days<0?"Overdue · was due "+shortDate(rd.due):shortDate(rd.due)):"")+
         '</div>'+
+        '<h3 class="pv-deep-h">'+(nvqOn()?"Your units":"Your "+esc(T.many))+' <small>'+a.met+' / '+a.total+(a.signoff?' signed off':' with evidence')+'</small></h3>'+ksbList()+
         note(verdict&&verdict.cls==="behind"?"To catch up, start a unit you haven’t touched yet: it ticks off the most in one go. Evia can tell you which one.":"Keep adding evidence as you go. Evia can take you through your progress review when it’s due."));
+      bindKsb(el,()=>openDeep("where"));
     }
     else if(id==="ksb"){
       if(nvqOn()){
@@ -458,7 +475,9 @@
     let D;try{D=gather()}catch(err){console.error("My progress failed",err);$("#screen").innerHTML='<p class="pv-empty">Evia couldn’t work out your progress just now.</p>';return}
     const rd=window.eviaReviewDue&&window.eviaReviewDue();
     $("#screen").innerHTML='<header class="ui-page-head"><h1>My progress</h1><span>'+esc(typeof data==="function"?data().name:"")+'</span></header>'+(()=>{
-      const all=cards(D),id=h=>(h.match(/data-pv="([^"]+)"/)||[])[1],main=all.filter(h=>MAIN.includes(id(h))),rest=all.filter(h=>!MAIN.includes(id(h)));
+      /* Left out of the list: KSBs (in "Where you are"), and tests, activity, Teach me, achievements and the portfolio guide (all in Topics and Learn). */
+      const HIDE=["ksb","tests","act","guide","teach","ach"];
+      const all=cards(D),id=h=>(h.match(/data-pv="([^"]+)"/)||[])[1],main=all.filter(h=>MAIN.includes(id(h))),rest=all.filter(h=>!MAIN.includes(id(h))&&!HIDE.includes(id(h)));
       return '<div class="pv-grid">'+main.join("")+'</div>'+(rest.length?'<h2 class="ui-section-label">More</h2><div class="pv-more">'+rest.map(h=>moreRow(id(h),h)).join("")+'</div>':"");
     })();
     document.querySelectorAll("[data-pv]").forEach(b=>b.onclick=()=>openDeep(b.dataset.pv));
