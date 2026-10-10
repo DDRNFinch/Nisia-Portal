@@ -142,6 +142,14 @@
       (reduced()?"":'<span class="td-confetti" aria-hidden="true">'+Array.from({length:18},(_,i)=>{const ang=i/18*Math.PI*2+Math.random()*.3,d=60+Math.random()*50;
         return '<i style="--x:'+Math.round(Math.cos(ang)*d)+'px;--y:'+Math.round(Math.sin(ang)*d-20)+'px;--r:'+Math.round(Math.random()*540-270)+'deg;--d:'+(Math.random()*.15).toFixed(2)+'s;background:'+colours[i%colours.length]+'"></i>'}).join("")+'</span>')+'</div>');
   }
+  /* Quick ways in to the important parts, always under Evia's list: the review, targets, what's missing, confidence. */
+  function shortcuts(){
+    const k=K(),c=C()||{},say=(t,f)=>()=>{k.userSays(t);f()};
+    return [k.reviewFromMenu&&{label:"My review",run:()=>k.reviewFromMenu()},
+      c.targets&&{label:"My targets",run:say("My targets",c.targets)},
+      c.evidence&&{label:"What’s missing",run:say("What’s missing?",c.evidence)},
+      c.confidence&&{label:"Confidence check",run:say("Rate my skills",c.confidence)}].filter(Boolean);
+  }
   function show(opts){
     document.body.classList.remove("evia-epa");
     const k=K(),items=window.eviaTodo.list(),top=items.slice(0,3),name=k.firstName?k.firstName():"",again=!!(opts&&opts.again);
@@ -156,7 +164,7 @@
       const q=a&&a.quickest;
       k.replies([q?{label:(q.started?"Add to ":"Start ")+q.name,primary:true,run:()=>openUnit(q)}:{label:"Go to Topics",primary:true,run:leave(()=>nav("course"))},
         {label:"A Teach me lesson",run:leave(()=>nav("teach"))},
-        {label:(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA practice",run:()=>C().epa&&C().epa()}]);
+        {label:(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA practice",run:()=>C().epa&&C().epa()}].concat(shortcuts()));
       awayLink();
       return;
     }
@@ -170,6 +178,7 @@
         setTimeout(()=>top[+b.dataset.i].run(),reduced()?0:260);
       });
     });
+    k.replies(shortcuts());
     awayLink();
   }
 

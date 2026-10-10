@@ -222,7 +222,7 @@
   let META={};
   const card=(id,title,big,sub,chart,extra)=>{META[id]={title,big};return cardBtn(id,title,big,sub,chart,extra)};
   /* The four that matter most get a card; the rest sit in one short list underneath, each opening the same deep dive. */
-  const MAIN=["where","review","otj","attendance"];
+  const MAIN=["where","review","otj","attendance","conf"];
   const moreRow=(id,html)=>{const m=META[id]||{title:(html.match(/<strong>([^<]*)<\/strong>/)||[])[1]||"",big:""};return '<button type="button" class="pv-more-row" data-pv="'+id+'" id="pv-'+id+'"><span>'+m.title+'</span><span class="pv-more-val">'+m.big+'</span><span class="pv-chev">'+CHEV+'</span></button>'};
   const cardBtn=(id,title,big,sub,chart,extra)=>'<button type="button" class="pv-card'+(extra||"")+'" data-pv="'+id+'" id="pv-'+id+'"><span class="pv-head"><span class="pv-title">'+title+'</span><span class="pv-chev">'+CHEV+'</span></span><span class="pv-big">'+big+'</span>'+(sub?'<span class="pv-sub">'+sub+'</span>':"")+(chart?'<span class="pv-chart">'+chart+'</span>':"")+'</button>';
   const empty=text=>'<span class="pv-empty">'+esc(text)+'</span>';
@@ -236,7 +236,7 @@
     const rd=window.eviaReviewDue&&window.eviaReviewDue(),revs=window.eviaGetReviews?window.eviaGetReviews():[],lastR=revs[0];
     out.push(card("review","Progress review",rd?(rd.days<0?'<span class="pv-due late">Overdue</span>':rd.days===0?'<span class="pv-due soon">Due today</span>':num(rd.days)+'<small> day'+(rd.days===1?"":"s")+'</small>'):"–",
       rd?(rd.days<0?"It was due "+shortDate(rd.due):"until your next review · "+longDate(rd.due)):"Add your start date in Profile",
-      '<span class="pv-rev-meta">'+(lastR?"Last review "+shortDate(lastR.date)+" · "+revs.length+" in all":"No reviews yet")+'</span>',rd&&rd.days<=14?" pv-alert":""));
+      '<span class="pv-rev-meta">'+(lastR?"Last review "+shortDate(lastR.date)+" · "+revs.length+" in all":"No reviews yet")+(window.eviaEmployer&&window.eviaEmployer.get()?(window.eviaEmployer.unseen()?' · <strong>New from your employer</strong>':' · Your employer’s view inside'):"")+'</span>',rd&&rd.days<=14?" pv-alert":""));
     // Where you are
     out.push(card("where","Where you are",num(a.ksbPct,"%"),'of '+esc(T.many)+(a.signoff?' signed off':' have evidence')+(verdict?' · <em class="pv-verdict '+verdict.cls+'"><i aria-hidden="true">'+verdict.icon+'</i>'+verdict.text+'</em>':""),timeline(a.timePct,a.ksbPct),""));
     // KSB rings, or units for an NVQ
@@ -314,25 +314,30 @@
   function deep(id,D){
     if(id==="guide"){window.eviaStrength.guide();return}
     if(id==="attendance"){attendanceSheet();return}
-    if(id==="employer"){
-      const EM=window.eviaEmployer&&window.eviaEmployer.get();if(!EM)return;
-      window.eviaEmployer.markSeen();
+    /* What the employer has sent (Paros): behaviour ratings and witness testimonies. Shown in the progress review. */
+    const employerHtml=EM=>{
       const b=(EM.ratings||[])[0],prev=(EM.ratings||[])[1];
-      sheet("FROM YOUR EMPLOYER",esc(EM.who||"Your employer"),
-        (b?'<h3 class="pv-h3">Your behaviours</h3><p class="pv-sub">Rated '+esc(longDate(b.created_at))+(prev?', compared with '+esc(longDate(prev.created_at)):"")+'</p>'+
+      return (b?'<h3 class="pv-h3">Your behaviours</h3><p class="pv-sub">Rated '+esc(longDate(b.created_at))+(prev?', compared with '+esc(longDate(prev.created_at)):"")+'</p>'+
           '<div class="pv-rows">'+Object.entries(b.ratings||{}).sort().map(([k,v],i)=>{const was=prev&&prev.ratings?Number(prev.ratings[k]):null,ch=was?v-was:0;
             return '<span class="pv-row"><span class="pv-row-top"><span><strong>'+esc(k)+'</strong> '+esc(behName(k))+'</span><strong>'+(ch>0?'<em class="pv-up">↑</em> ':ch<0?'<em class="pv-down">↓</em> ':"")+esc(BEH[v]||v)+'</strong></span>'+bar(v/4*100,v<=2?"low":v>=4?"good":"",i*60)+'</span>'}).join("")+'</div>'+
           (b.comment?'<p class="pv-quote">“'+esc(b.comment)+'”</p>':""):"")+
-        ((EM.witness||[]).length?'<h3 class="pv-h3">Witness testimonies</h3>'+EM.witness.map(w=>'<div class="pv-witness"><div class="pv-row-top"><strong>'+esc(w.unit||"Witness testimony")+'</strong><span>'+esc(WIT[w.rating]||"")+'</span></div><p class="pv-quote">“'+esc(w.statement)+'”</p><small class="pv-row-note">'+esc(longDate(w.at))+((w.ksbs||[]).length?" · "+esc(w.ksbs.join(", ")):"")+'</small></div>').join("")+
-          note("They’re in your <strong>Supporting evidence</strong> too. Your assessor checks them and signs off the KSBs they show."):""));
+        ((EM.witness||[]).length?'<h3 class="pv-h3">Witness testimonies</h3>'+EM.witness.map(w=>'<div class="pv-witness"><div class="pv-row-top"><strong>'+esc(w.unit||"Witness testimony")+'</strong><span>'+esc(WIT[w.rating]||"")+'</span></div><p class="pv-quote">“'+esc(w.statement)+'”</p><small class="pv-row-note">'+[w.at?esc(longDate(w.at)):"",(w.ksbs||[]).length?esc(w.ksbs.join(", ")):""].filter(Boolean).join(" · ")+'</small></div>').join("")+
+          note("They’re in your <strong>Supporting evidence</strong> too. Your assessor checks them and signs off the KSBs they show."):"");
+    };
+    if(id==="employer"){
+      const EM=window.eviaEmployer&&window.eviaEmployer.get();if(!EM)return;
+      window.eviaEmployer.markSeen();
+      sheet("FROM YOUR EMPLOYER",esc(EM.who||"Your employer"),employerHtml(EM));
       return;
     }
     if(id==="review"){
-      const rd=window.eviaReviewDue&&window.eviaReviewDue(),revs=window.eviaGetReviews?window.eviaGetReviews():[];
+      const rd=window.eviaReviewDue&&window.eviaReviewDue(),revs=window.eviaGetReviews?window.eviaGetReviews():[],EMr=window.eviaEmployer&&window.eviaEmployer.get();
       sheet("MY PROGRESS","Progress review",
         '<div class="pv-deep-hero">'+(rd?(rd.days<0?'<span class="pv-due late">Overdue</span>':rd.days===0?'<span class="pv-due soon">Due today</span>':num(rd.days)+'<small> day'+(rd.days===1?"":"s")+'</small>'):"–")+'<span>'+(rd?(rd.days<0?"It was due "+longDate(rd.due):"until your next review, on "+longDate(rd.due)):"Add your start date in Profile to plan reviews")+'</span></div>'+
         (revs.length?'<div class="pv-rows">'+revs.slice(0,5).map(r=>'<span class="pv-row"><span class="pv-row-top"><span>'+esc(longDate(r.date))+'</span><strong>'+(r.targets||[]).length+' target'+((r.targets||[]).length===1?"":"s")+'</strong></span></span>').join("")+'</div>':'<p class="pv-empty">No reviews yet.</p>')+
+        (EMr?'<h3 class="pv-deep-h">From '+esc(EMr.who||"your employer")+(window.eviaEmployer.unseen()?' <small>New</small>':'')+'</h3>'+employerHtml(EMr):"")+
         note("A review looks at where you are, your evidence, learning, tests, skills and staying safe, then sets new targets. It takes about 5 minutes."));
+      if(EMr)window.eviaEmployer.markSeen();
       return;
     }
     const {S,a,verdict}=D,T=term();
@@ -475,8 +480,9 @@
     let D;try{D=gather()}catch(err){console.error("My progress failed",err);$("#screen").innerHTML='<p class="pv-empty">Evia couldn’t work out your progress just now.</p>';return}
     const rd=window.eviaReviewDue&&window.eviaReviewDue();
     $("#screen").innerHTML='<header class="ui-page-head"><h1>My progress</h1><span>'+esc(typeof data==="function"?data().name:"")+'</span></header>'+(()=>{
-      /* Left out of the list: KSBs (in "Where you are"), and tests, activity, Teach me, achievements and the portfolio guide (all in Topics and Learn). */
-      const HIDE=["ksb","tests","act","guide","teach","ach"];
+      /* Left out: KSBs (in "Where you are"), the employer (in the progress review), evidence quality (Evia's catch up in
+         each topic), targets (in Evia's chat), and tests, activity, Teach me, achievements and the portfolio guide (Topics and Learn). */
+      const HIDE=["ksb","tests","act","guide","teach","ach","quality","targets","employer"];
       const all=cards(D),id=h=>(h.match(/data-pv="([^"]+)"/)||[])[1],main=all.filter(h=>MAIN.includes(id(h))),rest=all.filter(h=>!MAIN.includes(id(h))&&!HIDE.includes(id(h)));
       return '<div class="pv-grid">'+main.join("")+'</div>'+(rest.length?'<h2 class="ui-section-label">More</h2><div class="pv-more">'+rest.map(h=>moreRow(id(h),h)).join("")+'</div>':"");
     })();

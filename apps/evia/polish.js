@@ -126,14 +126,21 @@
     const RA=k=>window.eviaRouteAvatar?window.eviaRouteAvatar(k):'<span class="evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>';
     const card=(id,kind,title,sub,cls)=>'<button type="button" class="eg-start'+(cls?" "+cls:"")+'" id="'+id+'">'+RA(kind)+'<span><strong>'+title+'</strong><small>'+sub+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>';
     /* Catch up: only once the assessor has looked at this unit's evidence and wants more (app.js moreRequired). */
-    const missing=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>({code:x.code,text:(u[1].find(k=>code(k)===x.code)||"").split("|").slice(1).join("|")||((typeof allK==="function"?allK():[]).find(y=>y[0]===x.code)||[])[1]||""}));
+    const ksbText=c=>(u[1].find(k=>code(k)===c)||"").split("|").slice(1).join("|")||((typeof allK==="function"?allK():[]).find(y=>y[0]===c)||[])[1]||"";
+    let missing=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>({code:x.code,text:ksbText(x.code)}));
+    /* Once this topic has evidence, catch up also goes after the topic's KSBs that have no evidence anywhere yet. */
+    const assessor=missing.length>0,nvq=window.eviaNvq&&window.eviaNvq.on();
+    if(!assessor&&!nvq&&evidence.some(e=>e.c===course&&e.u===u[0])){
+      const have=new Set(evidence.filter(e=>e.c===course).flatMap(e=>Array.isArray(e.k)?e.k:[]).concat(typeof inductionKsbs==="function"?inductionKsbs():[]));
+      missing=[...new Set(u[1].map(k=>code(k)))].filter(c=>c&&!have.has(c)).map(c=>({code:c,text:ksbText(c)}));
+    }
     const nv=media.filter(x=>x.kind==="video").length,na=media.filter(x=>x.kind==="audio").length;
     const mediaSum=[nv?nv+" video"+(nv===1?"":"s"):"",na?na+" voice note"+(na===1?"":"s"):""].filter(Boolean).join(" · ");
     $("#page-title").textContent=u[0];
     $("#screen").innerHTML='<div class="evidence-pack-page">'+
       '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
         '<div class="ev-modes">'+
-        (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up","Just what your assessor still needs: "+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
+        (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up",(assessor?"Just what your assessor still needs: ":"Just what this topic still needs: ")+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
         (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions"):"")+
         card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
         (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
@@ -171,7 +178,7 @@
     const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
     /* Catch up on an empty pack makes a pack just for the missing KSBs; added to a pack in progress, the pack keeps the unit's. */
     const cu=$("#cu-start");if(cu)cu.onclick=()=>{const empty=!photos.length&&!text&&!media.length;if(empty)pack.onlyKsbs=missing.map(x=>x.code);savePack(pack);
-      window.eviaGuide.catchUp(Object.assign({},ctx,{missing,done:()=>renderPack(pack)}))};
+      window.eviaGuide.catchUp(Object.assign({},ctx,{missing,assessor,done:()=>renderPack(pack)}))};
     document.querySelectorAll("[data-remove-media]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.removeMedia,m=(pack.media||[])[i];if(!m||!confirm("Remove this recording?"))return;await idbDelete(m.id);pack.media.splice(i,1);await savePack(pack);renderPack(pack)});
     const how=$("#st-how");if(how)how.onclick=()=>window.eviaStrength.guide();
     let submitting=false;

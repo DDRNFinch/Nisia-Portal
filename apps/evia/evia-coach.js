@@ -388,8 +388,8 @@
     if(open.length){
       const u=open[0],late=u.due<Date.now();
       k.say("Most urgent: <strong>"+esc(u.t.title)+"</strong>"+(u.due<Infinity?(late?", which was due ":", due ")+new Date(u.due).toLocaleDateString("en-GB",{day:"numeric",month:"long"}):"")+".");
-      k.replies([{label:"Do it now",primary:true,run:targetDo(u.t)},{label:"See them in My progress",run:()=>openProgress("targets")},{label:"Something else",run:k.somethingElse}]);
-    }else k.replies([{label:"See them in My progress",primary:true,run:()=>openProgress("targets")},{label:"Something else",run:k.somethingElse}]);
+      k.replies([{label:"Do it now",primary:true,run:targetDo(u.t)},{label:"See all my targets",run:()=>openProgress("targets")},{label:"Something else",run:k.somethingElse}]);
+    }else k.replies([{label:"See all my targets",primary:true,run:()=>openProgress("targets")},{label:"Something else",run:k.somethingElse}]);
   }
 
   /* ---------- EPA mocks: the chat goes dark grey, like the real thing ---------- */

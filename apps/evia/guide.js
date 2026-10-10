@@ -417,7 +417,8 @@
   }
 
   /* ---------- Catch up ----------
-     After the assessor has looked at evidence for a unit, Evia goes after just what's still needed (More required):
+     After the assessor has looked at evidence for a unit (More required), or once a topic has evidence (its KSBs with
+     none yet), Evia goes after just what's still needed:
      a photo request for each skill or behaviour, then one question per missing KSB. It works like the guide, keeps
      its own answers (pack.catch), and the pack it makes is mapped to those KSBs only. ctx.missing: [{code,text}]. */
   function catchPlan(ctx){
@@ -434,7 +435,7 @@
   function catchUp(ctx){
     const n=ctx.missing.length;
     start(Object.assign({},ctx,{plan:catchPlan(ctx),gk:"catch",route:"catch",kicker:"EVIA · CATCH UP",
-      intro:"Your assessor needs a bit more for "+(n===1?"one thing":n+" things")+" in this unit. Let’s catch "+(n===1?"it":"them")+". Anything that shows "+(n===1?"it":"them")+" counts: a couple of photos and a few words is fine."}));
+      intro:(ctx.assessor===false?"This topic still has "+(n===1?"one thing":n+" things")+" with no evidence yet. ":"Your assessor needs a bit more for "+(n===1?"one thing":n+" things")+" in this unit. ")+"Let’s catch "+(n===1?"it":"them")+". Anything that shows "+(n===1?"it":"them")+" counts: a couple of photos and a few words is fine."}));
   }
 
   window.eviaGuide={start,free,plan,plain,record,catchUp};

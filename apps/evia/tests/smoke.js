@@ -48,7 +48,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       for(const id of ["review","otj","conf"]){document.getElementById("pv-"+id).click();await w(250);out[id]=[...document.querySelectorAll("#modal-root .pv-deep-acts .pv-act")].map(b=>b.textContent);document.getElementById("modal-root").innerHTML="";await w(50)}
       return out});
     check("Each section's buttons are inside its deep dive",deepActs.review.includes("My review")&&deepActs.otj.includes("Log hours")&&deepActs.conf.includes("Find a college task"),JSON.stringify(deepActs));
-    check("My progress shows a card for each area (KSBs inside Where you are; no repeats of Topics and Learn), with no action buttons",await page.evaluate(()=>screen==="learning"&&["where","otj","conf","quality","targets"].every(id=>document.getElementById("pv-"+id))&&!["ksb","tests","act","ach","teach","guide"].some(id=>document.getElementById("pv-"+id))&&!document.querySelector("#screen .primary,#screen .pg-action")));
+    check("My progress shows a card for each area (KSBs inside Where you are, the employer in the review; no repeats of Topics, Learn or Evia's chat), with no action buttons",await page.evaluate(()=>screen==="learning"&&["where","otj","conf","review"].every(id=>document.getElementById("pv-"+id))&&!["ksb","tests","act","ach","teach","guide","quality","targets","employer"].some(id=>document.getElementById("pv-"+id))&&!document.querySelector("#screen .primary,#screen .pg-action")));
     check("Where you are lists the KSBs, and tapping one opens it with a way back",await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));document.getElementById("pv-where").click();await w(300);const ok=/Your KSBs/.test(document.querySelector(".pv-sheet").textContent)&&document.querySelectorAll(".pv-sheet .pv-ksb").length>10;document.getElementById("modal-root").innerHTML="";return ok}));
     await page.click("#pv-otj");await page.waitForTimeout(500);
     check("Tapping a card opens its deep dive with a how-to note",await page.evaluate(()=>/Learning hours/.test(document.getElementById("pv-sheet-title").textContent)&&!!document.querySelector(".pv-sheet .pv-note")&&!!document.querySelector(".pv-sheet .pv-cols")));
@@ -95,6 +95,21 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.click(".ev-tile-main");await page.waitForTimeout(400);
     check("Tapping a saved tile shows that pack",await page.evaluate(()=>!!document.getElementById("ev-view-photos")));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";nav("course")});await page.waitForTimeout(400);
+    /* Catch up: once a topic has evidence, Evia asks only for its KSBs with no evidence yet. */
+    const cu=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+      const i=data().u.findIndex(u=>u[0]==="Mixing mortar"),ks=[...new Set(data().u[i][1].map(code))];
+      openUnit(i);await w(700);out.none=!document.getElementById("cu-start");
+      evidence.push({id:"cu-test",c:course,u:"Mixing mortar",p:[],photoIds:[],w:"Mixed a batch.",k:[ks[0]],savedAt:new Date().toISOString()});
+      openUnit(i);await w(700);const b=document.getElementById("cu-start"),t=b?b.textContent:"";
+      const have=new Set(evidence.filter(e=>e.c===course).flatMap(e=>e.k||[]).concat(typeof inductionKsbs==="function"?inductionKsbs():[])),want=ks.filter(k=>!have.has(k));
+      out.card=/this topic still needs/.test(t)&&!new RegExp("\\b"+ks[0]+"\\b").test(t)&&want.length>0&&want.every(k=>t.includes(k));if(!out.card)out.t=t;
+      evidence.splice(evidence.findIndex(e=>e.id==="cu-test"),1);nav("course");await w(300);return out});
+    check("Catch up: a topic with evidence offers to catch just the KSBs it still needs (none before any evidence)",cu.none&&cu.card,JSON.stringify(cu));
+    /* The employer's view is inside the progress review. */
+    const emp=await page.evaluate(async()=>{localStorage.setItem("evia7-nisia-employer",JSON.stringify({who:"Smith Builders",witness:[{id:"w1",unit:"Mixing mortar",statement:"Mixed mortar to the right ratio.",rating:3}],ratings:[]}));
+      window.eviaProgressDeep("review");await new Promise(r=>setTimeout(r,300));const t=document.querySelector(".pv-sheet").textContent;document.getElementById("modal-root").innerHTML="";localStorage.removeItem("evia7-nisia-employer");
+      return /From Smith Builders/.test(t)&&/right ratio/.test(t)});
+    check("The progress review shows what the employer has sent",emp);
     // Free range: the unit offers Evia's guide or free range; free range is all the photos, then the write-up.
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar")));await page.waitForTimeout(900);
     const fr={choice:await page.evaluate(()=>!!document.getElementById("eg-start")&&!!document.getElementById("fr-start")&&!document.getElementById("write")&&!document.getElementById("evidence-camera"))};
@@ -188,8 +203,10 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
     // Evia's menu: today's focus is always about evidence first.
     const caught=await page.evaluate(async()=>{const real=window.eviaTodo.list;window.eviaTodo.list=()=>[];window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));window.eviaTodo.list=real;
-      return /all caught up/.test(document.getElementById("chat").innerText)&&[...document.querySelectorAll("#chat .ui-replies .chat-pill")].length===3});
-    check("With nothing to do, Evia says you're all caught up and offers three ways to get ahead",caught);
+      const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return /all caught up/.test(document.getElementById("chat").innerText)&&pills.length>=3&&pills.includes("EPA practice")&&/More|My review/.test(pills.join("|"))});
+    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return ["My review","My targets","What’s missing","Confidence check"].filter(x=>pills.includes(x)).length>=3||pills.includes("More")});
+    check("Under Evia's list: shortcuts to the review, targets, what's missing and the confidence check",sc);
+    check("With nothing to do, Evia says you're all caught up and offers three ways to get ahead, then her shortcuts",caught);
     // Ask Evia: her calculators, glossary and lessons, worked out on the phone.
     const calcs=await page.evaluate(()=>{const B=window.eviaBrain,C=B.calc;return {bricks:C.bricks({length:4,height:1.2}).big,cavity:C.bricks({length:4,height:1.2,type:"cavity"}).big,stairs:C.stairs({rise:2600}).big,
       fall:C.fall({length:6,ratio:40}).big,sq:C.square({a:3,b:4}).big,sum:C.sum("4.5 x 3.2").big,mortar:C.mortar({bricks:500,ratio:4}).big,

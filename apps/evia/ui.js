@@ -72,8 +72,9 @@
     const el=document.getElementById("ui-evia-bubble");
     if(el){el.classList.remove("show");setTimeout(()=>el.remove(),260)}
   }
+  let bubbledThisOpen=false;
   function eviaSay(html,actions,o){
-    hideBubble();
+    hideBubble();bubbledThisOpen=true;
     const el=document.createElement("div");
     el.id="ui-evia-bubble";el.className="ui-evia-bubble";if(o&&o.keep)el.dataset.keep="1";el.setAttribute("role","status");el.setAttribute("aria-live","polite");
     el.innerHTML='<p>'+html+'</p>'+(actions&&actions.length?'<div class="ui-evia-bubble-actions">'+actions.map((a,i)=>'<button type="button" class="'+(a.primary?"primary":"secondary")+'" data-bubble-action="'+i+'">'+escHtml(a.label)+'</button>').join("")+'</div>':"");
@@ -87,16 +88,22 @@
   function courseNudge(){
     hideBubble();
     if(document.body.classList.contains("evia-onboarding")||!window.eviaStats)return;
-    let n;try{n=window.eviaStats.nudges(window.eviaStats.compute())[0]}catch(_){return}
+    /* Quiet by design: only what matters gets a bubble (the assessor's feedback, a review, a backup, evidence), at most
+       one each time Evia's opened and one a day (new assessor feedback can still say so once). Everything else waits in
+       Evia's list in the chat. */
+    if(bubbledThisOpen)return;
+    const IMPORTANT=/^(fb-|review|backup$|first-evidence$|quiet$)/;
+    let n;try{n=window.eviaStats.nudges(window.eviaStats.compute()).filter(x=>IMPORTANT.test(x.id))[0]}catch(_){return}
     if(!n)return;
     const today=new Date().toDateString(),seen=readJson(TIP_KEY,{});
-    if(seen.day===today&&(!n.celebrate||seen.id===n.id))return;
+    if(seen.day===today&&(!/^fb-/.test(n.id)||seen.id===n.id))return;
     const name=firstName();
     const fire=()=>{
       if(screen!=="course"||!document.getElementById("ui-course-head")||document.querySelector(".chat-sheet"))return;
       if(document.querySelector(".evidence-toast")){bubbleTimer=setTimeout(fire,2400);return} /* wait for "Saved"-style messages to clear */
       const dismiss=()=>{localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));if(n.achievements)window.eviaStats.markSeen(n.achievements);if(n.feedback&&window.eviaFeedback)window.eviaFeedback.markSeen([n.feedback.id]);if(n.lbWin&&window.eviaLeaderboard)window.eviaLeaderboard.markWinsSeen()};
       const lead=n.celebrate?(name?"Well done "+escHtml(name)+"! ":"Well done! "):partOfDay()+(name?" "+escHtml(name):"")+". ";
+      localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));
       eviaSay(lead+n.text,[{label:n.action.label,primary:true,run:()=>{dismiss();runNudge(n)}},{label:"Not now",run:dismiss}]);
       if(n.celebrate&&window.eviaMood)window.eviaMood("happy");
     };
