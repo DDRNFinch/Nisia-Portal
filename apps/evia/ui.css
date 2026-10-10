@@ -2868,3 +2868,33 @@ body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}
 #cq-view .cq-done{text-align:center;padding:10px 0 16px}#cq-view .cq-big{font-size:46px;font-weight:800;margin:6px 0}
 #cq-view .cq-coins{display:inline-block;padding:6px 14px;border-radius:999px;background:#fff8d6;font-weight:800;color:#6e5c00}
 #cq-view .cq-btn{width:100%;min-height:52px;border-radius:16px;border:0;background:#e7b900;color:#172033;font:inherit;font-weight:800;font-size:16px}
+/* Learn: the Shop as a small button in the coins card; Leaderboards as a link beside the games heading. */
+.tg-xp-top{align-items:center}
+.tg-shop-mini{display:inline-flex;align-items:center;gap:6px;flex:none;min-height:38px;padding:7px 14px;border-radius:999px;border:0;background:var(--accent-fill,var(--yellow));color:var(--yellow-ink,#3a2c00);font:inherit;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.tg-shop-mini svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tt-games-head{align-items:center;margin-bottom:2px}
+.lb-link{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:4px 2px;border:0;background:none;font:inherit;font-size:14px;font-weight:750;color:var(--yellow-ink,#6b5100);cursor:pointer}
+.lb-link svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tt-games-coins{margin:0 4px 10px;font-size:12.5px;color:var(--ui-muted);font-weight:650}
+/* Calendar: a compact key under the month, the day as a card of rows, and small links inside the top cards. */
+.cal-month+.cal-key{gap:6px 12px;margin:10px 4px 0;font-size:12px}
+.cal-month+.cal-key i{width:10px;height:10px}
+.cal-mini{align-self:flex-start;margin-top:8px;padding:4px 0;border:0;background:none;font:inherit;font-size:13.5px;font-weight:750;color:var(--yellow-ink,#6b5100);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.cal-hours-links{display:flex;gap:10px;align-items:center}
+.cal-dcard{margin:14px 0 6px;padding:14px 16px;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow)}
+.cal-dcard h3{margin:0 0 8px;font-size:16px;color:var(--ui-ink,#172033);display:flex;align-items:baseline;gap:8px}
+.cal-dcard h3 small{font-size:12px;font-weight:800;color:var(--yellow-ink,#6b5100);text-transform:uppercase;letter-spacing:.04em}
+.cal-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.cal-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid var(--ui-line,#eef0f3)}
+.cal-row:first-child{border-top:0}
+.cal-ri{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--ui-soft,#f2f4f7);color:var(--ui-ink,#172033)}
+.cal-ri svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cal-ri.ri-class{background:color-mix(in srgb,var(--at-here,#2f9e62) 14%,#fff);color:var(--at-here,#2f9e62)}
+.cal-ri.ri-visit{background:#e8f1fe;color:#2c85f7}
+.cal-ri.ri-hours{background:var(--soft,#fff8db);color:var(--yellow-ink,#6b5100)}
+.cal-rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cal-rt strong{font-size:15px;color:var(--ui-ink,#172033)}
+.cal-rt small{font-size:13px;line-height:1.4;color:var(--ui-muted,#667085)}
+.cal-chip{flex:none;align-self:center;padding:4px 10px;border-radius:999px;font-style:normal;font-size:12.5px;font-weight:800;background:color-mix(in srgb,var(--at,#667085) 14%,#fff);color:var(--at,#344054)}
+.cal-chip.cal-chip-h{background:var(--soft,#fff8db);color:var(--yellow-ink,#6b5100)}
+.cal-empty{margin:0;font-size:14px;color:var(--ui-muted,#667085)}

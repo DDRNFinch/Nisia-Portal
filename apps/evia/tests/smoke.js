@@ -301,7 +301,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
       top.click();await w(300);const k=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
       const ok=!!document.querySelector('#cal-month .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
-      localStorage.removeItem("evia7-nisia-visits");return ok}));
+      const card=!!document.querySelector("#cal-day.cal-dcard .cal-row .ri-visit")&&!!document.querySelector(".cal-card #cal-logs")&&!document.querySelector(".cal-links");
+      localStorage.removeItem("evia7-nisia-visits");return ok&&card}));
     check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
       const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
       const tue=[...document.querySelectorAll("#cal-month .pv-acal-d.pv-a-coming")].every(b=>new Date(b.dataset.day+"T12:00:00").getDay()===2);
@@ -439,10 +440,11 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     const upskillHasTeach=await page.evaluate(()=>[...document.querySelectorAll(".ui-replies button")].some(b=>/Teach me/.test(b.textContent)));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";nav("teach")});await page.waitForTimeout(600);
     check("Teach me is a tab with the course, maths, English and EDI, and it's no longer in Upskill me",!upskillHasTeach&&await page.evaluate(()=>{const t=[...document.querySelectorAll("[data-go] strong")].map(b=>b.textContent);return t.join()==="Bricklayer,Maths,English,EDI and safeguarding"&&!document.querySelector(".tm-tile")}));
-    check("EDI opens from Teach me with its lessons, and Up next goes straight into a lesson",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
+    check("EDI opens from Learn with its lessons; Learn is tidy: no Up next, the Shop in the coins card, Practice heading, Leaderboards as a link",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
       document.querySelector('[data-go="edi"]').click();await w(400);const edi=!!document.querySelector('[data-lesson="edi-what"]')&&/EDI/.test(document.querySelector(".tm-bar").textContent);
-      document.querySelector(".tm-x").click();await w(400);nav("teach");await w(300);document.querySelector("[data-play]").click();await w(500);
-      const inLesson=!!document.querySelector(".tm")&&!document.querySelector(".tm-path");document.querySelector(".tm-x").click();await w(300);const x=document.querySelector(".tm-x");if(x)x.click();await w(300);nav("teach");await w(300);return edi&&inLesson}));
+      document.querySelector(".tm-x").click();await w(400);nav("teach");await w(300);
+      const tidy=!document.querySelector(".tg-next,.tg-shop-big,.lb-open-btn")&&!!document.querySelector(".tg-player #tg-shop")&&[...document.querySelectorAll("#screen .ui-section-label")].some(h=>h.textContent==="Practice")&&!!document.querySelector(".tt-games-head #lb-open");
+      return edi&&tidy}));
     await page.evaluate(()=>document.querySelector('[data-go="course"]').click());await page.waitForTimeout(600);
     // Rewards: free starters, locked items, and buying everything directly (no loot boxes).
     await page.evaluate(()=>{const x=document.querySelector(".tm-x");if(x)x.click()});await page.waitForTimeout(300);
