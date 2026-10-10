@@ -110,6 +110,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       window.eviaProgressDeep("review");await new Promise(r=>setTimeout(r,300));const t=document.querySelector(".pv-sheet").textContent;document.getElementById("modal-root").innerHTML="";localStorage.removeItem("evia7-nisia-employer");
       return /From Smith Builders/.test(t)&&/right ratio/.test(t)});
     check("The progress review shows what the employer has sent",emp);
+    const gift=await page.evaluate(async()=>{const N=window.eviaNisia,j=N.joined,r=N.rpc,R=window.eviaRewards,before=R.balance();let calls=0;
+      N.joined=()=>({live:true});N.rpc=async n=>{calls++;return n==="evia_claim_grants"&&calls===1?[{coins:5000,why:"Test coins"}]:[]};
+      await R.claimGrants();const mid=R.balance();await R.claimGrants();const after=R.balance();N.joined=j;N.rpc=r;
+      const st=Object.assign({},window.eviaData.list("rewards")[0].state);st.bank-=5000;window.eviaData.put("rewards",{state:st});
+      return mid-before===5000&&after===mid});
+    check("A coin gift from Nisia is added once",gift);
     // Free range: the unit offers Evia's guide or free range; free range is all the photos, then the write-up.
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar")));await page.waitForTimeout(900);
     const fr={choice:await page.evaluate(()=>!!document.getElementById("eg-start")&&!!document.getElementById("fr-start")&&!document.getElementById("write")&&!document.getElementById("evidence-camera"))};

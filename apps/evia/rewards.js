@@ -374,9 +374,18 @@
     const paint=t.legendary&&window.eviaThemePaint?window.eviaThemePaint(l.theme):t.accent;
     return '<span class="rw-evia evia-shape-avatar shape-'+shape+(cls?" "+cls:"")+'" style="--yellow:'+t.accent+';--evia-shape-stroke:'+t.accent+';--accent-fill:'+paint+'"'+(t.legendary?' data-legendary data-colour="'+esc(l.theme)+'"':"")+(w.eyes?' data-eyes="'+esc(w.eyes)+'"':"")+'><span class="evia-face"'+(l.expr?' data-x="'+esc(l.expr)+'"':"")+'><i></i><i></i></span>'+kitHtml(shape,w)+'</span>';
   }
-  window.eviaRewards={myLook,lookHtml,carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
-  setTimeout(()=>{sync();wearOn()},500);
+  window.eviaRewards={claimGrants:()=>{lastGrant=0;return claimGrants()},myLook,lookHtml,carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
+  /* Coin gifts from Nisia (coin-grants.sql): one learner at a time, each collected once, then added to their coins. */
+  let lastGrant=0;
+  async function claimGrants(){
+    const N=window.eviaNisia,e=N&&N.joined&&N.joined();if(!e||!e.live||!N.rpc||Date.now()-lastGrant<60000)return;lastGrant=Date.now();
+    let rows=[];try{rows=await N.rpc("evia_claim_grants",{})||[]}catch(_){lastGrant=0;return}
+    rows.forEach(g=>{const n=prize(g.coins,g.why||"A gift from your college");
+      if(n&&!(typeof screen!=="undefined"&&(screen==="teach"||screen==="rewards"))&&typeof window.showEvidenceToast==="function")window.showEvidenceToast("+"+n+" coins: "+(g.why||"a gift from your college"))});
+    if(rows.length&&isOpen())setTimeout(page,0);
+  }
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden){sync();claimGrants()}});
+  setTimeout(()=>{sync();wearOn()},500);setTimeout(claimGrants,2500);
   /* Keep the hat on when Evia's shape changes. */
   new MutationObserver(()=>wearOn()).observe(document.documentElement,{attributes:true,attributeFilter:["data-evia-shape"]});
 })();
