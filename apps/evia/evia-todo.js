@@ -58,7 +58,7 @@
 
     /* No evidence yet: the first unit. */
     const started=units.filter(u=>u.started);
-    if(!started.length&&a.quickest)add(95,"evidence","Start your first evidence",a.quickest.name+" is a good place to start","Start "+a.quickest.name,()=>openUnit(a.quickest));
+    if(!started.length&&a.units.length)add(95,"evidence","Add your first evidence","Any job you’ve done on site counts","Go to Topics",leave(()=>nav("course")));
 
     /* Targets from the review. */
     const T=window.eviaTargets,targets=T?T.mine().filter(t=>!t.done):[];
@@ -75,8 +75,7 @@
     if(typeof isDraft==="function")units.filter(u=>isDraft(u.name)).slice(0,2).forEach(u=>add(75,"draft","Finish your "+u.name+" draft","Started, not saved yet","Finish it",()=>openUnit(u)));
 
     /* Behind pace: the unit that ticks off the most. */
-    if(started.length&&a.timePct!=null&&a.quickest&&a.timePct-a.ksbPct>10)
-      add(Math.min(80,60+Math.round((a.timePct-a.ksbPct)/5)),"unit","Next unit: "+a.quickest.name,"Covers "+plural(a.quickest.missing.length,"KSB")+" you still need","Open "+a.quickest.name,()=>openUnit(a.quickest));
+    /* (No "Next unit: …": Evia doesn't push a topic the learner may not be doing on site yet.) */
 
     /* Weak evidence: too few photos, or a write-up missing what the assessor looks for. */
     (S.checks||[]).map(c=>({c,p:c.terms.length?c.covered.length/c.terms.length:1})).filter(x=>x.p<.5||x.c.photos<3).sort((x,y)=>x.p-y.p).slice(0,2).forEach(({c})=>{
@@ -144,11 +143,11 @@
   }
   /* Quick ways in to the important parts, always under Evia's list: the review, targets, what's missing, confidence. */
   function shortcuts(){
-    const k=K(),c=C()||{},say=(t,f)=>()=>{k.userSays(t);f()};
+    const k=K(),c=C()||{};
     return [k.reviewFromMenu&&{label:"My review",run:()=>k.reviewFromMenu()},
-      c.targets&&{label:"My targets",run:say("My targets",c.targets)},
-      c.evidence&&{label:"What’s missing",run:say("What’s missing?",c.evidence)},
-      c.confidence&&{label:"Confidence check",run:say("Rate my skills",c.confidence)}].filter(Boolean);
+      c.targets&&{label:"My targets",run:()=>c.targets()},
+      c.evidence&&{label:"What’s missing",run:()=>c.evidence()},
+      c.confidence&&{label:"Confidence check",run:()=>c.confidence()}].filter(Boolean);
   }
   function show(opts){
     document.body.classList.remove("evia-epa");
@@ -162,7 +161,7 @@
       k.say("Want to get ahead?");
       let a=null;try{a=window.eviaStats.compute().a}catch(_){}
       const q=a&&a.quickest;
-      k.replies([q?{label:(q.started?"Add to ":"Start ")+q.name,primary:true,run:()=>openUnit(q)}:{label:"Go to Topics",primary:true,run:leave(()=>nav("course"))},
+      k.replies([{label:"Go to Topics",primary:true,run:leave(()=>nav("course"))},
         {label:"A Teach me lesson",run:leave(()=>nav("teach"))},
         {label:(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA practice",run:()=>C().epa&&C().epa()}].concat(shortcuts()));
       awayLink();
@@ -171,12 +170,16 @@
     if(window.eviaMood)window.eviaMood(items.some(x=>x.u>=85)?"think":"happy");
     const n='<span class="td-count">'+items.length+'</span>';
     k.say(again?(items.length===1?"Here’s what’s left.":"Here’s what’s left, most urgent first."):hello+(items.length===1?"You’ve got <span class=\"td-count\">one</span> thing to do.":items.length<=3?"You’ve got "+n+" things to do.":"You’ve got "+n+" things to do. Here are the 3 most urgent."));
-    k.widget('<div class="td-list">'+top.map((x,i)=>'<button type="button" class="td-item td-k-'+x.ic+(x.u>=85?" urgent":"")+'" data-i="'+i+'" style="--i:'+i+'" aria-label="'+esc(x.title+". "+x.detail+". "+x.label)+'">'+
-      '<span class="td-ic">'+SVG(ICON[x.ic]||ICON.unit)+'</span><span class="td-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.detail)+'</small></span><span class="td-go">'+GO+'</span></button>').join("")+'</div>',el=>{
-      el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{
+    /* The 3 most urgent, and "See all" for the rest (most urgent first). */
+    const row=(x,i)=>'<button type="button" class="td-item td-k-'+x.ic+(x.u>=85?" urgent":"")+'" data-i="'+i+'" style="--i:'+(i%3)+'" aria-label="'+esc(x.title+". "+x.detail+". "+x.label)+'">'+
+      '<span class="td-ic">'+SVG(ICON[x.ic]||ICON.unit)+'</span><span class="td-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.detail)+'</small></span><span class="td-go">'+GO+'</span></button>';
+    k.widget('<div class="td-list">'+top.map(row).join("")+(items.length>3?'<button type="button" class="td-all">See all '+items.length+' things to do</button>':"")+'</div>',el=>{
+      const bind=()=>el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{
         el.querySelectorAll("button").forEach(x=>x.disabled=true);el.classList.add("td-used");b.classList.add("td-picked");
-        setTimeout(()=>top[+b.dataset.i].run(),reduced()?0:260);
+        setTimeout(()=>items[+b.dataset.i].run(),reduced()?0:260);
       });
+      bind();
+      const all=el.querySelector(".td-all");if(all)all.onclick=()=>{all.remove();el.querySelector(".td-list").insertAdjacentHTML("beforeend",items.slice(3).map((x,i)=>row(x,i+3)).join(""));bind();K().scrollChat&&K().scrollChat()};
     });
     k.replies(shortcuts());
     awayLink();

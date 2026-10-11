@@ -1,7 +1,7 @@
-/* Paros: Milos's look (milos.css), in Paros's teal, plus the few things only Paros has. */
-body.paros{--accent:#0E9384;--accent-ink:#fff;--accent-soft:#e3f5f2;--accent-line:#a7ddd5;--accent-text:#0a6b60}
+/* Paros: Milos's look (milos.css), in Paros's orange (its icon's colour), plus the few things only Paros has. */
+body.paros{--accent:#E8781C;--accent-ink:#fff;--accent-soft:#fff1e3;--accent-line:#f6c79a;--accent-text:#a14c06}
 body.paros .auth{background:radial-gradient(120% 60% at 50% 0%,#e3f5f2 0%,var(--bg) 60%)}
-body.paros .auth .av.lg{box-shadow:0 14px 34px rgba(14,147,132,.25)}
+body.paros .auth .av.lg{box-shadow:0 14px 34px rgba(232,120,28,.25)}
 .m-intro{margin:0 2px 12px;line-height:1.5}
 .p-acts{display:flex;gap:8px;flex:none}
 .p-acts .btn{padding:8px 12px;min-height:38px;font-size:14px}
@@ -28,8 +28,8 @@ body.paros .m-chip{cursor:default}
 body.paros #wKsbs .m-chip{cursor:pointer;text-align:left}
 body.paros #wKsbs .m-chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 body.paros select{font:inherit;padding:12px;border-radius:14px;border:1px solid var(--hair,#d5dce4);background:#fff}
-body.paros{--accent-deep:#0b7a6e}
-body.paros .btn.primary{background:linear-gradient(180deg,#14a897,var(--accent-deep));box-shadow:0 6px 16px rgba(14,147,132,.28),inset 0 1px 0 rgba(255,255,255,.18)}
+body.paros{--accent-deep:#d0620c}
+body.paros .btn.primary{background:linear-gradient(180deg,#f28c28,var(--accent-deep));box-shadow:0 6px 16px rgba(232,120,28,.28),inset 0 1px 0 rgba(255,255,255,.18)}
 body.paros .btn.ghost{color:var(--accent-text)}
 body.paros .m-seg{grid-template-columns:repeat(4,1fr)}
 body.paros .m-seg button{font-size:13px;padding:0 4px}
@@ -42,3 +42,8 @@ body.paros #wKsbs .m-chip b{margin-right:4px}
 .p-hour .p-acts{width:100%;justify-content:flex-end;padding-left:52px}
 .p-hour .p-acts .btn{flex:1;max-width:160px}
 body.paros .m-stats{grid-template-columns:1fr 1fr}
+
+/* Milos's few fixed blues, in Paros's orange */
+body.paros .m-nav .m-nav-milos{box-shadow:0 10px 26px rgba(232,120,28,.28),0 0 0 8px rgba(255,241,227,.9)}
+body.paros .m-nav .m-nav-milos.on{box-shadow:0 10px 26px rgba(232,120,28,.38),0 0 0 8px var(--accent-soft)}
+body.paros .m-beh-bar i{background:var(--accent)}

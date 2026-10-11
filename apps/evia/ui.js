@@ -387,7 +387,8 @@
     return queue;
   }
   let userTurns=0; /* counts the learner's choices, so a late suggestion doesn't land after one */
-  function userSays(text){userTurns++;const c=chatBox();if(!c)return;c.querySelectorAll(".ui-replies").forEach(x=>x.remove()); /* earlier suggestions are stale once they've moved on */const d=document.createElement("div");d.className="bubble user";d.textContent=text;c.appendChild(d);scrollChat()}
+  let pillAt=0;
+  function userSays(text,fromPill){if(!fromPill&&Date.now()-pillAt<800)return; /* a tapped option already said it */userTurns++;const c=chatBox();if(!c)return;c.querySelectorAll(".ui-replies").forEach(x=>x.remove()); /* earlier suggestions are stale once they've moved on */const d=document.createElement("div");d.className="bubble user";d.textContent=text;c.appendChild(d);scrollChat()}
   /* opt.turns: only show them if the learner hasn't picked or typed anything since they were asked for. */
   function replies(list,opt){
     const gen=chatGen;
@@ -399,7 +400,7 @@
       const shown=items.filter(r=>!r.back&&r.label!=="Something else");
       if(!shown.length&&back){back.run();return}
       const box=document.createElement("div");box.className="chat-options ui-replies";
-      shown.forEach((r,i)=>{const b=document.createElement("button");b.type="button";b.className="chat-pill"+(r.primary?" ui-pill-primary":"")+(i>=3&&shown.length>4?" ui-pill-extra":"");b.innerHTML="<strong>"+escHtml(r.label)+"</strong>";b.onclick=()=>{box.remove();userSays(r.label);r.run()};box.appendChild(b)});
+      shown.forEach((r,i)=>{const b=document.createElement("button");b.type="button";b.className="chat-pill"+(r.primary?" ui-pill-primary":"")+(i>=3&&shown.length>4?" ui-pill-extra":"");b.innerHTML="<strong>"+escHtml(r.label)+"</strong>";b.onclick=()=>{box.remove();userSays(r.label,true);pillAt=Date.now();r.run()};box.appendChild(b)});
       if(shown.length>4){const m=document.createElement("button");m.type="button";m.className="chat-pill ui-pill-more";m.innerHTML="<strong>More</strong>";m.onclick=()=>{box.classList.add("show-all");m.remove();scrollChat()};box.appendChild(m)}
       if(back){const b=document.createElement("button");b.type="button";b.className="ui-pill-back";b.textContent="‹ "+back.label;b.onclick=()=>{box.remove();back.run()};box.appendChild(b)}
       c.appendChild(box);scrollChat();

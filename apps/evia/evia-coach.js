@@ -197,8 +197,8 @@
       el.querySelectorAll("[data-unit]").forEach(b=>b.onclick=()=>k.openUnitFromChat({index:+b.dataset.unit}));
     });
     const notStarted=a.units.filter(u=>!u.started).length;
-    if(notStarted)k.say(k.plural(notStarted,"unit")+" still "+(notStarted===1?"has":"have")+" no evidence."+(a.quickest?" <strong>"+esc(a.quickest.name)+"</strong> would tick off the most.":""));
-    k.replies([a.quickest?{label:"Open "+a.quickest.name,run:()=>k.openUnitFromChat(a.quickest)}:null,{label:"Something else",run:k.somethingElse}].filter(Boolean));
+    if(notStarted)k.say(k.plural(notStarted,"topic")+" still "+(notStarted===1?"has":"have")+" no evidence. Add to them when you do that work on site.");
+    k.replies([{label:"Go to Topics",run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);
   }
 
   /* ---------- Shared: go to a place in the app from the chat ---------- */
@@ -308,7 +308,7 @@
   const ORDER=["where","quality","otj","targets","tests","conf","teach"];
   const DOIT={
     where:{label:"Add evidence",why:"Your assessor looks at how much of your course has evidence. Adding a pack now makes the biggest difference.",
-      run:()=>{const a=K().analyse();a.quickest?K().openUnitFromChat(a.quickest):(K().closeChat(),setTimeout(()=>nav("course"),60))}},
+      run:()=>{K().closeChat();setTimeout(()=>nav("course"),60)}},
     quality:{label:"Check my write-ups",why:"Strong write-ups cover the things to mention on each unit. I’ll show you what’s missing.",run:()=>evidenceCheck()},
     otj:{label:"Log hours",why:"Your off-the-job hours are checked at every review. Log anything you haven’t yet, on the day it happened: training, toolbox talks, research.",run:()=>logHours()},
     targets:{label:"Look at my targets",why:"Your assessor goes through your targets first. Let’s see which ones you can still tick off.",run:()=>targets()},
@@ -360,9 +360,9 @@
   function targetDo(t){
     const k=K(),C=window.eviaCoachFlows,a=k.analyse();
     const go={
-      units:()=>a.quickest?k.openUnitFromChat(a.quickest):(k.closeChat(),setTimeout(()=>nav("course"),60)),
-      ksb:()=>a.quickest?k.openUnitFromChat(a.quickest):(k.closeChat(),setTimeout(()=>nav("course"),60)),
-      streak:()=>a.quickest?k.openUnitFromChat(a.quickest):(k.closeChat(),setTimeout(()=>nav("course"),60)),
+      units:()=>(k.closeChat(),setTimeout(()=>nav("course"),60)),
+      ksb:()=>(k.closeChat(),setTimeout(()=>nav("course"),60)),
+      streak:()=>(k.closeChat(),setTimeout(()=>nav("course"),60)),
       otj:()=>C.hours(),
       epa:()=>window.eviaTestMe&&window.eviaTestMe({type:"epa-full"}),
       quiz:()=>window.eviaTestMe&&window.eviaTestMe({type:"epa",count:5}),

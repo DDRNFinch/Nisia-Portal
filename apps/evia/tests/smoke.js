@@ -217,6 +217,14 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return /all caught up/.test(document.getElementById("chat").innerText)&&pills.length>=3&&pills.includes("EPA practice")&&/More|My review/.test(pills.join("|"))});
     const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return ["My review","My targets","What’s missing","Confidence check"].filter(x=>pills.includes(x)).length>=3||pills.includes("More")});
     check("Under Evia's list: shortcuts to the review, targets, what's missing and the confidence check",sc);
+    const once=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
+      window.eviaTodo.list=()=>Array.from({length:6},(_,i)=>({u:50-i,ic:"hours",title:"Thing "+(i+1),detail:"d",label:"Go",run:()=>{}}));
+      {const x=document.getElementById("x");if(x){x.click();await w(600)}}window.chat({quiet:true});await w(900);window.eviaTodo.show();const c=document.getElementById("chat");let list=null;for(let n=0;n<40&&!(list&&list.querySelector(".td-all"));n++){await w(200);list=[...c.querySelectorAll(".td-list")].pop()}
+      const all=list&&list.querySelector(".td-all"),seeAll=!!all&&/See all 6/.test(all.textContent);if(all)all.click();await w(200);const six=!!list&&list.querySelectorAll(".td-item").length===6;
+      window.eviaTodo.list=real;const before=c.querySelectorAll(".bubble.user").length;
+      const pill=[...c.querySelectorAll(".ui-replies .chat-pill")].find(p=>p.textContent==="My targets");if(!pill)return {seeAll,six,pill:false};
+      pill.click();await w(1500);const after=c.querySelectorAll(".bubble.user").length;return {seeAll,six,one:after-before===1}});
+    check("Evia's list: See all shows every thing to do, and tapping an option shows it once (not twice)",once.seeAll&&once.six&&once.one,JSON.stringify(once));
     check("With nothing to do, Evia says you're all caught up and offers three ways to get ahead, then her shortcuts",caught);
     // Ask Evia: her calculators, glossary and lessons, worked out on the phone.
     const calcs=await page.evaluate(()=>{const B=window.eviaBrain,C=B.calc;return {bricks:C.bricks({length:4,height:1.2}).big,cavity:C.bricks({length:4,height:1.2,type:"cavity"}).big,stairs:C.stairs({rise:2600}).big,
