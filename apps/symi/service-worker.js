@@ -1,4 +1,4 @@
-const BUILD='0.34.6';
+const BUILD='0.34.7';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',
@@ -42,7 +42,8 @@ const ASSETS=[
 
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
-  await cache.addAll(ASSETS);
+  /* Fresh from the server (not the browser's 10-minute copy), so a new version never keeps an old page. */
+  await cache.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})));
   await self.skipWaiting();
 })()));
 
