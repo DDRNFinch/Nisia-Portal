@@ -105,6 +105,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       out.card=/this topic still needs/.test(t)&&!new RegExp("\\b"+ks[0]+"\\b").test(t)&&want.length>0&&want.every(k=>t.includes(k));if(!out.card)out.t=t;
       evidence.splice(evidence.findIndex(e=>e.id==="cu-test"),1);nav("course");await w(300);return out});
     check("Catch up: a topic with evidence offers to catch just the KSBs it still needs (none before any evidence)",cu.none&&cu.card,JSON.stringify(cu));
+    /* Every text box has a small mic in its corner that explains voice typing for this phone. */
+    const mic=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar"),"write");await w(800);
+      const t=[...document.querySelectorAll("textarea")].find(x=>x.offsetParent),b=t&&t.parentElement.querySelector(".mh-btn:not([hidden])");if(!b)return false;
+      b.click();await w(200);const tip=document.querySelector(".mh-tip"),ok=!!tip&&/Speak instead of typing/.test(tip.textContent)&&/Android/.test(tip.textContent)&&document.activeElement===t;
+      tip.querySelector("button").click();await w(100);const gone=!document.querySelector(".mh-tip");nav("course");await w(300);return ok&&gone});
+    check("Text boxes have a small mic that shows how to speak instead of typing, for this phone (Android here)",mic);
     /* The employer's view is inside the progress review. */
     const emp=await page.evaluate(async()=>{localStorage.setItem("evia7-nisia-employer",JSON.stringify({who:"Smith Builders",witness:[{id:"w1",unit:"Mixing mortar",statement:"Mixed mortar to the right ratio.",rating:3}],ratings:[]}));
       window.eviaProgressDeep("review");await new Promise(r=>setTimeout(r,300));const t=document.querySelector(".pv-sheet").textContent;document.getElementById("modal-root").innerHTML="";localStorage.removeItem("evia7-nisia-employer");
