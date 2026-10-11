@@ -11,13 +11,15 @@ const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.w
   "../../packages/vendor/supabase-2.45.4.js", "../../packages/vendor/qrcode-generator-1.4.4.js", "../../packages/vendor/jspdf-2.umd.min.js"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) =>
-  Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); }))))));
-/* The page asks for the new version to take over (its "Update" button), or it does so on its own next time Milos opens. */
+  Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); })))).then(() => self.skipWaiting())));
+/* A new version takes over as soon as it's downloaded (the page's "Update" button still works too). */
 self.addEventListener("message", (e) => { if (e.data === "update") self.skipWaiting(); });
 self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("milos-") && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== location.origin) return;
+  /* The install settings always come fresh (with the copy here when there's no signal), so the phone sees the app's own name. */
+  if (u.pathname.endsWith("/manifest.webmanifest")) { e.respondWith(fetch(e.request, { cache: "no-store" }).catch(() => caches.match(e.request, { ignoreSearch: true }))); return; }
   e.respondWith(caches.open(CACHE).then((c) => c.match(e.request, { ignoreSearch: true }).then((hit) => hit ||
     (e.request.mode === "navigate" ? c.match("./") : null)).then((hit) => hit || fetch(e.request))));
 });

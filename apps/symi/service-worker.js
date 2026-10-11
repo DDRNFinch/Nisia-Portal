@@ -1,4 +1,4 @@
-const BUILD='0.34.4';
+const BUILD='0.34.5';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',
@@ -61,6 +61,11 @@ self.addEventListener('fetch',event=>{
   const url=new URL(request.url);
   if(url.origin!==location.origin)return;
 
+  /* The install settings always come fresh (with the copy here when there's no signal), so the phone sees Symi's own name. */
+  if(/\/manifest\.(json|webmanifest)$/.test(url.pathname)){
+    event.respondWith(fetch(request,{cache:'no-store'}).catch(()=>caches.match(request,{ignoreSearch:true})));
+    return;
+  }
   if(url.pathname.endsWith('/service-worker.js')||url.pathname.endsWith('/update.json')){
     event.respondWith(fetch(request,{cache:'no-store'}));
     return;
