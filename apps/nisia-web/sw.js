@@ -1,12 +1,13 @@
-/* Nisia portal: what makes it installable as an app. Pages and files of the portal itself come from the network when
+/* Nisia portal (published in its own folder, nisia/, so its scope never takes in the other apps): what makes it
+   installable as an app. Pages and files of the portal itself come from the network when
    there's signal (so it's always up to date) and from the copy kept here when there isn't. The other apps live in their
    own folders with their own workers, so their requests are left alone. */
-const CACHE = "nisia-portal-v2";
+const CACHE = "nisia-app-portal-v1";
 const OTHER_APPS = /\/(evia|milos|symi|paros|preview)\//;
 self.addEventListener("install", (e) => { self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith("nisia-portal-") && k !== CACHE) await caches.delete(k);
+    for (const k of await caches.keys()) if (k.startsWith("nisia-app-portal-") && k !== CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });

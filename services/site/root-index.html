@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nisia</title>
+<link rel="icon" href="nisia/icons/icon.svg" type="image/svg+xml">
+<style>body{margin:0;display:grid;place-items:center;min-height:100vh;font:500 16px system-ui,sans-serif;color:#4A5B6E;background:#F6F8F9}a{color:#0E9384}</style>
+</head>
+<body>
+<p>Opening Nisia… <a href="nisia/">Tap here</a> if it doesn’t open.</p>
+<!-- Nisia lives in nisia/ (each app has its own folder, so installing one never takes in the others). This old address
+     forwards there, keeping ?reset= and #reset= links, after switching off the worker that used to run here. -->
+<script>
+(async () => {
+  try {
+    const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration("./");
+    if (r && new URL(r.scope).pathname === new URL("./", location.href).pathname) await r.unregister();
+  } catch (_) {}
+  location.replace("nisia/" + location.search + location.hash);
+})();
+</script>
+</body>
+</html>
