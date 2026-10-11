@@ -1,7 +1,6 @@
-/* Writing help. Every text box gets the phone's own UK spellcheck (red underlines as you type), and the main
-   write-ups get a "Check my writing" button. The check runs on the phone with no signal: it fixes spelling
-   (including trade words), capital letters and punctuation, and shows each change for the learner to accept.
-   It never rewrites sentences, so the write-up stays in the learner's own words. */
+/* Writing help. Every text box gets the phone's own UK spellcheck (red underlines as you type). The rules below
+   (check) fix spelling (including trade words), capital letters and punctuation without rewriting sentences; the
+   "Check my writing" button that showed them is gone, so they're kept for Evia's own use (window.eviaWriting.check). */
 (function(){
   "use strict";
 
@@ -161,17 +160,10 @@
     // The phone's own spellcheck, in UK English.
     ta.spellcheck=true;ta.setAttribute("lang","en-GB");ta.setAttribute("autocapitalize","sentences");ta.setAttribute("autocorrect","on");
     if(!ta.matches(HELPED))return;
-    /* A small A✓ in the box's top-right corner; the suggestions open underneath. */
+    /* The main write-ups sit in a field that sizes them (the "Check my writing" button that used to sit in its corner
+       is gone: the phone's own spellcheck does the job, and learners already know it). */
     const field=document.createElement("div");field.className="wc-field";
     ta.parentNode.insertBefore(field,ta);field.appendChild(ta);
-    const btn=document.createElement("button");btn.type="button";btn.className="wc-btn";btn.setAttribute("aria-label","Check my writing");btn.title="Check my writing";btn.innerHTML=ICON;
-    field.appendChild(btn);
-    const wrap=document.createElement("div");wrap.className="wc";
-    wrap.innerHTML='<div class="wc-panel" hidden aria-live="polite"></div>';
-    field.insertAdjacentElement("afterend",wrap);
-    const panel=wrap.querySelector(".wc-panel");
-    btn.onclick=e=>{e.preventDefault();openPanel(ta,panel)};
-    ta.addEventListener("input",()=>{if(!ta.dataset.wcApplying)panel.hidden=true});
   }
   const scan=()=>document.querySelectorAll("textarea:not([data-wc])").forEach(setUp);
   new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});

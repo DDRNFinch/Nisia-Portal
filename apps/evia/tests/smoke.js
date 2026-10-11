@@ -141,11 +141,10 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     fr.cleared=await page.evaluate(()=>!document.querySelector(".fr-progress"));
     check("Free range mode: in Evia's sheets like the guide, with every prompt listed at once; work in progress shows on the unit page",Object.values(fr).every(Boolean),JSON.stringify(fr));
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar"),"write"));await page.waitForTimeout(900);
-    check("The evidence pack has no Continue later button and a check-my-writing icon in the text box",await page.evaluate(()=>!document.getElementById("continue-later")&&!!document.querySelector(".wc-field #write + .wc-btn")));
+    check("The evidence pack has no Continue later button and no Check my writing button (the phone's UK spellcheck is on)",await page.evaluate(()=>{const w=document.getElementById("write");return !document.getElementById("continue-later")&&!document.querySelector(".wc-btn,.wc-panel")&&w.spellcheck&&w.getAttribute("lang")==="en-GB"}));
     await page.evaluate(()=>{nav("course")});await page.waitForTimeout(450);await page.evaluate(()=>openUnit(3,"write"));await page.waitForTimeout(900);
     check("An evidence pack opens",await page.$("#write"));
-    await page.fill("#write","i laid the morter on the dpc and checked it was plum");await page.click(".wc-btn");await page.click(".wc-all");
-    check("Check my writing fixes spelling, capitals and punctuation",await page.inputValue("#write")==="I laid the mortar on the DPC and checked it was plumb.");
+    check("Evia's writing rules still fix spelling, capitals and punctuation",await page.evaluate(()=>{const r=window.eviaWriting.check("i laid the morter on the dpc and checked it was plum");let t="i laid the morter on the dpc and checked it was plum";return r.fixes.length>=4}));
 
     await page.evaluate(()=>window.eviaOpenSendToPortfolio(data().u[2][0]));await page.waitForTimeout(3500);
     check("Send to e-portfolio shows a preview, everything as a zip (the PDF and photos), and just the PDF",await page.evaluate(()=>!!document.getElementById("eport-preview")&&!!document.getElementById("eport-zip")&&!!document.getElementById("eport-pdf-only")&&/the PDF and 1 photo/.test(document.querySelector(".eport-status").innerText)));

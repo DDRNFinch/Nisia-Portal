@@ -1,7 +1,7 @@
 /* Speak instead of typing: a small microphone in the top-right corner of every text box. Tapping it opens the
    keyboard on that box and shows how to start the phone's own voice typing (free, works offline on most phones and
    copes with accents), with steps for the phone in hand: iPhone, Samsung, other Android, or a computer.
-   The button floats over the box (it isn't wrapped), beside Evia's "Check my writing" button where there is one, so the page's layout and styles stay exactly as they are.
+   The button floats over the box (it isn't wrapped), so the page's layout and styles stay exactly as they are.
    A box can opt out with data-no-mic. */
 (function(){
   const ua=navigator.userAgent||"",iOS=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
@@ -20,7 +20,7 @@
   const css=document.createElement("style");
   css.textContent='.mh-btn{position:absolute;z-index:3;display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:var(--ui-soft,#f2f4f7);color:var(--yellow-ink,#5b4a00);cursor:pointer;opacity:.9}'+
     '.mh-btn:hover,.mh-btn:focus-visible{opacity:1;background:var(--soft,#fff6d6)}.mh-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}'+
-    'textarea.mh-pad{padding-right:40px!important}textarea.mh-pad.mh-pad2{padding-right:84px!important}'+
+    'textarea.mh-pad{padding-right:40px!important}'+
     '.mh-tip{position:fixed;z-index:10050;left:12px;right:12px;max-width:440px;margin:0 auto;padding:14px 16px 12px;border-radius:18px;background:#fff;color:#172033;box-shadow:0 12px 36px rgba(16,24,40,.22);font:500 14.5px/1.45 inherit;font-family:inherit}'+
     '.mh-tip strong{display:flex;align-items:center;gap:8px;font-size:16px;margin-bottom:6px}.mh-tip strong svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:var(--yellow-ink,#5b4a00)}'+
     '.mh-tip ol{margin:0 0 8px;padding-left:20px;display:grid;gap:4px}.mh-tip small{display:block;color:#5b6472;font-size:13px;margin-bottom:8px}'+
@@ -47,12 +47,8 @@
   function place(ta,b){
     const vis=ta.offsetParent!==null&&ta.offsetWidth>60&&!ta.disabled&&!ta.readOnly;
     b.hidden=!vis;if(!vis)return;
-    /* Evia's "Check my writing" button can already sit in that corner: the mic goes just to its left. */
-    const wc=ta.parentElement&&[...ta.parentElement.children].find(x=>x.classList.contains("wc-btn")&&getComputedStyle(x).position==="absolute"&&x.offsetWidth);
-    ta.classList.toggle("mh-pad2",!!wc);
     b.style.left="0px";b.style.top="0px";
-    const o=b.getBoundingClientRect(),r=ta.getBoundingClientRect(),w=wc&&wc.getBoundingClientRect();
-    const x=w?w.left-36:r.right-36,y=w?w.top+(w.height-30)/2:r.top+6;
+    const o=b.getBoundingClientRect(),r=ta.getBoundingClientRect(),x=r.right-36,y=r.top+6;
     b.style.left=Math.round(x-o.left)+"px";b.style.top=Math.round(y-o.top)+"px";
   }
   function attach(ta){
