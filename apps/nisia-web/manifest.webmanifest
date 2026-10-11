@@ -2,7 +2,7 @@
   "name": "Nisia",
   "short_name": "Nisia",
   "description": "Nisia for colleges: learners, classes, staff, registers and reports.",
-  "id": "./",
+  "id": "/nisia-app/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

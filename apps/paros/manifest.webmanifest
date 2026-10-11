@@ -2,6 +2,7 @@
   "name": "Paros · for employers",
   "short_name": "Paros",
   "description": "Your apprentices: college attendance, evidence, learning hours and feedback.",
+  "id": "/nisia-app/paros/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
