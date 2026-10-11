@@ -2,7 +2,7 @@
   "name": "Milos",
   "short_name": "Milos",
   "description": "For assessors: your learners, their evidence from Evia, and progress reviews.",
-  "id": "/nisia-app/milos/",
+  "id": "/nisia-app/milos/app",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
