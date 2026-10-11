@@ -1,4 +1,4 @@
-const VERSION = "2026-10-07-evia7-v240";
+const VERSION = "2026-10-07-evia7-v241";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -70,7 +70,7 @@ const APP_SHELL = [
   "./icon.svg",
   "./icon-180.png",
   "./icon-192.png","./badge-96.png",
-  "./icon-512.png"
+  "./icon-512.png","./icon-maskable-512.png"
 ];
 
 /* Offline-first: the app always opens from the copy saved on the phone, so it loads instantly with or without
