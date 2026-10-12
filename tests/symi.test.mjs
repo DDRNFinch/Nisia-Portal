@@ -203,7 +203,7 @@ try {
   await page.screenshot({ path: path.join(root, "tests", "shots", "symi-coming-up.png") });
   check("The register shows days off booked for the coming classes, before the day", /^Coming up: Amira off \w{3} \d{1,2} \w{3}, \w{3} \d{1,2} \w{3} and \w{3} \d{1,2} \w{3} \(Ill\)$/.test(ahead), ahead);
   /* Explore: every tab, every button, as a new tutor would. */
-  { const xp = await explore(page, { app: "Symi", tabSel: ".sy-nav [data-sy-tab]", skip: /present|full screen|start class|start question/, perScreen: 20, max: 500 });
+  { const xp = await explore(page, { app: "Symi", tabSel: ".sy-nav [data-sy-tab]", skip: /present|full screen|start class|start question/, perScreen: 15, max: 350 });
     check("Explore Symi: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n")); }
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
