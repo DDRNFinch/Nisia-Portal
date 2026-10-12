@@ -12,7 +12,7 @@
   const place=()=>{try{return [typeof course==="string"?course:"",typeof screen==="string"?screen:""].filter(Boolean).join(" · ")}catch(_){return ""}};
   /* No signal isn't a fault in Evia: the sync waits and tries again, and the profile dot already says so. Left in, one
      night offline counted thousands of "Failed to fetch". */
-  const IGNORE=/ResizeObserver loop|Script error\.?$|Failed to fetch|fetch failed|NetworkError|Load failed|network (error|connection was lost)|Internet connection appears to be offline|AuthRetryableFetchError|ERR_INTERNET_DISCONNECTED|ERR_NETWORK/i;
+  const IGNORE=/ResizeObserver loop|Script error\.?$|Failed to fetch|fetch failed|NetworkError|Load failed|network (error|connection was lost)|Internet connection appears to be offline|AuthRetryableFetchError|ERR_INTERNET_DISCONNECTED|ERR_NETWORK|didn.t answer in time/i;
 
   function log(message,extra){
     try{

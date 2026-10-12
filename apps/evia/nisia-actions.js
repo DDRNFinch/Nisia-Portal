@@ -54,7 +54,7 @@
   };
   let call = null, key = "nisia-outbox-v1";
   const online = () => typeof navigator === "undefined" || navigator.onLine !== false;
-  const noSignal = (e) => !online() || /failed to fetch|networkerror|network request failed|load failed|fetch failed|timed? ?out/i.test(String((e && e.message) || e || ""));
+  const noSignal = (e) => !online() || /failed to fetch|networkerror|network request failed|load failed|fetch failed|timed? ?out|didn.t answer in time/i.test(String((e && e.message) || e || ""));
   const read = () => { try { return JSON.parse(localStorage.getItem(key) || "[]") || []; } catch (_) { return []; } };
   const write = (v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} };
 

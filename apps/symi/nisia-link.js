@@ -439,7 +439,7 @@ async function showCheckIn(regId) {
 }
 
 /* ---------- The register: the check-in button, who's checked in, and each learner's mark ---------- */
-let decorating = false, bgPoll = null;
+let decorating = false, bgPoll = null, bgPollFor = "";
 const shownMarks = new Map();
 function decorate() {
   if (decorating) return; decorating = true;
@@ -507,10 +507,17 @@ function decorate() {
     });
     /* Checked in learners: a mark button too (to change it), small. */
     host.querySelectorAll(".sn-tick").forEach((t) => { t.setAttribute("role", "button"); t.tabIndex = 0; const id = t.closest("[data-attendance-learner]").dataset.attendanceLearner; t.onclick = () => markSheet(regId, id); });
-    /* While the session's on, keep ticking learners in even with the code closed. */
-    clearInterval(bgPoll); bgPoll = null;
-    const s = read(K.sessions, {})[regId + ":" + key];
-    if (s && LIVE.includes(code) && !open) bgPoll = setInterval(() => { if (online() && !document.hidden) pollCheckIns(regId, key, s.id, regLearners(App().getState(), reg)).catch(() => {}); }, 15000);
+    /* While the session's on, keep ticking learners in even with the code closed: straight away when the register
+       is shown (after a reload too), then every 15 seconds. The register redraws often, so the timer is only
+       restarted when the register or session changes, or it would never get to fire. */
+    const s = read(K.sessions, {})[regId + ":" + key], want = s && LIVE.includes(code) && !open ? regId + ":" + key + ":" + s.id : "";
+    if (want !== bgPollFor) {
+      clearInterval(bgPoll); bgPoll = null; bgPollFor = want;
+      if (want) {
+        const poll = () => { if (online() && !document.hidden) pollCheckIns(regId, key, s.id, regLearners(App().getState(), App().getState().classes.find((c) => c.id === regId) || reg)).catch(() => {}); };
+        setTimeout(poll, 0); bgPoll = setInterval(poll, 15000);
+      }
+    }
   } finally { decorating = false; }
 }
 

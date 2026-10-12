@@ -16,7 +16,14 @@
   function sb(){
     if(client)return Promise.resolve(client);
     return new Promise((res,rej)=>{
-      const go=()=>{client=window.supabase.createClient(NISIA_URL,NISIA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"evia7-nisia-auth",detectSessionInUrl:false}});res(client)};
+      /* Every request gives up after a while (longer for photo and video uploads). College Wi-Fi that connects but
+         carries nothing would otherwise leave "Checking you in…" spinning; this way the check-in is kept and sent later. */
+      const timedFetch=(url,o={})=>{
+        if(o.signal)return fetch(url,o);
+        const c=new AbortController(),t=setTimeout(()=>c.abort(),/\/storage\/v1\/object\//.test(String(url))&&o.method&&o.method!=="GET"?120000:25000);
+        return fetch(url,Object.assign({},o,{signal:c.signal})).catch(e=>{throw e.name==="AbortError"?new Error("Nisia didn’t answer in time. Check your signal and try again."):e}).finally(()=>clearTimeout(t));
+      };
+      const go=()=>{client=window.supabase.createClient(NISIA_URL,NISIA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"evia7-nisia-auth",detectSessionInUrl:false},global:{fetch:timedFetch}});res(client)};
       if(window.supabase&&window.supabase.createClient)return go();
       const el=document.createElement("script");el.src="vendor/supabase-2.45.4.js";el.onload=go;el.onerror=()=>rej(new Error("Evia couldn’t reach Nisia. Check your signal and try again."));document.head.appendChild(el);
     });
