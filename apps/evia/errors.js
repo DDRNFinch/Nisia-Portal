@@ -5,12 +5,14 @@
 (function(){
   const KEY="evia7-errors",MAX=50;
   const clip=(s,n)=>String(s==null?"":s).slice(0,n);
-  const read=()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(v)?v:[]}catch(_){return []}};
+  const read=()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(v)?v.filter(x=>x&&!IGNORE.test(x.message||"")):[]}catch(_){return []}};
   const write=list=>{try{localStorage.setItem(KEY,JSON.stringify(list.slice(-MAX)))}catch(_){}};
   const version=()=>{const m=[...document.scripts].map(s=>s.textContent).join(" ").match(/evia7-v\d+/);return m?m[0]:""};
   /* app.js's "screen" and "course" are page-wide variables; before it loads, "screen" is the browser's own object. */
   const place=()=>{try{return [typeof course==="string"?course:"",typeof screen==="string"?screen:""].filter(Boolean).join(" · ")}catch(_){return ""}};
-  const IGNORE=/ResizeObserver loop|Script error\.?$/;
+  /* No signal isn't a fault in Evia: the sync waits and tries again, and the profile dot already says so. Left in, one
+     night offline counted thousands of "Failed to fetch". */
+  const IGNORE=/ResizeObserver loop|Script error\.?$|Failed to fetch|fetch failed|NetworkError|Load failed|network (error|connection was lost)|Internet connection appears to be offline|AuthRetryableFetchError|ERR_INTERNET_DISCONNECTED|ERR_NETWORK/i;
 
   function log(message,extra){
     try{
