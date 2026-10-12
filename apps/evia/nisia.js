@@ -1,10 +1,10 @@
-/* Evia7 ↔ Nisia: pairing and sync.
+/* Evia7 ↔ Evia Portal: pairing and sync.
    Joining: the learner scans their assessor's pairing QR (NISI:PAIR:2:<code>), opens the invite link (?pair=<code>) or
-   types the code shown under the QR. Nisia replies with the learner's enrolment: who they are, their course and dates,
+   types the code shown under the QR. Evia Portal replies with the learner's enrolment: who they are, their course and dates,
    college, employer, assessor, tutor and safeguarding lead, so the learner doesn't type any of it.
-   Sync: Nisia sees everything the learner does in Evia. Records (evidence, hours, lessons, tests, reviews, targets…)
+   Sync: Evia Portal sees everything the learner does in Evia. Records (evidence, hours, lessons, tests, reviews, targets…)
    go on any connection, from eviaData.changesSince(); photos, videos and files go only on WiFi, and wait until then.
-   Live: Nisia's Supabase (London). Pairing signs the learner in (no password); every record goes to evia_records
+   Live: Evia Portal's Supabase (London). Pairing signs the learner in (no password); every record goes to evia_records
    (and evidence and learning hours to their own tables, for the college's counts); photos and files go to the
    private evidence store. The example codes below are a demo that never leaves the phone (the shared test app).
    window.eviaNisia: pair(code)  accept(enrolment)  joined()  sync()  status()  clean(code)  onStatus(fn) */
@@ -21,14 +21,14 @@
       const timedFetch=(url,o={})=>{
         if(o.signal)return fetch(url,o);
         const c=new AbortController(),t=setTimeout(()=>c.abort(),/\/storage\/v1\/object\//.test(String(url))&&o.method&&o.method!=="GET"?120000:25000);
-        return fetch(url,Object.assign({},o,{signal:c.signal})).catch(e=>{throw e.name==="AbortError"?new Error("Nisia didn’t answer in time. Check your signal and try again."):e}).finally(()=>clearTimeout(t));
+        return fetch(url,Object.assign({},o,{signal:c.signal})).catch(e=>{throw e.name==="AbortError"?new Error("Your college didn’t answer in time. Check your signal and try again."):e}).finally(()=>clearTimeout(t));
       };
       const go=()=>{client=window.supabase.createClient(NISIA_URL,NISIA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"evia7-nisia-auth",detectSessionInUrl:false},global:{fetch:timedFetch}});res(client)};
       if(window.supabase&&window.supabase.createClient)return go();
-      const el=document.createElement("script");el.src="vendor/supabase-2.45.4.js";el.onload=go;el.onerror=()=>rej(new Error("Evia couldn’t reach Nisia. Check your signal and try again."));document.head.appendChild(el);
+      const el=document.createElement("script");el.src="vendor/supabase-2.45.4.js";el.onload=go;el.onerror=()=>rej(new Error("Evia couldn’t reach your college. Check your signal and try again."));document.head.appendChild(el);
     });
   }
-  /* Example learners (from the Nisia portal mock-up), one per course. */
+  /* Example learners (from the Evia Portal portal mock-up), one per course. */
   const COLLEGE={college:"Brookfield College",safeguarding:{name:"Sarah Mitchell",phone:"01922 555 010",email:"safeguarding@brookfield.example"}};
   const LEARNERS={
     BRK7Q4M:{learnerId:"nisia-demo-callum",name:"Callum Hughes",course:"bricklayer",start:"2025-09-01",end:"2027-08-31",group:"Bricklaying 2025 intake",employer:"Hughes & Sons Builders",assessor:"Mark Ellis",tutor:"Dan Okafor"},
@@ -53,7 +53,7 @@
       plannedOtjHours:d.plannedOtjHours,safeguarding:d.safeguarding||undefined,reviewDue:d.reviewDue||null,nvqOptional:d.nvqOptional&&d.nvqOptional.length?d.nvqOptional:undefined};
   }
   /* The learner confirmed it's them: sign in with the one-time token, then the enrolment and their details come
-     from Nisia from now on. */
+     from Evia Portal from now on. */
   async function accept(en){
     let c=null;
     if(en.live){
@@ -94,7 +94,7 @@
   }
   const listeners=[];
   const note=s=>{const st=Object.assign(readJson(STATUS_KEY,{})||{},s);writeJson(STATUS_KEY,st);listeners.slice().forEach(fn=>{try{fn(st)}catch(_){}});return st};
-  /* A stable Nisia id for each Evia record that has its own Nisia table. */
+  /* A stable Evia Portal id for each Evia record that has its own Evia Portal table. */
   const uuidFor=key=>{const m=readJson(IDS_KEY,{})||{};if(!m[key]){m[key]=crypto.randomUUID?crypto.randomUUID():"10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));writeJson(IDS_KEY,m)}return m[key]};
   const EVIDENCE_TYPES=["photo","video","written","audio","document"];
   /* Records: everything into evia_records; evidence, supporting evidence and learning hours also into their own tables. */
@@ -106,14 +106,14 @@
     for(const ch of batch){
       const r=ch.record,gone=!ch.fingerprint;
       if(ch.collection==="hours"){
-        if(r.source==="college")continue;             /* the tutor's register: Nisia already has it */
+        if(r.source==="college")continue;             /* the tutor's register: Evia Portal already has it */
         const id=uuidFor("hours:"+r.id),hours=Math.round((Number(r.minutes)||0)/60*100)/100;
         if(gone||!(hours>0&&hours<=24)){await c.from("otj_entries").delete().eq("id",id);continue}
         const {error:oe}=await c.from("otj_entries").upsert(Object.assign({},base,{id,created_by_member_id:e.memberId,activity_date:String(r.occurredAt||r.createdAt||new Date().toISOString()).slice(0,10),
           activity_type:r.source||"evia",description:String(r.description||r.did||"Learning").slice(0,2000),hours}));
-        if(oe)console.warn("Evia: Nisia hours",oe.message);
+        if(oe)console.warn("Evia: Evia Portal hours",oe.message);
       }
-      /* An assessor's observation came from Nisia: it's already there. */
+      /* An assessor's observation came from Evia Portal: it's already there. */
       if(ch.collection==="supporting"&&(r.observation||/^obs-/.test(String(r.id))))continue;
       if(ch.collection==="evidence"||ch.collection==="supporting"){
         const id=uuidFor(ch.collection+":"+r.id);
@@ -124,7 +124,7 @@
           title:String(r.unit||r.title||"Evidence").slice(0,300),client_reference:ch.collection+":"+r.id,
           source_metadata:{collection:ch.collection,unit:r.unit||null,unitId:r.unitId||null,text:r.text||null,ksbs:r.ksbs||r.criteria||[],photoIds:r.photoIds||[],
             media:rm.map(m=>({id:m.id,kind:m.kind,secs:m.secs||0})),transcript:r.transcript||null}}));
-        if(ee)console.warn("Evia: Nisia evidence",ee.message);
+        if(ee)console.warn("Evia: Evia Portal evidence",ee.message);
       }
     }
   }
@@ -160,12 +160,12 @@
     const ext=(blob.type.split("/")[1]||"bin").replace(/[^a-z0-9]/g,"").slice(0,5),path=e.organisationId+"/"+evId+"/"+m.id.replace(/[^A-Za-z0-9_-]/g,"")+"."+ext;
     const {error}=await c.storage.from("evidence").upload(path,blob,{contentType:blob.type||"application/octet-stream",upsert:false});
     if(error&&!/exists|Duplicate/i.test(error.message))throw error;
-    if(!error){const {error:fe}=await c.from("evidence_files").insert({organisation_id:e.organisationId,evidence_id:evId,uploaded_by_member_id:e.memberId,storage_path:path,mime_type:blob.type||"application/octet-stream",size_bytes:blob.size});if(fe)console.warn("Evia: Nisia file",fe.message)}
+    if(!error){const {error:fe}=await c.from("evidence_files").insert({organisation_id:e.organisationId,evidence_id:evId,uploaded_by_member_id:e.memberId,storage_path:path,mime_type:blob.type||"application/octet-stream",size_bytes:blob.size});if(fe)console.warn("Evia: Evia Portal file",fe.message)}
     return new Date().toISOString();
   }
   /* ---------- A new device (a computer, or a replacement phone) ----------
      Evia keeps the learner's work on the device. So a new device can start where the old one left off, Evia's own
-     saved data goes to Nisia too, key by key, exactly as it's stored ("store" records). Connecting a new device puts it
+     saved data goes to Evia Portal too, key by key, exactly as it's stored ("store" records). Connecting a new device puts it
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
   const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
@@ -202,7 +202,7 @@
     writeJson(STORE_SENT_KEY,sent);writeJson(RESTORED_KEY,new Date().toISOString());writeJson(FETCH_KEY,{});
     return true;
   }
-  /* After the restart: what came back is already in Nisia, so it isn't sent again. */
+  /* After the restart: what came back is already in Evia Portal, so it isn't sent again. */
   function afterRestore(){
     if(!readJson(RESTORED_KEY,null))return;
     try{const D=window.eviaData;D.markSynced(D.changesSince());const sent=readJson(MEDIA_KEY,{})||{};mediaIds().forEach(m=>{sent[m.id]=sent[m.id]||"restored"});writeJson(MEDIA_KEY,sent)}catch(err){console.warn("Evia: after restore",err&&err.message)}
@@ -248,7 +248,7 @@
       window.eviaData.put("supporting",{id,title:"Observation: "+(m.unit||x.title||"workplace"),type:"document",mime:"application/pdf",size:blob.size,
         filename:("Observation "+(m.unit||"")+" "+on).replace(/[^A-Za-z0-9 -]+/g,"").trim().replace(/\s+/g,"-")+".pdf",
         observation:{by:m.observedBy||"",on,unit:m.unit||"",evidenceId:x.id},criteria:m.ksbs||[],...(m.nvqUnit?{nvqUnit:m.nvqUnit}:{})});
-      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Nisia */
+      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Evia Portal */
       got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
     }
   }
@@ -306,7 +306,7 @@
       window.eviaData.put("supporting",{id,title:"Witness testimony: "+(t.unit||"workplace"),type:"document",mime:f.mime,size:f.blob.size,
         filename:("Witness testimony "+(t.unit||"")+" "+on).replace(/[^A-Za-z0-9 -]+/g,"").trim().replace(/\s+/g,"-")+"."+f.ext,
         witness:{name:who,role:"Employer"},employer:{id:t.id,statement:t.statement,rating:t.rating,unit:t.unit||"",ksbs:t.ksbs||[],at:t.signed_at||t.created_at,signed:!!t.signed_at}});
-      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Nisia */
+      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Evia Portal */
     }
     for(const b of r.data||[]){
       const id="emp-"+b.id;if(have.has(id))continue;
@@ -341,14 +341,14 @@
     if(changed){D.markSynced(D.changesSince().filter(ch=>ch.collection==="hours"&&String(ch.record.id).startsWith("college-")));if(typeof persist==="function")try{persist()}catch(_){}}
   }
   /* ---------- Registers: this week's classes, checking in with no signal, and days off ----------
-     All through the shared Nisia actions (nisia-actions.js, the same file every Nisia app uses): one request for
+     All through the shared Evia Portal actions (nisia-actions.js, the same file every Evia Portal app uses): one request for
      everything about the learner's registers (whatsNew), and check-ins and days off that are kept with no signal and
      sent when there is. A kept scan goes with when it was scanned: the code proves when it was on the classroom
-     screen, so Nisia records the check-in at that time (and tells the tutor it was made offline). Days off tell
+     screen, so Evia Portal records the check-in at that time (and tells the tutor it was made offline). Days off tell
      everyone with the learner: their tutor, assessor and employer. */
   const A=window.NisiaActions;
   A.use(async(fn,args)=>{const c=await sb(),{data,error}=await c.rpc(fn,args);if(error)throw new Error(error.message||"That didn’t work. Try again.");return data},{app:"evia"});
-  /* The learner's course pack from Nisia (its topics and KSBs), kept on the phone. With your packs Evia's topics stay
+  /* The learner's course pack from Evia Portal (its topics and KSBs), kept on the phone. With your packs Evia's topics stay
      its own (they're the same); with a college's own pack, Evia's topics follow it (packs.js). */
   const PACK_KEY="evia7-nisia-pack";
   const pack=()=>readJson(PACK_KEY,null);
@@ -359,7 +359,7 @@
       /* A college's own pack: Evia's topics follow it now (and back again if the learner returns to yours). */
       try{if(window.eviaPacks&&window.eviaPacks.followKept(typeof course==="string"?course:"")&&typeof render==="function"&&!document.querySelector(".chat-sheet"))render()}catch(err){console.warn("Evia: pack",err&&err.message)}}
   }
-  /* Whether Nisia's pack has the same topics and KSBs as Evia's own for the course (true for your packs). */
+  /* Whether Evia Portal's pack has the same topics and KSBs as Evia's own for the course (true for your packs). */
   function packMatches(){
     const p=pack(),mine=window.eviaPacks&&p&&p.course!=="trowel3"&&window.eviaPacks.pack(p.course);
     if(!p||!mine)return null;
@@ -394,13 +394,13 @@
     if(Array.isArray(w.timetable))writeJson(TT_KEY,w.timetable);
     return w;
   }
-  /* Kept with no signal, now sent. A check-in Nisia turns down is kept as a problem for the learner to see. */
+  /* Kept with no signal, now sent. A check-in Evia Portal turns down is kept as a problem for the learner to see. */
   async function sendKept(){
     if(!A.waiting().length)return;
     const res=readJson(CR_KEY,[])||[];
     for(const x of await A.flush()){
       if(x.name==="checkIn"){if(x.ok)markChecked(x.result);else res.push({at:x.at,class:(sessions().find(s=>"checkin:"+s.id===x.tag)||{}).class||"",message:x.error||"",seen:false})}
-      else if(!x.ok)console.warn("Evia: Nisia",x.name,x.error);
+      else if(!x.ok)console.warn("Evia: Evia Portal",x.name,x.error);
     }
     writeJson(CR_KEY,res.slice(-5));
   }
@@ -410,14 +410,15 @@
     return sessions().find(s=>s.starts_at&&!s.checked_in_at&&!s.reason&&s.status!=="finished"&&t>=Date.parse(s.starts_at)-30*60e3&&
       t<=(Date.parse(s.ends_at||"")||Date.parse(s.starts_at)+3*36e5)&&!kept.has("checkin:"+s.id)&&!absences().some(a=>s.session_date>=a.starts_on&&s.session_date<=a.ends_on))||null;
   }
-  /* Checking in to a class: the code on the classroom screen (Symi), checked by Nisia. With no signal, kept. */
+  /* Checking in to a class: the code on the classroom screen (Symi), checked by Evia Portal. With no signal, kept. */
   async function checkIn(code){
     const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");
     code=String(code||"").trim();
     const m=/^NISI:IN:\d+:([0-9a-f-]{36}):/.exec(code),now=classNow(),sid=m?m[1]:now&&now.id;
     if(navigator.onLine){const c=await sb(),{data:s}=await c.auth.getSession();if(!s||!s.session)throw new Error("Evia isn’t signed in to your college. Ask your assessor for a new code.")}
     const r=await A.send("checkIn",{p_code:code},{tag:"checkin:"+(sid||"unknown")});
-    if(r&&r.kept){const s=sessions().find(x=>x.id===sid);return {queued:true,class:s&&s.class||"",lesson:s&&s.lesson||"",at:r.at}}
+    /* Kept: try again once it's a minute old (it can't go sooner), and again later if there's still no signal. */
+    if(r&&r.kept){[65e3,180e3].forEach(ms=>setTimeout(()=>{if(navigator.onLine)sync().catch(()=>{})},ms));const s=sessions().find(x=>x.id===sid);return {queued:true,class:s&&s.class||"",lesson:s&&s.lesson||"",at:r.at}}
     markChecked(r);
     return r;
   }
@@ -494,7 +495,7 @@
     try{window.eviaTargets&&window.eviaTargets.check(false)}catch(_){}
   }
   /* The college's current details for this learner (name, dates, assessor, safeguarding lead, next review), so a
-     change made in Nisia reaches Evia on the next sync. */
+     change made in Evia Portal reaches Evia on the next sync. */
   async function refreshDetails(c,e){
     const {data:d,error}=await c.rpc("nisia_my_details");
     if(error||!d)return;
@@ -520,17 +521,17 @@
       const D=window.eviaData,e=joined(),changes=D.changesSince();
       const c=e.live?await sb():null;
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
-      if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
-      if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
-      /* Everything Nisia has for the learner, in one request (whatsNew): registers, attendance, days off, feedback. */
+      if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Evia Portal details",err&&err.message)}
+      if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Evia Portal targets",err&&err.message)}
+      /* Everything Evia Portal has for the learner, in one request (whatsNew): registers, attendance, days off, feedback. */
       if(c)try{await sendKept();const w=await fetchRegisters();
-        /* Only what Nisia actually sent replaces what Evia has: an older Nisia without these parts leaves them alone. */
-        try{await fetchFeedback(Array.isArray(w.feedback)?w.feedback:await c.rpc("nisia_my_feedback").then(r=>{if(r.error)throw r.error;return r.data||[]}))}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
-        try{if(w.employer)await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
-        try{await fetchPack(c)}catch(err){console.warn("Evia: Nisia pack",err&&err.message)}
-      }catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
+        /* Only what Evia Portal actually sent replaces what Evia has: an older Evia Portal without these parts leaves them alone. */
+        try{await fetchFeedback(Array.isArray(w.feedback)?w.feedback:await c.rpc("nisia_my_feedback").then(r=>{if(r.error)throw r.error;return r.data||[]}))}catch(err){console.warn("Evia: Evia Portal feedback",err&&err.message)}
+        try{if(w.employer)await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Evia Portal employer feedback",err&&err.message)}
+        try{await fetchPack(c)}catch(err){console.warn("Evia: Evia Portal pack",err&&err.message)}
+      }catch(err){console.warn("Evia: Evia Portal registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
-      if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
+      if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Evia Portal leaderboards",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
@@ -538,11 +539,11 @@
       /* Media: only on WiFi, both ways. */
       const sent=readJson(MEDIA_KEY,{})||{};
       if(onWifi()){
-        if(c)try{await fetchMedia(c,e)}catch(err){console.warn("Evia: Nisia media down",err&&err.message)}
-        if(c)try{await fetchObservations(c,e)}catch(err){console.warn("Evia: Nisia observations",err&&err.message)}
+        if(c)try{await fetchMedia(c,e)}catch(err){console.warn("Evia: Evia Portal media down",err&&err.message)}
+        if(c)try{await fetchObservations(c,e)}catch(err){console.warn("Evia: Evia Portal observations",err&&err.message)}
         for(const m of mediaIds().filter(m=>!sent[m.id])){
           try{sent[m.id]=c?await sendMedia(c,e,m):new Date().toISOString();writeJson(MEDIA_KEY,sent)}
-          catch(err){console.warn("Evia: Nisia media",m.id,err&&err.message);break}
+          catch(err){console.warn("Evia: Evia Portal media",m.id,err&&err.message);break}
         }
       }
       return note({offline:false,error:null,lastSync:new Date().toISOString()});
@@ -583,7 +584,7 @@
     const line=document.getElementById("pf-sync");if(line)line.textContent=statusText()}
   listeners.push(badge);addEventListener("offline",badge);addEventListener("online",badge);
   addEventListener("load",()=>setInterval(badge,30000));
-  /* One of Nisia's functions, for the learner's own enrolment (leaderboard.js). Needs signal and a live connection. */
+  /* One of Evia Portal's functions, for the learner's own enrolment (leaderboard.js). Needs signal and a live connection. */
   async function rpc(name,args){
     const e=joined();if(!e||!e.live)throw new Error("not connected");if(!navigator.onLine)throw new Error("offline");
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
@@ -593,7 +594,7 @@
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,
-     and reminders when a review or target is due or learning hours are behind on a Friday. Nisia sends them (Web
+     and reminders when a review or target is due or learning hours are behind on a Friday. Evia Portal sends them (Web
      Push, no app store), outside 9pm to 7:30am. iPhones need Evia added to the Home Screen first.
      state(): not-joined | unsupported | install | blocked | off | on */
   const VAPID="BCvAqfno7ja_7c6SDkZXFkl37v0t7zrZ6RkqVvTGNhtB9pL_7fYN2wT9hwYQBp0Y_4QfiNFc2opCpVw4IAcyxLk",PUSH_KEY="evia7-push";
@@ -632,7 +633,7 @@
     try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
       if(sub){try{const c=await sb();await c.from("device_tokens").delete().eq("token",sub.endpoint)}catch(_){}await sub.unsubscribe()}}catch(_){}
   }
-  /* Once a day while on: the phone's subscription can change, so Nisia gets the current one. */
+  /* Once a day while on: the phone's subscription can change, so Evia Portal gets the current one. */
   async function pushRefresh(){
     if(pushState()!=="on"||!navigator.onLine||pushPref().saved===new Date().toISOString().slice(0,10))return;
     try{await pushSave(await subscription())}catch(err){console.warn("Evia: notifications",err&&err.message)}

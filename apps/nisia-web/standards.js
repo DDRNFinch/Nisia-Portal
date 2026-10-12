@@ -3,7 +3,7 @@
      learners following each one.
    - A version opens to show what it asks for, word for word: KSBs (filtered by option), or units, learning outcomes
      and assessment criteria.
-   - "Add a standard or version": paste the KSBs or upload the official PDF; Nisia reads it, shows what it found and
+   - "Add a standard or version": paste the KSBs or upload the official PDF; Evia Portal reads it, shows what it found and
      anything to check, and saves it as a draft. Publishing makes it permanent (a published version never changes;
      a correction is a new version).
    - Which version (and option) each course follows. */
@@ -116,7 +116,7 @@ async function openVersion(id) {
   };
 }
 
-/* Add a standard, or a new version: paste or upload, check what Nisia read, save as a draft. */
+/* Add a standard, or a new version: paste or upload, check what Evia Portal read, save as a draft. */
 function addForm(prev) {
   const { esc, modal, rpc, toast, busy, hit } = ui;
   const p = prev || { kind: "standard" };
@@ -149,9 +149,9 @@ function addForm(prev) {
     const sum = kind === "standard"
       ? ["knowledge", "skill", "behaviour"].map((k) => its.filter((x) => x.kind === k).length + " " + LABEL[k].toLowerCase()).join(", ") + (read.options.length ? " · options: " + read.options.map((o) => o.title + " (" + its.filter((x) => x.option === o.code).length + ")").join(", ") : "")
       : ["unit", "outcome", "criterion"].map((k) => its.filter((x) => x.kind === k).length + " " + { unit: "units", outcome: "learning outcomes", criterion: "assessment criteria" }[k]).join(", ") + (its.some((x) => x.optional) ? " (" + its.filter((x) => x.optional).length + " optional units)" : "");
-    check.innerHTML = '<div class="note" style="margin-bottom:8px"><b>Nisia read ' + its.length + ' item' + (its.length === 1 ? "" : "s") + ':</b> ' + esc(sum) + '</div>' +
+    check.innerHTML = '<div class="note" style="margin-bottom:8px"><b>Evia Portal read ' + its.length + ' item' + (its.length === 1 ? "" : "s") + ':</b> ' + esc(sum) + '</div>' +
       (read.warnings.length ? '<div class="err" style="margin-bottom:8px"><b>Check:</b><ul style="margin:4px 0 0 18px;padding:0">' + read.warnings.slice(0, 12).map((w) => '<li>' + esc(w) + '</li>').join("") + (read.warnings.length > 12 ? '<li>…and ' + (read.warnings.length - 12) + ' more</li>' : "") + '</ul></div>' : "") +
-      '<details><summary class="small">See everything Nisia read</summary><div class="std-body" style="max-height:320px;overflow:auto">' +
+      '<details><summary class="small">See everything Evia Portal read</summary><div class="std-body" style="max-height:320px;overflow:auto">' +
       its.map((x) => '<div class="std-row' + (x.kind === "unit" ? " std-unit-row" : "") + '"><b class="mono">' + esc(x.code) + '</b><span style="white-space:pre-line">' + esc(x.title) + (x.option ? ' <span class="chip">' + esc((read.options.find((o) => o.code === x.option) || {}).title || "") + '</span>' : "") + (x.optional ? ' <span class="chip">Optional</span>' : "") + '</span></div>').join("") +
       '</div></details>';
   };
@@ -162,7 +162,7 @@ function addForm(prev) {
     const note = m.querySelector("#stdFileNote"); note.textContent = "Reading " + file.name + "…";
     try {
       const s = /\.pdf$/i.test(file.name) || file.type === "application/pdf" ? await (await import("../../packages/core/pdf-text.js")).pdfText(file) : await file.text();
-      text.value = s; note.textContent = file.name + ": read. Check what Nisia found below, and tidy the text if anything’s wrong."; hit("standards.upload"); draw();
+      text.value = s; note.textContent = file.name + ": read. Check what Evia Portal found below, and tidy the text if anything’s wrong."; hit("standards.upload"); draw();
     } catch (x) { note.textContent = "Couldn’t read that file: " + x.message; }
   };
   draw();

@@ -1,5 +1,5 @@
 /* Milos browser test with a stand-in Supabase: an assessor signs in, sees whose review is due, opens a learner,
-   starts a progress review filled in from Evia, completes it with three signatures, and it's saved to Nisia with
+   starts a progress review filled in from Evia, completes it with three signatures, and it's saved to Evia Portal with
    new targets and downloaded as a PDF.   Run: node tests/milos.test.mjs */
 import http from "node:http";
 import fs from "node:fs";
@@ -32,7 +32,7 @@ const SNAPSHOT = { at: day(-1), course: "bricklayer", ksb: { met: 21, total: 59,
   teach: { medals: { gold: 3, silver: 2, bronze: 1 }, subjects: [{ id: "course", name: "Bricklayer", areasDone: 4, areas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], avg: 82 }, { id: "maths", name: "Maths", areasDone: 2, areas: [1, 2, 3, 4, 5, 6], avg: 71 }, { id: "edi", name: "EDI and safeguarding", areasDone: 3, areas: [1, 2, 3, 4], avg: 90 }] } };
 
 const posted = [];
-/* Nisia's packs: your Bricklayer pack, and the college's own copy of it, which Callum (E1) is on. */
+/* Evia Portal's packs: your Bricklayer pack, and the college's own copy of it, which Callum (E1) is on. */
 let PACKMOVE = null;
 let VISITS = [], BOOKED = [];
 const PACKS = (() => {
@@ -42,7 +42,7 @@ const PACKS = (() => {
   const one = (id, code, title) => ({ id, code, title, course: "bricklayer", version: 1, hash: "h" + id, standard: { code: "ST0095", kind: "standard", version: "1.2", option: null }, topics: brick.content.topics, ksbs });
   return () => ({ packs: [one("k0", "nisia-bricklayer", "Bricklayer"), one("kc", "college-1", "Brookfield bricklaying")], courses: { bricklayer: "k0" }, enrolments: { E1: PACKMOVE ? PACKMOVE.p_pack : "kc" } });
 })();
-let GONE = false, EXTRA = false, NOEMP = false; /* NOEMP: a Nisia without milos_employer_feedback yet */ /* EXTRA: a learner added in Nisia while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
+let GONE = false, EXTRA = false, NOEMP = false; /* NOEMP: an Evia Portal without milos_employer_feedback yet */ /* EXTRA: a learner added in Evia Portal while Milos is open */ /* the learner deleted ev3 in Evia after Milos downloaded it */
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -57,7 +57,7 @@ function handle(route) {
   if (p === "/rest/v1/rpc/set_enrolment_pack") { PACKMOVE = body; return json(null); }
   if (p === "/rest/v1/rpc/milos_employer_feedback" && NOEMP) return json({ code: "PGRST202", message: "Could not find the function public.milos_employer_feedback" }, 404);
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
-  /* Visits (the Calendar): booked, listed and cancelled through Nisia's actions. */
+  /* Visits (the Calendar): booked, listed and cancelled through Evia Portal's actions. */
   if (p === "/rest/v1/rpc/nisia_visits") return json(VISITS);
   if (p === "/rest/v1/rpc/nisia_learner_quizzes") return json([{ quiz_id: "Q1", session_date: "2026-10-06", class: "L2 Bricklaying", title: "Class quiz", total: 8, answered: 8, right_answers: 6 }]);
   if (p === "/rest/v1/rpc/nisia_learner_college") return json([
@@ -130,7 +130,7 @@ try {
   await page.click("[data-tab=reviews]"); await page.waitForTimeout(200); await page.screenshot({ path: shots + "/m1d-reviews.png", fullPage: true });
   const revText = await page.textContent("#main");
   check("Learners search, one To assess queue across learners, and reviews by when they're due", found === 1 && ringShown && none && queue.length === 3 && badge === "3" && queue.some((t) => /Construct Cavity Walling/.test(t)) && /Overdue/.test(revText) && /Callum Hughes/.test(revText), JSON.stringify({ found, ringShown, none, queue, badge }));
-  /* Calendar: book a visit with Callum; it goes to Nisia (so it's on his Evia calendar), shows on the month and in
+  /* Calendar: book a visit with Callum; it goes to Evia Portal (so it's on his Evia calendar), shows on the month and in
      Coming up, and opening it offers the observation. The face in the middle goes back to what needs doing. */
   await page.click("[data-tab=calendar]"); await page.waitForSelector("#bookVisit");
   const calEmpty = /No visits booked/.test(await page.textContent("#main"));
@@ -145,7 +145,7 @@ try {
   await page.click("[data-visit]"); await page.waitForSelector("#vObs"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/m1e2-visit.png" });
   const sheetText = await page.textContent(".sheet");
   await page.click(".sheet .x");
-  check("Calendar: book a visit with a learner (Nisia tells them and it's on their Evia calendar), see it on the month and in Coming up, and open it to start the observation",
+  check("Calendar: book a visit with a learner (Evia Portal tells them and it's on their Evia calendar), see it on the month and in Coming up, and open it to start the observation",
     calEmpty && b0.p_enrolment === "E1" && new Date(b0.p_starts_at).getHours() === 11 && b0.p_kind === "observation" && b0.p_note === "Bring your PPE" && !!placeFilled && b0.p_place === placeFilled && !!onMonth && /Observation/.test(sheetText) && /Evia calendar/.test(sheetText),
     JSON.stringify({ calEmpty, b0, placeFilled, onMonth: !!onMonth, sheetText }));
   await page.click("#navTodo"); await page.waitForSelector("[data-id=L1]"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/m1f-todo.png", fullPage: true });
@@ -154,9 +154,9 @@ try {
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
   const lt = await page.textContent("#main");
   const packCard = await page.textContent(".m-card:has(#packBtn)").catch(() => "");
-  await page.click("#packBtn"); await page.check(".sheet input[value=k0]"); await page.click("#pkF [type=submit]"); await page.waitForFunction(() => !document.querySelector(".sheet #pkF")); await page.waitForFunction(() => /Nisia’s/.test((document.querySelector(".m-card:has(#packBtn)") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
-  check("A learner's pack shows on their Overview (here the college's own), and their assessor can move them onto Nisia's", /Brookfield bricklaying/.test(packCard) && /college’s own/.test(packCard) && PACKMOVE && PACKMOVE.p_enrolment === "E1" && PACKMOVE.p_pack === "k0" &&
-    /Bricklayer · Nisia’s/.test(await page.textContent(".m-card:has(#packBtn)")), packCard + " " + JSON.stringify(PACKMOVE));
+  await page.click("#packBtn"); await page.check(".sheet input[value=k0]"); await page.click("#pkF [type=submit]"); await page.waitForFunction(() => !document.querySelector(".sheet #pkF")); await page.waitForFunction(() => /Evia Portal’s/.test((document.querySelector(".m-card:has(#packBtn)") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
+  check("A learner's pack shows on their Overview (here the college's own), and their assessor can move them onto Evia Portal's", /Brookfield bricklaying/.test(packCard) && /college’s own/.test(packCard) && PACKMOVE && PACKMOVE.p_enrolment === "E1" && PACKMOVE.p_pack === "k0" &&
+    /Bricklayer · Evia Portal’s/.test(await page.textContent(".m-card:has(#packBtn)")), packCard + " " + JSON.stringify(PACKMOVE));
   check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));
   await page.waitForSelector("#absBox .ab-row");
   const emp = await page.textContent(".m-employer").catch(() => "");
@@ -164,7 +164,7 @@ try {
   NOEMP = true;
   const noEmp = await page.evaluate(async () => { const m = await import("./store.js"); const D = await m.refreshLearner((await m.learnerData({ enrolment_id: "E1" })).L.row); return { pf: !!D.P, kept: D.E.witness.length === 1 && D.E.ratings.length === 1 }; }).catch((e) => ({ error: e.message }));
   NOEMP = false;
-  check("If Nisia can't send the employer's feedback, the learner's work still downloads (and the last copy is kept)", noEmp.pf && noEmp.kept, JSON.stringify(noEmp));
+  check("If Evia Portal can't send the employer's feedback, the learner's work still downloads (and the last copy is kept)", noEmp.pf && noEmp.kept, JSON.stringify(noEmp));
   await page.waitForSelector("#colBox .m-college");
   const col = await page.textContent("#colBox");
   check("…what they were taught at college (from Symi): each session's lesson and KSBs, and whether they were there",
@@ -188,7 +188,7 @@ try {
   await page.uncheck('.ksb-row input[value="B1"]'); await page.fill("#obFb", "Well-gauged mortar.");
   await page.click("#obSave"); await page.waitForSelector(".obs", { state: "detached", timeout: 8000 }); await page.waitForSelector(".pf-unit", { state: "attached" });
   const ev = posted.find((x) => x.table === "evidence"), a = posted.filter((x) => x.table === "assessments").pop();
-  check("An observation is captured like Evia (unit prompts, photos, things to mention ticking off), then signed off and saved to Nisia",
+  check("An observation is captured like Evia (unit prompts, photos, things to mention ticking off), then signed off and saved to Evia Portal",
     /Things to capture/.test(obsPrompts) && /silos/.test(obsPrompts) && mentionOn.some((t) => /ratio/.test(t)) && mentionOn.some((t) => /safety signage/.test(t)) &&
     obsTicks.join() === "S14,K20,S1,K1,S6,K12,S20,B1" && ev && ev.body.source_metadata.collection === "observation" && ev.body.created_by_member_id === "M2" && ev.body.source_metadata.unit === "Mixing mortar" &&
     posted.filter((x) => x.table === "storage").length === 3 && posted.some((x) => x.table === "storage" && /\/observation\.pdf$/.test(x.body)) &&
@@ -251,7 +251,7 @@ try {
   await page.screenshot({ path: shots + "/m3-review-progress.png", fullPage: true }); texts.push(await page.textContent(".rv-body"));
   const drafted = await page.inputValue("[name=progressComment]"), hintTxt = await page.textContent(".rag-hint");
   console.log("   Drafted progress: " + drafted + "\n   " + hintTxt);
-  check("The review's progress is written from Evia and Nisia (where they are, this period, observations, strength, knowledge, what's next) with a suggested rating",
+  check("The review's progress is written from Evia and Evia Portal (where they are, this period, observations, strength, knowledge, what's next) with a suggested rating",
     /Callum is \d+% of the way through/.test(drafted) && /\d+ of 59 KSBs signed off/.test(drafted) && /more mapped in their evidence but not signed off yet/.test(drafted) && /I observed Callum at work/.test(drafted) && /strongest evidence is for [^.]*Mixing mortar/.test(drafted) && /priority now is/.test(drafted) && /off-the-job/.test(drafted) && /Evia suggests/.test(hintTxt));
   await next();
   check("A required answer stops the review moving on", /previous target|each previous target/i.test(await page.textContent("#stepErr")));
@@ -309,11 +309,11 @@ try {
   check("Before any Milos review, Evia's own targets arrive marked Met, Partly met or Not met (old-style ones left out)", first.join() === "Log 10 off-the-job hours:Met,Stay active 4 weeks in a row:Partly met,Try an EPA quick quiz:Not met", first.join());
   check("Last review's targets arrive marked from Evia's tracking", outcomes.join() === "evia-tracked:100,evia-tracked:55,evia-tracked:10", outcomes.join());
   const A = rev && rev.body.content.answers;
-  check("The signed review is saved to Nisia with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met >= 1 && rev.body.content.facts.ksb.met < 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
+  check("The signed review is saved to Evia Portal with everything the funding rules need, signatures and a hash", !!rev && rev.body.review_type === "progress" && rev.body.content.facts.ksb.met >= 1 && rev.body.content.facts.ksb.met < 21 && A.progressRag === "Slightly behind" && A.otjConfirmed === true &&
     A.feelsSafe === "Yes" && A.topicDiscussed === "British values" && A.changes === "None" && A.iagGiven === "Yes" && A.epaReady === "On track" && !!A.nextReview && A.previous[0].outcome === "Partly met" &&
     ["apprentice", "employer", "assessor"].every((k) => /^data:image\/png/.test(rev.body.content.signatures[k].image)) && /^[0-9a-f]{64}$/.test(rev.body.content.hash) && rev.body.created_by_member_id === "M2", JSON.stringify(A).slice(0, 300));
   check("The assessor's sign-off and the new targets are saved", !!sig && sig.body.signer_role === "assessor" && sig.body.review_id === rev.body.id && /^[0-9a-f-]{36}$/.test(rev.body.id) && !!tg && tg.body.length >= 2);
-  check("Completing it doesn't download a file: it's kept in Nisia", !downloaded);
+  check("Completing it doesn't download a file: it's kept in Evia Portal", !downloaded);
   const pdfOf = async (withSigs) => { const [d] = await Promise.all([page.waitForEvent("download"), page.evaluate(async ([c, w]) => { const m = await import("../../packages/core/reviewdoc.js"); await m.reviewPdf({ ...c, id: "REV1", reviewedAt: c.answers.date }, { signatures: w }); }, [rev.body.content, withSigs])]);
     const f = shots + "/review" + (withSigs ? "" : "-learner") + ".pdf"; await d.saveAs(f); return fs.readFileSync(f); };
   const staffPdf = await pdfOf(true), learnerPdf = await pdfOf(false);
@@ -339,13 +339,13 @@ try {
   await page.click("#syncNow"); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
   const ev2 = posted.slice(before).find((x) => x.table === "evidence"), up2 = posted.slice(before).filter((x) => x.table === "storage").length, as2 = posted.slice(before).find((x) => x.table === "assessments");
   check("Back online, Sync now sends it: the observation, its photo, its PDF for the learner's Evia, and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 2 && !!as2 && as2.body.evidence_id === ev2.body.id);
-  /* Syncing by itself shows what's new without Sync now: a learner added in Nisia appears after a background sync. */
+  /* Syncing by itself shows what's new without Sync now: a learner added in Evia Portal appears after a background sync. */
   EXTRA = true;
   if (await page.$("#backBtn")) await page.click("#backBtn");
   await page.click("[data-tab=learners]"); await page.waitForSelector("#q");
   await page.evaluate(() => dispatchEvent(new Event("online")));
   const auto = await page.waitForFunction(() => /New Starter/.test(document.getElementById("main").textContent), null, { timeout: 15000 }).then(() => true).catch(() => false);
-  check("A background sync updates the screen by itself (no Sync now): a learner added in Nisia appears", auto);
+  check("A background sync updates the screen by itself (no Sync now): a learner added in Evia Portal appears", auto);
   EXTRA = false;
   /* Explore: every tab, every button, as a new assessor would. */
   { const xp = await explore(page, { app: "Milos", tabSel: ".m-nav [data-tab], .m-nav #navTodo" });
@@ -353,7 +353,7 @@ try {
   check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
 
-  /* Notifications: Milos offers them once on Today, saves the device to Nisia, shows Nisia's push, and a tapped one
+  /* Notifications: Milos offers them once on Today, saves the device to Evia Portal, shows Evia Portal's push, and a tapped one
      opens To assess. (Headless Chromium has no push service or notification permission: stand-ins, as a phone gives.) */
   {
     const c2 = await browser.newContext({ viewport: { width: 400, height: 860 }, locale: "en-GB" }), p2 = await c2.newPage(), e2 = [];
@@ -377,7 +377,7 @@ try {
     const gone = !(await p2.$("#pushCard"));
     await p2.click("#meBtn"); await p2.waitForSelector("#acPush");
     const acct = /Notifications · on/.test(await p2.textContent("#acPush"));
-    /* A push from Nisia, delivered to the service worker as the push service would (its display call is caught). */
+    /* A push from Evia Portal, delivered to the service worker as the push service would (its display call is caught). */
     const cdp = await c2.newCDPSession(p2), regs = []; cdp.on("ServiceWorker.workerRegistrationUpdated", (e) => regs.push(...e.registrations));
     await cdp.send("ServiceWorker.enable"); await p2.waitForTimeout(800);
     const reg = regs.find((r) => !r.isDeleted && /milos/.test(r.scopeURL)), worker = c2.serviceWorkers().find((w) => /milos/.test(w.url()));
@@ -387,10 +387,10 @@ try {
     const shown = !!worker && await worker.evaluate(() => self.__shown.some((x) => /Callum Hughes added 2/.test(x.title) && x.data.open === "assess"));
     await p2.goto(url + "?open=assess"); await p2.waitForSelector("nav [data-tab=assess].on", { timeout: 8000 }).catch(() => {});
     const opens = !!(await p2.$("nav [data-tab=assess].on")) && !/open=/.test(await p2.evaluate(() => location.search));
-    check("Notifications: Milos offers them on Today, saves the device to Nisia, shows Nisia's push, and a tapped one opens To assess", saved && gone && acct && shown && opens && !e2.length, JSON.stringify({ saved, gone, acct, shown, opens, reg: !!reg, worker: !!worker }) + " " + e2.join(" | "));
+    check("Notifications: Milos offers them on Today, saves the device to Evia Portal, shows Evia Portal's push, and a tapped one opens To assess", saved && gone && acct && shown && opens && !e2.length, JSON.stringify({ saved, gone, acct, shown, opens, reg: !!reg, worker: !!worker }) + " " + e2.join(" | "));
     await c2.close();
   }
-  /* The course from Nisia's pack: a renamed topic keeps its evidence (by its id), evidence filed under an old topic
+  /* The course from Evia Portal's pack: a renamed topic keeps its evidence (by its id), evidence filed under an old topic
      goes where its KSBs fit, and a KSB signed off in one topic counts in every topic that covers it. */
   {
     const seed = fs.readFileSync(path.join(root, "services/supabase/packs-seed.sql"), "utf8");
@@ -413,7 +413,7 @@ try {
       return { first: C.units[0][0], kept: localStorage.getItem("nisia-packs-v1") !== null, a: groups[0].name + ":" + groups[0].items.map((i) => i.e.id).join(), b: groups[1].items.map((i) => i.e.id + "|" + (i.movedFrom || "")).join(),
         other: groups.some((g) => g.key === "other"), filedAs: /Filed as Pointing old work/.test(html), metMix: (met.find((m) => m[0] === "Mortar mixing") || [])[1], fallback: Object.keys(P.allCoursePacks()).length };
     }, pack);
-    check("Milos takes the course from Nisia's pack (kept for no signal): a renamed topic keeps its evidence, evidence under an old topic goes where its KSBs fit, and a KSB signed off anywhere counts everywhere",
+    check("Milos takes the course from Evia Portal's pack (kept for no signal): a renamed topic keeps its evidence, evidence under an old topic goes where its KSBs fit, and a KSB signed off anywhere counts everywhere",
       got.first === "Mortar mixing" && got.kept && got.a === "Mortar mixing:a" && got.b === "b|Pointing old work" && !got.other && got.filedAs && /^1\/8/.test(got.metMix) && got.fallback >= 4, JSON.stringify(got));
     await c3.close();
   }

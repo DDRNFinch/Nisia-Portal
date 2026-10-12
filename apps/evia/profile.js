@@ -48,7 +48,7 @@
   function openProfile(){
     const p=get();
     const nvqOn=!!(window.eviaNvq&&window.eviaNvq.on()),dsl=p.safeguarding||{};
-    /* Connected to a college: the name, dates and course are Nisia's, so they're shown but not changed here. */
+    /* Connected to a college: the name, dates and course are Evia Portal's, so they're shown but not changed here. */
     const nis=window.eviaNisia&&window.eviaNisia.joined(),ro=nis?" readonly":"";
     const row=(id,icon,title,sub)=>'<button type="button" class="pf-row" id="'+id+'"><span class="pf-row-icon" aria-hidden="true">'+icon+'</span><span class="pf-row-copy"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':"")+'</span><span class="pf-chev" aria-hidden="true">›</span></button>';
     const sw=(id,title,sub)=>'<label class="pf-row pf-switch"><span class="pf-row-copy"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':"")+'</span><input id="'+id+'" type="checkbox" role="switch"><i aria-hidden="true"></i></label>';
@@ -131,8 +131,8 @@
   }
 
   /* Remove all data from this phone: everything Evia keeps here goes, and Evia starts again from the beginning.
-     Connected learners get their records back by connecting again (a code from their assessor): Nisia keeps them.
-     Anything that hasn't reached Nisia yet would be lost, so it says so, and offers to send it first. */
+     Connected learners get their records back by connecting again (a code from their assessor): Evia Portal keeps them.
+     Anything that hasn't reached Evia Portal yet would be lost, so it says so, and offers to send it first. */
   function openRemoveAll(){
     const N=window.eviaNisia,nis=N&&N.joined(),st=nis?N.status():null,waiting=st?st.changes+st.media:0;
     const root=document.getElementById("modal-root");

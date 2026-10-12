@@ -1,4 +1,4 @@
-/* Reads a standard or qualification from text (pasted, or taken out of the official PDF) into what Nisia's library
+/* Reads a standard or qualification from text (pasted, or taken out of the official PDF) into what Evia Portal's library
    stores, so the master admin only has to check it, not type it.
 
    A standard:      K1 / S1 / B1 lines (wording can run over several lines). "Option: Site carpenter" starts an

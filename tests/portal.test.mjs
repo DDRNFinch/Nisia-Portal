@@ -42,10 +42,10 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_redeem_reset") { if (body.p_code !== "ABCD1234EFGH5678") return json({ code: "P0001", message: "That reset link has expired or been used. Ask your college admin for a new one." }, 400); persona.password = body.p_password; S.redeemed = body; return json(persona.email); }
     if (p === "/rest/v1/rpc/nisia_password_reset_link") { S.resetFor = body.p_member; return json({ code: "ABCD1234EFGH5678", email: "m.ellis@brookfield.example", expires_at: new Date(Date.now() + 864e5).toISOString() }); }
     if (p === "/auth/v1/logout") return S.sessionGone ? json({ code: 403, error_code: "session_not_found", msg: "Session not found" }, 403) : route.fulfill({ status: 204 });
-    if (p === "/auth/v1/factors") { S.factors = [{ id: "f1", factor_type: "totp", status: "unverified", friendly_name: "Nisia" }]; return json({ id: "f1", type: "totp", totp: { qr_code: "data:image/svg+xml;utf-8,<svg xmlns='http://www.w3.org/2000/svg'/>", secret: "ABCDEF", uri: "otpauth://x" } }); }
+    if (p === "/auth/v1/factors") { S.factors = [{ id: "f1", factor_type: "totp", status: "unverified", friendly_name: "Evia Portal" }]; return json({ id: "f1", type: "totp", totp: { qr_code: "data:image/svg+xml;utf-8,<svg xmlns='http://www.w3.org/2000/svg'/>", secret: "ABCDEF", uri: "otpauth://x" } }); }
     if (/\/auth\/v1\/factors\/f1$/.test(p) && req.method() === "DELETE") { S.factors = []; return json({ id: "f1" }); }
     if (/\/challenge$/.test(p)) return json({ id: "c1", expires_at: Math.floor(Date.now() / 1000) + 300 });
-    if (/\/verify$/.test(p)) { if (body.code !== "123456") return json({ msg: "Invalid TOTP code entered" }, 422); S.aal = "aal2"; S.factors = [{ id: "f1", factor_type: "totp", status: "verified", friendly_name: "Nisia" }]; return json(session()); }
+    if (/\/verify$/.test(p)) { if (body.code !== "123456") return json({ msg: "Invalid TOTP code entered" }, 422); S.aal = "aal2"; S.factors = [{ id: "f1", factor_type: "totp", status: "verified", friendly_name: "Evia Portal" }]; return json(session()); }
     if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: persona.id, aal: S.aal, platform_admin: !!persona.platform, memberships: persona.memberships || [], name: persona.name });
     if (STD.handles(p)) { const a = STD.answer(p, body); return json(a.data, a.status); }
     if (p === "/rest/v1/rpc/nisia_admin_colleges") return json(S.colleges);
@@ -106,7 +106,7 @@ function fakeSupabase(persona) {
       if (body.action === "update_college") { const c = S.colleges.find((x) => x.id === body.organisation_id); c.seats = +body.seats; c.status = body.status; return json({ ok: true }); }
       if (body.action === "add_learner") { S.learners.push({ learner_id: "l" + S.learners.length, enrolment_id: "e" + S.learners.length, name: body.name, email: body.email || "x@learners.nisia.invalid", course_code: body.course, start_date: body.start_date, end_date: body.end_date, status: "active", employer_name: body.employer_name, planned_otj_hours: body.planned_otj_hours, assessors: S.staff.filter((s) => body.staff_member_ids.includes(s.member_id)).map((s) => ({ member_id: s.member_id, name: s.name })), paired: false, evidence: 0, otj_hours: 0, last_activity: null }); return json({ learner_id: "l0", enrolment_id: "e0" }); }
       if (body.action === "test_college") {
-        if (!S.test) { S.test = { invited: {} }; S.colleges.push({ id: "t0", name: "Nisia Test College", status: "active", seats: 5, seats_used: 1, staff: 0, learners: 1, contact_name: "Master admin", contact_email: persona.email, licence_ends: null, is_test: true }); }
+        if (!S.test) { S.test = { invited: {} }; S.colleges.push({ id: "t0", name: "Evia Test College", status: "active", seats: 5, seats_used: 1, staff: 0, learners: 1, contact_name: "Master admin", contact_email: persona.email, licence_ends: null, is_test: true }); }
         return json({ organisation_id: "t0", learner_id: "tl", enrolment_id: "te", accounts: ["admin", "quality", "assessor", "tutor", "employer"].map((role) => ({ role, name: "Test " + role, email: "admin+nisia-test-" + role + "@example.com", joined: role === "tutor", invited: !!S.test.invited[role] })) });
       }
       if (body.action === "test_invite") { S.test.invited[body.role] = true; return json({ invite_code: "TESTINVITECODE01", email: "admin+nisia-test-" + body.role + "@example.com" }); }
@@ -136,11 +136,11 @@ const shots = path.join(root, "tests", "shots"); fs.mkdirSync(shots, { recursive
 try {
   // 1. The master admin accepts their invite, sets up the authenticator, and creates a college.
   {
-    const { page, ctx, errors, fake } = await open({ id: "u-admin", email: "admin@example.com", password: "Str0ng-pass!", name: "Nisia admin", platform: true }, "#invite=GOOD-INVITE-CODE-01");
+    const { page, ctx, errors, fake } = await open({ id: "u-admin", email: "admin@example.com", password: "Str0ng-pass!", name: "Evia Portal admin", platform: true }, "#invite=GOOD-INVITE-CODE-01");
     await page.waitForSelector("#f"); await page.screenshot({ path: shots + "/1-invite.png" });
-    await page.fill("#name", "Nisia admin"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
+    await page.fill("#name", "Evia Portal admin"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector(".qr"); await page.screenshot({ path: shots + "/2-authenticator.png" });
-    check("Invite → sign-in → add Nisia to an authenticator app", /authenticator app/.test(await page.textContent(".signin-form")) && !/invite=/.test(page.url()));
+    check("Invite → sign-in → add Evia Portal to an authenticator app", /authenticator app/.test(await page.textContent(".signin-form")) && !/invite=/.test(page.url()));
     await page.fill("#c", "111111"); await page.click("button[type=submit]"); await page.waitForTimeout(300);
     check("A wrong authenticator code is refused", /didn’t work/.test(await page.textContent(".err")));
     await page.fill("#c", "123 456");
@@ -200,13 +200,13 @@ try {
       (packsText.match(/Yours(?! come)/g) || []).length === 4 && /Bricklayer[\s\S]*ST0095 v1\.2/.test(packsText) && /ST0264 v1\.4\s*· Site carpenter/.test(packsText) && pk.topics === 10 && /Mixing mortar/.test(pk.first) && /S14\s*Gauge and hand mix mortar to ratio\./.test(pk.ksb),
       JSON.stringify(pk).slice(0, 300) + " | " + packsText.slice(0, 300));
     await page.click(".modal .x");
-    /* A new standard from its PDF: Nisia reads it, says what to check, it's saved as a draft, then published. */
+    /* A new standard from its PDF: Evia Portal reads it, says what to check, it's saved as a draft, then published. */
     await page.click("#stdAdd"); await page.waitForSelector("#stdForm");
     await page.fill("#stdForm [name=code]", "st0400"); await page.fill("#stdForm [name=version]", "1.0"); await page.fill("#stdForm [name=title]", "Plasterer"); await page.fill("#stdForm [name=level]", "2");
     await page.setInputFiles("#stdFile", { name: "ST0400.pdf", mimeType: "application/pdf", buffer: tinyPdf(["Knowledge", "K1 Know the basics of", "safe working on site.", "K3 Know plaster types.", "Skills", "S1 Mix and apply plaster.", "Page 1 of 1", "Behaviours", "B1 Work safely."]) });
     await page.waitForFunction(() => /read\./.test(document.querySelector("#stdFileNote").textContent), null, { timeout: 15000 }).catch(() => {});
     const read = await page.textContent("#stdCheck"); await page.screenshot({ path: shots + "/5f-standard-add.png" });
-    check("…a standard's PDF is read: its KSBs, wording over two lines joined, and gaps in the numbering to check", /Nisia read 4 items/.test(read) && /2 knowledge, 1 skills, 1 behaviours/.test(read) && /Missing in the numbering: K2/.test(read),
+    check("…a standard's PDF is read: its KSBs, wording over two lines joined, and gaps in the numbering to check", /Evia Portal read 4 items/.test(read) && /2 knowledge, 1 skills, 1 behaviours/.test(read) && /Missing in the numbering: K2/.test(read),
       read.slice(0, 300) + " | " + await page.textContent("#stdFileNote"));
     await page.click("#stdForm [type=submit]"); await page.waitForSelector(".modal #stdPublish");
     const saved = STD.S.saved || {};
@@ -222,16 +222,16 @@ try {
       /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(await page.textContent("#main")), JSON.stringify(STD.S.courseSet));
     page.off("dialog", okAll);
     await page.click("nav [data-go=colleges]"); await page.waitForSelector("#testPanel");
-    fake.S.sessionGone = true; /* Nisia has already ended this sign-in (expired, or ended elsewhere) */
+    fake.S.sessionGone = true; /* Evia Portal has already ended this sign-in (expired, or ended elsewhere) */
     await page.click("#signOut"); await page.waitForSelector("#email", { timeout: 5000 }).catch(() => {});
-    check("Master admin signs out, even when Nisia has already ended the sign-in: back to the sign-in page, signed out", !!(await page.$("#email")) && !(await page.evaluate(() => localStorage.getItem("nisia-auth"))), await page.evaluate(() => document.body.innerText.slice(0, 200)));
+    check("Master admin signs out, even when Evia Portal has already ended the sign-in: back to the sign-in page, signed out", !!(await page.$("#email")) && !(await page.evaluate(() => localStorage.getItem("nisia-auth"))), await page.evaluate(() => document.body.innerText.slice(0, 200)));
     check("No script errors (master admin)", !errors.length, errors.join(" | "));
     await ctx.close();
   }
   // 1b. A test account in the portal: ?test keeps its own sign-in (the master admin's stays put), with a Test badge.
   {
     const { page, ctx, errors } = await open({ id: "u-tadmin", email: "admin+nisia-test-admin@example.com", password: "Str0ng-pass!", name: "Test College Admin", factors: [{ id: "f1", factor_type: "totp", status: "verified" }],
-      memberships: [{ organisation_id: "t0", organisation: "Nisia Test College", status: "active", member_id: "tm1", roles: ["admin"] }] }, "?test");
+      memberships: [{ organisation_id: "t0", organisation: "Evia Test College", status: "active", member_id: "tm1", roles: ["admin"] }] }, "?test");
     await page.fill("#email", "admin+nisia-test-admin@example.com"); await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector("#c"); await page.fill("#c", "123456");
     await page.waitForSelector("#nisia-test-badge");
@@ -255,7 +255,7 @@ try {
     await page.fill("#email", "s.mitchell@brookfield.example"); await page.click("button[type=submit]"); await page.waitForTimeout(400);
     const forgot = await page.textContent("form"); await page.screenshot({ path: shots + "/5b-forgot.png" });
     check("Forgotten your password? sends a reset email that comes back to the app, and says to ask the college admin if it doesn't come",
-      /on its way/.test(forgot) && /college’s Nisia admin/.test(forgot) && fake.S.recover && fake.S.recover.body.email === "s.mitchell@brookfield.example" && /reset=email/.test(fake.S.recover.redirect), JSON.stringify(fake.S.recover));
+      /on its way/.test(forgot) && /college’s Evia Portal admin/.test(forgot) && fake.S.recover && fake.S.recover.body.email === "s.mitchell@brookfield.example" && /reset=email/.test(fake.S.recover.redirect), JSON.stringify(fake.S.recover));
     await page.click("#back"); await page.waitForSelector("#email"); await page.fill("#email", "s.mitchell@brookfield.example");
     await page.fill("#pw", "Str0ng-pass!"); await page.click("button[type=submit]");
     await page.waitForSelector("#c"); await page.fill("#c", "123456"); /* goes by itself once 6 digits are in */
@@ -267,7 +267,7 @@ try {
     check("College admin adds a learner with their assessor, then Evia's pairing QR shows", fake.S.learners.length === 1 && fake.S.learners[0].assessors[0].name === "Mark Ellis" && /ABC-2345/.test(await page.textContent(".big-code")));
     await page.click(".x"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/9-college.png", fullPage: true });
     check("The learner shows in the table", /Callum Hughes/.test(await page.textContent("table")));
-    /* Classes: set up once in Nisia (here with the tutor, days, times, dates and learner); it becomes the tutor's register in Symi. */
+    /* Classes: set up once in Evia Portal (here with the tutor, days, times, dates and learner); it becomes the tutor's register in Symi. */
     await page.click("nav [data-go=classes]"); await page.waitForSelector("#newClass"); await page.click("#newClass"); await page.waitForSelector("#cf");
     await page.fill("#cf [name=title]", "L2 Bricklaying Tuesday"); await page.selectOption("#cf [name=course]", "bricklayer");
     await page.check('#cf [name=day][value=Tuesday]'); await page.fill("#cf [name=start]", "09:00"); await page.fill("#cf [name=end]", "16:00");
@@ -314,7 +314,7 @@ try {
     check("College admin edits a learner's details (assessor and tutor in the same window)", fake.S.lastAssign && fake.S.lastAssign.member_ids.join() === "m2" && fake.S.lastLearnerEdit && fake.S.lastLearnerEdit.name === "Callum J Hughes" && fake.S.lastLearnerEdit.end_date === "2027-12-31" && /Callum J Hughes/.test(await page.textContent("#main")));
     await page.click("nav [data-go=reviews]"); await page.waitForSelector("#done [data-review]");
     await page.click("#done [data-review]"); await page.waitForSelector(".review-doc"); await page.screenshot({ path: shots + "/11c-review.png" });
-    check("A completed review opens in Nisia, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);
+    check("A completed review opens in Evia Portal, with all three signatures", /Strong start/.test(await page.textContent(".review-doc")) && (await page.$$(".review-doc .sig-box img")).length === 3);
     await page.click(".modal .x");
     await page.click("nav [data-go=staff]"); await page.waitForSelector("[data-edit=m2]");
     await page.click("[data-edit=m2]"); await page.click("#resetPw"); await page.waitForSelector("#resetLink");
@@ -358,7 +358,7 @@ try {
       await page.click("#bSave"); await page.waitForSelector("[data-publish]");
       const saved = STD.S.collegeSaved || {}, t = (saved.p_content || {}).topics || [];
       check("College packs: a copy of your pack is changed in the builder, with KSB coverage shown as it goes, and saved as the college's own draft",
-        /Yours \(Nisia\)/.test(packsPage) && /59 of 59/.test(c0) && /58 of 59/.test(c1) && /S14/.test(gap) && /59 of 59/.test(c2) && /Not in any other topic|Also in/.test(also) &&
+        /Yours \(Evia\)/.test(packsPage) && /59 of 59/.test(c0) && /58 of 59/.test(c1) && /S14/.test(gap) && /59 of 59/.test(c2) && /Not in any other topic|Also in/.test(also) &&
         saved.p_pack === null && t.length === 11 && t[0].name === "Mortar: mixing and gauging" && t[0].from === "bricklayer/mixing-mortar" && t[9].name === "Gauging boxes" && t[9].ksbs[0].code === "S14" && !t[0].ksbs.some((k) => k.code === "S14"),
         JSON.stringify({ c0, c1, c2, n: t.length, t0: t[0] && t[0].name, t9: t[9] && t[9].name }));
       await page.click("[data-publish=kcv1]"); await page.waitForFunction(() => !document.querySelector("[data-publish]"));
@@ -370,6 +370,17 @@ try {
       await page.waitForFunction(() => !document.querySelector(".modal"));
       check("…and a learner shows their pack, and can be moved back onto yours", /Pack: Bricklayer \(/.test(tag) && STD.S.enrolPack && STD.S.enrolPack.p_enrolment === "e0" && STD.S.enrolPack.p_pack === "k0", tag + " " + JSON.stringify(STD.S.enrolPack));
       page.off("dialog", okAll); }
+    /* Assistants: Evia Core is included; each assistant says what it adds (live or coming), an example, and its price
+       for this college's seats; keeping one shows the yearly cost with VAT and a request to send. */
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.click('#side [data-go="assistants"]'); await page.waitForSelector("#as-milos");
+    const asText = await page.textContent("main");
+    await page.screenshot({ path: shots + "/14-assistants.png", fullPage: true });
+    await page.click('[data-keep="milos"]'); await page.waitForSelector("#asText");
+    const asReq = await page.inputValue("#asText"); await page.screenshot({ path: shots + "/15-assistants-keep.png" });
+    await page.click("#asDone");
+    check("Assistants: Evia Core included; Symi, Milos and Paros each with what's live and coming, a made-up example and the price for the college's seats; keeping Milos shows the yearly cost with VAT",
+      /Included/.test(asText) && /\+£20/.test(asText) && /\+£15/.test(asText) && /Coming/.test(asText) && /Made-up people/.test(asText) && /£95/.test(asText) && /Milos/.test(asReq) && /£65 per seat/.test(asReq) && /VAT/.test(asReq), asReq);
     /* Explore: every page, every button, as a new college admin would. */
     { const xp = await explore(page, { app: "Portal", tabSel: ".nav [data-go]" });
       check("Explore the college portal: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n"));

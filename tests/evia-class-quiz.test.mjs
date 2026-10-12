@@ -1,4 +1,4 @@
-/* Evia's class quiz screen, with a stand-in Nisia: the question comes up on its own on a college day, the learner taps
+/* Evia's class quiz screen, with a stand-in Evia Portal: the question comes up on its own on a college day, the learner taps
    an answer (and can change it), sees if they were right once the tutor shows it, and gets their score and coins at
    the end.   Run: node tests/evia-class-quiz.test.mjs */
 import http from "node:http";

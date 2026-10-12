@@ -1,13 +1,13 @@
 /* Registers, end to end, the way people use them: a tutor runs a register in Symi, the learner checks in from Evia,
    the tutor finishes the register, the hours arrive in the learner's Evia, and the employer sees them in Paros.
-   The apps run in real browsers; Nisia is a real Postgres with Nisia's own tables, rules and functions
+   The apps run in real browsers; Evia Portal is a real Postgres with Evia Portal's own tables, rules and functions
    (services/supabase), so a wrong rule or a missing permission fails here before anyone tries it for real.
    Only the sign-in is pretend (any password; the code 123456 is the authenticator app).
    Run: node tests/e2e/registers.e2e.mjs   (needs Postgres 16) */
 import { check, q, session, rpc, tableTouches, site, TEE, LEE, EM, ENROL, errors, warnings, app, signIn, finish } from "./harness.mjs";
 
 try {
-  /* 1. The tutor's Symi: a register for today with Lee on it, then connected to Nisia. */
+  /* 1. The tutor's Symi: a register for today with Lee on it, then connected to Evia Portal. */
   const symi = await app();
   await symi.page.goto(site + "/apps/symi/update.json");
   await symi.page.evaluate(() => {
@@ -24,15 +24,15 @@ try {
   await symi.page.click("#nisiaButton"); await signIn(symi.page, "tee@e2e.test", ".sn-auth ");
   await symi.page.waitForFunction(() => document.querySelector("#nisiaButton.on"), null, { timeout: 10000 });
   await symi.page.waitForFunction(() => (window.SamosApp.getState().learners.find((l) => l.id === "x1") || {}).nisia, null, { timeout: 10000 });
-  check("Symi: the tutor signs in and Lee comes from Nisia (Tee's own learner)", true);
+  check("Symi: the tutor signs in and Lee comes from Evia Portal (Tee's own learner)", true);
 
-  /* 2. The classroom screen: the class and today's session saved to Nisia, and the code drawn from Nisia's key. */
+  /* 2. The classroom screen: the class and today's session saved to Evia Portal, and the code drawn from Evia Portal's key. */
   await symi.page.click("[data-sn-show]");
   await symi.page.waitForSelector(".sn-checkin .sn-code:not(:empty)", { timeout: 10000 }).catch(() => {});
   const failed = await symi.page.$(".sn-checkin .sn-err");
   const code = failed ? "" : (await symi.page.textContent(".sn-checkin .sn-code")).replace(/\s/g, "");
   const [saved] = await q("select (select count(*) from public.classes where client_ref = 'reg1')::int classes, (select count(*) from public.class_learners)::int learners, (select count(*) from public.class_sessions)::int sessions");
-  check("Symi: Show check-in code saves a brand-new class, its learner and today's session to Nisia (the bug from 3 October)", !failed && code.length === 6 && saved.classes === 1 && saved.sessions === 1,
+  check("Symi: Show check-in code saves a brand-new class, its learner and today's session to Evia Portal (the bug from 3 October)", !failed && code.length === 6 && saved.classes === 1 && saved.sessions === 1,
     failed ? await failed.textContent() : JSON.stringify(saved));
 
   /* 3. Lee checks in from Evia with the code on the screen. */
@@ -51,12 +51,12 @@ try {
   await ev.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); });
   await ev.page.evaluate(() => window.eviaNisia.sync()).catch(() => {}); await ev.page.waitForTimeout(500);
   const card = await ev.page.evaluate(() => (window.eviaTodo.list().find((x) => x.ic === "checkin") || {}).title || "");
-  check("Evia: during the class, “Check in to L2 Brickwork” is top of Lee's list (from Nisia's one “what's new” request)", /Check in to L2 Brickwork/.test(card), card);
+  check("Evia: during the class, “Check in to L2 Brickwork” is top of Lee's list (from Evia Portal's one “what's new” request)", /Check in to L2 Brickwork/.test(card), card);
   await ev.page.evaluate(() => window.eviaCheckIn.open()); await ev.page.waitForSelector("#ci-view .ci-code");
   await ev.page.fill("#ci-view .ci-code", code); await ev.page.click('#ci-view .ci-form button[type=submit]');
   await ev.page.waitForFunction(() => /checked in|Not checked in/.test(document.getElementById("ci-view").textContent), null, { timeout: 10000 });
   const done = await ev.page.textContent("#ci-view");
-  check("Evia: Lee types the code and is checked in by Nisia", /You’re checked in/.test(done) && /L2 Brickwork/.test(done), done);
+  check("Evia: Lee types the code and is checked in by Evia Portal", /You’re checked in/.test(done) && /L2 Brickwork/.test(done), done);
 
   /* 4. Symi ticks Lee; the tutor finishes the register after a two-hour class. */
   await symi.page.waitForFunction(() => /1 of 1 checked in/.test((document.querySelector(".sn-count") || {}).textContent || ""), null, { timeout: 15000 }).catch(() => {});
@@ -64,10 +64,10 @@ try {
   await symi.page.click(".sn-checkin .sn-close");
   await symi.page.evaluate(() => window.SamosApp.mutate((st) => { const k = Object.keys(st.attendance).find((x) => x.startsWith("reg1:")), r = st.attendance[k].x1; r.runningSince = Date.now() - 2 * 3600e3; }));
   await symi.page.click("[data-finish-register]");
-  await symi.page.waitForFunction(() => /Sent to Nisia|Not sent/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 15000 }).catch(() => {});
+  await symi.page.waitForFunction(() => /Sent to Evia Portal|Not sent/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 15000 }).catch(() => {});
   const [att] = await q("select status, minutes, confirmed_at is not null confirmed, (select hours from public.otj_entries where id = a.id) hours from public.class_attendance a where enrolment_id = $1", [ENROL]);
-  check("Symi: Finish sends the register; Nisia keeps Lee present for 2 hours, confirmed by the tutor, as college learning hours",
-    /Sent to Nisia/.test(await symi.page.textContent(".sn-bar")) && att && att.status === "present" && att.minutes >= 119 && att.confirmed && Number(att.hours) >= 1.98, (await symi.page.textContent(".sn-bar")) + " " + JSON.stringify(att));
+  check("Symi: Finish sends the register; Evia Portal keeps Lee present for 2 hours, confirmed by the tutor, as college learning hours",
+    /Sent to Evia Portal/.test(await symi.page.textContent(".sn-bar")) && att && att.status === "present" && att.minutes >= 119 && att.confirmed && Number(att.hours) >= 1.98, (await symi.page.textContent(".sn-bar")) + " " + JSON.stringify(att));
 
   /* 5. Lee's Evia: the college hours arrive (locked: the learner can't change them). */
   await ev.page.evaluate(() => window.eviaNisia.sync()).catch(() => {}); await ev.page.waitForTimeout(500);
@@ -94,7 +94,7 @@ try {
   await par.page.fill("#bNote", "Reliable and keen."); await par.page.click("#bSave");
   await par.page.waitForFunction(() => !document.querySelector("#bSave"), null, { timeout: 10000 }).catch(() => {});
   const [fb] = await q("select (select count(*) from public.witness_testimonies where enrolment_id = $1)::int w, (select count(*) from public.behaviour_ratings where enrolment_id = $1)::int b, (select count(*) from public.notifications where notification_type in ('witness_testimony','behaviour_rated'))::int told", [ENROL]);
-  check("Paros: the employer signs a witness testimony and rates Lee's behaviours (through Nisia's actions; Lee is told)", fb.w === 1 && fb.b === 1 && fb.told === 2, JSON.stringify(fb));
+  check("Paros: the employer signs a witness testimony and rates Lee's behaviours (through Evia Portal's actions; Lee is told)", fb.w === 1 && fb.b === 1 && fb.told === 2, JSON.stringify(fb));
   /* (Evia may already be syncing from before the employer sent them: sync until they're in, at most a few times.) */
   for (let i = 0; i < 4; i++) { await ev.page.evaluate(() => window.eviaNisia.sync()).catch(() => {}); if (await ev.page.evaluate(() => window.eviaData.list("supporting").filter((x) => String(x.id).startsWith("emp-")).length >= 2)) break; await ev.page.waitForTimeout(500); }
   const sup = await ev.page.evaluate(() => window.eviaData.list("supporting").filter((x) => String(x.id).startsWith("emp-")).map((x) => x.title).sort());
@@ -134,11 +134,11 @@ try {
     employerConfirmsCollege: await rpc("paros_confirm_hours", { p_otj: (await q("select id from public.otj_entries where activity_type = 'college' limit 1"))[0].id, p_decision: "rejected", p_comment: "no" }, em),
     tutorRatesBehaviours: await rpc("paros_rate_behaviours", { p_enrolment: ENROL, p_ratings: { B1: 4 } }, tee),
   };
-  check("Nisia refuses: a learner finishing a register, an employer reading check-ins, the tutor without the authenticator app, anyone not signed in, a learner making a class, someone not on the class, a learner writing their own witness testimony, an employer reading the assessor's view, an employer overruling college hours, a tutor rating as the employer",
+  check("Evia Portal refuses: a learner finishing a register, an employer reading check-ins, the tutor without the authenticator app, anyone not signed in, a learner making a class, someone not on the class, a learner writing their own witness testimony, an employer reading the assessor's view, an employer overruling college hours, a tutor rating as the employer",
     Object.values(tries).every((t) => t.status === 400), JSON.stringify(Object.fromEntries(Object.entries(tries).map(([k, v]) => [k, v.status + " " + (v.body && v.body.message || "")]))));
   const [after] = await q("select minutes from public.class_attendance where enrolment_id = $1", [ENROL]);
   check("…and Lee's hours are still the tutor's 2 hours", after.minutes >= 119 && after.minutes < 600, JSON.stringify(after));
-  check("No app read or wrote a class table: everything went through Nisia's named actions", !tableTouches.length, tableTouches.join(", "));
+  check("No app read or wrote a class table: everything went through Evia Portal's named actions", !tableTouches.length, tableTouches.join(", "));
   check("No script errors", !errors.length, errors.join(" | "));
 } catch (e) { check("The test finished", false, e.stack || e.message); }
 await finish();

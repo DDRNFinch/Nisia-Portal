@@ -1,20 +1,20 @@
-/* Nisia actions: the one way the Nisia apps (Evia, Symi, Milos, Paros, the portal) ask Nisia to do something.
-   Each action is one named request; Nisia checks who is asking before it does anything, so the apps never read or
-   write Nisia's tables themselves. Actions that must survive no signal (checking in, booking days off, a finished
+/* Evia Portal actions: the one way the Evia Portal apps (Evia, Symi, Milos, Paros, the portal) ask Evia Portal to do something.
+   Each action is one named request; Evia Portal checks who is asking before it does anything, so the apps never read or
+   write Evia Portal's tables themselves. Actions that must survive no signal (checking in, booking days off, a finished
    register) are kept on the device and sent when there is signal again, in the order they were made.
 
    Plain script, so it works in Evia (classic scripts) and the module apps alike. The same file is copied into Evia
    (tools/sync-actions.sh); its version line must match.
 
-   NisiaActions.use(call, {app})            call(fn, args) runs a Nisia function and returns its data, or throws
+   NisiaActions.use(call, {app})            call(fn, args) runs an Evia Portal function and returns its data, or throws
    NisiaActions.send(name, args, {tag})     run it now; a "keep" action with no signal is kept: {kept: true, at}
    NisiaActions.flush()                     send what's kept; resolves with [{name, tag, args, at, ok, result, error}]
    NisiaActions.waiting(tag)                what's kept (optionally only one tag)
    NisiaActions.drop(tag)                   forget what's kept with that tag (cancelled before it went)
    version: nisia-actions 2 */
 (function (g) {
-  const VERSION = 2;
-  /* name: Nisia's function, keep: kept with no signal, later(args, at): what's sent when it goes later. */
+  const VERSION = 3;
+  /* name: Evia Portal's function, keep: kept with no signal, later(args, at): what's sent when it goes later. */
   const ACTIONS = {
     /* Registers (Symi) */
     saveClass: { fn: "symi_save_class" },
@@ -31,7 +31,9 @@
     unshareResource: { fn: "nisia_unshare_resource" },
     /* Learners (Evia) */
     whatsNew: { fn: "nisia_whats_new" },
-    checkIn: { fn: "nisia_check_in", keep: true, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },
+    /* A kept check-in waits until it's over a minute old: Evia Portal then checks the code against when it was
+       scanned, not against now (by when the code on the screen has changed). */
+    checkIn: { fn: "nisia_check_in", keep: true, minAge: 61000, later: (a, at) => Object.assign({}, a, { p_scanned_at: at }) },
     quizNow: { fn: "evia_quiz_now" },
     quizAnswer: { fn: "evia_quiz_answer" },
     battleFind: { fn: "evia_battle_find" },
@@ -61,8 +63,8 @@
   function use(caller, opts) { call = caller; if (opts && opts.app) key = "nisia-outbox-v1:" + opts.app; }
   async function run(name, args) {
     const a = ACTIONS[name];
-    if (!a) throw new Error("Nisia doesn’t know “" + name + "”.");
-    if (!call) throw new Error("This app isn’t connected to Nisia.");
+    if (!a) throw new Error("Evia Portal doesn’t know “" + name + "”.");
+    if (!call) throw new Error("This app isn’t connected to Evia Portal.");
     return call(a.fn, args || {});
   }
   function keep(name, args, tag) {
@@ -83,8 +85,9 @@
     flushing = (async () => {
       const out = [], left = [];
       for (const x of read()) {
-        if (!online()) { left.push(x); continue; }
-        const a = ACTIONS[x.name] || {}, args = a.later ? a.later(x.args, x.at) : x.args;
+        const a = ACTIONS[x.name] || {};
+        if (!online() || (a.minAge && Date.now() - Date.parse(x.at) < a.minAge)) { left.push(x); continue; }
+        const args = a.later ? a.later(x.args, x.at) : x.args;
         try { out.push(Object.assign({}, x, { ok: true, result: await run(x.name, args) })); }
         catch (e) { if (noSignal(e)) left.push(x); else out.push(Object.assign({}, x, { ok: false, error: String((e && e.message) || e) })); }
       }

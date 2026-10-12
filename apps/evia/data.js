@@ -1,4 +1,4 @@
-/* Evia7 learner data: one module every screen can use, and the only one Nisia will talk to.
+/* Evia7 learner data: one module every screen can use, and the only one Evia Portal will talk to.
    See the "Evia data model" write-up. For now this is an adapter over the storage the app already uses: reads hand
    back records in the new shape (stable id, learnerId, ISO dates, v), and writes are turned back into today's shape,
    so there is only ever one copy of the learner's data. When every screen goes through here, the storage underneath
@@ -8,8 +8,8 @@
    eviaData.remove(collection, id)     eviaData.on("change", fn)       eviaData.learnerId()
    eviaData.files.get(fileId, kind)    eviaData.files.signature()/photo()   eviaData.learner()   eviaData.snapshot()
    Screens read through here too. "detail" on tests, reviews and targets (and "state" on rewards) is Evia's own working
-   copy of the record, for the screens that show it; the fields around it are what Nisia reads.
-   Sync (for Nisia, nothing else):     eviaData.changesSince()  eviaData.markSynced(records)
+   copy of the record, for the screens that show it; the fields around it are what Evia Portal reads.
+   Sync (for Evia Portal, nothing else):     eviaData.changesSince()  eviaData.markSynced(records)
    Collections: learner, evidence, supporting, nvqAnswers, hours, lessonResults, tests, confidence, scenarios,
    reviews, targets, rewards, errors (the problem log, read only). Every other collection is written through here.
    eviaData.replace("targets", {course}, list) swaps a course's targets after a review. */
@@ -23,7 +23,7 @@
     :name==="otjBatches"?(typeof otjBatches!=="undefined"?otjBatches:undefined):name==="course"?(typeof course!=="undefined"?course:undefined):undefined;
   const courseNow=()=>G("course")||localStorage.getItem("evia7-course")||"";
 
-  /* The learner id comes from Nisia at sign-in. Until then a local one, kept on the phone. */
+  /* The learner id comes from Evia Portal at sign-in. Until then a local one, kept on the phone. */
   function learnerId(){
     let id=localStorage.getItem(ID_KEY);
     if(!id){id="local-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);try{localStorage.setItem(ID_KEY,id)}catch(_){}}
@@ -125,7 +125,7 @@
         skills:x.skills||[],startedAt:iso(x.startedAt),completedAt:iso(x.doneAt),markedBy:x.markedBy||"self",marks:(x.marks||[]).map(m=>({text:m.text,met:!!m.met})),
         note:x.note||"",updatedAt:iso(x.doneAt)}));
     },
-    /* The problem log (errors.js): read only, so Nisia can see what went wrong on the phone. */
+    /* The problem log (errors.js): read only, so Evia Portal can see what went wrong on the phone. */
     errors(){
       return (window.eviaErrors?window.eviaErrors.list():[]).map(x=>base(x.id,{message:x.message,where:x.where||"",stack:x.stack||"",kind:x.kind||"error",
         place:x.place||"",appVersion:x.version||"",count:x.count||1,createdAt:x.at,updatedAt:x.lastAt||x.at,device:navigator.userAgent.slice(0,160)}));
@@ -161,7 +161,7 @@
         if(r.occurredAt!=null)legacy.on=ms(r.occurredAt);
         if(r.source==="evia"||r.did!=null||r.learned!=null){legacy.did=r.did||"";legacy.learned=r.learned||""}
         if(r.source==="auto"){legacy.auto=true;legacy.autoKey=r.activityKey||null}
-        /* From the tutor's register in Symi, through Nisia: confirmed by the tutor, so it can't be changed here. */
+        /* From the tutor's register in Symi, through Evia Portal: confirmed by the tutor, so it can't be changed here. */
         if(r.source==="college"){legacy.college=r.college||{};legacy.confirmed=true}
         const i=arr.findIndex(x=>x&&x.id===legacy.id);
         if(i>=0)arr[i]=Object.assign({},arr[i],legacy);else arr.push(legacy);
@@ -189,7 +189,7 @@
         if(r.induction)legacy.induction=true;
         arr.push(legacy);save();return legacy.id;
       },
-      /* Deleting a saved pack: the record, then its photos. (Nisia keeps anything the assessor has already accepted.) */
+      /* Deleting a saved pack: the record, then its photos. (Evia Portal keeps anything the assessor has already accepted.) */
       remove(id){const arr=G("evidence");const i=arr?arr.findIndex(x=>x&&String(x.id)===String(id)):-1;if(i<0)return false;
         const gone=arr.splice(i,1)[0];save();(gone.photoIds||[]).forEach(pid=>{try{window.eviaDeleteEvidencePhoto&&window.eviaDeleteEvidencePhoto(pid)}catch(_){}});return true}
     },
@@ -262,7 +262,7 @@
         writeJson("evia7-progress-reviews",all.slice(-30));return String(r.id||all[all.length-1].id);
       }
     },
-    /* The learner's own details, merged into the profile; course switches the course. (Nisia will own course and dates.) */
+    /* The learner's own details, merged into the profile; course switches the course. (Evia Portal will own course and dates.) */
     learner:{
       put(r){
         /* Every profile field is kept (name, dates, photo, signature, maths and English, NVQ units, safeguarding lead…);
@@ -322,7 +322,7 @@
     photo:()=>(readJson("evia7-profile",{})||{}).avatar||""
   };
 
-  /* ---------- Sync with Nisia ----------
+  /* ---------- Sync with Evia Portal ----------
      Works whoever wrote the data (a screen not yet moved here included): each record's fingerprint is compared with
      the one last sent. changesSince() gives new and changed records, plus ids that have gone (deleted). */
   const SYNCED=["learner","evidence","supporting","nvqAnswers","hours","lessonResults","tests","confidence","scenarios","reviews","targets","rewards","errors","skills"];
@@ -339,11 +339,11 @@
     (changes||[]).forEach(ch=>{const m=done[ch.collection]=done[ch.collection]||{};if(ch.fingerprint)m[ch.record.id]=ch.fingerprint;else delete m[ch.record.id]});
     writeJson(SYNC_KEY,done);
   }
-  /* Everything, in the new shape: for Nisia's first upload, and for checking the move worked. */
+  /* Everything, in the new shape: for Evia Portal's first upload, and for checking the move worked. */
   const snapshot=()=>{const o={v:V,learnerId:learnerId(),at:new Date().toISOString()};COLLECTIONS.forEach(c=>{o[c]=list(c)});return o};
 
-  /* The learner's enrolment, set by Nisia when they're signed up: {course, name, start, end, nvqOptional}. Nisia saves
-     it with enrol() at sign-in; until Nisia is connected, ?course=bricklayer in the address does the same for testing.
+  /* The learner's enrolment, set by Evia Portal when they're signed up: {course, name, start, end, nvqOptional}. Evia Portal saves
+     it with enrol() at sign-in; until Evia Portal is connected, ?course=bricklayer in the address does the same for testing.
      Onboarding takes the course from here, so the learner doesn't pick it. */
   const ENROL_KEY="evia7-enrolment";
   function enrolment(){

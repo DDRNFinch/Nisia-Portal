@@ -1,6 +1,6 @@
 /* Milos observations: the assessor captures evidence the way the learner does in Evia (pick the unit, photos against
    its "things to capture", a write-up that ticks off its "things to mention", with the same strength bars), then signs
-   it off with the KSBs it meets, as when marking. It's saved on the phone first, then to Nisia as the learner's
+   it off with the KSBs it meets, as when marking. It's saved on the phone first, then to Evia Portal as the learner's
    evidence (recorded as the assessor's observation, photos in the college's private evidence store), now or once
    there's signal. */
 import { db, esc } from "../../packages/core/nisia.js";
@@ -127,7 +127,7 @@ export function openObservation({ L, me }, onSaved) {
     o.querySelector("#obSave").onclick = () => save();
   };
 
-  /* Saved on this phone first, then sent to Nisia now if there's signal, or as soon as there is (store.js). */
+  /* Saved on this phone first, then sent to Evia Portal now if there's signal, or as soon as there is (store.js). */
   async function save() {
     const b = o.querySelector("#obSave"), err = o.querySelector(".err"), prog = o.querySelector("#obProg");
     if (!S.ticked.size) { err.textContent = "Tick at least one " + (code === "trowel3" ? "criterion" : "KSB") + " this observation meets."; return; }

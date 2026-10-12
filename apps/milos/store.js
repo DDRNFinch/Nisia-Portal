@@ -1,13 +1,13 @@
 /* Milos offline: everything Milos shows is kept on this phone, and everything Milos saves goes through an outbox.
    - Sync (on opening, when the signal comes back, every 15 minutes while open, or "Sync now"): sends the outbox, then
-     downloads your learners and, for each, what Evia and Nisia hold (progress, portfolio, reviews). Photos stay in
-     Nisia and are opened when there's signal; photos you take in Milos are kept here until they're sent.
+     downloads your learners and, for each, what Evia and Evia Portal hold (progress, portfolio, reviews). Photos stay in
+     Evia Portal and are opened when there's signal; photos you take in Milos are kept here until they're sent.
    - Offline, Milos opens from the last download. Observations, sign-offs and reviews are saved here straight away
      and sent the next time there's signal; each job is sent a step at a time and picks up where it stopped.
    - Signing out clears it all from the phone. */
 import { db, rpc, me } from "../../packages/core/nisia.js";
 import { loadPacks } from "../../packages/core/packs.js";
-/* Requests to Nisia go through the shared actions where there is one (packages/core/nisia-actions.js). */
+/* Requests to Evia Portal go through the shared actions where there is one (packages/core/nisia-actions.js). */
 const A = window.NisiaActions;
 A.use(rpc, { app: "milos" });
 import { hit } from "../../packages/core/usage.js";
@@ -47,7 +47,7 @@ export async function cached() {
 }
 export async function learnerData(r) { return (await get("learners", r.enrolment_id)) || null; }
 
-/* Saved work not yet in Nisia, shown as if it were, so nothing seems to disappear while offline. */
+/* Saved work not yet in Evia Portal, shown as if it were, so nothing seems to disappear while offline. */
 async function pendingFor(enrolmentId) { return (await all("outbox")).filter((j) => j.enrolmentId === enrolmentId); }
 export async function withPending(r, D) {
   if (!D) return D;
@@ -64,7 +64,7 @@ export async function withPending(r, D) {
   return { ...D, L, P };
 }
 
-/* ---------- Downloading from Nisia ---------- */
+/* ---------- Downloading from Evia Portal ---------- */
 async function download() {
   const who = await me();
   /* The course packs (topics and KSBs) first, so learners open in the newest; with no change nothing is downloaded. */
@@ -97,7 +97,7 @@ async function download() {
   return { who, rows };
 }
 /* What the employer sent from Paros: witness testimonies and behaviour ratings. */
-/* It never stops the learner's work downloading: if Nisia can't send it, the last copy is kept. */
+/* It never stops the learner's work downloading: if Evia Portal can't send it, the last copy is kept. */
 async function loadEmployer(r) {
   try {
     const d = await A.send("employerFeedback", { p_enrolment: r.enrolment_id }) || {};
@@ -167,7 +167,7 @@ async function send(j) {
   if (j.kind === "assessment") await step("assessment", async () => {
     try { await insert("assessments", j.row); }
     catch (e) {
-      /* The learner deleted this evidence in Evia before the assessment got to Nisia: there's nothing left to assess. */
+      /* The learner deleted this evidence in Evia before the assessment got to Evia Portal: there's nothing left to assess. */
       const { data, error } = await db.from("evidence").select("id").eq("id", j.row.evidence_id).maybeSingle();
       if (!error && !data) throw Object.assign(new Error("evidence gone"), { gone: true });
       throw e;
@@ -176,7 +176,7 @@ async function send(j) {
   if (j.kind === "review") {
     await step("review", () => insert("reviews", j.review));
     /* Signed as the role the member actually has (a college admin doing reviews has no assessor role). Reviews saved
-       before this carry "assessor", so any role Nisia turns down is swapped for the next one. */
+       before this carry "assessor", so any role Evia Portal turns down is swapped for the next one. */
     await step("signoff", async () => {
       const roles = [j.signoff.signer_role, "assessor", "tutor", "admin"].filter((x, i, a) => x && a.indexOf(x) === i);
       for (let i = 0; ; i++) {
@@ -209,13 +209,13 @@ export function flush() {
       if (failed) throw failed;
     }
     finally {
-      /* What's just gone to Nisia is fetched back, so the phone's copy of those learners includes it. */
+      /* What's just gone to Evia Portal is fetched back, so the phone's copy of those learners includes it. */
       for (const id of sent) { const D = await get("learners", id); if (D) await refreshLearner(D.L.row).catch((e) => console.warn("Milos: refresh", e.message)); }
     }
   })().finally(() => { flushing = null; countWaiting(); });
   return flushing;
 }
-/* Saves a job here, then tries to send it now. Resolves true if it's already in Nisia, false if it's waiting. */
+/* Saves a job here, then tries to send it now. Resolves true if it's already in Evia Portal, false if it's waiting. */
 async function enqueue(j) {
   hit("save." + j.kind + (j.kind === "assessment" && j.row ? "." + j.row.decision : ""));
   j.id = uuid(); j.at = new Date().toISOString(); j.done = {};

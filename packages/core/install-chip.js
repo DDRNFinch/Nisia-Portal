@@ -1,4 +1,4 @@
-/* Install button for the Nisia apps that don't have their own (Paros, the Nisia portal). A small pill offers to install
+/* Install button for the Evia Portal apps that don't have their own (Paros, the Evia Portal portal). A small pill offers to install
    the app when the phone or computer allows it (Android and desktop Chrome or Edge); on an iPhone it explains Share →
    Add to Home Screen. It stays away once installed, and for two weeks after "Not now".
    Use: <script src=".../install-chip.js" data-app="Paros" data-color="#F28C28" data-icon="icons/icon-192.png"></script> */

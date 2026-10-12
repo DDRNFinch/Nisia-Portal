@@ -1,6 +1,6 @@
-/* Which features staff use in the Nisia apps (the portal, Milos, Symi, Paros), as counts: the same as Evia's
-   usage.js. One row a day per device goes to Nisia (nisia_usage_ping): the counts, the app's version and the kind of
-   device. No names, no text, no identifier; Nisia works out the college from the sign-in, for its impact report. */
+/* Which features staff use in the Evia Portal apps (the portal, Milos, Symi, Paros), as counts: the same as Evia's
+   usage.js. One row a day per device goes to Evia Portal (nisia_usage_ping): the counts, the app's version and the kind of
+   device. No names, no text, no identifier; Evia Portal works out the college from the sign-in, for its impact report. */
 import { db } from "./nisia.js";
 
 let app = "", version = "", key = "", st = { days: {} }, saveT = null, sending = false;
@@ -19,7 +19,7 @@ export function hit(feature) {
   c[k] = Math.min(5000, (c[k] || 0) + 1); save();
 }
 
-/* The days before today go to Nisia, once, when there's a signal (and never from a test copy on this computer). */
+/* The days before today go to Evia Portal, once, when there's a signal (and never from a test copy on this computer). */
 export async function send() {
   if (!key || sending || !navigator.onLine || /^(localhost|127\.)/.test(location.hostname)) return;
   const today = day(), days = Object.keys(st.days).filter((d) => d < today).sort().slice(-14);

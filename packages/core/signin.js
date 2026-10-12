@@ -1,5 +1,5 @@
 /* Signing in, shared by the portal and Milos:
-   an invite link (#invite=CODE) → name and password → sign in → add Nisia to an authenticator app (first time)
+   an invite link (#invite=CODE) → name and password → sign in → add Evia Portal to an authenticator app (first time)
    or type its 6-digit code (every other time) → onReady(). */
 import { db, AUTH_KEY, call, state, signIn, signOut, startAuthenticator, verifyCode, esc } from "./nisia.js";
 
@@ -17,7 +17,7 @@ function autoSend(f) {
 
 const PW_RULE = "At least 10 characters, with upper and lower case letters, a number and a symbol.";
 
-/* Forgotten passwords: a reset link from the college's admin (#reset=CODE), or the reset email Nisia sends (it comes
+/* Forgotten passwords: a reset link from the college's admin (#reset=CODE), or the reset email Evia Portal sends (it comes
    back to this page with ?reset=email and a recovery session). */
 export function resetCode() {
   const m = /[#&]reset=([A-Za-z0-9-]+)/.exec(location.hash);
@@ -64,11 +64,11 @@ export async function auth(root, o) {
   return signInForm(root, o);
 }
 
-/* Two looks: Evia's (Milos), or o.split, the portal's: a dark panel with the Nisia islands beside the form. */
+/* Two looks: Evia's (Milos), or o.split, the portal's: a dark panel with the Evia Portal islands beside the form. */
 const ISLANDS = '<svg class="islands" viewBox="0 0 420 260" aria-hidden="true"><path d="M0 200 C60 185 120 215 180 200 S300 185 420 200 V260 H0z" fill="#1B3350"/><path d="M40 200 C70 150 110 130 150 150 C170 120 210 115 240 150 C255 140 275 150 290 200z" fill="#0B6E78"/><path d="M300 200 C315 170 340 160 365 175 C380 165 400 175 410 200z" fill="#E7B900"/><path d="M190 205 C200 190 220 188 235 205z" fill="#2C85F7"/><path d="M0 225 C60 212 120 238 180 225 S300 212 420 225" fill="none" stroke="#3FB8C3" stroke-width="2" opacity=".5"/></svg>';
 export const MARK = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="10" fill="var(--accent)"/><path d="M6 23c3-3 6-3 9 0s6 3 9 0 3-1.5 4-1.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M9 18.5c1.5-4 3.5-6 5.5-6s3 2 4 3.5c1-1 2-1.5 3-1.5 1.6 0 2.8 1.4 3.5 4" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const frame = (o, body, say) => o.split
-  ? '<div class="signin"><section class="signin-art"><div class="label" style="color:#7FD0D8">Nisia · for colleges and training providers</div>' +
+  ? '<div class="signin"><section class="signin-art"><div class="label" style="color:#7FD0D8">Evia Portal · for colleges and training providers</div>' +
     '<div style="display:flex;flex-direction:column;gap:14px;position:relative;z-index:1"><h1>See how every apprentice is really doing.</h1><p>Live progress from Evia, your learners’ app: who’s active, who’s gone quiet, and where evidence or learning hours are falling behind.</p></div>' + ISLANDS + '</section>' +
     '<section class="signin-form"><div class="form"><div style="display:flex;align-items:center;gap:10px">' + MARK + '<span class="brand-name">' + esc(o.title) + '</span></div>' +
     (say ? '<p class="muted small">' + say + '</p>' : '<div><h2>Sign in</h2><p class="muted small">' + esc(o.subtitle || "") + '</p></div>') + body + '</div></section></div>'
@@ -104,10 +104,10 @@ function signInForm(root, o, email, err) {
 function forgotForm(root, o, email, done, err) {
   root.innerHTML = frame(o,
     '<form class="box" id="f" novalidate>' +
-    (done ? '<p class="ok-note" style="background:#ecfdf3;color:#05603a;border-radius:12px;padding:12px 14px;line-height:1.45;margin:0">If <b>' + esc(done) + '</b> has a Nisia account, a link to choose a new password is on its way. Open it on this device. It can take a few minutes; check your junk folder too.</p>'
+    (done ? '<p class="ok-note" style="background:#ecfdf3;color:#05603a;border-radius:12px;padding:12px 14px;line-height:1.45;margin:0">If <b>' + esc(done) + '</b> has an Evia Portal account, a link to choose a new password is on its way. Open it on this device. It can take a few minutes; check your junk folder too.</p>'
       : '<label class="field">Your email<input id="email" type="email" autocomplete="username" value="' + esc(email || "") + '" required></label>' +
         '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Email me a reset link</button>') +
-    '<p class="muted small">No email? Ask your college’s Nisia admin: they can make you a reset link in Nisia (Staff, then your name).</p>' +
+    '<p class="muted small">No email? Ask your college’s Evia Portal admin: they can make you a reset link in Evia Portal (Staff, then your name).</p>' +
     '<button class="btn ghost" type="button" id="back">Back to sign in</button></form>', "Forgotten your password? We’ll send you a link to choose a new one.");
   root.querySelector("#back").onclick = () => signInForm(root, o, email);
   const f = root.querySelector("#f");
@@ -129,7 +129,7 @@ function resetForm(root, o, code, err) {
     '<form class="box" id="f" novalidate>' +
     '<label class="field">New password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + '</small></label>' +
     '<label class="field">Type it again<input id="pw2" type="password" autocomplete="new-password"></label>' +
-    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Nisia. It works in every Nisia app.");
+    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Evia Portal. It works in every Evia Portal app.");
   const f = root.querySelector("#f");
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -150,7 +150,7 @@ function newPasswordForm(root, o, err) {
     '<form class="box" id="f" novalidate>' +
     '<label class="field">New password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + '</small></label>' +
     '<label class="field">Type it again<input id="pw2" type="password" autocomplete="new-password"></label>' +
-    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Nisia. It works in every Nisia app.");
+    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Save my new password</button></form>', "Choose a new password for Evia Portal. It works in every Evia Portal app.");
   const f = root.querySelector("#f");
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -189,7 +189,7 @@ function acceptInvite(root, o, code, err) {
   root.innerHTML = frame(o,
     '<form class="box" id="f" novalidate>' +
     '<label class="field">Your name<input id="name" autocomplete="name" required></label>' +
-    '<label class="field">Choose a password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + ' If you already use Nisia, leave this empty and sign in as usual afterwards.</small></label>' +
+    '<label class="field">Choose a password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + ' If you already use Evia Portal, leave this empty and sign in as usual afterwards.</small></label>' +
     '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
     '<button class="btn primary wide" type="submit">Accept invite</button></form>', "You’ve been invited to " + esc(o.title) + ". Set up your sign-in.");
   const f = root.querySelector("#f");

@@ -1,7 +1,7 @@
 /* A college's packs: the topics its courses are taught and evidenced in.
    - Its courses, each with the pack it uses (yours unless the college chooses one of its own), and how many learners
      are on a pack of their own.
-   - The packs it can use: yours (Nisia's) and its own, with drafts. Open one to read it; copy one to start a pack of
+   - The packs it can use: yours (Evia Portal's) and its own, with drafts. Open one to read it; copy one to start a pack of
      the college's own; edit its own (a published pack's changes become its next version, as a draft).
    - The builder: name the pack, add, rename, reorder or remove topics, choose each topic's KSBs from the standard,
      and see straight away which KSBs no topic covers yet. Save as a draft; publish when it's ready.
@@ -35,7 +35,7 @@ export async function collegePacksPage(helpers) {
     '<section class="panel"><div class="panel-head"><div><h2>Packs</h2><span class="small muted">Yours come ready-made; copy one to make the college’s own.</span></div></div>' +
       '<div class="table-wrap flat"><table><thead><tr><th>Pack</th><th>Built on</th><th>Version</th><th>Topics</th><th>Learners</th><th></th></tr></thead><tbody>' +
       P.packs.map((k) => { const v = k.versions[0] || {}, pub = k.versions.find((x) => x.status === "published");
-        return '<tr class="static"><td><b>' + esc(k.title) + '</b><br><span class="small muted">' + (k.mine ? "The college’s own" : "Yours (Nisia)") + '</span></td><td>' + esc(k.standard) + (k.option_title ? ' <span class="small muted">· ' + esc(k.option_title) + '</span>' : "") +
+        return '<tr class="static"><td><b>' + esc(k.title) + '</b><br><span class="small muted">' + (k.mine ? "The college’s own" : "Yours (Evia)") + '</span></td><td>' + esc(k.standard) + (k.option_title ? ' <span class="small muted">· ' + esc(k.option_title) + '</span>' : "") +
           '</td><td>v' + esc(v.version || "") + ' ' + (v.status === "draft" ? '<span class="pill warn">Draft</span>' : '<span class="pill good">Published</span>') + '</td><td class="num">' + (v.topics || 0) + '</td><td class="num">' + k.learners +
           '</td><td style="text-align:right;white-space:nowrap"><button class="btn small" type="button" data-open="' + v.id + '">Open</button>' +
           (P.admin && k.kind === "standard" ? (k.mine ? ' <button class="btn small" type="button" data-edit="' + k.id + '">Edit</button>' : "") + ' <button class="btn small" type="button" data-copy="' + (pub || v).id + '">Copy</button>' : "") +

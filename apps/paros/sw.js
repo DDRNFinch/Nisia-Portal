@@ -1,5 +1,5 @@
 /* Paros works offline from its last download: the app is kept here as one version (fetched fresh when a new version
-   installs). Apprentices' details are kept by the app itself; Nisia's own requests go straight through.
+   installs). Apprentices' details are kept by the app itself; Evia Portal's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
 const VERSION = "dev";
 const CACHE = "paros-" + VERSION;

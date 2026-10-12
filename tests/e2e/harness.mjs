@@ -1,4 +1,4 @@
-/* The test Nisia shared by the end-to-end tests: a real Postgres with Nisia's own tables, rules and functions (in the
+/* The test Evia Portal shared by the end-to-end tests: a real Postgres with Evia Portal's own tables, rules and functions (in the
    order they went live), the apps served as they're published, and a pretend sign-in (any password; the code 123456
    is the authenticator app). Each test file gets its own fresh database. */
 import http from "node:http";
@@ -15,7 +15,7 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../.
 const results = [];
 const check = (name, ok, detail) => { results.push(ok); console.log((ok ? "✓ " : "✗ ") + name + (ok || !detail ? "" : " — " + String(detail).slice(0, 600))); };
 
-/* ---------- A fresh Nisia ---------- */
+/* ---------- A fresh Evia Portal ---------- */
 /* One database per test file (registers.e2e.mjs → nisia_registers), so the tests can run side by side. */
 const DB = "nisia_" + path.basename(process.argv[1] || "e2e").split(".")[0].replace(/[^a-z0-9]+/gi, "_").toLowerCase();
 const sh = (cmd) => execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] }).toString();
@@ -24,7 +24,7 @@ sh(`su postgres -c "psql -X -q -c \\"alter user postgres password 'e2e'\\""`);
 sh(`su postgres -c "dropdb --if-exists ${DB} && createdb ${DB}"`);
 for (const f of ["tests/e2e/schema.sql", "tests/sql/live-helpers.sql", "tests/e2e/live-functions.sql", "services/supabase/symi-paros.sql", "services/supabase/registers.sql",
   "services/supabase/classes-rls-fix.sql", "services/supabase/actions-registers.sql", "services/supabase/classes-lock.sql", "services/supabase/actions-feedback.sql",
-  /* Everything since, in the order it went live, so the test runs the same functions as the real Nisia. */
+  /* Everything since, in the order it went live, so the test runs the same functions as the real Evia Portal. */
   "services/supabase/visits.sql", "services/supabase/timetable.sql", "services/supabase/classes-nisia.sql", "services/supabase/today.sql", "services/supabase/college-taught.sql",
   "services/supabase/class-quiz.sql", "services/supabase/college-resources.sql", "services/supabase/password-reset.sql", "services/supabase/battles.sql", "services/supabase/coin-grants.sql",
   "tests/e2e/seed.sql"])
@@ -39,7 +39,7 @@ const whoIs = (h) => { try { const p = JSON.parse(Buffer.from(String(h || "").re
 const session = (sub, aal, email) => ({ access_token: token(sub, aal), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600,
   refresh_token: b64({ sub, aal, email }), user: { id: sub, aud: "authenticated", role: "authenticated", email, factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
 
-/* ---------- Nisia's functions, called as the signed-in person ---------- */
+/* ---------- Evia Portal's functions, called as the signed-in person ---------- */
 const procs = new Map();
 async function proc(name) {
   if (procs.has(name)) return procs.get(name);
@@ -95,7 +95,7 @@ async function nisia(route) {
     return r.method() === "GET" ? json([]) : route.fulfill({ status: 201, headers: { "access-control-allow-origin": "*" }, body: "" });
   }
   if (p.startsWith("/storage/") || p.startsWith("/functions/")) return json({});
-  return json({ message: "not in the test Nisia: " + p }, 404);
+  return json({ message: "not in the test Evia Portal: " + p }, 404);
 }
 
 /* ---------- The apps, served as they are published (Evia beside the others) ---------- */
@@ -114,7 +114,7 @@ const errors = [], warnings = [];
 async function app(device) {
   const ctx = await browser.newContext({ viewport: device || { width: 1280, height: 860 }, locale: "en-GB", serviceWorkers: "block" }), page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message)); page.on("dialog", (d) => d.accept());
-  page.on("console", (m) => { if (m.type() === "warning" && /Nisia/.test(m.text())) warnings.push(m.text()); });
+  page.on("console", (m) => { if (m.type() === "warning" && /Evia Portal/.test(m.text())) warnings.push(m.text()); });
   await page.route(/supabase\.co/, nisia);
   return { ctx, page };
 }

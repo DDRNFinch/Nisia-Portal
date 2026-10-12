@@ -1,5 +1,5 @@
-/* A stand-in for Nisia's standards library, for the portal test: starts from the real seed (Evia's three courses) and
-   answers the library's actions the way Nisia does. Also makes a small real PDF, to upload. */
+/* A stand-in for Evia Portal's standards library, for the portal test: starts from the real seed (Evia's three courses) and
+   answers the library's actions the way Evia Portal does. Also makes a small real PDF, to upload. */
 import fs from "node:fs"; import path from "node:path";
 
 export function standardsFake(root) {

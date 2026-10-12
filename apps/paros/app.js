@@ -1,9 +1,9 @@
 /* Paros, for employers: their apprentices' college attendance and what was taught (from the tutor's register in Symi),
    their evidence and what's still needed (from Evia and the assessor in Milos), learning hours to confirm, witness
-   testimonies and behaviour ratings. Nisia decides what an employer can see (paros_learners, paros_learner): never the
+   testimonies and behaviour ratings. Evia Portal decides what an employer can see (paros_learners, paros_learner): never the
    apprentice's own records in Evia. The last download is kept on the device, so Paros opens without signal. */
 import { db, rpc, me, signOut, esc, ukDate, ago, courseName } from "../../packages/core/nisia.js";
-/* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
+/* Every request to Evia Portal goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
 const A = window.NisiaActions;
 A.use(rpc, { app: "paros" });
 import { startUsage, hit } from "../../packages/core/usage.js";
@@ -61,14 +61,14 @@ async function boot() {
   const { data } = await db.auth.getSession();
   if (cached && data && data.session) { who = cached.who; rows = cached.rows; draw(); return start(false); }
   try { await auth(root, AUTH); }
-  catch (e) { root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Paros couldn’t reach Nisia: " + e.message : "You’re offline. Connect once to download your apprentices.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>'; root.querySelector("#retry").onclick = boot; }
+  catch (e) { root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Paros couldn’t reach Evia Portal: " + e.message : "You’re offline. Connect once to download your apprentices.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>'; root.querySelector("#retry").onclick = boot; }
 }
 async function start(loud) {
   if (!navigator.onLine) { if (!rows.length) root.innerHTML = '<div class="auth"><div class="box"><p class="err">You’re offline. Connect once to download your apprentices.</p></div></div>'; return; }
   try {
     who = await me();
     if (!(who.memberships || []).some((m) => m.roles.includes("employer"))) {
-      root.innerHTML = '<div class="auth"><div class="box"><h2>Paros is for employers</h2><p class="muted">This Nisia account isn’t set up as an employer. Ask the college to add you as the employer for your apprentices.</p><button class="btn ghost wide" id="out">Sign out</button></div></div>';
+      root.innerHTML = '<div class="auth"><div class="box"><h2>Paros is for employers</h2><p class="muted">This Evia Portal account isn’t set up as an employer. Ask the college to add you as the employer for your apprentices.</p><button class="btn ghost wide" id="out">Sign out</button></div></div>';
       root.querySelector("#out").onclick = async () => { await signOut(); location.reload(); }; return;
     }
     rows = await rpc("paros_learners");
@@ -99,7 +99,7 @@ function frame({ title, sub, backTo, body }) {
       '<div class="m-head-row"><div class="m-titles"><h1 class="m-title">' + esc(title) + '</h1>' + (sub ? '<p class="m-sub">' + sub + '</p>' : "") + '</div>' +
       '<button type="button" class="m-me" id="meBtn" aria-label="You and Paros">' + esc(initials(who && who.name)) + '</button></div></header>' +
     '<main class="m-main" id="main">' + body + '</main>' +
-    '<nav class="m-nav" aria-label="Paros">' + nb(TABS[0]) + nb(TABS[1]) + '<button type="button" class="m-nav-milos" id="navSync" aria-label="Update from Nisia">' + EYES + '</button>' + nb(TABS[2]) + nb(TABS[3]) + '</nav></div>';
+    '<nav class="m-nav" aria-label="Paros">' + nb(TABS[0]) + nb(TABS[1]) + '<button type="button" class="m-nav-milos" id="navSync" aria-label="Update from Evia Portal">' + EYES + '</button>' + nb(TABS[2]) + nb(TABS[3]) + '</nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; view = null; draw(); scrollTo(0, 0); });
   root.querySelector("#navSync").onclick = () => start(true);
   root.querySelector("#meBtn").onclick = account;
@@ -109,7 +109,7 @@ function frame({ title, sub, backTo, body }) {
 function account() {
   const orgs = [...new Set(rows.map((r) => r.organisation))].join(", ");
   const o = sheet('<div class="m-acct"><span class="m-me lg">' + esc(initials(who && who.name)) + '</span><div><h2>' + esc(who && who.name || "Employer") + '</h2><p class="muted small">' + esc(orgs || "Paros") + '</p></div></div>' +
-    '<div class="card m-list"><button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Update from Nisia</b><span class="sub">' + esc((read("paros-cache", {}) || {}).at ? "Last updated " + ago(read("paros-cache", {}).at) : "") + '</span></span></button>' +
+    '<div class="card m-list"><button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Update from Evia Portal</b><span class="sub">' + esc((read("paros-cache", {}) || {}).at ? "Last updated " + ago(read("paros-cache", {}).at) : "") + '</span></span></button>' +
     '<button type="button" class="m-row" id="signout"><span class="m-ic bad">' + IC.out + '</span><span class="m-row-main"><b>Sign out</b><span class="sub">Removes your apprentices from this device</span></span></button></div>' +
     '<p class="small muted center">You see your own apprentices’ college attendance, evidence and progress. Their personal notes in Evia stay private to them and the college.</p>', "Account");
   o.querySelector("#acSync").onclick = () => { o.remove(); start(true); };
@@ -137,7 +137,7 @@ function drawToday() {
   const n = toConfirm(), rate = rows.filter(ratingDue), soon = rows.map((r) => ({ r, d: reviewDue(r) })).filter((x) => x.d && x.d.days <= 14).sort((a, b) => a.d.days - b.d.days);
   const lastCollege = rows.filter((r) => r.last_session).sort((a, b) => String(b.last_session).localeCompare(String(a.last_session)));
   frame({ title: hi + " " + first(who && who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
-    (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Nisia. They’ll appear here.") :
+    (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Evia Portal. They’ll appear here.") :
       card({ cls: "m-hero", label: "Your apprentices", go: "apprentices", big: '<p class="m-big">' + rows.length + '</p>', sub: "Their college attendance, evidence and progress.",
         inner: '<div class="m-minis">' + rows.slice(0, 4).map((r) => mini(r, ring(ksbPct(r)))).join("") + '</div>' }) +
       card({ label: "Learning hours to confirm", go: n ? "hours" : "", big: '<p class="m-big ' + (n ? "warn" : "good") + '">' + (n || "None") + '</p>',
@@ -154,7 +154,7 @@ function drawToday() {
 /* ---------- Apprentices ---------- */
 function drawApprentices() {
   frame({ title: "Apprentices", sub: rows.length + (rows.length === 1 ? " apprentice" : " apprentices"), body:
-    (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Nisia.") :
+    (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Evia Portal.") :
       '<div class="card m-list">' + rows.map((r) => { const a = attPct(r);
         return '<button type="button" class="m-row" data-id="' + r.enrolment_id + '">' + face(r.name) + '<span class="m-row-main"><b>' + esc(r.name) + '</b><span class="sub">' + esc(course(r).name) + ' · ' +
           (r.signed_off || []).length + ' of ' + course(r).ksbs.length + ' signed off' + (a != null ? ' · ' + a + '% at college' : "") + '</span></span>' + ring(ksbPct(r)) + '</button>'; }).join("") + '</div>') });

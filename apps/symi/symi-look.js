@@ -1,4 +1,4 @@
-/* Symi in the Nisia apps' look (Evia, Milos, Paros): the floating bar along the bottom (Registers, Learners, Symi's
+/* Symi in the Evia Portal apps' look (Evia, Milos, Paros): the floating bar along the bottom (Registers, Learners, Symi's
    face for what needs doing, Resources and Timetable), and the timetable as the home screen. Classes sit with the
    registers, and courses and games with the resources, one tap apart. Only adds to the screen:
    every page is still drawn by app.js, and every button here calls Symi's own (window.SamosApp). */

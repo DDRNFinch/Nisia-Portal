@@ -1,23 +1,23 @@
-/* Symi on Nisia. Symi still works on its own, offline, with everything on this device; signing in to Nisia adds:
-   - Learners: the tutor's learners come from Nisia (their enrolments), matched to learners already in Symi by name,
+/* Symi on Evia Portal. Symi still works on its own, offline, with everything on this device; signing in to Evia Portal adds:
+   - Learners: the tutor's learners come from Evia Portal (their enrolments), matched to learners already in Symi by name,
      so existing registers keep their history.
    - Check-in: during a session, "Show check-in code" puts a QR on the classroom screen that changes every 20 seconds,
-     with a 6-character code under it for phones without a camera. Learners scan it in Evia; Nisia checks it (only
+     with a 6-character code under it for phones without a camera. Learners scan it in Evia; Evia Portal checks it (only
      this Symi holds the session's key) and their timer here starts. A photo sent to a friend has expired before it
      can be used, and it only ticks the learner here: the tutor's register is the record.
-   - Hours: when a register is finished (or Symi closes it at the end of the session), each Nisia learner's minutes go
-     to Nisia with what was taught and its KSBs. They become the learner's college hours in Evia, confirmed by the
+   - Hours: when a register is finished (or Symi closes it at the end of the session), each Evia Portal learner's minutes go
+     to Evia Portal with what was taught and its KSBs. They become the learner's college hours in Evia, confirmed by the
      tutor, and employers see them in Paros. Sent again later if there's no signal.
-   - Marks: each Nisia learner's row has one button for their mark: here, late, or not here and why (ill, holiday,
+   - Marks: each Evia Portal learner's row has one button for their mark: here, late, or not here and why (ill, holiday,
      an appointment, at work, or the tutor's own words), or not here with no reason. Days a learner has booked off (in
      Evia, Symi, Milos or Paros) show on the register before anyone arrives. A finished register can still be changed:
-     the change goes to Nisia and is kept there.
+     the change goes to Evia Portal and is kept there.
    - No signal: the next week's sessions and their check-in keys are fetched ahead, so the classroom code works with
-     no signal. Learners' phones keep a scan and send it later; Nisia records it at the time it was on the screen.
+     no signal. Learners' phones keep a scan and send it later; Evia Portal records it at the time it was on the screen.
      Anything booked while offline is sent when the signal's back.
-   Everything Nisia needs is sent from Symi's own records: its history rows and the lesson set for each session. */
+   Everything Evia Portal needs is sent from Symi's own records: its history rows and the lesson set for each session. */
 import { db, me, rpc, esc, signOut } from "../../packages/core/nisia.js";
-/* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
+/* Every request to Evia Portal goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
 const A = window.NisiaActions;
 A.use(rpc, { app: "symi" });
 import { auth, inviteCode, resetCode } from "../../packages/core/signin.js";
@@ -54,21 +54,21 @@ function openSignIn() {
   layer.innerHTML = '<button type="button" class="sn-x" aria-label="Close">×</button><div class="sn-auth-root"></div>';
   document.body.appendChild(layer);
   layer.querySelector(".sn-x").onclick = () => layer.remove();
-  auth(layer.querySelector(".sn-auth-root"), { title: "Symi", subtitle: "Sign in with your Nisia account", onReady: async () => {
+  auth(layer.querySelector(".sn-auth-root"), { title: "Symi", subtitle: "Sign in with your Evia Portal account", onReady: async () => {
     try {
       who = await me(); write(K.who, who);
-      if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Nisia account isn’t a tutor"); return chip(); }
+      if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Evia Portal account isn’t a tutor"); return chip(); }
       layer.remove(); signedIn = true; chip();
       await pullLearners(true); await pullClasses(); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
-    } catch (e) { layer.remove(); toast("Couldn’t reach Nisia: " + e.message); }
+    } catch (e) { layer.remove(); toast("Couldn’t reach your college: " + e.message); }
   } }).catch((e) => { layer.querySelector(".sn-auth-root").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
 }
 function account() {
-  const layer = sheet('<h2>Nisia</h2><p class="sn-muted">Signed in as <b>' + esc(who && who.name || "") + '</b> · ' + esc(tutorOrgs().map((o) => o.organisation).join(", ")) + '</p>' +
-    '<p class="sn-muted">Your learners come from Nisia. Learners check in with Evia, and finished registers become their college hours.</p>' +
-    '<div class="sn-actions"><button type="button" class="blue-button" data-pull>Update learners from Nisia</button><button type="button" class="soft-button" data-out>Sign out of Nisia</button></div>');
+  const layer = sheet('<h2>Evia Portal</h2><p class="sn-muted">Signed in as <b>' + esc(who && who.name || "") + '</b> · ' + esc(tutorOrgs().map((o) => o.organisation).join(", ")) + '</p>' +
+    '<p class="sn-muted">Your learners come from Evia Portal. Learners check in with Evia, and finished registers become their college hours.</p>' +
+    '<div class="sn-actions"><button type="button" class="blue-button" data-pull>Update learners from Evia Portal</button><button type="button" class="soft-button" data-out>Sign out of Evia Portal</button></div>');
   layer.querySelector("[data-pull]").onclick = async () => { layer.remove(); await pullLearners(true); await pullClasses(); };
-  layer.querySelector("[data-out]").onclick = async () => { layer.remove(); await signOut(); who = null; write(K.who, null); signedIn = false; chip(); toast("Signed out of Nisia. Symi keeps working on this device."); };
+  layer.querySelector("[data-out]").onclick = async () => { layer.remove(); await signOut(); who = null; write(K.who, null); signedIn = false; chip(); toast("Signed out of Evia Portal. Symi keeps working on this device."); };
 }
 function sheet(html) {
   const layer = document.createElement("div");
@@ -79,18 +79,18 @@ function sheet(html) {
   layer.querySelector(".sn-x").onclick = () => layer.remove();
   return layer;
 }
-/* The Nisia button in the header. */
+/* The Evia Portal button in the header. */
 function chip() {
   const nav = document.querySelector(".header-utility-actions");
   if (!nav) return;
   let b = document.getElementById("nisiaButton");
   if (!b) { b = document.createElement("button"); b.type = "button"; b.id = "nisiaButton"; nav.insertBefore(b, nav.firstChild); }
   b.className = "sn-chip" + (signedIn ? " on" : "");
-  b.innerHTML = '<i aria-hidden="true"></i>' + (signedIn ? "Nisia" : "Connect to Nisia");
+  b.innerHTML = '<i aria-hidden="true"></i>' + (signedIn ? "Evia Portal" : "Connect to Evia Portal");
   b.onclick = () => (signedIn ? account() : openSignIn());
 }
 
-/* ---------- Learners from Nisia ---------- */
+/* ---------- Learners from Evia Portal ---------- */
 async function pullLearners(say) {
   if (say) hit("learners.pull");
   if (!signedIn || !navigator.onLine) return;
@@ -114,17 +114,17 @@ async function pullLearners(say) {
       for (const reg of st.classes || []) for (const rl of reg.learners || []) if (rl.id === x.id) { rl.nisia = x.nisia; rl.name = x.name; }
     }
   });
-  if (say) toast(found.length ? found.length + (found.length === 1 ? " learner" : " learners") + " from Nisia" + (added ? " (" + added + " new)" : "") : "No learners in Nisia for you yet");
+  if (say) toast(found.length ? found.length + (found.length === 1 ? " learner" : " learners") + " from Evia Portal" + (added ? " (" + added + " new)" : "") : "No learners in Evia Portal for you yet");
 }
-/* ---------- Classes from Nisia ----------
-   The college sets classes up in the Nisia portal: each one the tutor teaches becomes a register here, with its
-   learners, days, times and dates. A class changed in Nisia is changed here; one the tutor changes here goes back to
-   Nisia when its sessions are got ready (symi_save_class). A class Nisia has ended, or moved to another tutor, is
+/* ---------- Classes from Evia Portal ----------
+   The college sets classes up in the Evia Portal portal: each one the tutor teaches becomes a register here, with its
+   learners, days, times and dates. A class changed in Evia Portal is changed here; one the tutor changes here goes back to
+   Evia Portal when its sessions are got ready (symi_save_class). A class Evia Portal has ended, or moved to another tutor, is
    archived here, its registers kept. */
 async function pullClasses() {
   if (!signedIn || !online()) return;
   let list;
-  try { list = await rpc("symi_my_classes"); } catch (e) { console.warn("Symi: classes from Nisia", e.message); return; }
+  try { list = await rpc("symi_my_classes"); } catch (e) { console.warn("Symi: classes from Evia Portal", e.message); return; }
   if (!Array.isArray(list)) return;
   let made = 0;
   App().mutate((st) => {
@@ -142,7 +142,7 @@ async function pullClasses() {
         learners, nisiaClassId: c.id, managed: !!c.managed, nisiaUpdatedAt: c.updated_at, archived: false };
       /* The course the college set; a class with none keeps the one the tutor chose in Symi. */
       if (c.course_code) fromNisia.courseCode = c.course_code;
-      /* Breaks set in Nisia don't count towards the learners' hours. */
+      /* Breaks set in Evia Portal don't count towards the learners' hours. */
       if (Array.isArray(s.breaks)) fromNisia.breaks = s.breaks.filter((x) => x && x.start && x.end).map((x, i) => ({ id: "nb" + i + "-" + x.start, label: "Break " + (i + 1), start: x.start, end: x.end }));
       const reg = st.classes.find((x) => x.id === c.client_ref);
       if (!reg) { st.classes.push(Object.assign({ id: c.client_ref, breaks: [] }, fromNisia)); made++; }
@@ -150,12 +150,12 @@ async function pullClasses() {
     }
     for (const reg of st.classes) if (reg.managed && !reg.archived && !mine.has(reg.id)) reg.archived = true;
   }, true);
-  if (made) toast(made === 1 ? "A new class from Nisia is in your registers" : made + " new classes from Nisia are in your registers");
+  if (made) toast(made === 1 ? "A new class from Evia Portal is in your registers" : made + " new classes from Evia Portal are in your registers");
 }
 const nisiaOf = (st, learnerId) => { const l = st.learners.find((x) => x.id === learnerId); return l && l.nisia || null; };
 const regLearners = (st, reg) => (reg.learners || []).map((l) => ({ id: l.id, name: l.name, nisia: nisiaOf(st, l.id) })).filter((x) => x.nisia);
 
-/* ---------- The session in Nisia ---------- */
+/* ---------- The session in Evia Portal ---------- */
 function lessonFor(st, regId, key) {
   const id = (read("symi.session.lesson.v1", {}) || {})[regId + ":" + key];
   const r = id && (st.resources || []).find((x) => x.id === id);
@@ -181,10 +181,10 @@ async function ensureSession(regId, key) {
   const st = App().getState(), reg = st.classes.find((c) => c.id === regId);
   if (!reg) throw new Error("That register has gone.");
   const people = regLearners(st, reg);
-  if (!people.length) throw new Error("Add your Nisia learners to this register first.");
+  if (!people.length) throw new Error("Add your Evia Portal learners to this register first.");
   const counts = {}; people.forEach((p) => { counts[p.nisia.org] = (counts[p.nisia.org] || 0) + 1; });
   const org = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0], m = tutorOrgs().find((o) => o.organisation_id === org);
-  if (!m) throw new Error("You’re not a tutor at that college in Nisia.");
+  if (!m) throw new Error("You’re not a tutor at that college in Evia Portal.");
   const classId = await A.send("saveClass", { p_org: org, p_client_ref: reg.id, p_title: String(reg.name || "Class").slice(0, 120), p_room: reg.room || null,
     p_schedule: { day: reg.day, start: reg.start, end: reg.end, breaks: (reg.breaks || []).map((x) => ({ start: x.start, end: x.end })), recurrence: reg.recurrence || null }, p_enrolments: people.filter((p) => p.nisia.org === org).map((p) => p.nisia.enrolmentId) });
   const b = App().bounds(regId, key), lesson = (await lessonOn(st, regId, key)) || {};
@@ -258,7 +258,7 @@ const markText = (m) => !m ? "" : m.kind === "here" ? "Here" : m.kind === "late"
 /* What was kept with no signal (days off booked): sent now there's signal. */
 async function flush() {
   if (!signedIn || !online() || !A.waiting().length) return;
-  (await A.flush()).filter((x) => !x.ok).forEach((x) => { console.warn("Symi: Nisia", x.name, x.error); toast("Nisia didn’t accept something saved with no signal: " + x.error); });
+  (await A.flush()).filter((x) => !x.ok).forEach((x) => { console.warn("Symi: Evia Portal", x.name, x.error); toast("Evia Portal didn’t accept something saved with no signal: " + x.error); });
   await pullAbsences().catch(() => {});
 }
 /* The next week's sessions and keys, so the code works in a classroom with no signal (once a day). */
@@ -297,7 +297,7 @@ function markSheet(regId, learnerId) {
   const layer = sheet('<h2>' + esc(l.name) + '</h2>' +
     '<p class="sn-muted">' + (ci ? 'Checked in with Evia at ' + new Date(ci.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (ci.offline ? ' (with no signal)' : '') + '. ' : '') +
       (booked ? 'Booked off: <b>' + esc(booked.reason) + '</b>' + (booked.booked_by ? ' (' + esc(booked.booked_by) + ')' : '') + '. ' : '') +
-      (done ? 'This register is finished: a change goes to Nisia and is kept.' : '') + '</p>' +
+      (done ? 'This register is finished: a change goes to Evia Portal and is kept.' : '') + '</p>' +
     '<div class="sn-marks">' +
       '<button type="button" data-m="here" class="' + (now === "here" ? "on" : "") + '"><i aria-hidden="true">✓</i>Here</button>' +
       '<button type="button" data-m="late" class="' + (now === "late" ? "on" : "") + '"><i aria-hidden="true">◷</i>Late</button>' +
@@ -354,7 +354,7 @@ function bookSheet(enrolmentId, name) {
       list.push({ id: r && r.id || "local-" + Date.now(), local: !r, enrolment_id: enrolmentId, starts_on: from, ends_on: to, kind, reason: reason || REASONS.find(([k]) => k === kind)[1], booked_by: who && who.name || "", booked_by_role: "tutor" });
       write(K.absences, list);
       layer.remove(); hit("absence.book");
-      toast(r ? "Booked. " + first(name) + " and everyone with them has been told." : "Booked on this device. It goes to Nisia when there’s a signal.");
+      toast(r ? "Booked. " + first(name) + " and everyone with them has been told." : "Booked on this device. It goes to Evia Portal when there’s a signal.");
       decorate();
     } catch (e) { btn.disabled = false; err.textContent = e.message; }
   };
@@ -449,23 +449,23 @@ function decorate() {
     if (!host) return;
     const st = App().getState(), regId = App().activeRegisterId(), reg = st.classes.find((c) => c.id === regId);
     if (!reg) return;
-    /* A class the college set up in Nisia: one badge by its name (not a tag on every learner). */
+    /* A class the college set up in Evia Portal: one badge by its name (not a tag on every learner). */
     const h2 = host.querySelector(".clean-register-head h2");
-    if (h2 && reg.managed && !h2.querySelector(".sn-managed")) h2.insertAdjacentHTML("beforeend", ' <span class="sn-managed" title="Set up by your college in Nisia. You can still change it.">From Nisia</span>');
+    if (h2 && reg.managed && !h2.querySelector(".sn-managed")) h2.insertAdjacentHTML("beforeend", ' <span class="sn-managed" title="Set up by your college in Evia Portal. You can still change it.">From Evia Portal</span>');
     const key = App().today(), code = App().timing(regId), people = regLearners(st, reg), sent = read(K.sent, {})[regId + ":" + key];
     const mine = checked()[regId + ":" + key] || {}, off = people.filter((p) => !mine[p.id] && bookedFor(p.nisia.enrolmentId, key));
     const bar = document.createElement("div"); bar.className = "sn-bar"; bar.dataset.n = String(people.length);
     const pills = (off.length ? '<em class="sn-pill">' + off.length + ' booked off</em>' : '') + (readyOffline(regId, key) ? '<em class="sn-pill" title="The code works here with no signal">Ready offline</em>' : '');
-    if (!signedIn) bar.innerHTML = '<span>Sign in to Nisia so learners can check in with Evia and their hours count.</span><button type="button" class="soft-button" data-sn-connect>Connect to Nisia</button>';
-    else if (!people.length) bar.innerHTML = '<span>None of this register’s learners are from Nisia. Add them with <b>+ Learner</b> so they can check in.</span>';
+    if (!signedIn) bar.innerHTML = '<span>Sign in to Evia Portal so learners can check in with Evia and their hours count.</span><button type="button" class="soft-button" data-sn-connect>Connect to Evia Portal</button>';
+    else if (!people.length) bar.innerHTML = '<span>None of this register’s learners are from Evia Portal. Add them with <b>+ Learner</b> so they can check in.</span>';
     else if (LIVE.includes(code)) {
       const n = Object.keys(mine).length;
       bar.innerHTML = '<span><b>' + n + ' of ' + (people.length - off.length) + '</b> checked in with Evia ' + pills + '</span><button type="button" class="blue-button" data-sn-show>Show check-in code</button>';
     } else if (code === "completed") {
       const fail = read(K.failed, {})[regId + ":" + key];
-      bar.innerHTML = sent ? '<span class="sn-ok">Sent to Nisia. The hours are in your learners’ Evia. Tap a mark to change it.</span>'
-        : fail ? '<span class="sn-fail"><b>Not sent to Nisia yet.</b> Nisia said: ' + esc(fail.message) + '. Symi keeps it and tries again every minute.</span><button type="button" class="soft-button" data-sn-retry>Try again</button>'
-        : '<span>Waiting to send to Nisia…</span>';
+      bar.innerHTML = sent ? '<span class="sn-ok">Sent to Evia Portal. The hours are in your learners’ Evia. Tap a mark to change it.</span>'
+        : fail ? '<span class="sn-fail"><b>Not sent to Evia Portal yet.</b> Evia Portal said: ' + esc(fail.message) + '. Symi keeps it and tries again every minute.</span><button type="button" class="soft-button" data-sn-retry>Try again</button>'
+        : '<span>Waiting to send to Evia Portal…</span>';
     }
     else if (["early", "not-today"].includes(code) && (off.length || readyOffline(regId, key))) bar.innerHTML = '<span>Today ' + pills + '</span>';
     else if (code === "ended") bar.innerHTML = '<span>Session ended. Check the marks, then Finish.</span>';
@@ -521,7 +521,7 @@ function decorate() {
   } finally { decorating = false; }
 }
 
-/* ---------- Finished registers → Nisia ---------- */
+/* ---------- Finished registers → Evia Portal ---------- */
 function resend(regId, key) { const sent = read(K.sent, {}); delete sent[regId + ":" + key]; write(K.sent, sent); sendFinished(); }
 let sending = false;
 async function sendFinished() {
@@ -533,13 +533,13 @@ async function sendFinished() {
       if (!row || !row.sessionKey || sent[row.sessionKey] || !row.date || row.date < cutoff) continue;
       const reg = st.classes.find((c) => c.id === row.classId);
       if (!reg) continue;
-      /* Only learners linked to Nisia on or before that day (older history stays in Symi). */
+      /* Only learners linked to Evia Portal on or before that day (older history stays in Symi). */
       const rows = Object.entries(row.data || {}).map(([id, d]) => ({ id, d, n: nisiaOf(st, id) })).filter((x) => x.n && x.n.linkedAt <= row.date);
       if (!rows.length) continue;
       try {
         const s = await ensureSession(row.classId, row.date);
         const now = new Date().toISOString(), mk = marks()[row.sessionKey] || {}, b = App().bounds(row.classId, row.date);
-        /* What Nisia already has: check-ins (some made with no signal, which this Symi may not have seen). */
+        /* What Evia Portal already has: check-ins (some made with no signal, which this Symi may not have seen). */
         const there = await A.send("checkIns", { p_session: s.id });
         const seen = new Map((there || []).map((a) => [a.enrolment_id, a]));
         const up = rows.filter((x) => x.n.org === s.org).map((x) => {
@@ -555,8 +555,8 @@ async function sendFinished() {
         sent[row.sessionKey] = now; write(K.sent, sent); hit("register.sent");
         const fails = read(K.failed, {}); delete fails[row.sessionKey]; write(K.failed, fails);
       } catch (e) {
-        console.warn("Symi: Nisia", row.sessionKey, e.message);
-        /* Said on the register, so a register that can't reach Nisia never looks as if it's on its way. */
+        console.warn("Symi: Evia Portal", row.sessionKey, e.message);
+        /* Said on the register, so a register that can't reach Evia Portal never looks as if it's on its way. */
         const fails = read(K.failed, {}); fails[row.sessionKey] = { at: Date.now(), message: String(e.message || e) }; write(K.failed, fails);
       }
     }
@@ -592,7 +592,7 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
 })();
 
 /* ---------- The class quiz on learners' phones (symi-teach.js runs it) ----------
-   The tutor starts it on the classroom screen; learners on the class answer in Evia. Needs Nisia and a signal: with
+   The tutor starts it on the classroom screen; learners on the class answer in Evia. Needs Evia Portal and a signal: with
    neither, the quiz is the hands-up kind. */
 window.SymiNisia = {
   live: () => signedIn && online(),
@@ -601,8 +601,8 @@ window.SymiNisia = {
   quizState: (id) => A.send("quizState", { p_quiz: id }),
   /* The college's shared resources (Resources › College). */
   college: () => (tutorOrgs()[0] || null),
-  resources: async () => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Nisia."); return A.send("collegeResources", { p_org: o.organisation_id }); },
-  share: async (kind, title, opts) => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Nisia.");
+  resources: async () => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Evia Portal."); return A.send("collegeResources", { p_org: o.organisation_id }); },
+  share: async (kind, title, opts) => { const o = tutorOrgs()[0]; if (!o) throw new Error("You’re not a tutor at a college in Evia Portal.");
     return A.send("shareResource", { p_org: o.organisation_id, p_kind: kind, p_title: title, p_course: (opts && opts.course) || null, p_unit: (opts && opts.unit) || null, p_content: (opts && opts.content) || {}, p_url: (opts && opts.url) || null }); },
   unshare: (id) => A.send("unshareResource", { p_id: id }),
 };

@@ -1,7 +1,7 @@
-/* Symi on Nisia, in a browser with a stand-in Supabase: a tutor signs in to Nisia from Symi, their learners come
-   from Nisia (matched to the register's learner by name), "Show check-in code" shows the changing code Nisia checks
+/* Symi on Evia Portal, in a browser with a stand-in Supabase: a tutor signs in to Evia Portal from Symi, their learners come
+   from Evia Portal (matched to the register's learner by name), "Show check-in code" shows the changing code Evia Portal checks
    (the same signature the database makes), a learner checking in with Evia ticks them and starts their timer, and the
-   finished register goes to Nisia for the Nisia learners only.   Run: node tests/symi.test.mjs */
+   finished register goes to Evia Portal for the Evia Portal learners only.   Run: node tests/symi.test.mjs */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -40,19 +40,19 @@ function handle(route) {
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-priya", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-priya", name: "Priya Shah", memberships: [{ organisation_id: "O1", organisation: "Walsall College", member_id: "MT", roles: ["tutor"] }] });
   if (p === "/rest/v1/rpc/nisia_college_learners") return json([learner(1, "Callum Hughes"), learner(2, "Amira Khan"), learner(3, "Not Mine", false)]);
-  /* Classes the college set up in the Nisia portal: one is Priya's. */
+  /* Classes the college set up in the Evia Portal portal: one is Priya's. */
   if (p === "/rest/v1/rpc/symi_my_classes") return json([{ id: "C9", organisation_id: "O1", client_ref: "nisia-c9", title: "L2 Bricklaying Thursday", course_code: "bricklayer", room: "Workshop 3", managed: true, updated_at: "2026-10-07T10:00:00Z",
     schedule: { day: "Thursday", start: "09:00", end: "15:30", breaks: [{ start: "12:00", end: "12:30" }], recurrence: { type: "weekly", interval: 1, weekdays: ["Thursday"], monthDays: [], startDate: "2026-10-08", endDate: "2027-07-15", anchorDate: "2026-10-08", onceDate: "" } },
     learners: [{ enrolment_id: "E1", name: "Callum Hughes" }, { enrolment_id: "E2", name: "Amira Khan" }] }]);
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
   if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Ill", booked_by: "Amira Khan", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
-  /* Symi asks Nisia through named actions only; it never touches the class tables. */
+  /* Symi asks Evia Portal through named actions only; it never touches the class tables. */
   if (/^\/rest\/v1\/(classes|class_learners|class_sessions|class_attendance)/.test(p)) { posted.push({ t: "TABLE " + p.slice(9), m: q.method() }); return json({ message: "Symi touched a table" }, 403); }
   if (p === "/rest/v1/rpc/symi_save_class") { posted.push({ t: "saveClass", body }); return json("CLS1"); }
   if (p === "/rest/v1/rpc/symi_open_session") { posted.push({ t: "openSession", body }); return json({ id: "SES1", status: "open" }); }
   if (p === "/rest/v1/rpc/symi_checkins") return json(checkins);
-  if (p === "/rest/v1/rpc/symi_finish_register") { if (refuse) { refuse = false; return json({ code: "42501", message: "That class isn’t yours in Nisia." }, 400); } posted.push({ t: "finish", body }); return json(body.p_marks.length); }
+  if (p === "/rest/v1/rpc/symi_finish_register") { if (refuse) { refuse = false; return json({ code: "42501", message: "That class isn’t yours in Evia Portal." }, 400); } posted.push({ t: "finish", body }); return json(body.p_marks.length); }
   if (p.startsWith("/rest/v1/")) { posted.push({ t: p.slice(9), m: q.method(), body, s: u.search }); return route.fulfill({ status: 201, headers: { "access-control-allow-origin": "*" }, body: "" }); }
   return json({ error: "not faked " + p }, 404);
 }
@@ -64,20 +64,20 @@ try {
   page.on("dialog", (d) => d.accept());
   await page.route(/supabase\.co/, handle);
   await page.goto(url + "update.json");
-  /* A tutor who already uses Symi: a class today with two learners, one of them a Nisia learner by name. */
+  /* A tutor who already uses Symi: a class today with two learners, one of them an Evia Portal learner by name. */
   await page.evaluate(() => {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.34.8");
+    localStorage.setItem("symi-last-seen-release-v1", "0.34.9");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
   });
   await page.goto(url); await page.waitForTimeout(1500);
   await page.evaluate(() => window.SamosApp.openRegisters()); await page.waitForTimeout(500);
-  const before = { chip: /Connect to Nisia/.test(await page.textContent("#nisiaButton")), bar: /Sign in to Nisia/.test(await page.textContent(".sn-bar")) };
-  check("Symi works as before, with Connect to Nisia in the header and on the register", before.chip && before.bar, JSON.stringify(before));
+  const before = { chip: /Connect to Evia Portal/.test(await page.textContent("#nisiaButton")), bar: /Sign in to Evia Portal/.test(await page.textContent(".sn-bar")) };
+  check("Symi works as before, with Connect to Evia Portal in the header and on the register", before.chip && before.bar, JSON.stringify(before));
   /* Evia's look: the bar along the bottom goes to each screen, and Symi's face in the middle opens her menu. */
   const look = {};
   for (const [tab, view] of [["learners", "learners"], ["resources", "resources"], ["home", "home"], ["registers", "registers"]]) {
@@ -109,12 +109,12 @@ try {
   await page.waitForTimeout(800);
   const st = await page.evaluate(() => window.SamosApp.getState());
   const callum = st.learners.find((l) => l.id === "x1"), amira = st.learners.find((l) => l.name === "Amira Khan");
-  check("Signed in, the tutor's own learners come from Nisia: matched to the register's learner by name, nobody else's",
+  check("Signed in, the tutor's own learners come from Evia Portal: matched to the register's learner by name, nobody else's",
     !!(callum && callum.nisia && callum.nisia.enrolmentId === "E1") && !!(amira && amira.nisia && amira.id === "x3") && !st.learners.some((l) => l.name === "Not Mine") && !st.learners.find((l) => l.id === "x2").nisia);
   const fromNisia = await page.evaluate(() => { const c = window.SamosApp.getState().classes.find((x) => x.id === "nisia-c9");
     return !!c && c.name === "L2 Bricklaying Thursday" && c.room === "Workshop 3" && c.start === "09:00" && c.recurrence.weekdays.join() === "Thursday" && c.recurrence.endDate === "2027-07-15" &&
       c.learners.map((l) => l.id).sort().join() === "x1,x3" && c.managed && !c.archived && c.breaks.length === 1 && c.breaks[0].start === "12:00" && c.breaks[0].end === "12:30"; });
-  check("A class the college set up in Nisia is in the tutor's registers straight away: its days, times, breaks, dates, room and learners (matched to Symi's own)", fromNisia);
+  check("A class the college set up in Evia Portal is in the tutor's registers straight away: its days, times, breaks, dates, room and learners (matched to Symi's own)", fromNisia);
   await page.waitForSelector('[data-attendance-learner="x3"] .sn-mark');
   const offMark = await page.textContent('[data-attendance-learner="x3"] .sn-mark'), barNow = await page.textContent(".sn-bar");
   check("A day Amira booked off (in Evia) shows on the register before anyone arrives, and isn't counted as expected",
@@ -128,9 +128,9 @@ try {
   const w = Math.floor(Date.now() / 1000 / 20), shown = (await page.textContent(".sn-checkin .sn-code")).replace(/\s/g, "");
   const ok = [w, w - 1].some((x) => expected(x).short === shown);
   const sess = posted.find((x) => x.t === "openSession"), cls = posted.find((x) => x.t === "saveClass");
-  check("Today's session goes to Nisia with what's taught from the class's scheme of work, and its KSBs (they go with each learner's hours to Evia and Milos)",
+  check("Today's session goes to Evia Portal with what's taught from the class's scheme of work, and its KSBs (they go with each learner's hours to Evia and Milos)",
     !!sess && /Mixing mortar/.test(sess.body.p_lesson || "") && (sess.body.p_ksbs || []).length >= 8 && (sess.body.p_ksbs || []).includes("S14"), JSON.stringify(sess && sess.body));
-  check("Show check-in code: the class, its Nisia learners and today's session go to Nisia, and the code is the one Nisia checks (changing every 20 seconds)",
+  check("Show check-in code: the class, its Evia Portal learners and today's session go to Evia Portal, and the code is the one Evia Portal checks (changing every 20 seconds)",
     /0 of 1 checked in/.test(barText) && ok && !!(await page.$(".sn-checkin .sn-qr canvas, .sn-checkin .sn-qr img, .sn-checkin .sn-qr svg")) && !!cls && cls.body.p_client_ref === "r1" && cls.body.p_org === "O1" &&
     cls.body.p_enrolments.length === 2 && cls.body.p_enrolments.includes("E1") && !!sess && sess.body.p_class === "CLS1" && !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify({ shown, exp: expected(w).short, cls: cls && cls.body }));
   fs.mkdirSync(path.join(root, "tests", "shots"), { recursive: true });
@@ -153,7 +153,7 @@ try {
   await page.click('[data-attendance-learner="x3"] .sn-mark'); await page.click("[data-book]");
   await page.click('.sn-reasons [data-k="holiday"]'); await page.click("[data-save]"); await page.waitForTimeout(400);
   const book = posted.find((x) => x.t === "book");
-  check("The tutor books days off for a learner from the register (Nisia tells everyone)", !!book && book.body.p_enrolment === "E2" && book.body.p_kind === "holiday" && !(await page.$(".sn-sheet")), JSON.stringify(book));
+  check("The tutor books days off for a learner from the register (Evia Portal tells everyone)", !!book && book.body.p_enrolment === "E2" && book.body.p_kind === "holiday" && !(await page.$(".sn-sheet")), JSON.stringify(book));
 
   /* No signal in the classroom: the code still shows, from the key kept on this device. */
   await ctx.setOffline(true);
@@ -172,17 +172,17 @@ try {
   await page.waitForTimeout(1500);
   refuse = true;
   await page.click("[data-finish-register]");
-  await page.waitForFunction(() => /Not sent to Nisia yet/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
+  await page.waitForFunction(() => /Not sent to Evia Portal yet/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const failBar = await page.textContent(".sn-bar");
-  check("If Nisia refuses a finished register, Symi says so and why (not 'waiting'), keeps it, and Try again sends it", /Not sent to Nisia yet/.test(failBar) && /isn’t yours/.test(failBar), failBar);
+  check("If Evia Portal refuses a finished register, Symi says so and why (not 'waiting'), keeps it, and Try again sends it", /Not sent to Evia Portal yet/.test(failBar) && /isn’t yours/.test(failBar), failBar);
   await page.click("[data-sn-retry]");
-  await page.waitForFunction(() => /Sent to Nisia/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
+  await page.waitForFunction(() => /Sent to Evia Portal/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const fin = posted.find((x) => x.t === "finish"), att = fin ? fin.body.p_marks : [];
-  check("Finishing the register sends each Nisia learner's time, late mark and reason to Nisia in one action (only Nisia learners), and never touches a table",
+  check("Finishing the register sends each Evia Portal learner's time, late mark and reason to Evia Portal in one action (only Evia Portal learners), and never touches a table",
     !!fin && fin.body.p_session === "SES1" && att.length === 2 && att[0].enrolment_id === "E1" && att[0].status === "present" && att[0].late === true &&
     att[1].enrolment_id === "E2" && att[1].status === "absent" && att[1].reason === "Dentist" && att[1].minutes === 0 &&
-    !posted.some((x) => /^TABLE/.test(x.t)) && /Sent to Nisia/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, tables: posted.filter((x) => /^TABLE/.test(x.t)) }));
-  /* The tutor changes the class (weekly now, a new finish time): Nisia hears within a minute, not the next day, so
+    !posted.some((x) => /^TABLE/.test(x.t)) && /Sent to Evia Portal/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, tables: posted.filter((x) => /^TABLE/.test(x.t)) }));
+  /* The tutor changes the class (weekly now, a new finish time): Evia Portal hears within a minute, not the next day, so
      learners' Evia shows the classes coming up. */
   const savedBefore = posted.filter((x) => x.t === "saveClass").length;
   await page.evaluate(() => {
@@ -194,7 +194,7 @@ try {
   });
   for (let i = 0; i < 20 && posted.filter((x) => x.t === "saveClass").length <= savedBefore; i++) await page.waitForTimeout(250);
   const changed = posted.filter((x) => x.t === "saveClass").slice(savedBefore);
-  check("Changing a class reaches Nisia straight away (new times and weekly dates), so Evia can show the classes coming up",
+  check("Changing a class reaches Evia Portal straight away (new times and weekly dates), so Evia can show the classes coming up",
     changed.some((x) => x.body.p_schedule && x.body.p_schedule.end === "23:59" && x.body.p_schedule.recurrence && x.body.p_schedule.recurrence.type === "weekly"), JSON.stringify(changed.map((x) => x.body.p_schedule)));
   /* With the class weekly now, the register shows days off booked for the coming classes (Amira's booking), before the day. */
   await page.waitForFunction(() => /Coming up: Amira off/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 15000 }).catch(() => {});

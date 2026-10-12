@@ -97,7 +97,7 @@ export function packPdf(pack) {
   text(pack.learner, 20, "bold", 1);
   text((pack.C.name || "") + (pack.C.std ? " (" + pack.C.std + ")" : ""), 11, "normal", 0.5);
   text((pack.employer ? pack.employer + " · " : "") + ukDate(pack.start) + " to " + ukDate(pack.end), 10, "normal", 0.5, M, full, true);
-  text("Prepared by " + pack.by + " on " + ukDate(pack.made) + " from the records in Nisia.", 10, "normal", 3, M, full, true);
+  text("Prepared by " + pack.by + " on " + ukDate(pack.made) + " from the records in Evia Portal.", 10, "normal", 3, M, full, true);
 
   /* Summary boxes. */
   const boxes = [[T.signed + "/" + T.ksbs, pack.word + " signed off (" + T.pct + "%)"], [String(T.evidence), "pieces of evidence"], [String(T.observations), "observations"], [pack.weeksActive + "/" + pack.weeksSoFar, "weeks with evidence"]];
@@ -143,7 +143,7 @@ export function packPdf(pack) {
     if (it.a && it.a.feedback) text("Feedback: " + it.a.feedback, 8.5, "italic", 0.6);
     y += 1.8;
   });
-  text("Each piece of evidence, with its photos, downloads in full from Milos or Nisia.", 7.5, "normal", 2, M, full, true);
+  text("Each piece of evidence, with its photos, downloads in full from Milos or Evia Portal.", 7.5, "normal", 2, M, full, true);
 
   /* Reviews. */
   head("Progress reviews");

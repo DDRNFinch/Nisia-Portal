@@ -1,4 +1,4 @@
-const VERSION = "2026-10-12-evia7-v248";
+const VERSION = "2026-10-12-evia7-v249";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -124,7 +124,7 @@ self.addEventListener("fetch", event => {
   })());
 });
 
-/* Notifications from Nisia (course things only; the learner turned them on). Tapping one opens Evia at the right
+/* Notifications from Evia Portal (course things only; the learner turned them on). Tapping one opens Evia at the right
    place: the open Evia if there is one, otherwise a new one. */
 self.addEventListener("push", event => {
   let m = {};

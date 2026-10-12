@@ -1,5 +1,5 @@
-/* Nisia portal, in the Nisia Portal mock-up's design: a sidebar, a stat strip, "Needs attention", progress against
-   plan, and a page per learner. Real data from Nisia (Supabase), under each college's own rules.
+/* Evia Portal portal, in the Evia Portal Portal mock-up's design: a sidebar, a stat strip, "Needs attention", progress against
+   plan, and a page per learner. Real data from Evia Portal (Supabase), under each college's own rules.
    Master admin (the developer): every college, its seats and licence; create colleges and invite their admins.
    College portal: overview, learners, reviews, staff, courses and licence. Assessors and tutors see their own
    learners here and work in Milos. */
@@ -11,20 +11,23 @@ import { coursePack, loadPacks, topicFor, packsLike } from "../../packages/core/
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { standardsPage } from "./standards.js";
 import { collegePacksPage } from "./college-packs.js";
+import { assistantsPage } from "./assistants.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
 /* The portal opened for a test account (?test): its own sign-in, and it stays in test mode. */
 const TEST_PORTAL = BASE + "?test";
-const MILOS = new URL("milos/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
-const SYMI = new URL("symi/", BASE.replace(/apps\/nisia-web\/$/, "")).href, PAROS = new URL("paros/", BASE.replace(/apps\/nisia-web\/$/, "")).href;
-/* Every Nisia app, for everyone signed in to the portal (each app checks who can use it). */
+/* The other apps sit beside the portal: /nisia-app/milos/ next to /nisia-app/nisia/ when published,
+   apps/milos/ next to apps/nisia-web/ here. */
+const SITE = BASE.replace(/[^/]*$/, "").replace(/(nisia-web|nisia)\/$/, "");
+const MILOS = new URL("milos/", SITE).href, SYMI = new URL("symi/", SITE).href, PAROS = new URL("paros/", SITE).href;
+/* Every Evia Portal app, for everyone signed in to the portal (each app checks who can use it). */
 const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "Assessors", "#2C85F7"], ["Symi", SYMI, "Tutors, in the classroom", "#63C495"], ["Paros", PAROS, "Employers", "#0E9384"]];
 const DAY = 864e5;
 let who = null;
 const S = { page: "overview", org: null, learner: null, filter: "all", q: "", data: null };
 
-const start = () => auth(root, { title: "Nisia", subtitle: "For college and training provider staff.", split: true, onReady: home });
+const start = () => auth(root, { title: "Evia Portal", subtitle: "For college and training provider staff.", split: true, onReady: home });
 db.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") start(); });
 start();
 
@@ -45,6 +48,7 @@ const ICON = {
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   live: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
 const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7", "#8A5A44", "#4A5B6E"];
@@ -80,9 +84,9 @@ const busy = async (btn, label, fn) => { const was = btn.textContent; btn.disabl
 const formData = (f) => Object.fromEntries(new FormData(f).entries());
 const inviteUrl = (code) => BASE + "#invite=" + code;
 function linkBox(url, email, name) {
-  const body = encodeURIComponent("Hi" + (name ? " " + name : "") + ",\n\nYou’ve been invited to Nisia. Open this link to set up your sign-in (it works once, for 14 days):\n\n" + url + "\n\nIf the page asks you to sign in, tap “New here? I have an invite” and paste the link.\nYou’ll need an authenticator app on your phone, such as Google Authenticator or Microsoft Authenticator.");
+  const body = encodeURIComponent("Hi" + (name ? " " + name : "") + ",\n\nYou’ve been invited to Evia Portal. Open this link to set up your sign-in (it works once, for 14 days):\n\n" + url + "\n\nIf the page asks you to sign in, tap “New here? I have an invite” and paste the link.\nYou’ll need an authenticator app on your phone, such as Google Authenticator or Microsoft Authenticator.");
   return '<div class="linkbox"><input class="input" readonly value="' + esc(url) + '" aria-label="Invite link"><button class="btn" type="button" data-copy="' + esc(url) + '">Copy</button></div>' +
-    (email ? '<a class="btn wide" href="mailto:' + esc(email) + '?subject=' + encodeURIComponent("Your Nisia invite") + '&body=' + body + '">Email it to ' + esc(email) + '</a>' : "") +
+    (email ? '<a class="btn wide" href="mailto:' + esc(email) + '?subject=' + encodeURIComponent("Your Evia Portal invite") + '&body=' + body + '">Email it to ' + esc(email) + '</a>' : "") +
     '<p class="small muted">Shown once. It works once, for 14 days.</p>';
 }
 document.addEventListener("click", async (e) => {
@@ -96,16 +100,16 @@ function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
-    .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"]] : [])
+    .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"], ["assistants", "Assistants", "spark"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
 function shell(content) {
   const m = S.org ? mine(S.org) : null, orgName = S.data && S.data.summary ? S.data.summary.name : m && m.organisation;
   const cur = S.page === "learner" ? "learners" : S.page;
   root.innerHTML =
-    '<div class="mobile-head"><div style="display:flex;align-items:center;gap:8px">' + MARK + '<span class="brand-name" style="font-size:19px">Nisia</span></div><button class="btn" id="menuBtn" aria-label="Open menu">' + ICON.menu + '</button></div>' +
+    '<div class="mobile-head"><div style="display:flex;align-items:center;gap:8px">' + MARK + '<span class="brand-name" style="font-size:19px">Evia Portal</span></div><button class="btn" id="menuBtn" aria-label="Open menu">' + ICON.menu + '</button></div>' +
     '<div class="shell"><aside class="side" id="side">' +
-      '<div class="brand">' + MARK + '<div><div class="brand-name">Nisia</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
+      '<div class="brand">' + MARK + '<div><div class="brand-name">Evia Portal</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
       '<nav class="nav" aria-label="Main">' + (S.org && who.platform_admin ? '<button type="button" data-go="colleges">' + ICON.back + 'All colleges</button><div class="nav-sep"></div>' : "") +
         navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + '</button>').join("") +
         '<div class="nav-sep"></div><span class="nav-label">Apps</span>' + APPS.map(([name, href, who, dot]) => '<a class="nav-app" href="' + esc(href) + '" target="_blank" rel="noopener"><i style="background:' + dot + '" aria-hidden="true"></i><span><b>' + name + '</b><small>' + who + '</small></span></a>').join("") + '</nav>' +
@@ -136,18 +140,19 @@ async function home() {
 }
 async function render() {
   if (!S.org) return S.page === "usage" ? usagePage() : S.page === "standards" ? standardsPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, ukDate }) : colleges();
-  /* Fresh from Nisia whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
+  /* Fresh from Evia Portal whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
   if (!S.data || S.data.org !== S.org) {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
   ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+    assistants: () => assistantsPage({ shell, esc, modal, closeModal, toast, hit, ukDate, summary: () => S.data.summary }),
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
 /* ---------- College data, and each learner's status ---------- */
 async function loadCollege() {
-  await loadPacks(rpc).catch((e) => console.warn("Nisia: packs", e.message));
+  await loadPacks(rpc).catch((e) => console.warn("Evia Portal: packs", e.message));
   const org = S.org, m = mine(org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
   const [summary, learners, staff, activity] = await Promise.all([
     admin || quality ? rpc("nisia_college_summary", { p_org: org }) : null,
@@ -228,7 +233,7 @@ function learnersPage() {
   const full = sum && (sum.seats_used >= sum.seats || sum.status !== "active");
   shell(
     '<div class="topbar"><div><div class="label">' + esc(sum ? sum.name : "") + '</div><h1>Learners</h1></div><div class="actions">' + (D.admin ? '<button class="btn primary" type="button" id="add"' + (full ? " disabled" : "") + '>' + ICON.plus + 'Add a learner</button>' : "") + '</div></div>' +
-    (D.admin && sum && sum.status !== "active" ? '<p class="err">This college’s licence is suspended. Existing learners carry on; new ones can’t be added.</p>' : D.admin && full ? '<p class="hint">All ' + sum.seats + ' seats are in use. Contact Nisia to add more.</p>' : "") +
+    (D.admin && sum && sum.status !== "active" ? '<p class="err">This college’s licence is suspended. Existing learners carry on; new ones can’t be added.</p>' : D.admin && full ? '<p class="hint">All ' + sum.seats + ' seats are in use. Contact Evia to add more.</p>' : "") +
     '<div class="filters"><input class="input search" id="q" type="search" placeholder="Search by name" value="' + esc(S.q) + '" aria-label="Search learners">' +
       '<div class="seg" role="group" aria-label="Filter by status">' + [["all", "All"], ["bad", "At risk"], ["warn", "Needs a look"], ["good", "On track"]].map(([k, t]) => '<button type="button" data-filter="' + k + '" aria-pressed="' + (S.filter === k) + '">' + t + ' <span class="num" style="opacity:.6">' + count(k) + '</span></button>').join("") + '</div></div>' +
     '<div class="table-wrap"><table><thead><tr><th>Learner</th><th>Course</th><th>Last active</th><th>Evidence</th><th>KSB coverage vs plan</th><th>Learning hours vs plan</th><th>Status</th></tr></thead><tbody>' +
@@ -304,7 +309,7 @@ function choosePack(l) {
   const first = (l.name || "").split(" ")[0], list = packsLike(l.course_code, l.enrolment_id);
   const m = modal("Pack for " + l.name, '<p class="muted small" style="margin-top:-4px">The topics ' + esc(first) + ' is taught and evidenced in. Changing it never loses evidence or sign-offs: they’re kept by KSB and shown under the new topics.</p>' +
     '<form id="pkF" style="display:grid;gap:8px">' + list.map((p) => '<label class="check" style="border-radius:12px"><input type="radio" name="p" value="' + esc(p.id) + '"' + (p.current ? " checked" : "") + '> <span><b>' + esc(p.title) + '</b> <span class="small muted">' +
-      (p.college ? "The college’s own" : "Yours (Nisia)") + ' · ' + p.topics + ' topics</span></span></label>').join("") +
+      (p.college ? "The college’s own" : "Yours (Evia)") + ' · ' + p.topics + ' topics</span></span></label>').join("") +
     '<p class="err" hidden></p><div class="row-actions"><button class="btn primary" type="submit">Save</button></div></form>');
   m.querySelector("#pkF").onsubmit = (e) => { e.preventDefault(); const v = new FormData(e.target).get("p"), err = m.querySelector(".err");
     busy(e.target.querySelector("[type=submit]"), "Saving…", async () => {
@@ -546,7 +551,7 @@ function licencePage() {
       '<section class="panel"><div class="panel-head"><h2>Licence</h2>' + (s.status === "active" ? '<span class="pill good">Active</span>' : '<span class="pill bad">Suspended</span>') + '</div>' +
         '<div style="display:flex;align-items:baseline;gap:8px"><span class="num" style="font-family:var(--display);font-size:34px;font-weight:700">' + s.seats_used + '</span><span class="muted">of ' + s.seats + ' seats in use</span></div>' +
         '<div class="seatbar"><span style="width:' + (s.seats ? Math.min(100, s.seats_used / s.seats * 100) : 0) + '%"></span></div>' +
-        '<p class="small muted">' + (s.licence_ends ? "Licence runs until " + esc(ukDate(s.licence_ends)) + ". " : "") + 'Each learner uses a seat until they complete or withdraw. For more seats, contact Nisia.</p></section>' +
+        '<p class="small muted">' + (s.licence_ends ? "Licence runs until " + esc(ukDate(s.licence_ends)) + ". " : "") + 'Each learner uses a seat until they complete or withdraw. For more seats, contact Evia.</p></section>' +
       '<section class="panel"><div class="panel-head"><h2>Courses</h2></div>' +
         COURSES.map((c) => '<div class="course"><div><b>' + esc(c.name) + '</b><br><span class="small muted">Units and KSBs, Teach me lessons, EPA guide and tests</span></div><span class="pill good">Included</span></div>').join("") + '</section>' +
     '</div>');
@@ -653,7 +658,7 @@ async function usagePage() {
 }
 
 /* ---------- College: impact ----------
-   How the college's apprentices, staff and employers are using Nisia and Evia, for a period set against the one
+   How the college's apprentices, staff and employers are using Evia Portal and Evia, for a period set against the one
    before it: engagement, evidence, marking turnaround, learning hours against plan, reviews and attendance, and what
    learners did in Evia. For quality meetings, Ofsted and the employer-facing story; prints as a report. */
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"], ["365", "Last 12 months"]];
@@ -724,7 +729,7 @@ async function impactPage() {
       '<tr class="static"><td>Days apprentices used Evia</td><td class="num">' + now.devices + '</td><td class="num muted">' + before.devices + '</td></tr>' +
       EVIA.map(([key, t]) => '<tr class="static"><td>' + t + '</td><td class="num">' + n(e, key) + '</td><td class="num muted">' + n(eb, key) + '</td></tr>').join("") + '</tbody></table></div>' +
       '<p class="small muted" style="margin-top:8px">From Evia’s anonymous counts, for connected apprentices who haven’t switched them off. No names or work are sent.</p></section>' +
-    '<p class="small muted" style="margin-top:14px">Made by Nisia on ' + esc(ukDate(iso(Date.now()))) + '. Apprentices on programme at any point in the period. Evidence counts pieces the apprentice added themselves.</p>');
+    '<p class="small muted" style="margin-top:14px">Made by Evia on ' + esc(ukDate(iso(Date.now()))) + '. Apprentices on programme at any point in the period. Evidence counts pieces the apprentice added themselves.</p>');
   root.querySelectorAll("[data-period]").forEach((btn) => btn.onclick = () => { S.period = btn.dataset.period; impactPage(); });
   root.querySelector("#print").onclick = () => { hit("impact.pdf"); window.print(); };
 }
@@ -733,7 +738,7 @@ async function impactPage() {
    Each learner over a period: sessions, here, late, absent with a reason, absent with none, and their attendance
    against the college's target; those below it first, with how many unexplained absences in a row. Admins set the
    college's own rules here: when a learner counts as late, the target, and how many unexplained absences in a row
-   tell the admins (Nisia tells the learner, their tutor, assessor and employer about each one the same day). */
+   tell the admins (Evia Portal tells the learner, their tutor, assessor and employer about each one the same day). */
 async function attendancePage() {
   const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.attPeriod || "30", P = periodDates(k);
   shell('<p class="loading">Working out attendance…</p>');
@@ -1028,7 +1033,7 @@ async function colleges() {
       '<div class="stat"><span class="label">Colleges</span><span class="big num">' + list.length + '</span><span class="sub">' + list.filter((c) => c.status === "active").length + ' active</span></div>' +
       '<div class="stat"><span class="label">Seats sold</span><span class="big num">' + sold + '</span><span class="sub">across all licences</span></div>' +
       '<div class="stat"><span class="label">Seats in use</span><span class="big num">' + used + '</span><span class="sub">' + (sold ? Math.round(used / sold * 100) : 0) + '% of seats sold</span></div>' +
-      '<div class="stat"><span class="label">Learners</span><span class="big num">' + learners + '</span><span class="sub">on Nisia</span></div></section>' +
+      '<div class="stat"><span class="label">Learners</span><span class="big num">' + learners + '</span><span class="sub">on Evia Portal</span></div></section>' +
     '<div class="table-wrap"><table><thead><tr><th>College</th><th>Contact</th><th>Seats</th><th>Staff</th><th>Licence ends</th><th>Status</th></tr></thead><tbody>' +
     (list.length ? list.map((c) => '<tr data-id="' + c.id + '" tabindex="0"><td><div class="person">' + avatar(c.name) + '<b>' + esc(c.name) + '</b></div></td><td class="small">' + esc(c.contact_name || "") + (c.contact_email ? '<br><span class="muted">' + esc(c.contact_email) + '</span>' : "") + '</td>' +
       '<td style="min-width:170px"><div class="pbar-row"><div class="pbar" style="flex:1"><div class="fill" style="width:' + (c.seats ? Math.min(100, c.seats_used / c.seats * 100) : 0) + '%;background:' + (c.seats && c.seats_used >= c.seats ? "var(--bad)" : "var(--accent)") + '"></div></div><span class="num">' + c.seats_used + ' / ' + c.seats + '</span></div></td>' +
@@ -1040,16 +1045,16 @@ async function colleges() {
   root.querySelectorAll("tr[data-id]").forEach((r) => r.onclick = () => editCollege(list.find((c) => c.id === r.dataset.id)));
 }
 /* ---------- Testing: the master admin's test college ----------
-   Fake accounts for every role in a college of their own ("Nisia Test College"), so each app can be tried the way
+   Fake accounts for every role in a college of their own ("Evia Test College"), so each app can be tried the way
    it's really used, without touching a real college. The staff accounts are ordinary ones: a password and an
-   authenticator, set up once from an invite. Their emails are the master admin's with a +tag, so anything Nisia
+   authenticator, set up once from an invite. Their emails are the master admin's with a +tag, so anything Evia Portal
    sends them lands in the master admin's inbox. The test learner connects Evia with a pairing code. */
 const TEST_ROLES = { admin: ["College admin", "Portal", () => TEST_PORTAL], quality: ["Quality", "Portal", () => TEST_PORTAL], assessor: ["Assessor", "Milos", () => MILOS], tutor: ["Tutor", "Symi", () => SYMI], employer: ["Employer", "Paros", () => PAROS] };
 async function testPanel(test) {
   const box = root.querySelector("#testPanel"); if (!box) return;
   const head = '<div class="panel-head"><div><h2>Test college</h2><span class="small muted">Fake accounts for every role, to try each app as it’s really used. Real colleges aren’t touched.</span></div></div>';
   if (!test) {
-    box.innerHTML = head + '<p class="hint">Makes “Nisia Test College” with a test learner on Bricklaying, then you set up a test college admin, assessor, tutor, quality person and employer.</p><div class="row-actions"><button class="btn primary" id="tcMake">Set up the test college</button></div>';
+    box.innerHTML = head + '<p class="hint">Makes “Evia Test College” with a test learner on Bricklaying, then you set up a test college admin, assessor, tutor, quality person and employer.</p><div class="row-actions"><button class="btn primary" id="tcMake">Set up the test college</button></div>';
     box.querySelector("#tcMake").onclick = (e) => busy(e.target, "Setting up…", async () => { try { await call("nisia-admin", { action: "test_college" }); colleges(); } catch (x) { toast(x.message); } });
     return;
   }
@@ -1097,7 +1102,7 @@ function newCollege() {
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Creating…", async () => {
     try {
       const d = formData(f), r = await call("nisia-admin", { action: "create_college", ...d });
-      modal(d.name + " is set up", '<div style="display:flex;flex-direction:column;gap:12px"><p class="hint">Send this to ' + esc(d.admin_name || d.admin_email) + '. They choose a password, add Nisia to an authenticator app, and their college portal opens.</p>' + linkBox(inviteUrl(r.invite_code), d.admin_email, d.admin_name) + '</div>');
+      modal(d.name + " is set up", '<div style="display:flex;flex-direction:column;gap:12px"><p class="hint">Send this to ' + esc(d.admin_name || d.admin_email) + '. They choose a password, add Evia Portal to an authenticator app, and their college portal opens.</p>' + linkBox(inviteUrl(r.invite_code), d.admin_email, d.admin_name) + '</div>');
       colleges();
     } catch (x) { f.querySelector(".err").textContent = x.message; }
   }); };

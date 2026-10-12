@@ -1,8 +1,8 @@
 /* Checking in to a class: the learner scans the code on the classroom screen (Symi, the tutor's app), or types the
-   6 characters under it. Nisia checks it: the code changes every 20 seconds, so a photo of it sent to someone who
+   6 characters under it. Evia Portal checks it: the code changes every 20 seconds, so a photo of it sent to someone who
    isn't there has expired before they can use it. Checking in ticks the learner on the tutor's register; the tutor
    confirms the hours at the end, and they arrive in the learning log (nisia.js). With no signal, the scan is kept
-   and sent later; Nisia records it at the time it was scanned (the code proves when it was on the screen).
+   and sent later; Evia Portal records it at the time it was scanned (the code proves when it was on the screen).
    Phones with a built-in QR reader (Android) use it; others (iPhone) use jsQR, loaded only when it's needed.
    window.eviaCheckIn.open() */
 (function(){

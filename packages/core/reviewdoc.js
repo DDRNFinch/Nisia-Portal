@@ -1,5 +1,5 @@
 /* A completed progress review, as a document: one list of sections for the screen (reviewHtml) and the PDF
-   (reviewPdf), so both always match. Staff (Nisia and the assessor) see the signatures; the learner's copy
+   (reviewPdf), so both always match. Staff (Evia Portal and the assessor) see the signatures; the learner's copy
    ({ signatures: false }) names who signed and when, without the signatures themselves. Handles reviews saved by
    the earlier fourteen-screen form as well as the four-screen one. */
 import { esc, ukDate } from "./nisia.js";
@@ -62,6 +62,6 @@ export async function reviewPdf(c, o = {}) {
     else kv(s.role, s.name + ", " + new Date(s.at).toLocaleString("en-GB"));
   }
   const n = doc.getNumberOfPages();
-  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(152, 162, 179); doc.text(T("Nisia · " + RULES_NAME + " · record " + (c.id || "") + " · content hash " + (c.hash || "").slice(0, 16) + " · page " + i + " of " + n), M, 292); }
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(152, 162, 179); doc.text(T("Evia Portal · " + RULES_NAME + " · record " + (c.id || "") + " · content hash " + (c.hash || "").slice(0, 16) + " · page " + i + " of " + n), M, 292); }
   doc.save(("Progress review " + F.reviewNo + " " + F.learner + " " + String(c.reviewedAt || c.answers.date).slice(0, 10)).replace(/[^\w .-]/g, "") + ".pdf");
 }

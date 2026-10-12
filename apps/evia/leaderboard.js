@@ -1,7 +1,7 @@
-/* Evia7 game leaderboards, kept in Nisia: one board per game, for the learner's college, starting again each month.
+/* Evia7 game leaderboards, kept in Evia Portal: one board per game, for the learner's college, starting again each month.
    The top 3 when a month ends win coins (100, 60, 30), paid the next time Evia syncs.
    Learners choose to join and pick the name shown (first name and initial to start with). Only that name and their
-   scores go to Nisia; leaving removes them. Not joined, or not with a college: nothing is sent.
+   scores go to Evia Portal; leaving removes them. Not joined, or not with a college: nothing is sent.
    Scores are queued on the phone and sent with the next sync, so offline games still count (within the month).
    Games report through eviaGames.finish({lb:{game,score}}) (games.js).
    window.eviaLeaderboard: submit(game,score), open(game), endLine(game,el), onSync(), settings(), GAMES */
@@ -111,7 +111,7 @@
       const j=el.querySelector("#lb-join");if(j)j.onclick=async()=>{const n=clean(el.querySelector("#lb-name").value);if(n.length<2){el.querySelector("#lb-name").focus();return}write(KEY,{on:true,name:n});draw()};
       const rn=el.querySelector("#lb-rename");if(rn)rn.onclick=()=>{const n=clean(prompt("Name to show on the leaderboards",s.name)||"");if(n.length>=2){write(KEY,{on:true,name:n});draw()}};
       const lv=el.querySelector("#lb-leave");if(lv)lv.onclick=async()=>{if(!confirm("Leave the leaderboards? Your name and scores are removed."))return;
-        try{await window.eviaNisia.rpc("nisia_game_leave",{})}catch(err){alert("Couldn’t reach Nisia. Try again when you have signal.");return}
+        try{await window.eviaNisia.rpc("nisia_game_leave",{})}catch(err){alert("Couldn’t reach your college. Try again when you have signal.");return}
         write(KEY,{on:false,name:s.name});write(QUEUE,[]);draw()};
     };
     root.querySelectorAll("[data-lb]").forEach(b=>b.onclick=()=>{cur=b.dataset.lb;draw()});

@@ -1,9 +1,9 @@
 /* Milos, the assessor's app: Evia's look, Milos blue. Four places, like Evia's own tabs: Learners, Assess (every
    learner's new evidence in one queue), Reviews (who's due, and drafts to finish) and Calendar (visits booked with
    learners, which show on their Evia calendar too). Milos's face in the middle is what needs doing; syncing with
-   Nisia is on the line at the top. Each learner opens on Overview, Portfolio and Reviews, and
+   Evia Portal is on the line at the top. Each learner opens on Overview, Portfolio and Reviews, and
    everything the assessor does (observations, sign-offs, reviews) is saved on the phone first and sent when there's
-   signal (store.js). Everything is read from Nisia under the college's own rules. */
+   signal (store.js). Everything is read from Evia Portal under the college's own rules. */
 import { db, rpc, AUTH_KEY, call, signOut, courseName, esc, ukDate, ago, qrSvg, pairLink, EVIA_URL } from "../../packages/core/nisia.js";
 import { auth, inviteCode, resetCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
@@ -50,14 +50,14 @@ const EYES = '<span class="av" aria-hidden="true"><i></i><i></i></span>';
 
 /* ---------- Opening Milos ---------- */
 /* With learners already on this phone, straight to them (signing in is only needed to sync); otherwise sign in,
-   then download. Sign-in that can't reach Nisia (no signal) falls back to the phone's copy. */
+   then download. Sign-in that can't reach Evia Portal (no signal) falls back to the phone's copy. */
 const AUTH = { title: "Milos", subtitle: "For assessors", onReady: () => home(true) };
 async function start() {
   let have = null; try { have = await withTimeout(cached(), 5000); } catch (_) {}
   if (have && localStorage.getItem(AUTH_KEY) && !inviteCode() && !resetCode() && !/[?&]reset=email/.test(location.search)) return home(true);
   try { await withTimeout(auth(root, AUTH), 15000); }
   catch (e) {
-    root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Milos couldn’t reach Nisia: " + e.message : "You’re offline, and there are no learners on this phone yet. Connect to the internet once to download them.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>';
+    root.innerHTML = '<div class="auth"><div class="box"><p class="err">' + esc(navigator.onLine ? "Milos couldn’t reach Evia Portal: " + e.message : "You’re offline, and there are no learners on this phone yet. Connect to the internet once to download them.") + '</p><button class="btn primary wide" id="retry">Try again</button></div></div>';
     root.querySelector("#retry").onclick = start;
   }
 }
@@ -113,7 +113,7 @@ const pill = (d) => !d ? "" : '<span class="pill ' + (d.overdue ? "bad" : d.soon
 const hhmm = (d) => { const t = new Date(d); return (t.toDateString() === new Date().toDateString() ? "today " : t.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " ") + t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); };
 function drawSync(st) {
   const bar = document.getElementById("syncbar"); if (!bar) return;
-  const msg = st.syncing ? "Syncing with Nisia…" : (!st.online ? "Offline · " : "") + (st.syncedAt ? "Synced " + hhmm(st.syncedAt) : "Not downloaded yet");
+  const msg = st.syncing ? "Syncing with Evia Portal…" : (!st.online ? "Offline · " : "") + (st.syncedAt ? "Synced " + hhmm(st.syncedAt) : "Not downloaded yet");
   bar.className = "m-sync" + (!st.online ? " off" : "") + (st.error && !st.syncing ? " err" : "") + (st.syncing ? " busy" : "");
   bar.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="msg">' + esc(msg) + (st.waiting ? ' · <b>' + st.waiting + ' waiting to send</b>' : "") +
     (st.error && !st.syncing && st.online ? '<small>' + esc(st.error) + '</small>' : "") +
@@ -140,7 +140,7 @@ async function manualSync() {
   try {
     const out = await sync();
     if (!out) return toast("You’re offline. Milos syncs by itself when the signal comes back.");
-    who = out.who; rows = out.rows; IDX = null; toast("Up to date with Nisia");
+    who = out.who; rows = out.rows; IDX = null; toast("Up to date with Evia Portal");
     redraw();
   } catch (e) {
     if (e.signedOut) { toast("Sign in again to sync."); return clear().then(() => signOut()); }
@@ -163,14 +163,14 @@ function sheet(html, label, wide) {
 function packCard(r) {
   const C = coursePack(r.course_code, r.enrolment_id), p = C && C.pack, list = packsLike(r.course_code, r.enrolment_id);
   if (!p) return "";
-  return '<section class="card m-card"><p class="label">Pack</p><p class="m-card-sub"><b>' + esc(p.title) + '</b> · ' + (p.college ? "the college’s own" : "Nisia’s") + ' · ' + C.units.length + ' topics</p>' +
+  return '<section class="card m-card"><p class="label">Pack</p><p class="m-card-sub"><b>' + esc(p.title) + '</b> · ' + (p.college ? "the college’s own" : "Evia Portal’s") + ' · ' + C.units.length + ' topics</p>' +
     (list.length > 1 ? '<button class="btn" type="button" id="packBtn">Change pack</button>' : "") + '</section>';
 }
 function choosePack(r) {
   const first = firstName(r.name), list = packsLike(r.course_code, r.enrolment_id);
   const o = sheet('<h2>' + esc(first) + '’s pack</h2><p class="muted">The topics ' + esc(first) + ' is taught and evidenced in. Their evidence and sign-offs are kept by KSB, so changing pack never loses anything.</p>' +
     '<form id="pkF" style="display:grid;gap:8px;margin-top:10px">' + list.map((p) => '<label class="check"><input type="radio" name="p" value="' + esc(p.id) + '"' + (p.current ? " checked" : "") + '> <span><b>' + esc(p.title) + '</b><br><span class="small muted">' +
-      (p.college ? "The college’s own" : "Nisia’s") + ' · ' + p.topics + ' topics</span></span></label>').join("") + '<p class="err" hidden></p><button class="btn primary wide" type="submit">Save</button></form>', "Pack");
+      (p.college ? "The college’s own" : "Evia Portal’s") + ' · ' + p.topics + ' topics</span></span></label>').join("") + '<p class="err" hidden></p><button class="btn primary wide" type="submit">Save</button></form>', "Pack");
   o.querySelector("#pkF").onsubmit = async (e) => {
     e.preventDefault(); const v = new FormData(e.target).get("p"), err = o.querySelector(".err"), b = e.target.querySelector("[type=submit]");
     b.disabled = true;
@@ -198,23 +198,23 @@ function account() {
   const st = status(), orgs = [...new Set(rows.map((r) => r.org && r.org.organisation).filter(Boolean))];
   const o = sheet('<div class="m-acct"><span class="m-me lg" aria-hidden="true">' + esc(initials(who && who.name)) + '</span><div><h2>' + esc(who && who.name || "Assessor") + '</h2><p class="muted small">' + esc(orgs.join(", ") || "Milos") + '</p></div></div>' +
     '<div class="card m-list">' +
-      '<button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Sync with Nisia</b><span class="sub">' + esc(st.syncedAt ? "Last synced " + hhmm(st.syncedAt) : "Not synced yet") + (st.waiting ? " · " + st.waiting + " waiting to send" : "") + '</span></span></button>' +
+      '<button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Sync with Evia Portal</b><span class="sub">' + esc(st.syncedAt ? "Last synced " + hhmm(st.syncedAt) : "Not synced yet") + (st.waiting ? " · " + st.waiting + " waiting to send" : "") + '</span></span></button>' +
       pushRow() +
       (installed() ? "" : '<button type="button" class="m-row" id="install"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>') +
       '<button type="button" class="m-row" id="signout"><span class="m-ic bad">' + IC.out + '</span><span class="m-row-main"><b>Sign out</b><span class="sub">Removes your learners from this phone</span></span></button>' +
-    '</div><p class="small muted center">Milos keeps your learners on this phone so it works without signal. Anything you do goes to Nisia when there’s signal.</p>', "Account");
+    '</div><p class="small muted center">Milos keeps your learners on this phone so it works without signal. Anything you do goes to Evia Portal when there’s signal.</p>', "Account");
   o.querySelector("#acSync").onclick = () => { o.remove(); manualSync(); };
   const i = o.querySelector("#install"); if (i) i.onclick = () => { o.remove(); install(); };
   const pb = o.querySelector("#acPush");
   if (pb) pb.onclick = async () => {
     pb.disabled = true;
     try { if (push.state() === "on") { await push.off(); toast("Notifications off"); } else toast(await push.on() ? "Notifications on" : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Notifications not turned on"); }
-    catch (e) { toast("Couldn’t reach Nisia. Try again with signal."); }
+    catch (e) { toast("Couldn’t reach your college. Try again with signal."); }
     o.remove(); account();
   };
   o.querySelector("#signout").onclick = async () => {
     const w = status().waiting;
-    if (w && !confirm(w + (w === 1 ? " thing hasn’t" : " things haven’t") + " been sent to Nisia yet, and signing out deletes them from this phone. Sign out anyway?")) return;
+    if (w && !confirm(w + (w === 1 ? " thing hasn’t" : " things haven’t") + " been sent to Evia Portal yet, and signing out deletes them from this phone. Sign out anyway?")) return;
     if (w && navigator.onLine) { try { await flush(); } catch (_) {} }
     await clear(); signOut();
   };
@@ -249,7 +249,7 @@ async function home(fresh) {
     if (openFirst) { tab = ["assess", "reviews", "today", "learners", "calendar"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
     await drawTab(); if (fresh && navigator.onLine) { quietSync(); push.refresh(); } return;
   }
-  frame({ title: "Milos", body: '<div class="m-loading">' + EYES + '<p class="muted">Downloading your learners from Nisia…</p></div>' });
+  frame({ title: "Milos", body: '<div class="m-loading">' + EYES + '<p class="muted">Downloading your learners from Evia Portal…</p></div>' });
   try { const out = await sync(); if (!out) throw new Error("You’re offline. Connect once to download your learners."); who = out.who; rows = out.rows; IDX = null; await drawTab(); }
   catch (e) { root.querySelector("#main").innerHTML = '<div class="card"><p class="err">' + esc(e.message) + '</p><button class="btn primary" id="retry">Try again</button></div>'; root.querySelector("#retry").onclick = () => home(true); }
 }
@@ -284,7 +284,7 @@ function drawToday(X) {
   const oldest = fresh.map((f) => f.it.e.created_at).sort()[0];
   const week = Date.now() + 7 * 864e5, todayV = comingVisits().filter((v) => vDay(v) === dkey(new Date())), soonV = comingVisits().filter((v) => Date.parse(v.starts_at) < week);
   frame({ title: hi + " " + firstName(who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
-    (!rows.length ? empty("No learners yet", "Your college assigns learners to you in Nisia. They appear here after the next sync.") :
+    (!rows.length ? empty("No learners yet", "Your college assigns learners to you in Evia Portal. They appear here after the next sync.") :
       (soonV.length ? card({ label: "Visits", go: "calendar", big: '<p class="m-big">' + (todayV.length ? todayV.length + '<small> today</small>' : soonV.length + '<small> this week</small>') + '</p>',
         sub: todayV.length ? "Open one to start the observation." : "Coming up in the next 7 days.", inner: '<div class="card m-list m-in-card">' + soonV.slice(0, 4).map((v) => visitRow(v, !todayV.includes(v))).join("") + '</div>' }) : "") +
       card({ cls: "m-hero" + (overdue.length ? " is-bad" : ""), label: "Progress reviews", go: "reviews",
@@ -327,7 +327,7 @@ function drawLearners(X) {
         '<span class="sub">' + esc(courseName(r.course_code)) + (r.employer_name ? " · " + esc(r.employer_name) : "") + '</span>' +
         '<span class="m-row-tags">' + pill(r.due) + (r.paired ? '<span class="small muted">Evia ' + esc(ago(r.last_activity)) + '</span>' : '<span class="pill warn">Evia not connected</span>') + (x.fresh && x.fresh.length ? '<span class="pill accent">' + x.fresh.length + ' to assess</span>' : "") + '</span></span>' +
         (Fx ? ring(Fx.ksb.pct, Fx.ksb.pct + "% of " + (Fx.nvq ? "criteria" : "KSBs") + " signed off") : "") + '<span class="m-chev">' + IC.chev + '</span></button>'; }).join("") + '</section>'
-      : rows.length ? empty(q ? "Nobody matches" : "Nobody here", q ? "No learner matches “" + esc(query) + "”." : "Nobody here right now.") : empty("No learners yet", "No learners are assigned to you yet. Your college assigns them in Nisia.")) });
+      : rows.length ? empty(q ? "Nobody matches" : "Nobody here", q ? "No learner matches “" + esc(query) + "”." : "Nobody here right now.") : empty("No learners yet", "No learners are assigned to you yet. Your college assigns them in Evia Portal.")) });
   root.querySelectorAll("[data-f]").forEach((b) => b.onclick = () => { filter = b.dataset.f; drawTab(); });
   const inp = root.querySelector("#q");
   inp.oninput = () => { query = inp.value; const pos = inp.selectionStart; drawTab().then(() => { const n = root.querySelector("#q"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }); };
@@ -347,7 +347,7 @@ function drawAssess(X) {
       : empty("All caught up", "New evidence from your learners’ Evia shows here as soon as it syncs.")) });
   root.querySelectorAll("[data-q]").forEach((b) => b.onclick = () => {
     const [en, id] = b.dataset.q.split("|"), x = X.find((y) => y.r.enrolment_id === en), f = x && x.fresh.find((y) => y.it.e.id === id); if (!f) return;
-    openEvidence({ L: x.D.L, groups: x.groups, me: { name: who.name, member_id: x.r.org.member_id }, college: x.r.org.organisation }, f.it, (it, sent) => { IDX = null; toast(sent ? "Saved to Nisia" : "Saved on this phone. It goes to Nisia when there’s signal."); if (view === "home") drawTab(); });
+    openEvidence({ L: x.D.L, groups: x.groups, me: { name: who.name, member_id: x.r.org.member_id }, college: x.r.org.organisation }, f.it, (it, sent) => { IDX = null; toast(sent ? "Saved to Evia Portal" : "Saved on this phone. It goes to Evia Portal when there’s signal."); if (view === "home") drawTab(); });
   });
 }
 
@@ -365,7 +365,7 @@ function drawReviews() {
 }
 
 /* ---------- Calendar: visits booked with learners ----------
-   A visit (on site, an observation or a progress review) is booked in Nisia, so it shows on the learner's Evia
+   A visit (on site, an observation or a progress review) is booked in Evia Portal, so it shows on the learner's Evia
    calendar and the learner and their employer are told. Kept on the phone too, so the calendar works without signal;
    booking, moving and cancelling need signal. Review due dates show on the same calendar. */
 const VKEY = "milos-visits-v1";
@@ -543,7 +543,7 @@ async function learner(r, keep) {
     pfBox.querySelector("#pfFilter").onclick = () => { onlyNew = !onlyNew; drawPortfolio(); };
     pfBox.querySelectorAll("[data-ev]").forEach((b) => b.onclick = () => {
       const item = groups.flatMap((g) => g.items).find((it) => it.e.id === b.dataset.ev);
-      openEvidence({ L, groups, me: { name: who.name, member_id: r.org.member_id }, college: r.org.organisation }, item, (it, sent) => { IDX = null; drawPortfolio(); badge(); toast(sent ? "Saved to Nisia" : "Saved on this phone. It goes to Nisia when there’s signal."); });
+      openEvidence({ L, groups, me: { name: who.name, member_id: r.org.member_id }, college: r.org.organisation }, item, (it, sent) => { IDX = null; drawPortfolio(); badge(); toast(sent ? "Saved to Evia Portal" : "Saved on this phone. It goes to Evia Portal when there’s signal."); });
     });
   };
   drawPortfolio();
@@ -554,7 +554,7 @@ async function learner(r, keep) {
   });
   scrollTo(0, y);
   const me = { name: who.name, member_id: r.org.member_id };
-  root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { ...me, roles: r.org.roles || [] }, (sent) => { IDX = null; toast(sent ? "Review saved to Nisia" : "Review saved on this phone. It goes to Nisia when there’s signal."); lTab = "reviews"; learner(r, true); });
+  root.querySelector("#rev").onclick = () => openReview({ ...L, P }, { ...me, roles: r.org.roles || [] }, (sent) => { IDX = null; toast(sent ? "Review saved to Evia Portal" : "Review saved on this phone. It goes to Evia Portal when there’s signal."); lTab = "reviews"; learner(r, true); });
   root.querySelector("#pair").onclick = () => pairing(r);
   root.querySelector("#bookV").onclick = () => bookVisit({ r });
   bindVisits();
@@ -562,7 +562,7 @@ async function learner(r, keep) {
   mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet: (h, l) => sheet(h, l), toast, hit });
   const pb = root.querySelector("#packBtn"); if (pb) pb.onclick = () => choosePack(r);
   root.querySelector("#pack").onclick = () => openPack(buildPack(L, { files: P.files, assessed: Object.fromEntries(groups.flatMap((g) => g.items).map((it) => [it.e.id, it.history])) }, me), (pk) => { try { packPdf(pk); } catch (e) { toast("Couldn’t make the PDF: " + e.message); } });
-  root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Nisia when there’s signal."); learner(r, true); });
+  root.querySelector("#obs").onclick = () => openObservation({ L, me }, (sent) => { IDX = null; toast(sent ? "Observation saved and signed off" : "Observation saved on this phone. It goes to Evia Portal when there’s signal."); learner(r, true); });
   root.querySelectorAll("[data-rev]").forEach((b) => b.onclick = () => { const v = L.reviews.find((x) => x.id === b.dataset.rev); showReview({ ...v.content, id: v.id, reviewedAt: String(v.reviewed_at).slice(0, 10) }); });
 }
 /* At college: each class the tutor finished in Symi, what was taught (and its KSBs) and whether the learner was
@@ -608,13 +608,13 @@ function employerHtml(E, r) {
       ((w.ksbs || []).length ? '<span class="m-chips">' + w.ksbs.map((k) => '<span class="m-chip" title="' + esc(name(k)) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</div>').join("") : "") +
   '</section>';
 }
-/* A completed review, kept in Nisia: read it here, or save a copy as a PDF. */
+/* A completed review, kept in Evia Portal: read it here, or save a copy as a PDF. */
 function showReview(c) {
   const o = sheet('<div class="sheet-head"><h2>Progress review</h2><button class="btn" id="rvPdf">' + IC.install + 'PDF</button></div>' + reviewHtml(c), "Progress review", true);
   o.querySelector("#rvPdf").onclick = async () => { try { await downloadPdf(c); } catch (e) { toast(e.message); } };
 }
 async function pairing(r) {
-  if (!navigator.onLine) return toast("Connecting Evia needs signal: the code comes from Nisia.");
+  if (!navigator.onLine) return toast("Connecting Evia needs signal: the code comes from Evia Portal.");
   const o = sheet('<div class="m-loading">' + EYES + '<p class="muted">Getting a code…</p></div>', "Connect Evia"), s = o.querySelector(".sheet");
   const x = () => { const b = s.querySelector(".x"); if (b) b.onclick = () => o.remove(); };
   try {

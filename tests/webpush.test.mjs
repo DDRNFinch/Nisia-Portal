@@ -1,4 +1,4 @@
-/* Web Push (services/functions/_shared/webpush.ts): what Nisia sends can be opened by the phone it's for, and the
+/* Web Push (services/functions/_shared/webpush.ts): what Evia Portal sends can be opened by the phone it's for, and the
    VAPID signature checks out. Decrypted here with Node's own crypto (RFC 8291 worked through by hand), so this
    doesn't just test the code against itself. Run: node --experimental-strip-types tests/webpush.test.mjs */
 import nc from "node:crypto";
@@ -36,7 +36,7 @@ const [, t, k] = /^vapid t=([^,]+), k=(.+)$/.exec(h) || [];
 const [a, b, s] = (t || "").split(".");
 const claims = JSON.parse(Buffer.from(b, "base64url").toString());
 const verified = nc.verify("sha256", Buffer.from(a + "." + b), { key: nc.createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64u(unb64u(k).slice(1, 33)), y: b64u(unb64u(k).slice(33)) }, format: "jwk" }), dsaEncoding: "ieee-p1363" }, unb64u(s));
-check("The VAPID token is signed with Nisia's key, for the push service, and expires within a day", verified && claims.aud === "https://fcm.googleapis.com" && claims.exp - Date.now() / 1000 <= 86400 && k === publicKey, JSON.stringify(claims));
+check("The VAPID token is signed with Evia Portal's key, for the push service, and expires within a day", verified && claims.aud === "https://fcm.googleapis.com" && claims.exp - Date.now() / 1000 <= 86400 && k === publicKey, JSON.stringify(claims));
 
 const failed = results.filter((x) => !x).length;
 console.log(failed ? "\n" + failed + " check(s) failed." : "\nAll " + results.length + " checks passed.");

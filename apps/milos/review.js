@@ -44,7 +44,7 @@ export function reviewDue(start, lastReviewedAt) {
 }
 export const dueText = (d) => !d ? "" : d.overdue ? "Overdue by " + -d.days + " day" + (d.days === -1 ? "" : "s") : d.days === 0 ? "Due today" : "Due in " + d.days + " day" + (d.days === 1 ? "" : "s");
 
-/* ---------- The facts, from Evia and Nisia ---------- */
+/* ---------- The facts, from Evia and Evia Portal ---------- */
 export function facts(L, now = Date.now()) {
   const en = L.enrolment, row = L.row, snap = L.snapshot || {}, course = coursePack(row.course_code, row.enrolment_id) || { name: row.course_code, ksbs: [], units: [] };
   const start = Date.parse(en.start_date), end = Date.parse(en.end_date);
@@ -193,7 +193,7 @@ export function openReview(L, me, onDone) {
   const area = (name, label, val, ph) => '<label class="field">' + esc(label) + '<textarea name="' + name + '" placeholder="' + esc(ph || "") + '">' + esc(val || "") + '</textarea></label>';
   /* A written part: drafted from Evia, edited by the assessor, and rewritten from Evia if they want to start again. */
   const drafted = (name, label, val) => '<div class="field drafted"><div class="between"><span>' + esc(label) + '</span><button class="btn ghost small-btn" type="button" data-redo="' + name + '">Rewrite from Evia</button></div>' +
-    '<textarea name="' + name + '" rows="' + Math.min(14, Math.max(4, Math.ceil(String(val || "").length / 70))) + '">' + esc(val || "") + '</textarea><small class="muted">Written from Evia and Nisia. Read it through and change anything.</small></div>';
+    '<textarea name="' + name + '" rows="' + Math.min(14, Math.max(4, Math.ceil(String(val || "").length / 70))) + '">' + esc(val || "") + '</textarea><small class="muted">Written from Evia and Evia Portal. Read it through and change anything.</small></div>';
   const hint = (r) => r ? '<small class="rag-hint">Evia suggests <b>' + esc(r.rag) + '</b>: ' + esc(r.why) + '.</small>' : "";
   const input = (name, label, val, type) => '<label class="field">' + esc(label) + '<input name="' + name + '" type="' + (type || "text") + '" value="' + esc(val || "") + '"></label>';
   const subj = (s) => s ? s.areasDone + " of " + s.areas.length + " areas done" + (s.avg != null ? ", average " + s.avg + "%" : "") : "Not started";
@@ -337,7 +337,7 @@ export function openReview(L, me, onDone) {
         targets: R.targets.filter((t) => t.title.trim()), completedAt: new Date().toISOString() };
       content.hash = await hash({ ...content, signatures: Object.fromEntries(Object.entries(content.signatures).map(([k, s]) => [k, { name: s.name, at: s.at }])) });
       const en = L.enrolment;
-      /* Saved on this phone, then sent to Nisia now or once there's signal (store.js). */
+      /* Saved on this phone, then sent to Evia Portal now or once there's signal (store.js). */
       const sent = await saveReview({ enrolmentId: en.id,
         review: { organisation_id: en.organisation_id, enrolment_id: en.id, course_id: en.course_id, created_by_member_id: me.member_id, review_type: "progress", content, reviewed_at: new Date(R.date + "T12:00:00").toISOString() },
         signoff: { organisation_id: en.organisation_id, member_id: me.member_id, signer_role: ["assessor", "tutor", "admin"].find((x) => (me.roles || []).includes(x)) || "assessor" },

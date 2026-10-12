@@ -279,8 +279,8 @@
   }
 
   /* ---------- 5. Remove everything from this device ----------
-     Evia's own data only (every evia7-* key, its databases and the Nisia sign-in): the other Nisia apps share this
-     website, so their data is left alone, and the app itself stays installed and works offline. Nothing on Nisia is
+     Evia's own data only (every evia7-* key, its databases and the Evia Portal sign-in): the other Evia Portal apps share this
+     website, so their data is left alone, and the app itself stays installed and works offline. Nothing on Evia Portal is
      touched, so connecting again with a code from the college brings the learner's records back. */
   async function removeAll(){
     wiping=true;

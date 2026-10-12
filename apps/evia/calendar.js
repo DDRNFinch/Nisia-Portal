@@ -1,7 +1,7 @@
-/* Evia7 Calendar tab: the learner's time in one place. College days come from Nisia (the tutor's registers in Symi):
+/* Evia7 Calendar tab: the learner's time in one place. College days come from Evia Portal (the tutor's registers in Symi):
    classes coming up, attendance and days off. Learning hours sit on the same days, with Log hours and the learning
    logs. A connected learner can't add or move college days; they check in, or say they can't make it.
-   Learners not connected to a college set their own college days (kept on the phone) until Nisia takes over.
+   Learners not connected to a college set their own college days (kept on the phone) until Evia Portal takes over.
    Visits the assessor books in Milos show here too, with the next one at the top. */
 (function(){
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

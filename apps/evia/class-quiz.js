@@ -1,7 +1,7 @@
 /* The class quiz, on the learner's phone. When the tutor runs the quiz in Symi, everyone on the class answers here:
    the question and its answers come up on their own (Evia checks every few seconds on a college day), they tap one,
    and can change it until the tutor shows the answer. Then they see if they were right and why, and at the end their
-   score, with coins for the right ones. The score goes to Nisia (their tutor and assessor see it); the right answer
+   score, with coins for the right ones. The score goes to Evia Portal (their tutor and assessor see it); the right answer
    never reaches the phone before the tutor shows it.
    window.eviaClassQuiz: check() */
 (function(){

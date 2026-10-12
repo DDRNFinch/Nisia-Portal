@@ -396,7 +396,7 @@
     };
     step(0);
   }
-  /* Connected to a college, the assessor sets the targets at the review (they arrive from Nisia); Evia's own review
+  /* Connected to a college, the assessor sets the targets at the review (they arrive from Evia Portal); Evia's own review
      is the learner's side of it, so it keeps the targets they have. */
   const collegeSets=()=>!!(window.eviaNisia&&window.eviaNisia.joined());
   function save(r){
@@ -443,7 +443,7 @@
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
   window.eviaReviewDue=()=>{
     const all=reviewsNow(),last=all[all.length-1],p=window.eviaData.learner();
-    /* Connected to a college: the review is the one the assessor holds in Milos, when Nisia says it's due. From 7 days
+    /* Connected to a college: the review is the one the assessor holds in Milos, when Evia Portal says it's due. From 7 days
        before, the learner's comments are wanted: done once they've finished a review here with something written. */
     const en=window.eviaData.enrolment&&window.eviaData.enrolment(),nd=en&&en.reviewDue?new Date(en.reviewDue+"T12:00:00"):null;
     if(nd&&!isNaN(nd)){

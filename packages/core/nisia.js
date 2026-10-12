@@ -1,4 +1,4 @@
-/* Nisia core for the web apps (the portal and Milos): the Supabase connection, signing in (password, then the
+/* Evia Portal core for the web apps (the portal and Milos): the Supabase connection, signing in (password, then the
    authenticator app, which every staff sign-in needs), and the server actions. Plain ES module, no build step.
    The publishable key is meant to be public: what anyone can see is decided by the database's row-level security. */
 /* supabase-js is bundled (packages/vendor/supabase-2.45.4.js, loaded by a script tag before this module). */
@@ -16,7 +16,7 @@ const timedFetch = (url, o = {}) => {
   if (o.signal) return fetch(url, o);
   const c = new AbortController(), ms = /\/storage\/v1\/object\//.test(String(url)) && o.method && o.method !== "GET" ? 120000 : 25000;
   const t = setTimeout(() => c.abort(), ms);
-  return fetch(url, { ...o, signal: c.signal }).catch((e) => { throw e.name === "AbortError" ? new Error("Nisia didn’t answer in time. Check your signal and try again.") : e; }).finally(() => clearTimeout(t));
+  return fetch(url, { ...o, signal: c.signal }).catch((e) => { throw e.name === "AbortError" ? new Error("Evia Portal didn’t answer in time. Check your signal and try again.") : e; }).finally(() => clearTimeout(t));
 };
 /* Each app keeps its own sign-in (they share a website): Milos sets window.NISIA_AUTH_KEY, so being signed in to
    Milos as an assessor doesn't sign the portal in as them too, and signing out of one leaves the other alone. */
@@ -60,11 +60,11 @@ export async function signIn(email, password) {
   const { error } = await db.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(error.message === "Invalid login credentials" ? "That email and password don’t match." : error.message);
 }
-/* First sign-in: add Nisia to the authenticator app. Returns the QR code (an SVG) and the key to type instead. */
+/* First sign-in: add Evia Portal to the authenticator app. Returns the QR code (an SVG) and the key to type instead. */
 export async function startAuthenticator() {
   const { data: f } = await db.auth.mfa.listFactors();
   for (const old of (f && f.all || []).filter((x) => x.status !== "verified")) await db.auth.mfa.unenroll({ factorId: old.id });
-  const { data, error } = await db.auth.mfa.enroll({ factorType: "totp", friendlyName: "Nisia " + new Date().toISOString().slice(0, 10) });
+  const { data, error } = await db.auth.mfa.enroll({ factorType: "totp", friendlyName: "Evia Portal " + new Date().toISOString().slice(0, 10) });
   if (error) throw new Error(error.message);
   return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
 }
@@ -72,7 +72,7 @@ export async function verifyCode(factorId, code) {
   const { error } = await db.auth.mfa.challengeAndVerify({ factorId, code: String(code).replace(/\D/g, "") });
   if (error) throw new Error(/invalid|expired/i.test(error.message) ? "That code didn’t work. Use the newest one in your authenticator app." : error.message);
 }
-/* Signing out always finishes on this device. If Nisia has already ended the sign-in (it ran out, or was ended
+/* Signing out always finishes on this device. If Evia Portal has already ended the sign-in (it ran out, or was ended
    elsewhere), it answers "session not found", and supabase-js 2.45 would then keep the old sign-in here. */
 export async function signOut() {
   let error = null;

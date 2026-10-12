@@ -1,5 +1,5 @@
 /* Notifications in Milos (Web Push, no app store): new evidence from a learner, ready to assess, and on a Monday the
-   progress reviews to book. Only if the assessor turns them on; Nisia sends them on weekdays, 7:30am to 9pm.
+   progress reviews to book. Only if the assessor turns them on; Evia Portal sends them on weekdays, 7:30am to 9pm.
    iPhones and iPads need Milos added to the Home Screen first.
    state(): unsupported | install | blocked | off | on */
 import { db } from "../../packages/core/nisia.js";
@@ -34,7 +34,7 @@ async function subscription() {
 }
 async function save(sub) {
   const { data } = await db.auth.getSession();
-  if (!data || !data.session) throw new Error("Sign in to Nisia first.");
+  if (!data || !data.session) throw new Error("Sign in to Evia Portal first.");
   const j = sub.toJSON();
   const { error } = await db.from("device_tokens").upsert({ user_id: data.session.user.id, platform: "web", app: "milos", token: j.endpoint,
     subscription: { endpoint: j.endpoint, keys: j.keys }, last_seen_at: new Date().toISOString() }, { onConflict: "token" });
@@ -58,7 +58,7 @@ export async function off() {
     if (sub) { try { await db.from("device_tokens").delete().eq("token", sub.endpoint); } catch (_) {} await sub.unsubscribe(); }
   } catch (_) {}
 }
-/* Once a day while on: the subscription can change, so Nisia gets the current one. */
+/* Once a day while on: the subscription can change, so Evia Portal gets the current one. */
 export async function refresh() {
   if (state() !== "on" || !navigator.onLine || pref().saved === today()) return;
   try { await save(await subscription()); } catch (e) { console.warn("Milos: notifications", e.message); }

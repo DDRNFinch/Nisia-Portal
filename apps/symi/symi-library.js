@@ -1,7 +1,7 @@
 /* Symi's Resources: one library, four tabs.
      Course         the course's own lessons, unit by unit: the same slides, quizzes and plans the register teaches from
                     (symi-teach.js). The default.
-     College        what the college shares in Nisia: tutors' slides, quizzes and lesson plans, and links to files the
+     College        what the college shares in Evia Portal: tutors' slides, quizzes and lesson plans, and links to files the
                     college keeps elsewhere. Any of them can be put into a session on the scheme of work.
      Community      shared between colleges, once checked: coming soon.
      My resources   what the tutor made in Symi themselves (the old library), with Share with my college.
@@ -83,7 +83,7 @@ async function courseTab(body) {
   const active = (st.classes || []).find((c) => c.id === st.activeClassId);
   let code = read(COURSE, "") || (active && active.courseCode) || mineCodes[0] || (list[0] && list[0].code);
   if (!list.some((c) => c.code === code)) code = list[0] && list[0].code;
-  if (!code) { body.innerHTML = '<section class="staff-card"><p>No courses yet. They come from Nisia.</p></section>'; return; }
+  if (!code) { body.innerHTML = '<section class="staff-card"><p>No courses yet. They come from Evia Portal.</p></section>'; return; }
   const sorted = list.slice().sort((a, b) => (mineCodes.includes(b.code) - mineCodes.includes(a.code)) || a.name.localeCompare(b.name));
   body.innerHTML = '<div class="sl-bar"><label class="sl-pick">Course<select data-sl-course>' + sorted.map((c) => '<option value="' + esc(c.code) + '"' + (c.code === code ? " selected" : "") + '>' + esc(c.name) + (mineCodes.includes(c.code) ? " · your classes" : "") + '</option>').join("") + '</select></label></div><p class="sl-loading">Getting the lessons ready…</p>';
   body.querySelector("[data-sl-course]").onchange = (e) => { write(COURSE, e.target.value); courseTab(body); };
@@ -110,7 +110,7 @@ const asQuiz = (r) => ((r.content && r.content.questions) || []).map((q) => q.op
 async function collegeTab(body) {
   const n = N();
   if (!n || !n.college()) {
-    body.innerHTML = '<section class="staff-card sl-empty"><h2>Your college’s resources</h2><p>Sign in to Nisia to see the slides, quizzes and files your college shares.</p><button type="button" class="blue-button" data-sl-signin>Connect to Nisia</button></section>';
+    body.innerHTML = '<section class="staff-card sl-empty"><h2>Your college’s resources</h2><p>Sign in to Evia Portal to see the slides, quizzes and files your college shares.</p><button type="button" class="blue-button" data-sl-signin>Connect to Evia Portal</button></section>';
     body.querySelector("[data-sl-signin]").onclick = () => { const b = document.getElementById("nisiaButton"); if (b) b.click(); };
     return;
   }
@@ -163,7 +163,7 @@ async function addLink(body) {
 }
 async function shareMine(r, btn) {
   const n = N();
-  if (!n || !n.college()) { App().toast("Sign in to Nisia first, then share."); const b = document.getElementById("nisiaButton"); if (b) b.click(); return; }
+  if (!n || !n.college()) { App().toast("Sign in to Evia Portal first, then share."); const b = document.getElementById("nisiaButton"); if (b) b.click(); return; }
   const st = App().getState(), active = (st.classes || []).find((c) => c.id === st.activeClassId), course = active && active.courseCode || null;
   const content = r.type === "presentation" ? { slides: (r.slides || []).map((x) => ({ title: x.title || "", text: x.text || "" })) }
     : r.type === "quiz" ? { questions: (r.questions || []).map((q) => ({ q: q.text || "", opts: q.answers || [], a: Number(q.correct) || 0 })) } : { fields: r.fields || {} };
@@ -192,7 +192,7 @@ async function useInSession(r) {
 /* ---------- Community ---------- */
 function communityTab(body) {
   body.innerHTML = '<section class="staff-card sl-soon"><span class="sl-soon-tag">Coming soon</span><h2>Community resources</h2>' +
-    '<p>Slides, quizzes and lesson plans shared between colleges on Nisia, for every course. Tutors share what works; each one is checked before other colleges see it, so it’s accurate and it’s yours to share.</p>' +
+    '<p>Slides, quizzes and lesson plans shared between colleges on Evia Portal, for every course. Tutors share what works; each one is checked before other colleges see it, so it’s accurate and it’s yours to share.</p>' +
     '<ul><li>Search by course, unit and KSB</li><li>Put any of them into a session on your scheme of work</li><li>Rate what you use, so the best rise to the top</li></ul></section>';
 }
 

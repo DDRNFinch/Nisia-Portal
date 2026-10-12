@@ -240,7 +240,7 @@
     page.querySelectorAll("[data-ev-share]").forEach(b=>b.onclick=()=>{const e=entries.find(x=>String(x.id)===b.dataset.evShare);if(e&&window.eviaOpenSendToPortfolio)window.eviaOpenSendToPortfolio(unitName,e.id)});
   }
   /* A saved pack, to look back at: its photos and write-up. */
-  /* The assessor's sign-off and feedback on a piece of evidence (from Milos, through Nisia). */
+  /* The assessor's sign-off and feedback on a piece of evidence (from Milos, through Evia Portal). */
   /* The KSBs still to be signed off, with what to do about it. codes: [{code,unit}] */
   function moreHtml(codes){
     if(!codes||!codes.length)return"";
@@ -753,7 +753,7 @@
       input.type="hidden";
       const btn=document.createElement("button");btn.type="button";btn.className="dw-field";btn.setAttribute("aria-label",label);
       paintField(btn,input);input.insertAdjacentElement("afterend",btn);
-      /* Dates set by the college (Nisia) can't be changed here. */
+      /* Dates set by the college (Evia Portal) can't be changed here. */
       if(input.readOnly){btn.disabled=true;btn.classList.add("dw-locked");return}
       btn.onclick=e=>{e.preventDefault();openDateWheel(input,label)};
     });

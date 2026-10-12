@@ -2,7 +2,7 @@
    random from their course's checked questions (Teach me); when the hand's used up, 4 fresh ones. They take turns: the
    attacker throws a card at the other, who has a few seconds to answer. Right: BLOCKED, no damage. Wrong or too slow:
    HIT, -1 HP (a boss card hits for 2, and blocking one heals 1). First to 0 HP loses. Each player sees the other's
-   own Evia: their shape, colour and kit. Nisia keeps the battle and holds the right answer until it's answered
+   own Evia: their shape, colour and kit. Evia Portal keeps the battle and holds the right answer until it's answered
    (battles.sql); only first names and initials are shown, and there's no chat. Learners on different courses battle
    with the questions every course shares: maths, English and people.
    Free for everyone; in Learn, at the top of the games. */
@@ -84,7 +84,7 @@
       const m=me();
       body.innerHTML='<div class="bt bt-wait"><div class="bt-radar">'+avatar(m.look,"big")+'</div><h2>Looking for someone at your college…</h2><p class="bt-lead">Ask a classmate to tap <b>Find a battle</b> too.</p><button type="button" class="secondary" data-cancel>Cancel</button></div>';
       body.querySelector("[data-cancel]").onclick=async()=>{const x=id;stop();id=null;if(x)A().send("battleLeave",{p_id:x}).catch(()=>{});lobby()};
-      try{const r=await A().send("battleFind",{p_name:m.name,p_course:m.course,p_look:m.look});id=r.id}catch(e){return lobby(e.message||"Couldn’t reach Nisia. Try again.")}
+      try{const r=await A().send("battleFind",{p_name:m.name,p_course:m.course,p_look:m.look});id=r.id}catch(e){return lobby(e.message||"Couldn’t reach your college. Try again.")}
       timer=setInterval(poll,POLL);poll();
     }
     async function poll(){

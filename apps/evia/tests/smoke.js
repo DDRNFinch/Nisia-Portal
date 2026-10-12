@@ -121,7 +121,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await R.claimGrants();const mid=R.balance();await R.claimGrants();const after=R.balance();N.joined=j;N.rpc=r;
       const st=Object.assign({},window.eviaData.list("rewards")[0].state);st.bank-=5000;window.eviaData.put("rewards",{state:st});
       return mid-before===5000&&after===mid});
-    check("A coin gift from Nisia is added once",gift);
+    check("A coin gift from Evia Portal is added once",gift);
     // Free range: the unit offers Evia's guide or free range; free range is all the photos, then the write-up.
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar")));await page.waitForTimeout(900);
     const fr={choice:await page.evaluate(()=>!!document.getElementById("eg-start")&&!!document.getElementById("fr-start")&&!document.getElementById("write")&&!document.getElementById("evidence-camera"))};
@@ -847,12 +847,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p2.evaluate(()=>document.querySelector(".evia-guide-target").click());await p2.waitForTimeout(1200);
       ob.done=await p2.evaluate(()=>/"done"/.test(localStorage.getItem("evia7-onboarding"))&&!localStorage.getItem("evia7-induction"));
       ob.ticked=await p2.evaluate(()=>{try{const a=window.eviaStats.compute().a;return a.signoff?a.met===0&&a.possible.has("K2")&&a.possible.has("S2"):a.met>=2}catch(_){return false}});
-      // Nisia gets everything: after a sync nothing is left waiting, the PPE PDF included.
+      // Evia Portal gets everything: after a sync nothing is left waiting, the PPE PDF included.
       ob.synced=await p2.evaluate(async()=>{await window.eviaNisia.sync();const s=window.eviaNisia.status();return s.joined&&!s.changes&&!s.media&&!!s.lastSync});
       await p2.waitForTimeout(800);
       ob.tourCountsAsSeen=await p2.evaluate(()=>{const s=JSON.parse(localStorage.getItem("evia7-tips-seen")||"[]");return ["course","supporting","unit","learning","teach","calendar","evia","profile"].every(k=>s.includes(k))&&!document.querySelector(".ev-tip")});
       ob.noErrors=!e2.length&&await p2.evaluate(()=>!window.eviaErrors.list().filter(x=>x.kind!=="reported").length);
-      check("First run: connect to the college with the assessor's code, confirm the details Nisia sends, a Teach me style welcome, the PPE induction in the real guided mode saved to Supporting evidence (ticking K2 and S2), then a short tap-through tour",Object.values(ob).every(Boolean),JSON.stringify(ob)+" "+e2.join(" | "));
+      check("First run: connect to the college with the assessor's code, confirm the details Evia Portal sends, a Teach me style welcome, the PPE induction in the real guided mode saved to Supporting evidence (ticking K2 and S2), then a short tap-through tour",Object.values(ob).every(Boolean),JSON.stringify(ob)+" "+e2.join(" | "));
       await c2.close();
     }
 
@@ -887,7 +887,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await c5.close();
     }
 
-    // Live Nisia (with a stand-in Supabase): the assessor's code signs Evia in, then every record goes to Nisia,
+    // Live Evia Portal (with a stand-in Supabase): the assessor's code signs Evia in, then every record goes to Evia Portal,
     // with learning hours and evidence also in their own tables, and photos uploaded to the evidence store.
     {
       const c6=await browser.newContext({...devices["Pixel 7"],serviceWorkers:"block"}),p6=await c6.newPage(),e6=[];p6.on("pageerror",e=>e6.push(e.message));
@@ -906,7 +906,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         if(q.method()==="GET"&&/\/storage\/v1\/object\/.*observation\.pdf$/.test(u.pathname))return r.fulfill({status:200,contentType:"application/pdf",headers:{"access-control-allow-origin":"*"},body:"%PDF-1.4 observation"});
         if(u.pathname==="/rest/v1/targets"&&q.method()==="GET")return json([{id:"T1",review_id:"RV1",title:"Log 36 learning hours",description:"Log at least 36 hours in the next 6 weeks in Evia.",due_date:"2026-11-10",measure:{kind:"otj",target:36,baseline:0},created_at:"2026-09-28T10:00:00Z"}]);
         const fbList=()=>{const ev=calls.filter(x=>x.p==="/rest/v1/evidence"&&x.m==="POST").map(x=>JSON.parse(x.body)).pop();return ev?[{client_reference:ev.client_reference,unit:ev.title,decision:"accepted",feedback:"Well done Jo. Next time: more photos.",ksbs:["S1","K2"],assessed_at:"2026-09-28T12:00:00Z",assessor:"Mark Ellis"}]:[]};
-        /* calls.oldNisia: a Nisia without the stage 2 actions answers whatsNew with only the registers. */
+        /* calls.oldNisia: an Evia Portal without the stage 2 actions answers whatsNew with only the registers. */
         if(u.pathname==="/rest/v1/rpc/nisia_whats_new")return json(calls.oldNisia?{college:[],sessions:[],absences:[]}:{college:[],sessions:[],absences:[],attendance:[],employer:{witness:[],ratings:[]},feedback:fbList()});
         if(u.pathname==="/rest/v1/rpc/nisia_my_feedback")return json(fbList());
         /* The learner's course pack: the same topics as Evia's own (as your packs are). Sent once; then "unchanged". */
@@ -958,11 +958,11 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       lv.onlySignedCounts=await p6.evaluate(()=>{const a=window.eviaStats.compute().a,m=window.eviaMoreRequired();return a.signoff&&a.evidenced.has("K2")&&a.evidenced.has("S1")&&a.met===a.evidenced.size&&m.length>0&&!m.some(x=>x.code==="K2")&&window.eviaKsbAims.list().includes(m[0].code)});
       lv.moreRequiredShown=await p6.evaluate(()=>{const e=window.eviaData.list("evidence").pop();return /More required/.test(window.eviaFeedbackHtml(window.eviaFeedback.forEvidence(e.id),{k:e.ksbs}))});
       calls.oldNisia=true;await p6.evaluate(()=>window.eviaNisia.sync());await p6.waitForTimeout(400);calls.oldNisia=false;
-      /* Its course pack from Nisia: kept, matches Evia's own topics, not downloaded again; evidence carries its topic's id. */
+      /* Its course pack from Evia Portal: kept, matches Evia's own topics, not downloaded again; evidence carries its topic's id. */
       lv.packKept=await p6.evaluate(()=>{const p=window.eviaNisia.coursePack();return !!p&&p.code==="nisia-bricklayer"&&p.topics.length===10&&window.eviaNisia.coursePackMatches()===true})&&(calls.packAsks||[]).includes("H1");
       lv.evidenceTopicId=calls.filter(x=>x.p==="/rest/v1/evidence"&&x.m==="POST").map(x=>JSON.parse(x.body)).some(b=>/^bricklayer\//.test((b.source_metadata||{}).unitId||""));
       lv.signOffKeptOnOlderNisia=await p6.evaluate(()=>{const e=window.eviaData.list("evidence").pop(),f=e&&window.eviaFeedback.forEvidence(e.id);return !!f&&f.decision==="accepted"})&&calls.some(x=>x.p==="/rest/v1/rpc/nisia_my_feedback");
-      /* Leaderboards: join with a name, scores go to Nisia with it, the board shows where they are, and last month's
+      /* Leaderboards: join with a name, scores go to Evia Portal with it, the board shows where they are, and last month's
          prize is paid once and celebrated. */
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaLeaderboard.open("showdown")});await p6.waitForTimeout(700);
       lv.lbJoinOffered=await p6.evaluate(()=>!!document.querySelector("#lb-join")&&document.getElementById("lb-name").value==="Joanne B"&&/Only the name you choose/.test(document.querySelector(".lb-join").textContent));
@@ -975,7 +975,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const coinsBefore=await p6.evaluate(()=>window.eviaRewards.balance());
       await p6.evaluate(async()=>{document.getElementById("modal-root").innerHTML="";await window.eviaNisia.sync();await window.eviaNisia.sync()});await p6.waitForTimeout(500);
       lv.lbPrize=await p6.evaluate(b=>window.eviaRewards.balance()===b+100&&window.eviaLeaderboard.unseenWins().length===1&&window.eviaStats.nudges(window.eviaStats.compute()).some(n=>/^lb-/.test(n.id)&&/1st/.test(n.text)&&/\+100 coins/.test(n.text)),coinsBefore);
-      /* The four ways in: catch up shows once the assessor wants more; a voice note is kept with what Evia wrote down, and goes to Nisia. */
+      /* The four ways in: catch up shows once the assessor wants more; a voice note is kept with what Evia wrote down, and goes to Evia Portal. */
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
       lv.noRecordings=await p6.evaluate(()=>!document.getElementById("rec-start")&&!!document.getElementById("cu-start")&&!!document.getElementById("eg-start")&&!!document.getElementById("fr-start"));
       /* Recordings are switched off for now (storage); the rest of this switches them on to keep the code working for later. */
@@ -1040,7 +1040,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       if(!lv.backToYours)console.log("BACK",JSON.stringify(back));
       lv.noCoinsForBack=await p6.evaluate(b=>{window.eviaRewards.sync();return window.eviaData.list("rewards")[0].state.bank===b},bank0);
       lv.noErrors=!e6.length;
-      check("Live Nisia: the assessor's code signs Evia in, every record, learning hours, evidence and photos go to the college, and name, safeguarding lead and review date come back",Object.values(lv).every(Boolean),JSON.stringify(lv)+" "+e6.join(" | "));
+      check("Live Evia Portal: the assessor's code signs Evia in, every record, learning hours, evidence and photos go to the college, and name, safeguarding lead and review date come back",Object.values(lv).every(Boolean),JSON.stringify(lv)+" "+e6.join(" | "));
 
       // A second device (a computer) connects to the same learner: their saved work comes back, then the photos on WiFi.
       const store={};calls.filter(x=>x.p==="/rest/v1/evia_records"&&x.m==="POST").flatMap(x=>JSON.parse(x.body)).filter(r=>r.collection==="store").forEach(r=>{store[r.record_id]=r});
@@ -1073,7 +1073,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       rs.photoDown=!!photoId&&await p7.evaluate(async id=>{const b=await window.eviaGetEvidencePhoto(id);return !!b&&b.size>0},photoId);
       rs.notSentAgain=!calls7.some(x=>x.m==="POST"&&(x.p==="/rest/v1/evidence"||x.p==="/rest/v1/otj_entries"||x.p.startsWith("/storage/v1/object/evidence/")))&&await p7.evaluate(()=>{const s=window.eviaNisia.status();return !s.changes&&!s.media});
       rs.noErrors=!e7.length;
-      check("A second device: connecting Evia on a computer brings the learner's work back from Nisia, photos included, without sending it all again",Object.values(rs).every(Boolean),JSON.stringify(rs)+" "+e7.join(" | "));
+      check("A second device: connecting Evia on a computer brings the learner's work back from Evia Portal, photos included, without sending it all again",Object.values(rs).every(Boolean),JSON.stringify(rs)+" "+e7.join(" | "));
       await c7.close();
       await c6.close();
     }
@@ -1161,7 +1161,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Evia pulses from 7 days before the review while there's something to get ready, and not otherwise",rc.pulse&&rc.pulse.p5&&!rc.pulse.p10&&!rc.pulse.pNone,JSON.stringify(rc.pulse));
     check("Connected to a college, Evia's first message each day before the review is getting ready, and stops asking for comments once they're in",rc.before===true&&rc.after===false,JSON.stringify(rc));
     // Course notifications (Web Push): a learner connected to their college turns them on from Evia's Today card; the
-    // phone's subscription goes to Nisia; a push from Nisia shows a notification; tapping one opens the right place.
+    // phone's subscription goes to Evia Portal; a push from Evia Portal shows a notification; tapping one opens the right place.
     {
       const d8=process.env.EVIA_SHOTS||"",c8=await browser.newContext({...devices["Pixel 7"]}),p8=await c8.newPage(),e8=[],calls8=[];p8.on("pageerror",e=>e8.push(e.message));
       await c8.grantPermissions(["notifications"],{origin:url.replace(/\/$/,"")});
@@ -1198,7 +1198,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const up=calls8.filter(x=>x.p==="/rest/v1/device_tokens"&&x.m==="POST").map(x=>JSON.parse(x.body)).pop();
       pv.saved=!!up&&up.app==="evia"&&up.user_id==="u-learner"&&up.token===up.subscription.endpoint&&up.subscription.keys.auth==="au"&&await p8.evaluate(()=>window.__pushKey===65);
       pv.on=await p8.evaluate(()=>window.eviaPush.state()==="on"&&!window.eviaTodo.list().some(x=>/notifications/.test(x.title))&&/never between 9pm/.test(document.getElementById("chat").innerText));
-      /* A push from Nisia, delivered to the service worker the way Chrome's push service would. */
+      /* A push from Evia Portal, delivered to the service worker the way Chrome's push service would. */
       const cdp=await c8.newCDPSession(p8);const regs=[];cdp.on("ServiceWorker.workerRegistrationUpdated",e=>regs.push(...e.registrations));
       await cdp.send("ServiceWorker.enable");await p8.waitForTimeout(800);
       const reg=regs.find(r=>!r.isDeleted),worker=c8.serviceWorkers()[0];
@@ -1219,7 +1219,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p8.locator("#pf-push").evaluate(el=>{el.checked=false;el.dispatchEvent(new Event("change"))});await p8.waitForTimeout(1500);
       pv.off=calls8.some(x=>x.p==="/rest/v1/device_tokens"&&x.m==="DELETE"&&/test-endpoint/.test(decodeURIComponent(x.s)))&&await p8.evaluate(()=>window.eviaPush.state()==="off");
       pv.noErrors=!e8.length;
-      check("Course notifications: Evia offers them once, saves the phone to Nisia, shows Nisia's push, opens the right place when tapped, and turns off from the profile",Object.values(pv).every(Boolean)&&pv.offFirst==="off",JSON.stringify(pv)+" "+e8.join(" | "));
+      check("Course notifications: Evia offers them once, saves the phone to Evia Portal, shows Evia Portal's push, opens the right place when tapped, and turns off from the profile",Object.values(pv).every(Boolean)&&pv.offFirst==="off",JSON.stringify(pv)+" "+e8.join(" | "));
       await c8.close();
     }
     // Checking in to class (Symi's code on the classroom screen): Evia's first action when connected to a college,
@@ -1300,6 +1300,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       cv.kept=await p9.evaluate(()=>/no signal/i.test(document.getElementById("ci-view").textContent)&&window.eviaNisia.waitingCheckIns()===1&&!window.eviaTodo.list().some(x=>x.ic==="checkin"));
       if(d9)await p9.locator("#ci-view .ci-sheet").screenshot({path:d9+"/checkin-saved.png"}).catch(()=>{});
       await p9.click("#ci-view [data-ci-close]");
+      /* A kept check-in goes once it's a minute old (so Evia Portal checks it against when it was scanned): a minute on. */
+      await p9.evaluate(()=>{for(const k of Object.keys(localStorage).filter(k=>/^nisia-outbox-v1/.test(k))){const o=JSON.parse(localStorage.getItem(k)||"[]");o.forEach(x=>{if(x.name==="checkIn")x.at=new Date(Date.parse(x.at)-120e3).toISOString()});localStorage.setItem(k,JSON.stringify(o))}});
       await c9.setOffline(false);await p9.evaluate(()=>window.eviaNisia.sync());await p9.waitForTimeout(1500);
       cv.sentLater=calls9.some(x=>x.p==="/rest/v1/rpc/nisia_check_in"&&JSON.parse(x.body).p_code==="XYZ789"&&!!JSON.parse(x.body).p_scanned_at)&&await p9.evaluate(()=>window.eviaNisia.waitingCheckIns()===0&&!window.eviaTodo.list().some(x=>x.ic==="checkin"));
       /* Can't make college: the days and why, and everyone is told. */
@@ -1336,7 +1338,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       check("Check in to class: Evia's first action when connected, a typed or scanned code checks in (jsQR reads it on iPhones), the tutor's register comes back as college hours the learner can't delete, a class on now is top of Evia's list, a scan with no signal is kept and sent later, a learner books a day off, the employer's witness testimony and behaviour ratings arrive, and My progress shows attendance as a percentage and a calendar",Object.values(cv).every(v=>v===true),JSON.stringify(cv)+" "+e9.join(" | "));
       await c9.close();
     }
-    // Remove all data from this phone: Evia's data goes, the other Nisia apps' (same website) stays, Evia starts again.
+    // Remove all data from this phone: Evia's data goes, the other Evia Portal apps' (same website) stays, Evia starts again.
     {
       const cR=await browser.newContext({...devices["Pixel 7"]}),pR=await cR.newPage(),eR=[];pR.on("pageerror",e=>eR.push(e.message));
       await pR.goto(url+"manifest.json");
@@ -1358,7 +1360,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         let hours=-1;try{hours=window.eviaData?window.eviaData.list("hours").length:0}catch(_){hours=0}
         return {milos:localStorage.getItem("milos-auth"),name:(JSON.parse(localStorage.getItem("evia7-profile")||"{}")||{}).name||"",onboarding:localStorage.getItem("evia7-onboarding"),hours,dbs};
       });
-      check("Remove all data from this phone: typing DELETE unlocks it, Evia's data goes and it starts again, other Nisia apps' data stays",
+      check("Remove all data from this phone: typing DELETE unlocks it, Evia's data goes and it starts again, other Evia Portal apps' data stays",
         before>=1&&off&&on&&after.milos==="keep-me"&&!after.name&&!/"done"/.test(after.onboarding||"")&&after.hours<=0,JSON.stringify({before,off,on,after}));
       check("…no script errors",!eR.length,eR.join(" | "));
       await cR.close();

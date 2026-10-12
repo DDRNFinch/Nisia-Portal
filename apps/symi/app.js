@@ -437,7 +437,7 @@
     else if(state.view==='games')renderGamesPage();
     else renderHome();
     manageTicker();
-    /* Nisia (nisia-link.js) adds its part to the screen after each draw. */
+    /* Evia Portal (nisia-link.js) adds its part to the screen after each draw. */
     try{window.dispatchEvent(new CustomEvent('symi:render',{detail:{view:state.view}}))}catch(_){ }
   }
 
@@ -658,7 +658,7 @@
       else if(['live','break','open-early'].includes(t.code))items.push({reg:reg.id,urgent:true,title:`Take the register: ${reg.name}`,sub:people.length?`${here} of ${people.length} here so far`+(people.length-here?` · ${people.length-here} not in yet`:''):'No learners on this register yet.'});
       else items.push({reg:reg.id,title:`${reg.name} at ${reg.start||'09:00'}`,sub:`Today${reg.room?' · '+reg.room:''} · ${people.length} learner${people.length===1?'':'s'}`});
     }
-    /* Days off learners have booked in Evia (from Nisia), for the next week. */
+    /* Days off learners have booked in Evia (from Evia Portal), for the next week. */
     let off=[];try{off=JSON.parse(localStorage.getItem('symi.nisia.absences.v1')||'[]')}catch(_){}
     const week=new Date(key+'T12:00:00');week.setDate(week.getDate()+7);const until=week.toISOString().slice(0,10);
     for(const b of off){
@@ -1471,7 +1471,7 @@
     build:BUILD,getState:()=>clone(state),goHome,openAssistantMenu:()=>openAssistant('main'),
     openLearners:()=>{state.view='learners';save()},openClasses:()=>{state.view='classes';save()},openRegisters:()=>{state.view='registers';selectUsefulRegister();save()},openResources:()=>{state.view='resources';save()},
     clearOldShellCaches,learnerAttendanceStats,scheduledMs,finaliseSession,
-    /* For Nisia (nisia-link.js): change the classroom data and redraw; start a learner's timer when they check in. */
+    /* For Evia Portal (nisia-link.js): change the classroom data and redraw; start a learner's timer when they check in. */
     mutate:(fn,redraw=true)=>{fn(state);save(redraw)},
     activeRegisterId:()=>state.activeClassId,
     today:()=>todayKey(),

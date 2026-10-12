@@ -1,8 +1,8 @@
-/* Course packs from Nisia, for Milos, Paros and the portal: each course's topics and the KSBs (NVQ: criteria) they
+/* Course packs from Evia Portal, for Milos, Paros and the portal: each course's topics and the KSBs (NVQ: criteria) they
    cover, and the standard's full wording. Kept on the device, so they work with no signal; packs that haven't changed
    aren't downloaded again. Before the first download, the copy in courses.js (made from the same files) stands in.
 
-   loadPacks(rpc)        bring the packs up to date from Nisia (call on sync; with no signal, what's kept is used)
+   loadPacks(rpc)        bring the packs up to date from Evia Portal (call on sync; with no signal, what's kept is used)
    coursePack(code, enrolmentId)  a learner's course (their own pack, else their college's, else yours) in the shape the apps use: { name, std, units: [[topic, [codes], optional?]], ksbs: [[code,
                          wording]], nvq?, optional?, topics: [{id, name, ksbs}], pack?: {code, version, hash} }
    allCoursePacks()      every course, keyed by code

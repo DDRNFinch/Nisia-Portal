@@ -1,4 +1,4 @@
-/* The review, written from Evia and Nisia: paragraphs the assessor reads, edits and signs, in plain British English,
+/* The review, written from Evia and Evia Portal: paragraphs the assessor reads, edits and signs, in plain British English,
    in the assessor's voice about the apprentice. Everything is worked out from what's recorded, nothing invented:
    where there's nothing to say, the sentence is left out. No AI and nothing leaves the phone. */
 

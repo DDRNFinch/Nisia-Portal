@@ -1,5 +1,5 @@
 /* Symi teaching, in a browser: a Bricklaying class gets its scheme of work on its own dates, today's lesson plan timed
-   around its breaks, slides with Evia's pictures and a class quiz; a course added in Nisia with no Teach me lessons
+   around its breaks, slides with Evia's pictures and a class quiz; a course added in Evia Portal with no Teach me lessons
    still gets a full plan from its KSBs.   Run: node tests/symi-teach.test.mjs */
 import http from "node:http";
 import fs from "node:fs";
@@ -30,7 +30,7 @@ try {
   await page.goto(url + "update.json");
   const build = JSON.parse(await page.textContent("body")).version;
   /* A class on today's weekday that started three weeks ago, 09:00–16:00 with two breaks; and a Plastering course
-     the college added in Nisia (no Teach me lessons for it yet). */
+     the college added in Evia Portal (no Teach me lessons for it yet). */
   await page.evaluate((build) => {
     localStorage.clear();
     const k = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -77,7 +77,7 @@ try {
     flow1.done.join("|") === "Teach|Class quiz" && / of \d+ right as a class/.test(flow1.quiz) && flow1.dots === 2 && sent.codes.length >= 4 && sent.lessons.length >= 1, JSON.stringify({ flow0, flow1, sent }));
   await page.click("#stSheet [data-step=reg]"); await page.waitForTimeout(200);
   const regStep = await page.evaluate(() => !document.querySelector("#stSheet") && !!document.querySelector(".sn-auth") && JSON.parse(localStorage.getItem("symi.teach.flow.v1"))[Object.keys(JSON.parse(localStorage.getItem("symi.teach.flow.v1")))[0]].reg === true);
-  check("…Take the register shows the check-in code (here, not signed in yet, it asks to connect to Nisia first)", regStep);
+  check("…Take the register shows the check-in code (here, not signed in yet, it asks to connect to Evia Portal first)", regStep);
   await page.evaluate(() => document.querySelectorAll(".sn-auth").forEach((x) => x.remove()));
 
   /* The scheme of work: every class day, the course's units spread over them, today's picked out. */
@@ -116,7 +116,7 @@ try {
   const moved = /^2 \//.test(await page.textContent(".st-count"));
   check("Class quiz: a question with lettered answers, the right one shown with why, and the class tally moves on", !!q1 && opts >= 2 && moved, q1 + " " + opts);
 
-  /* The quiz on learners' phones (signed in to Nisia): answers count in, then how many picked each, then the scores. */
+  /* The quiz on learners' phones (signed in to Evia Portal): answers count in, then how many picked each, then the scores. */
   await page.evaluate(() => {
     const S = window.__quiz = { calls: [], answered: 0 };
     window.SymiNisia = { live: () => true,
@@ -136,7 +136,7 @@ try {
   for (let i = 0; i < 20 && !(await page.$("#stSheet .st-board")); i++) { await page.click("#stSheet [data-next]"); await page.waitForTimeout(80); if (await page.$("#stSheet [data-show]")) await page.click("#stSheet [data-show]"); await page.waitForTimeout(80); }
   const board = await page.textContent("#stSheet .st-board"), calls = await page.evaluate(() => window.__quiz.calls);
   await page.screenshot({ path: shots + "/symi-quiz-live-results.png" });
-  check("Class quiz on phones: the questions go to Nisia with the right answers kept back from phones, answers count in live, then how many picked each, then the class's scores and who needs help",
+  check("Class quiz on phones: the questions go to Evia Portal with the right answers kept back from phones, answers count in live, then how many picked each, then the class's scores and who needs help",
     calls[0].t === "start" && calls[0].n >= 4 && Array.isArray(calls[0].first.opts) && Number.isInteger(calls[0].first.a) && /2 of 3 answered/.test(counting) && /2/.test(votes) &&
     /Callum Hughes/.test(board) && calls.some((c) => c.fin) && /Jordan/.test(await page.textContent("#stSheet")), JSON.stringify({ counting, votes, calls: calls.slice(0, 3) }));
   await page.click("#stSheet [data-done]");
@@ -153,14 +153,14 @@ try {
   check("The scheme of work prints as a document (dates, units, content, KSBs, assessment)", /Scheme of work/.test(printed) && /Mixing mortar/.test(printed) && /Unit check quiz/.test(printed), printed.slice(0, 200));
   await page.click("[data-st-close]");
 
-  /* A course the college added in Nisia, with no Teach me lessons: still a full plan, from its KSB wording. */
+  /* A course the college added in Evia Portal, with no Teach me lessons: still a full plan, from its KSB wording. */
   await page.evaluate(() => window.SamosApp.mutate((st) => { st.classes[0].courseCode = "plasterer"; }, true));
   await page.waitForFunction(() => /Preparing backgrounds|Solid plastering/.test((document.querySelector(".st-strip") || {}).textContent || ""), null, { timeout: 8000 });
   await page.click(".st-strip [data-st=lesson]"); await page.waitForSelector("#stSheet .st-doc");
   const plaster = await page.textContent("#stSheet .st-doc");
   await page.click("#stSheet [data-st-slides]"); await page.waitForSelector(".st-slide h1");
   const pslides = await page.textContent(".st-count");
-  check("A new course added in Nisia (Plastering, no Teach me lessons yet) gets its plan, slides and quiz from its own KSBs",
+  check("A new course added in Evia Portal (Plastering, no Teach me lessons yet) gets its plan, slides and quiz from its own KSBs",
     /Plasterer/.test(plaster) && /(K1|K2|S2)/.test(plaster) && Number(pslides.split("/")[1]) >= 2, plaster.slice(0, 200));
   for (let i = 0; i < 4 && (await page.$("#stSheet")); i++) { await page.keyboard.press("Escape"); await page.waitForTimeout(120); }
   const closed = !(await page.$("#stSheet"));
@@ -196,7 +196,7 @@ try {
   const date = await page.$eval(".sl-sheet select[name=date]", (x) => x.value); await page.click(".sl-sheet button[type=submit]"); await page.waitForTimeout(200);
   const swapped = await page.evaluate(async (d) => { const T = window.SymiTeach, p = await T.planFor("t1"), s = p.sessions.find((x) => x.date === d); return T.slidesFor(p, s).map((x) => x.title).slice(0, 3).join("|"); }, date);
   check("College: signed out it asks to connect; signed in, what the college shares (slides, links), and slides put into a session become that session's Teach",
-    /Sign in to Nisia/.test(signedOut) && /Brick bonds deck/.test(college) && /Cavity walls PowerPoint/.test(college) && /Shared by Priya Shah/.test(college) && /Brick bonds deck\|English bond\|Flemish bond/.test(swapped), swapped);
+    /Sign in to Evia Portal/.test(signedOut) && /Brick bonds deck/.test(college) && /Cavity walls PowerPoint/.test(college) && /Shared by Priya Shah/.test(college) && /Brick bonds deck\|English bond\|Flemish bond/.test(swapped), swapped);
   await page.click('[data-sl-tab="mine"]'); await page.waitForSelector("[data-sl-share]"); await page.click("[data-sl-share]"); await page.waitForTimeout(200);
   const shared = await page.evaluate(() => window.__college.shared[0]);
   check("…and the tutor's own slides are shared with the college from My resources, content and all", !!shared && shared.kind === "slides" && shared.title === "My cavity wall slides" && shared.opts.content.slides[0].title === "Wall ties", JSON.stringify(shared));

@@ -1,4 +1,4 @@
-/* Question Battle in Evia: two phones (Amy and Ben) play a whole battle against a stand-in Nisia that follows the
+/* Question Battle in Evia: two phones (Amy and Ben) play a whole battle against a stand-in Evia Portal that follows the
    same rules as battles.sql (5 HP, the attacker throws a card, a wrong answer is a hit, the answer stays on the
    "server" until it's answered). Checks the Learn banner, the lobby, matching, each sees the other's own Evia, a hand
    of 4 that's dealt fresh once used, hits and blocks with the right answer shown, and the win and loss screens.
@@ -24,7 +24,7 @@ const url = "http://localhost:" + server.address().port + "/";
 const results = [];
 const check = (name, ok, detail) => { results.push(ok); console.log((ok ? "✓ " : "✗ ") + name + (ok || !detail ? "" : " — " + detail)); };
 
-/* ---- The stand-in Nisia: one battle table, as battles.sql ---- */
+/* ---- The stand-in Evia Portal: one battle table, as battles.sql ---- */
 const B = { rows: [], log: [] };
 const other = (s) => (s === "a" ? "b" : "a");
 const sideOf = (v, who) => (v.a === who ? "a" : v.b === who ? "b" : null);

@@ -84,7 +84,7 @@
         y+=tile+gap;
       }
       y+=1;
-      /* The write-up, then what was said in any recordings (the files themselves stay in Evia and Nisia). */
+      /* The write-up, then what was said in any recordings (the files themselves stay in Evia and Evia Portal). */
       const recs=(e.media||[]),recNote=recs.length?recs.map(m=>(m.kind==="video"?"Video":"Voice note")+(m.secs?" "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")).join(", "):"";
       const blocks=[e.w?["Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
       for(const [title,body] of blocks){

@@ -1,6 +1,6 @@
 /* Explore: tap every tab, then every button on every screen, and every button on the screens those open (two levels
    deep), the way a curious new user would. Reports anything that throws, logs an error, scrolls sideways, goes blank
-   or shows "undefined"/"NaN". Used at the end of each app's test, on its stand-in Nisia, so nothing real changes.
+   or shows "undefined"/"NaN". Used at the end of each app's test, on its stand-in Evia Portal, so nothing real changes.
    Signing out, deleting and leaving the app are skipped.
    explore(page, { app, tabSel | tabs, skip, depth = 2, max = 700 }) → { screens, taps, problems: [..], lost: [..] } */
 export async function explore(page, { app, tabs, tabSel, skip, depth = 2, max = 700, perScreen = 40, settle } = {}) {

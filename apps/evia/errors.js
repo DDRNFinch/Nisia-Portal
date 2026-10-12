@@ -1,5 +1,5 @@
 /* Evia7 problem log: script errors and failed promises on this phone, kept so the learner can send them to their tutor
-   (and, later, so Nisia receives them with everything else). Loaded before anything else. It keeps the last 50;
+   (and, later, so Evia Portal receives them with everything else). Loaded before anything else. It keeps the last 50;
    the same problem again only counts up. Kept in localStorage (not IndexedDB) so it works from the first line.
    window.eviaErrors.list()  .log(message, {where, stack, kind})  .clear()  .text() */
 (function(){

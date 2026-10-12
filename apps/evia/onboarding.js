@@ -1,5 +1,5 @@
 /* Evia7 first run, guided like a Teach me lesson, on the real screens.
-   1. Connect to your college: scan the assessor's pairing QR (or type its code, or open the invite link). Nisia sends
+   1. Connect to your college: scan the assessor's pairing QR (or type its code, or open the invite link). Evia Portal sends
       the learner's details and course; they check it's them (nisia.js). No code yet: pick the course, connect later.
    2. A short welcome lesson from Evia, with one quick question.
    3. The PPE induction, on a real evidence page with the real "Let Evia guide you": photos, two questions, a statement.
@@ -186,7 +186,7 @@
 
   /* ---------- 1. Connect to your college ----------
      The learner's assessor shows a pairing QR (or sends an invite link); the code under the QR can be typed instead.
-     Nisia sends back who they are and their course, so they only check it's them. Everything they then add to Evia
+     Evia Portal sends back who they are and their course, so they only check it's them. Everything they then add to Evia
      goes to their college (nisia.js). No code yet: pick the course, and connect later from the profile. */
   let later=false;   /* connecting from the profile, after the first run */
   const canScan=()=>"BarcodeDetector" in window&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
@@ -232,7 +232,7 @@
     })();
   }
   const ukDate=d=>{const t=Date.parse(d);return isNaN(t)?"":new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})};
-  /* "Is this you?": what Nisia has for them. */
+  /* "Is this you?": what Evia Portal has for them. */
   function showMe(en){
     const name=String(en.name||"").split(/\s+/)[0];
     const course=(window.eviaPacks.catalogue().find(c=>c.id===en.course)||{}).name||en.course;
@@ -258,7 +258,7 @@
     if(Array.isArray(en.nvqOptional)&&en.nvqOptional.length)p.nvqOptional=en.nvqOptional.slice();
     window.eviaData.put("learner",p);
   }
-  /* NVQ learners choose their optional unit unless Nisia already has it; then Evia's look, then the welcome lesson. */
+  /* NVQ learners choose their optional unit unless Evia Portal already has it; then Evia's look, then the welcome lesson. */
   function afterJoin(){
     const needOptional=nvqOn()&&!(window.eviaData.learner().nvqOptional||[]).length;
     if(needOptional){writeState("optional");showOptionalPicker();return}

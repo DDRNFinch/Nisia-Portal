@@ -1,8 +1,8 @@
 /* Symi teaching: every class gets a scheme of work set to its own dates, and each session a lesson plan, slides to
    teach from and a class quiz. Nothing to write: it's made from the course's units and KSBs (the course pack in
-   Nisia) and the lessons in Evia's Teach me, which were checked one by one (teach-*.js, with their pictures). A course
+   Evia Portal) and the lessons in Evia's Teach me, which were checked one by one (teach-*.js, with their pictures). A course
    with no Teach me lessons yet still gets a full plan, built from the standard's own KSB wording, so any course a
-   college adds in Nisia works straight away.
+   college adds in Evia Portal works straight away.
 
    Where: a strip on the register ("Today: Session 3 · Mixing mortar") with Teach, Quiz and Lesson plan, and the
    whole scheme of work. Plans and documents print. Tutors' own notes for a session are kept on the phone.
@@ -120,7 +120,7 @@ const courses = {};
 function course(code) {
   return courses[code] || (courses[code] = (async () => {
     const m = await loadPacks(), pack = m.coursePack(code);
-    if (!pack) throw new Error("That course isn’t in Nisia yet.");
+    if (!pack) throw new Error("That course isn’t in Evia Portal yet.");
     let tu = null; try { tu = await teachUnits(code); } catch (e) { tu = null; }
     const text = Object.fromEntries(pack.ksbs || []);
     const units = (pack.units || []).map(([name, codes]) => {
@@ -396,7 +396,7 @@ function slides(p, s, back, hooks) {
   };
   draw();
 }
-/* The quiz: on learners' phones when Symi is signed in to Nisia and there's a signal (each learner answers in Evia,
+/* The quiz: on learners' phones when Symi is signed in to Evia Portal and there's a signal (each learner answers in Evia,
    the screen counts them in); otherwise hands up, the tutor tapping whether most of the class got it. */
 function quiz(p, s, back, hooks) {
   const N = window.SymiNisia;

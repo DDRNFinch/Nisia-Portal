@@ -231,7 +231,7 @@
   window.eviaGetEvidencePhotoData=getEvidencePhotoData;
   /* One evidence photo by its id, as a Blob (used by data.js: eviaData.files.get). */
   window.eviaGetEvidencePhoto=id=>idbGet(id).then(r=>r&&r.blob?r.blob:null);
-  /* A photo from Nisia (Evia on a new device), under the id its evidence already uses. */
+  /* A photo from Evia Portal (Evia on a new device), under the id its evidence already uses. */
   window.eviaDeleteEvidencePhoto=id=>idbDelete(id);
   window.eviaPutEvidencePhoto=(id,blob)=>idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id);
   window.eviaStoreEvidencePhoto=blob=>{const id="submitted-"+Date.now()+"-"+Math.random().toString(36).slice(2);return idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id)};

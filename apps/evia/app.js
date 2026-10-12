@@ -45,7 +45,7 @@ let course=localStorage.getItem("evia7-course")||"bricklayer", screen="course", 
 hours=hours.map((x,i)=>Object.assign({id:"legacy-"+i,createdAt:x.createdAt||Date.parse(x.d)||Date.now(),savedAt:x.savedAt||x.d||""},x));
 const $=s=>document.querySelector(s), data=()=>C[course], code=x=>x.split("|")[0], text=x=>x.split("|").slice(1).join("|");
 function persist(){localStorage.setItem("evia7-course",course);localStorage.setItem("evia7-evidence",JSON.stringify(evidence));localStorage.setItem("evia7-hours",JSON.stringify(hours));localStorage.setItem("evia7-otj-batches",JSON.stringify(otjBatches))}
-/* A learner connected to Nisia whose college has its own pack follows its topics (packs.js); everyone else, Evia's own. */
+/* A learner connected to Evia Portal whose college has its own pack follows its topics (packs.js); everyone else, Evia's own. */
 try{window.eviaPacks&&window.eviaPacks.followKept&&window.eviaPacks.followKept(course)}catch(err){console.warn("Evia: pack",err&&err.message)}
 function nav(s){screen=s;render();}
 function render(){

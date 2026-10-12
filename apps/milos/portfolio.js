@@ -2,7 +2,7 @@
    new (not yet assessed) highlighted. Each piece opens as a document (learner's account, photos and files, the KSBs
    they mapped) that downloads as a PDF. The assessor accepts it or asks for changes, and confirms the KSBs it meets:
    the learner's mapping is ticked to start with, and can be unticked or added to. Each decision is a new row in
-   Nisia's assessments (the latest one stands), so the history is kept. */
+   Evia Portal's assessments (the latest one stands), so the history is kept. */
 import { db, esc, ukDate } from "../../packages/core/nisia.js";
 import { coursePack, allCoursePacks, topicFor } from "../../packages/core/packs.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
@@ -80,7 +80,7 @@ export function portfolioHtml(groups, onlyNew, snap) {
 }
 
 /* ---------- One piece of evidence, as a document ---------- */
-/* Photos waiting to be sent are shown from the phone; the rest come from Nisia, so need signal. */
+/* Photos waiting to be sent are shown from the phone; the rest come from Evia Portal, so need signal. */
 async function signed(files) {
   const here = files.filter((f) => f.blob), there = files.filter((f) => !f.blob);
   const urls = {};
@@ -248,7 +248,7 @@ export async function evidencePdf({ L, C, e, item, college, media, claimed, asBl
     if (col === 1) y += rowH + 5;
   }
   const others = media.filter((f) => f.url && !/^image\//.test(f.mime_type) && !/observation\.pdf$/.test(f.storage_path || ""));
-  if (others.length) { head("Other files"); others.forEach((f) => text("• " + f.storage_path.split("/").pop() + " (" + f.mime_type + "), kept in Nisia", 9, "normal", 0.6)); }
+  if (others.length) { head("Other files"); others.forEach((f) => text("• " + f.storage_path.split("/").pop() + " (" + f.mime_type + "), kept in Evia Portal", 9, "normal", 0.6)); }
   head("Assessment");
   if (item.latest) {
     text((item.latest.decision === "accepted" ? (isObservation(e) ? "Observed and signed off" : "Accepted") : "More asked for") + " on " + ukDate(item.latest.created_at) + (isObservation(e) && e.source_metadata.observedBy ? " by " + e.source_metadata.observedBy : ""), 10, "bold");

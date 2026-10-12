@@ -38,7 +38,7 @@
       const st=Date.parse(now.starts_at),mins=Math.round((Date.now()-st)/60000);
       add(110,"checkin","Check in to "+(now.class||"class"),(mins<0?"Starts at ":"Started at ")+new Date(st).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(now.room?" · "+now.room:""),"Check in",leave(()=>window.eviaCheckIn.open()));
     }
-    /* A check-in kept with no signal that Nisia turned down when it was sent. */
+    /* A check-in kept with no signal that Evia Portal turned down when it was sent. */
     (live&&N.checkInProblems?N.checkInProblems():[]).slice(0,1).forEach(p=>add(105,"checkin","Your check-in didn’t go through",(p.class?p.class+", ":"")+shortDay(p.at)+": tell your tutor","What to do",inChat("My check-in didn’t go through",()=>{
       N.seenCheckInProblems();
       K().say("When Evia sent it, your college said: “"+esc(p.message||"that code didn’t match")+"”");

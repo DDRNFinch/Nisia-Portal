@@ -1,4 +1,4 @@
-/* Evia, explored: a learner connected to the test Nisia, with evidence, photos and hours, taps every tab, every
+/* Evia, explored: a learner connected to the test Evia Portal, with evidence, photos and hours, taps every tab, every
    button, and every button on the screens those open, then everything in Evia's chat. Anything that throws, logs an
    error, scrolls sideways, goes blank or shows "undefined"/"NaN" is a failure.
    Run: node tests/e2e/explore-evia.e2e.mjs   (needs Postgres 16) */

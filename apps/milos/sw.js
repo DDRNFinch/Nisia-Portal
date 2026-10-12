@@ -1,6 +1,6 @@
 /* Milos works offline. The whole app is kept here as one version: every file is fetched fresh when a new version
    installs, and served from here after that, so an update always arrives complete (never new files mixed with old
-   ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Nisia's own requests go straight through.
+   ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Evia Portal's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
 const VERSION = "dev";
 const CACHE = "milos-" + VERSION;
@@ -24,7 +24,7 @@ self.addEventListener("fetch", (e) => {
     (e.request.mode === "navigate" ? c.match("./") : null)).then((hit) => hit || fetch(e.request))));
 });
 
-/* Notifications from Nisia (the assessor turned them on). Tapping one opens Milos on the right tab: the open Milos if
+/* Notifications from Evia Portal (the assessor turned them on). Tapping one opens Milos on the right tab: the open Milos if
    there is one, otherwise a new one. */
 self.addEventListener("push", (e) => {
   let m = {};

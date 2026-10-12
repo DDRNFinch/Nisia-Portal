@@ -1,9 +1,9 @@
 /* Days off, for the staff and employer apps (Milos, Paros): a learner's booked absences, booking more, cancelling.
-   The same absences Evia and Symi book and show: Nisia tells the learner, their tutor, assessor and employer, and the
+   The same absences Evia and Symi book and show: Evia Portal tells the learner, their tutor, assessor and employer, and the
    days show on every register with the reason. The last list is kept on the device for when there's no signal.
    mountAbsences(box, { enrolment, name, sheet, toast, hit }) */
 import { rpc, esc } from "./nisia.js";
-/* Through the shared actions when the app has loaded them (nisia-actions.js); each app connects them to Nisia. */
+/* Through the shared actions when the app has loaded them (nisia-actions.js); each app connects them to Evia Portal. */
 const ask = (name, fn, args) => window.NisiaActions ? window.NisiaActions.send(name, args) : rpc(fn, args);
 
 export const KINDS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
@@ -58,7 +58,7 @@ export async function mountAbsences(box, o) {
     else box.innerHTML = '<section class="card m-card"><p class="label">Days off</p><p class="m-card-sub">Loading…</p></section>';
     if (!navigator.onLine) return draw(kept || [], "No signal: this is the list from last time.");
     try { const list = await ask("absences", "nisia_absences", { p_enrolment: o.enrolment }); write(key, list || []); draw(list || []); }
-    catch (e) { draw(kept || [], "Couldn’t reach Nisia: " + e.message); }
+    catch (e) { draw(kept || [], "Couldn’t reach your college: " + e.message); }
   };
   function book() {
     const t = today();

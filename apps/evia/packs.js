@@ -1,7 +1,7 @@
 /* Evia7 course packs: each trade's content is its own pack, and a learner's phone loads only their own.
    Today a pack is the trade's Teach me lessons and EPA test bank; for the NVQ, its criteria (nvq-data.js) and screens
-   (nvq.js) too. The other trades' unit lists stay in app.js; CATALOGUE names every course for the course pickers. When Nisia supplies packs, fetch() here swaps from script files to
-   Nisia's download, and the rest of Evia doesn't change: it asks for eviaPacks.ensure(course) and eviaPacks.pack().
+   (nvq.js) too. The other trades' unit lists stay in app.js; CATALOGUE names every course for the course pickers. When Evia Portal supplies packs, fetch() here swaps from script files to
+   Evia Portal's download, and the rest of Evia doesn't change: it asks for eviaPacks.ensure(course) and eviaPacks.pack().
 
    eviaPacks.files(course, part) the files that make up a course's pack; part "early" is the ones that must run before
                                 app.js (the NVQ course is built from them), "late" the rest
@@ -10,7 +10,7 @@
    eviaPacks.loaded(course)     whether they are in
    eviaPacks.unitId(course, name)  a unit's stable id: fixed below for every unit that exists today, so renaming a unit
                                 later keeps its id (add the old id against the new name). New units get one from the name.
-   eviaPacks.pack(course)       the course in the pack format Nisia will use: { id, version, name, standard, units:[{id,
+   eviaPacks.pack(course)       the course in the pack format Evia Portal will use: { id, version, name, standard, units:[{id,
                                 name, ksbs:[{code,text}], lessons}], lessons } (see the "Evia data model" write-up) */
 (function(){
   const FILES={
@@ -63,9 +63,9 @@
   }
   /* Downloaded courses use their own name; the rest the catalogue's. */
   const catalogue=()=>Object.keys(CATALOGUE).map(id=>{const c=typeof C!=="undefined"&&C[id];return {id,name:c?c.name:CATALOGUE[id].name,std:c?c.std:CATALOGUE[id].std}});
-  /* ---------- Following a college's own pack (learners connected to Nisia only) ----------
+  /* ---------- Following a college's own pack (learners connected to Evia Portal only) ----------
      Evia's topics for the course become the pack's. Each piece of the learner's evidence moves to its topic (by the
-     topic's id, its name, the topic it was copied from, or where its KSBs fit best) and is sent to Nisia again; Teach me
+     topic's id, its name, the topic it was copied from, or where its KSBs fit best) and is sent to Evia Portal again; Teach me
      lessons go with the topic they were copied from, or the topic whose KSBs they fit best. Back on your pack, Evia's own
      topics come back the same way. Offline learners, and the NVQ (set by the qualification), never change. */
   const ORIG={},ORIG_TEACH={};
@@ -93,7 +93,7 @@
       if(j<0){let most=0;mine.forEach((m,k)=>{const n=m.ksbs.filter(x=>t.ksbs.some(y=>y.code===x.code)).length;if(n>most){most=n;j=k}})}
       const l=j>=0&&byName[mine[j].name];return l?Object.assign({},l,{unit:t.name}):null}).filter(Boolean);
   }
-  /* p: the learner's pack from Nisia (null: Evia's own). Returns true if Evia's topics changed. */
+  /* p: the learner's pack from Evia Portal (null: Evia's own). Returns true if Evia's topics changed. */
   function follow(p,course){
     if(typeof C==="undefined"||!course||!C[course]||course==="trowel3")return false;
     const mine=ownTopics(course),use=p&&p.course===course&&Array.isArray(p.topics)&&p.topics.length?p.topics:null;
@@ -127,7 +127,7 @@
     }
     return true;
   }
-  /* The pack kept from Nisia, for the learner's course, if they're connected. */
+  /* The pack kept from Evia Portal, for the learner's course, if they're connected. */
   function followKept(course){
     let p=null;
     try{const e=window.eviaData&&window.eviaData.enrolment&&window.eviaData.enrolment();if(e&&e.live)p=JSON.parse(localStorage.getItem("evia7-nisia-pack")||"null")}catch(_){}

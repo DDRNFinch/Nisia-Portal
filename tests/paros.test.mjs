@@ -54,7 +54,7 @@ function handle(route) {
   if (p === "/rest/v1/rpc/paros_learners") return json(ROWS);
   if (p === "/rest/v1/rpc/nisia_absences") return json([{ id: "AB1", enrolment_id: "E1", starts_on: day(5), ends_on: day(9), kind: "holiday", reason: "Holiday", booked_by: "Callum Hughes", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/paros_absences") return json({ absences: [], marks: [{ id: "A2", date: day(-9), class: "L2 Brickwork", late: false, reason: "Dentist", here: false }, { id: "A1", here: true }] });
-  /* Paros asks Nisia through named actions; writing a table directly is refused here. */
+  /* Paros asks Evia Portal through named actions; writing a table directly is refused here. */
   if (p === "/rest/v1/rpc/paros_add_witness") { posted.push({ t: "witness", body }); return json("W9"); }
   if (p === "/rest/v1/rpc/paros_rate_behaviours") { posted.push({ t: "rate", body }); return json("BR9"); }
   if (p === "/rest/v1/rpc/paros_confirm_hours") { posted.push({ t: "confirm", body }); return json(null); }
@@ -96,7 +96,7 @@ try {
   check("…the days the apprentice booked off, and why they weren't at college", /Holiday/.test(off.list) && /Booked by Callum/.test(off.list) && /Off · Dentist/.test(off.why), JSON.stringify(off));
   await page.click("#absBox [data-book]"); await page.click('.ab-kinds [data-k="work"]'); await page.fill(".sheet [name=reason]", "Needed on site"); await page.click(".sheet [data-save]"); await page.waitForTimeout(500);
   const bk = posted.find((x) => x.t === "book");
-  check("…and the employer books them days off (Nisia tells the college)", !!bk && bk.body.p_enrolment === "E1" && bk.body.p_kind === "work" && bk.body.p_reason === "Needed on site" && !(await page.$(".sheet")), JSON.stringify(bk));
+  check("…and the employer books them days off (Evia Portal tells the college)", !!bk && bk.body.p_enrolment === "E1" && bk.body.p_kind === "work" && bk.body.p_reason === "Needed on site" && !(await page.$(".sheet")), JSON.stringify(bk));
   await page.screenshot({ path: shots + "/p3b-days-off.png", fullPage: true });
 
   await page.click("[data-lt=evidence]");
@@ -114,7 +114,7 @@ try {
   await page.screenshot({ path: shots + "/p4-witness.png" });
   await page.check("#wSign"); await page.click("#wSave"); await page.waitForTimeout(800);
   const w = posted.find((x) => x.t === "witness");
-  check("A witness testimony: the unit, what they saw, the KSBs ticked and how well, signed as seen first hand (one action; Nisia signs and checks it)", needSign && !!w && w.body.p_unit === "Jointing Styles" && w.body.p_ksbs.join() === "S12,B6" && w.body.p_rating === 3 && w.body.p_enrolment === "E1" && /Oak Road/.test(w.body.p_statement), JSON.stringify(w && w.body));
+  check("A witness testimony: the unit, what they saw, the KSBs ticked and how well, signed as seen first hand (one action; Evia Portal signs and checks it)", needSign && !!w && w.body.p_unit === "Jointing Styles" && w.body.p_ksbs.join() === "S12,B6" && w.body.p_rating === 3 && w.body.p_enrolment === "E1" && /Oak Road/.test(w.body.p_statement), JSON.stringify(w && w.body));
 
   /* Behaviours. */
   await page.click("#doRate2");
@@ -136,7 +136,7 @@ try {
   const conf = posted.filter((x) => x.t === "confirm").map((x) => x.body);
   check("Learning hours: the apprentice's own hours to confirm (not college hours, already confirmed by the tutor), confirmed or queried with a reason",
     /Toolbox talk/.test(hoursText) && !/College · L2 Brickwork/.test(hoursText) && conf.length === 2 && conf[0].p_decision === "approved" && conf[0].p_otj === "OT1" && conf[1].p_decision === "rejected" && /holiday/.test(conf[1].p_comment) && !(await page.$("[data-ok]")), JSON.stringify(conf));
-  check("Paros never wrote to a table: everything went through Nisia's named actions", !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify(posted.filter((x) => /^TABLE/.test(x.t))));
+  check("Paros never wrote to a table: everything went through Evia Portal's named actions", !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify(posted.filter((x) => /^TABLE/.test(x.t))));
   /* Explore: every tab, every button, as a new employer would. */
   { const xp = await explore(page, { app: "Paros", tabSel: ".m-nav [data-tab], .m-nav #navSync" });
     check("Explore Paros: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 15 && !xp.problems.length, xp.problems.join("\n")); }

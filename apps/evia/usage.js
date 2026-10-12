@@ -1,8 +1,8 @@
 /* Evia7 usage: which features are used, so they can be improved (or retired), and so colleges can see Evia at work.
    Counts only: how many times each feature was opened today, plus what was saved (evidence, hours, lessons, tests…).
-   Once a day, the days before today go to Nisia as one row each: the counts, the course, the app's version and the
+   Once a day, the days before today go to Evia Portal as one row each: the counts, the course, the app's version and the
    kind of device. No name, no text, no photos, and no identifier: two days from the same phone can't be joined up.
-   Connected to a college, Nisia works out which college from the sign-in (for that college's impact report).
+   Connected to a college, Evia Portal works out which college from the sign-in (for that college's impact report).
    The learner can turn it off in their profile ("Share anonymous usage"); nothing is counted or sent while it's off. */
 (function(){
   const KEY="evia7-usage",OFF="evia7-usage-off",URL="https://ffgfigkeeeauzkifopei.supabase.co/rest/v1/rpc/nisia_usage_ping",
