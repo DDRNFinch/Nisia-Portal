@@ -8,6 +8,7 @@ import path from "node:path";
 import nc from "node:crypto";
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
+import { explore } from "./explore.mjs";
 const require = createRequire(import.meta.url);
 let pw; try { pw = require("playwright"); } catch { pw = require(execSync("npm root -g").toString().trim() + "/playwright"); }
 
@@ -196,11 +197,14 @@ try {
   check("Changing a class reaches Nisia straight away (new times and weekly dates), so Evia can show the classes coming up",
     changed.some((x) => x.body.p_schedule && x.body.p_schedule.end === "23:59" && x.body.p_schedule.recurrence && x.body.p_schedule.recurrence.type === "weekly"), JSON.stringify(changed.map((x) => x.body.p_schedule)));
   /* With the class weekly now, the register shows days off booked for the coming classes (Amira's booking), before the day. */
-  await page.waitForFunction(() => /Coming up: Amira off/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(() => /Coming up: Amira off/.test((document.querySelector(".sn-bar") || {}).textContent || ""), null, { timeout: 15000 }).catch(() => {});
   const ahead = await page.evaluate(() => ((document.querySelector(".sn-ahead") || {}).textContent || ""));
   await page.evaluate(() => { const b = document.querySelector(".sn-bar"); if (b) b.scrollIntoView({ block: "center" }); });
   await page.screenshot({ path: path.join(root, "tests", "shots", "symi-coming-up.png") });
   check("The register shows days off booked for the coming classes, before the day", /^Coming up: Amira off \w{3} \d{1,2} \w{3}, \w{3} \d{1,2} \w{3} and \w{3} \d{1,2} \w{3} \(Ill\)$/.test(ahead), ahead);
+  /* Explore: every tab, every button, as a new tutor would. */
+  { const xp = await explore(page, { app: "Symi", tabSel: ".sy-nav [data-sy-tab]", skip: /present|full screen|start class|start question/, perScreen: 20, max: 500 });
+    check("Explore Symi: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n")); }
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }

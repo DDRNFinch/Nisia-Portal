@@ -7,6 +7,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
 import { standardsFake, tinyPdf } from "./standards-fake.mjs";
+import { explore } from "./explore.mjs";
 const require = createRequire(import.meta.url);
 let pw; try { pw = require("playwright"); } catch { pw = require(execSync("npm root -g").toString().trim() + "/playwright"); }
 
@@ -369,6 +370,10 @@ try {
       await page.waitForFunction(() => !document.querySelector(".modal"));
       check("…and a learner shows their pack, and can be moved back onto yours", /Pack: Bricklayer \(/.test(tag) && STD.S.enrolPack && STD.S.enrolPack.p_enrolment === "e0" && STD.S.enrolPack.p_pack === "k0", tag + " " + JSON.stringify(STD.S.enrolPack));
       page.off("dialog", okAll); }
+    /* Explore: every page, every button, as a new college admin would. */
+    { const xp = await explore(page, { app: "Portal", tabSel: ".nav [data-go]" });
+      check("Explore the college portal: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n"));
+      await page.reload(); await page.waitForSelector("#side [data-go]", { timeout: 15000 }); }
     await page.setViewportSize({ width: 390, height: 844 }); await page.emulateMedia({ colorScheme: "dark" }); await page.click("#menuBtn"); await page.click("#side [data-go=learners]");
     await page.waitForSelector("tr[data-learner]"); await page.screenshot({ path: shots + "/12-phone-dark.png" });
     check("On a phone the menu opens the learners list", /Callum J Hughes/.test(await page.textContent("table")));

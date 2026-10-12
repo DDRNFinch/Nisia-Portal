@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
+import { explore } from "./explore.mjs";
 const require = createRequire(import.meta.url);
 let pw; try { pw = require("playwright"); } catch { pw = require(execSync("npm root -g").toString().trim() + "/playwright"); }
 
@@ -346,6 +347,9 @@ try {
   const auto = await page.waitForFunction(() => /New Starter/.test(document.getElementById("main").textContent), null, { timeout: 15000 }).then(() => true).catch(() => false);
   check("A background sync updates the screen by itself (no Sync now): a learner added in Nisia appears", auto);
   EXTRA = false;
+  /* Explore: every tab, every button, as a new assessor would. */
+  { const xp = await explore(page, { app: "Milos", tabSel: ".m-nav [data-tab], .m-nav #navTodo" });
+    check("Explore Milos: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n")); }
   check("No script errors", !errors.filter((x) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|NetworkError/.test(x)).length, errors.join(" | "));
   await ctx.close();
 

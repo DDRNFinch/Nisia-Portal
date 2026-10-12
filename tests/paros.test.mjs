@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
+import { explore } from "./explore.mjs";
 const require = createRequire(import.meta.url);
 let pw; try { pw = require("playwright"); } catch { pw = require(execSync("npm root -g").toString().trim() + "/playwright"); }
 
@@ -136,6 +137,9 @@ try {
   check("Learning hours: the apprentice's own hours to confirm (not college hours, already confirmed by the tutor), confirmed or queried with a reason",
     /Toolbox talk/.test(hoursText) && !/College · L2 Brickwork/.test(hoursText) && conf.length === 2 && conf[0].p_decision === "approved" && conf[0].p_otj === "OT1" && conf[1].p_decision === "rejected" && /holiday/.test(conf[1].p_comment) && !(await page.$("[data-ok]")), JSON.stringify(conf));
   check("Paros never wrote to a table: everything went through Nisia's named actions", !posted.some((x) => /^TABLE/.test(x.t)), JSON.stringify(posted.filter((x) => /^TABLE/.test(x.t))));
+  /* Explore: every tab, every button, as a new employer would. */
+  { const xp = await explore(page, { app: "Paros", tabSel: ".m-nav [data-tab], .m-nav #navSync" });
+    check("Explore Paros: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 15 && !xp.problems.length, xp.problems.join("\n")); }
   check("No script errors", !errors.length, errors.join(" | "));
   await ctx.close();
 } catch (e) { check("Test run finished", false, e.message); }
