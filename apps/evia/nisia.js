@@ -524,6 +524,7 @@
       const c=e.live?await sb():null;
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Evia Portal details",err&&err.message)}
+      if(c)await checkDemo(c);
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Evia Portal targets",err&&err.message)}
       /* Everything Evia Portal has for the learner, in one request (whatsNew): registers, attendance, days off, feedback. */
       if(c)try{await sendKept();const w=await fetchRegisters();
@@ -582,6 +583,18 @@
   /* The college's side (classes, days off, attendance, feedback) on every device the learner uses: straight away when
      Evia is opened or come back to, and every 30 seconds while it's on screen, so a change made on one device shows on
      the others within seconds. (The learner's own work goes on its own timetable above.) */
+  /* A meeting guest: when their demo ends (nisia_my_demo). Kept where install.js reads it before Evia starts; when the
+     time comes, or their account has gone, Evia reloads into "This demo has ended". */
+  const DEMO_KEY="evia-demo-ends";
+  const demoEnds=()=>{try{return Number(localStorage.getItem(DEMO_KEY)||0)}catch(_){return 0}};
+  function endDemo(){try{localStorage.setItem("evia-demo-ended","1")}catch(_){}location.reload()}
+  async function checkDemo(c){
+    try{const {data,error}=await c.rpc("nisia_my_demo");if(error)return;const t=data&&data.endsAt?Date.parse(data.endsAt):0;
+      if(t)localStorage.setItem(DEMO_KEY,String(t));else localStorage.removeItem(DEMO_KEY)}catch(_){}
+    if(demoEnds()&&Date.now()>=demoEnds())endDemo();
+  }
+  setInterval(()=>{if(demoEnds()&&Date.now()>=demoEnds())endDemo()},30000);
+  listeners.push(s=>{if(s&&s.error==="signed-out"&&demoEnds())endDemo()});
   let pulling=null,pulledAt=0;
   function refreshCollege(force){
     if(pulling||!joined()||!joined().live||!navigator.onLine||document.hidden||(!force&&Date.now()-pulledAt<5000))return pulling;

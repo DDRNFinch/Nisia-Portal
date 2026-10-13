@@ -1,7 +1,7 @@
 /* The same account shows the same thing on every device. A tutor has Symi on a phone and on a desktop: a register
    started on one shows as started on the other, a mark made on either shows on both, and finishing it on one
    finishes it on the other, without reloading either. */
-import { check, site, app, signIn, finish, errors, session, LEE, ENROL } from "./harness.mjs";
+import { check, site, app, signIn, finish, errors, session, LEE, ENROL, q } from "./harness.mjs";
 
 const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 async function symiOn(device, seed) {
@@ -104,6 +104,24 @@ await ePhone.page.reload(); await ePhone.page.waitForTimeout(2500);
 await ePhone.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); screen = "calendar"; render(); });
 const afterReload = await ePhone.page.evaluate(() => window.eviaNisia.absences().some((a) => a.reason === "Flu"));
 check("Evia: after a refresh the phone still has it", afterReload);
+
+/* 8. A meeting guest: Evia learns when their demo ends, and from then on shows "This demo has ended" and keeps nothing.
+   (Lee stands in for a guest here: a meeting_guests row ending a few seconds from now.) */
+const [lrow] = await q("select l.id as learner_id, l.organisation_id from public.learners l join public.organisation_members m on m.id = l.organisation_member_id where m.user_id = $1", [LEE]);
+await q("insert into public.meeting_guests (learner_id, organisation_id, user_id, enrolment_id, name, meeting, expires_at) values ($1, $2, $3, $4, 'Lee Erna', 'Investor meeting', now() + interval '8 seconds')", [lrow.learner_id, lrow.organisation_id, LEE, ENROL]);
+const gPhone = await eviaOn({ width: 412, height: 915 });
+await gPhone.page.evaluate(() => window.eviaNisia.sync()).catch(() => {});
+await gPhone.page.waitForFunction(() => Number(localStorage.getItem("evia-demo-ends") || 0) > 0, null, { timeout: 15000 }).catch(() => {});
+const ends = await gPhone.page.evaluate(() => Number(localStorage.getItem("evia-demo-ends") || 0));
+check("Guest: Evia knows when the demo ends", ends > Date.now() - 60000, String(ends));
+const before = await gPhone.page.evaluate(() => /This demo has ended/.test(document.body.textContent));
+await gPhone.page.waitForTimeout(Math.max(0, ends - Date.now()) + 1000);
+await gPhone.page.reload(); await gPhone.page.waitForTimeout(2500);
+const after = await gPhone.page.evaluate(async () => ({ text: document.body.textContent, keys: Object.keys(localStorage).filter((k) => /^evia7-/.test(k)), dbs: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name).filter((n) => /^evia7-/.test(n)) : [], app: !!window.eviaNisia }));
+check("Guest: once the time is up, Evia shows “This demo has ended”, and nothing of Evia is left on the phone", !before && /This demo has ended/.test(after.text) && !after.keys.length && !after.dbs.length && !after.app, JSON.stringify(after).slice(0, 300));
+await gPhone.page.goto(site + "/evia/?pair=ABCDEFG"); await gPhone.page.waitForTimeout(1500);
+check("Guest: it stays ended, even opened again from a code", /This demo has ended/.test(await gPhone.page.textContent("body")));
+await q("delete from public.meeting_guests where learner_id = $1", [lrow.learner_id]);
 
 check("No script errors", !errors.length, errors.join(" | "));
 await finish();

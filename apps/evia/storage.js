@@ -316,6 +316,8 @@
     });
   }
   const scriptEl=document.currentScript;
+  /* A meeting guest's demo that has ended (install.js): nothing of Evia starts. */
+  if(window.EVIA_DEMO_ENDED){document.documentElement.classList.remove("evia-booting");return}
   setTimeout(()=>document.documentElement.classList.remove("evia-booting"),5000);
   loadAppData()
     .catch(err=>console.warn("Evia is using browser localStorage because IndexedDB is unavailable",err))

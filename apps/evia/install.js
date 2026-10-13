@@ -1,3 +1,18 @@
+/* A meeting guest (someone added to a college for one meeting, to try Evia) has a demo that ends: their account is
+   deleted by the college's server, and from then on this phone shows "This demo has ended" instead of Evia, with
+   everything Evia kept on it cleared. Checked first, before anything of Evia loads. (nisia.js keeps the end time.) */
+(function(){
+  let ended=false;
+  try{const ends=Number(localStorage.getItem("evia-demo-ends")||0);ended=localStorage.getItem("evia-demo-ended")==="1"||(ends>0&&Date.now()>=ends);if(ended)localStorage.setItem("evia-demo-ended","1")}catch(_){}
+  if(!ended)return;
+  window.EVIA_DEMO_ENDED=true;
+  try{Object.keys(localStorage).filter(k=>/^evia7-/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(_){}
+  try{["evia7-app-data","evia7-evidence-db","evia7-supporting-files"].forEach(n=>indexedDB.deleteDatabase(n))}catch(_){}
+  try{caches.keys().then(ks=>ks.filter(k=>/evia/i.test(k)).forEach(k=>caches.delete(k)))}catch(_){}
+  const show=()=>{document.body.innerHTML='<main style="min-height:100vh;display:grid;place-items:center;padding:28px;text-align:center;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#fffdfa;color:#172033">'+
+    '<div style="max-width:340px"><h1 style="font-size:26px;margin:0 0 10px">This demo has ended</h1><p style="margin:0;color:#667085;font-size:16px;line-height:1.5">Thank you for trying Evia. Everything from the demo has been deleted.</p></div></main>';};
+  if(document.body)show();else document.addEventListener("DOMContentLoaded",show);
+})();
 /* Evia7: get the app first. Opened in a phone's browser, Evia asks the learner to install the app before anything else,
    so their profile and evidence are kept in the app from the start. One button: the App Store or Google Play once the
    listings are live (STORE below); until then it installs Evia from the browser (Android), or shows the two taps to add
@@ -23,7 +38,7 @@
   /* (Not an "evia7-" name: those move into Evia's database, which loads after this has to decide.) */
   const USE_BROWSER="evia-install-browser";
   const skipped=()=>{try{if(/[?&]browser\b/.test(location.search))sessionStorage.setItem("evia7-install-later","1");return sessionStorage.getItem("evia7-install-later")==="1"||Date.now()-Number(localStorage.getItem(USE_BROWSER)||0)<14*864e5}catch(_){return false}};
-  if(installed()||skipped()||!(ios||android))return;
+  if(window.EVIA_DEMO_ENDED||installed()||skipped()||!(ios||android))return;
 
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const label=ios&&STORE.ios?"Download on the App Store":android&&STORE.android?"Get it on Google Play":inApp&&android?"Open in Chrome":inApp?"Copy the link for Safari":"Get the app";

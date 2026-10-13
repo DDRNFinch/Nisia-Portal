@@ -262,7 +262,7 @@ function learnersPage() {
   const count = (k) => D.learners.filter((l) => k === "all" || l.state === k).length;
   const full = sum && (sum.seats_used >= sum.seats || sum.status !== "active");
   shell(
-    '<div class="topbar"><div><div class="label">' + esc(sum ? sum.name : "") + '</div><h1>Learners</h1></div><div class="actions">' + (D.admin ? '<button class="btn primary" type="button" id="add"' + (full ? " disabled" : "") + '>' + ICON.plus + 'Add a learner</button>' : "") + '</div></div>' +
+    '<div class="topbar"><div><div class="label">' + esc(sum ? sum.name : "") + '</div><h1>Learners</h1></div><div class="actions">' + (D.admin ? '<button class="btn" type="button" id="guests">Meeting guests</button><button class="btn primary" type="button" id="add"' + (full ? " disabled" : "") + '>' + ICON.plus + 'Add a learner</button>' : "") + '</div></div>' +
     (D.admin && sum && sum.status !== "active" ? '<p class="err">This college’s licence is suspended. Existing learners carry on; new ones can’t be added.</p>' : D.admin && full ? '<p class="hint">All ' + sum.seats + ' seats are in use. Contact Evia to add more.</p>' : "") +
     '<div class="filters"><input class="input search" id="q" type="search" placeholder="Search by name" value="' + esc(S.q) + '" aria-label="Search learners">' +
       '<div class="seg" role="group" aria-label="Filter by status">' + [["all", "All"], ["bad", "At risk"], ["warn", "Needs a look"], ["good", "On track"]].map(([k, t]) => '<button type="button" data-filter="' + k + '" aria-pressed="' + (S.filter === k) + '">' + t + ' <span class="num" style="opacity:.6">' + count(k) + '</span></button>').join("") + '</div></div>' +
@@ -277,7 +277,66 @@ function learnersPage() {
   root.querySelectorAll("[data-filter]").forEach((b) => b.onclick = () => { S.filter = b.dataset.filter; learnersPage(); });
   root.querySelectorAll("tr[data-learner]").forEach((r) => { const open = () => go("learner", { learner: r.dataset.learner }); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   const add = root.querySelector("#add"); if (add) add.onclick = addLearner;
+  const gu = root.querySelector("#guests"); if (gu) gu.onclick = meetingGuests;
   if (S.adding) { S.adding = false; if (add && !add.disabled) addLearner(); }
+}
+/* ---------- Meeting guests ----------
+   People at a meeting (investors, visitors) added as learners for the day, so they can try Evia on their own phones:
+   check in to the meeting class in Symi, take a photo, do the quiz. Each gets their own code to connect Evia. 24 hours
+   after the meeting starts they're deleted, with everything they made, and their Evia shows "This demo has ended".
+   (nisia-admin: meeting_guests, meeting_codes, meeting_end; the 10-minute job ends them on time.) */
+const whenText = (t) => new Date(t).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+async function meetingGuests() {
+  hit("meeting.open");
+  let list = [];
+  try { list = await rpc("nisia_meeting_guests", { p_org: S.org }) || []; } catch (e) { toast(e.message); }
+  const meetings = [...new Set(list.map((g) => g.class_id + "|" + g.meeting))];
+  const pad = (n) => String(n).padStart(2, "0"), now = new Date(), today = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+  const m = modal("Meeting guests",
+    '<p class="hint" style="margin-top:0">For people at a meeting who want to try Evia on their own phone. Each guest gets their own code. They appear on a class for the meeting in Symi, so you can take the register with them. <b>24 hours after the meeting starts, they’re deleted</b> with everything they added, and their Evia shows “This demo has ended”.</p>' +
+    (meetings.length ? meetings.map((k) => { const [cid, title] = k.split("|"), gs = list.filter((g) => g.class_id + "|" + g.meeting === k);
+      return '<div class="card" style="padding:14px;margin:0 0 12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>' + esc(title) + '</b><span class="small muted">Ends ' + esc(whenText(gs[0].expires_at)) + '</span></div>' +
+        '<p class="small" style="margin:8px 0">' + gs.map((g) => esc(g.name) + (g.paired ? ' <span class="small muted">(Evia connected)</span>' : "")).join(", ") + '</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-codes="' + esc(cid) + '">Show their codes</button><button class="btn ghost" type="button" data-end="' + esc(cid) + '">End now</button></div></div>'; }).join("") : "") +
+    '<form id="gF" class="form" style="display:flex;flex-direction:column;gap:12px">' +
+      '<h3 style="margin:6px 0 0">Add guests for a meeting</h3>' +
+      '<label class="field"><span>Meeting</span><input class="input" name="title" value="Investor meeting" maxlength="80"></label>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><label class="field"><span>Date</span><input class="input" type="date" name="date" value="' + today + '" required></label>' +
+        '<label class="field"><span>Starts</span><input class="input" type="time" name="start" value="10:00" required></label><label class="field"><span>Ends</span><input class="input" type="time" name="end" value="12:00" required></label></div>' +
+      '<label class="field"><span>Their names, one per line</span><textarea class="input" name="names" rows="5" placeholder="Sam Jones&#10;Priya Patel" required></textarea></label>' +
+      '<p class="err" id="gErr"></p><button class="btn primary wide" type="submit">Add guests and make their codes</button></form>');
+  m.querySelectorAll("[data-codes]").forEach((b) => b.onclick = () => busy(b, "Making codes…", async () => {
+    try { const r = await call("nisia-admin", { action: "meeting_codes", organisation_id: S.org, class_id: b.dataset.codes }); guestCodes(list.find((g) => g.class_id === b.dataset.codes).meeting, r.guests); } catch (e) { toast(e.message); }
+  }));
+  m.querySelectorAll("[data-end]").forEach((b) => b.onclick = () => {
+    if (!confirm("End this meeting’s guests now? Their accounts and everything they added are deleted, and their Evia shows “This demo has ended”.")) return;
+    busy(b, "Ending…", async () => { try { const r = await call("nisia-admin", { action: "meeting_end", organisation_id: S.org, class_id: b.dataset.end }); toast(r.ended + (r.ended === 1 ? " guest" : " guests") + " removed"); S.data = null; closeModal(); render(); } catch (e) { toast(e.message); } });
+  });
+  m.querySelector("#gF").onsubmit = (e) => {
+    e.preventDefault();
+    const v = formData(e.target), names = String(v.names || "").split(/\n+/).map((x) => x.trim()).filter(Boolean), err = m.querySelector("#gErr");
+    if (!names.length) return (err.textContent = "Type at least one name.");
+    if (!v.end || v.end <= v.start) return (err.textContent = "The meeting must end after it starts.");
+    const startsAt = new Date(v.date + "T" + v.start);
+    busy(e.target.querySelector("[type=submit]"), "Adding guests…", async () => {
+      try {
+        const r = await call("nisia-admin", { action: "meeting_guests", organisation_id: S.org, title: v.title, date: v.date, start: v.start, end: v.end, starts_at: startsAt.toISOString(), hours: 24, names });
+        hit("meeting.add"); S.data = null; guestCodes(r.meeting, r.guests, r.expires_at);
+      } catch (x) { err.textContent = x.message; }
+    });
+  };
+}
+/* One card per guest: their name, a code to scan with the phone's camera (it opens Evia and connects it), and the
+   code to type. Codes work once each, until the guests' time is up; "Show their codes" makes fresh ones. */
+function guestCodes(meeting, guests, endsAt) {
+  const ends = endsAt || (guests[0] && guests[0].expires_at);
+  modal("Codes: " + meeting,
+    '<p class="hint" style="margin-top:0">Each guest scans their own code with their phone’s camera, and Evia opens as them. ' + (ends ? 'Their demo ends ' + esc(whenText(ends)) + '.' : "") + ' Each code works once.</p>' +
+    '<div class="guest-codes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">' + guests.map((g) =>
+      '<div class="card" style="padding:14px;text-align:center;break-inside:avoid"><b style="display:block;margin-bottom:8px">' + esc(g.name) + '</b><div style="width:150px;margin:0 auto">' + qrSvg(pairLink(g.code), 4) + '</div>' +
+      '<p class="big-code" style="font-size:20px;margin:8px 0 0">' + esc(g.code.slice(0, 3) + "-" + g.code.slice(3)) + '</p></div>').join("") + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" type="button" id="gPrint">Print</button></div>',
+    (mm) => { mm.querySelector("#gPrint").onclick = () => window.print(); });
 }
 function staffPicker(chosen) {
   const people = (S.data.staff || []).filter((s) => s.active && (s.roles.includes("assessor") || s.roles.includes("tutor") || s.roles.includes("employer")));

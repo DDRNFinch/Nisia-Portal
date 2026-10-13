@@ -51,6 +51,7 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_admin_colleges") return json(S.colleges);
     if (p === "/rest/v1/rpc/nisia_college_summary") return json({ name: "Brookfield College", status: "active", seats: 2, seats_used: S.learners.length, licence_ends: "2027-07-31" });
     if (p === "/rest/v1/rpc/nisia_college_learners") return json(S.learners);
+    if (p === "/rest/v1/rpc/nisia_meeting_guests") return json(S.guests || []);
     /* Classes set up here: they become the tutor's registers in Symi. */
     if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
     if (p === "/rest/v1/rpc/nisia_college_resources") return json((S.res || []).concat([{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: {}, url: null, shared_by: "Priya Shah", mine: false, can_remove: true, created_at: "2026-10-01T10:00:00Z" }]));
@@ -111,6 +112,11 @@ function fakeSupabase(persona) {
       }
       if (body.action === "test_invite") { S.test.invited[body.role] = true; return json({ invite_code: "TESTINVITECODE01", email: "admin+nisia-test-" + body.role + "@example.com" }); }
       if (body.action === "pairing_code") return json({ code: "ABC2345", qr: "NISI:PAIR:2:ABC2345", expires_in_minutes: 30 });
+      if (body.action === "meeting_guests") { S.meetingAsk = body; const ex = new Date(Date.parse(body.starts_at) + 24 * 3600e3).toISOString();
+        S.guests = body.names.map((n, i) => ({ learner_id: "g" + i, name: n, meeting: body.title, class_id: "k1", expires_at: ex, paired: false }));
+        return json({ class_id: "k1", meeting: body.title, expires_at: ex, guests: body.names.map((n, i) => ({ learner_id: "g" + i, name: n, code: "GST" + i + "ABC" })) }); }
+      if (body.action === "meeting_codes") return json({ guests: (S.guests || []).map((g, i) => ({ ...g, code: "NEW" + i + "XYZ" })) });
+      if (body.action === "meeting_end") { const n = (S.guests || []).length; S.guests = []; return json({ ended: n }); }
       if (body.action === "invite_staff") return json({ invite_code: "STAFFINVITECODE1" });
       if (body.action === "update_staff") { const m = S.staff.find((x) => x.member_id === body.member_id); Object.assign(m, { name: body.name, roles: body.roles, active: body.active }); return json({ ok: true }); }
       if (body.action === "assign_staff") { const l = S.learners.find((x) => x.learner_id === body.learner_id); l.assessors = S.staff.filter((x) => body.member_ids.includes(x.member_id)).map((x) => ({ member_id: x.member_id, name: x.name })); S.lastAssign = body; return json({ ok: true }); }
@@ -303,6 +309,19 @@ try {
       (await page.$$eval(".today-class", (x) => x.length)) === 1 && /2 of 4 in/.test(tt) && /Late/.test(tt) && /Ill/.test(tt) && /Not in yet/.test(tt) && /Register open/.test(tt) && !/Plastering Friday/.test(tt), tt.slice(0, 400));
     await page.click("nav [data-go=overview]"); await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/10-overview.png", fullPage: true });
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
+    /* Meeting guests: names in, one code card each; they're listed with when they end; "End now" removes them. */
+    await page.click("nav [data-go=learners]"); await page.click("#guests"); await page.waitForSelector("#gF");
+    await page.fill("#gF [name=title]", "Investor meeting"); await page.fill("#gF [name=names]", "Sam Jones\nPriya Patel\n");
+    await page.click("#gF [type=submit]"); await page.waitForSelector(".guest-codes .card svg", { timeout: 8000 }).catch(() => {});
+    const gc = await page.textContent("#modal").catch(() => "");
+    await page.screenshot({ path: shots + "/16-meeting-codes.png" });
+    const asked = fake.S.meetingAsk || {};
+    const codesOk = /Codes: Investor meeting/.test(gc) && /Sam Jones/.test(gc) && /Priya Patel/.test(gc) && /GST-0ABC/.test(gc) && (await page.$$eval(".guest-codes .card svg", (x) => x.length)) === 2 && /demo ends/.test(gc);
+    await page.click("#modal .x"); await page.click("#guests"); await page.waitForSelector("[data-end]");
+    const listed = await page.textContent("#modal");
+    page.once("dialog", (d) => d.accept()); await page.click("[data-end]"); await page.waitForTimeout(600);
+    check("Meeting guests: names in, a code card each (QR and code), listed with when they end, and End now removes them",
+      codesOk && asked.names && asked.names.length === 2 && asked.hours === 24 && asked.date && asked.start && asked.end && /Sam Jones, Priya Patel/.test(listed) && /Ends /.test(listed) && fake.S.guests.length === 0, gc.slice(0, 300) + " | " + listed.slice(0, 200));
     await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("text=Laid a cavity wall"); await page.screenshot({ path: shots + "/11-learner.png", fullPage: true });
     check("A learner's page shows what Evia sends", /Upload the cavity wall photos/.test(await page.textContent("#main")));
     await page.click(".pf-ev[data-ev=ev1]"); await page.waitForSelector(".media img"); await page.screenshot({ path: shots + "/11b-evidence.png" });
