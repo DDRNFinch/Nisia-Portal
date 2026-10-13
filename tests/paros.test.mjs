@@ -40,6 +40,8 @@ const DETAIL = {
     { id: "OT2", date: day(-6), type: "evia", description: "Researched cavity tray detailing", hours: 1.5, decision: null },
     { id: "A1", date: day(-2), type: "college", description: "College · L2 Brickwork", hours: 6.25, decision: "approved" }],
   witness: [], ratings: [], reviews: [],
+  /* When skills were signed off: S14 a month ago; S14 again, S11 and K22 today (so this week S11 and K22 are new). */
+  signoffs: [{ at: day(-30) + "T09:00:00Z", ksbs: ["S14", "K20"] }, { at: new Date().toISOString(), ksbs: ["S14", "S11", "K22"] }],
 };
 const posted = [];
 function handle(route) {
@@ -81,6 +83,21 @@ try {
   await page.waitForTimeout(3000); await page.screenshot({ path: shots + "/p1-today.png", fullPage: true });
   const today = await page.textContent("#main");
   check("An employer signs in and sees their apprentices, hours to confirm and who needs feedback", /Callum Hughes/.test(today) && /Jordan Price/.test(today) && /Learning hours to confirm/.test(today) && /Your feedback/.test(today) && (await page.textContent("[data-tab=hours] .m-badge")) === "2");
+
+  /* The week, on Today: worked out the same way here, from the same records. */
+  await page.waitForSelector("#pWeek [data-wk=E1]", { timeout: 8000 }).catch(() => {});
+  const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  const inWeek = (d) => { const t = Date.parse(d + "T12:00:00"); return t >= mon.getTime() && t < mon.getTime() + 7 * 864e5; };
+  const cDays = DETAIL.college.filter((c) => inWeek(c.date)), cHere = cDays.filter((c) => c.status === "present").length;
+  const oHrs = DETAIL.otj.filter((o) => o.type !== "college" && inWeek(o.date)).reduce((n, o) => n + o.hours, 0);
+  const wk = await page.textContent("#pWeek [data-wk=E1]").catch(() => "");
+  const wkOk = /2 skills signed off \(K22, S11\)/.test(wk) && (cDays.length ? new RegExp("At college " + cHere + " of " + cDays.length).test(wk) : /No college days/.test(wk)) &&
+    (oHrs ? new RegExp(String(oHrs).replace(".", "\\.") + " hours? of learning logged in Evia").test(wk) : /No learning hours logged/.test(wk)) && /review overdue|Next progress review/i.test(wk);
+  await page.locator("#pWeek").screenshot({ path: shots + "/p1b-week.png" }).catch(() => {});
+  await page.click("#pWeek .p-week-flip"); await page.waitForFunction(() => /Last week/.test((document.querySelector("#pWeek .label") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
+  const last = await page.textContent("#pWeek").catch(() => "");
+  check("Today: this week for each apprentice (college days, learning hours, skills signed off for the first time, next review), and last week", wkOk && /Last week/.test(last) && /No new skills signed off|skills? signed off/.test(last) && !/K22, S11/.test(last), wk + " || " + last);
+  await page.click("#pWeek .p-week-flip").catch(() => {});
 
   await page.click("[data-id=E1]"); await page.waitForSelector(".p-prog");
   const ov = await page.textContent("#main");

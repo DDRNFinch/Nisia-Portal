@@ -138,6 +138,7 @@ function drawToday() {
   const lastCollege = rows.filter((r) => r.last_session).sort((a, b) => String(b.last_session).localeCompare(String(a.last_session)));
   frame({ title: hi + " " + first(who && who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
     (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Evia Portal. They’ll appear here.") :
+      '<section class="card m-card p-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section>' +
       card({ cls: "m-hero", label: "Your apprentices", go: "apprentices", big: '<p class="m-big">' + rows.length + '</p>', sub: "Their college attendance, evidence and progress.",
         inner: '<div class="m-minis">' + rows.slice(0, 4).map((r) => mini(r, ring(ksbPct(r)))).join("") + '</div>' }) +
       card({ label: "Learning hours to confirm", go: n ? "hours" : "", big: '<p class="m-big ' + (n ? "warn" : "good") + '">' + (n || "None") + '</p>',
@@ -149,6 +150,50 @@ function drawToday() {
         sub: "You join the review and sign it with the assessor and your apprentice.", inner: '<div class="m-minis">' + soon.map((x) => mini(x.r, '<span class="pill ' + (x.d.days < 0 ? "bad" : "warn") + '">' + (x.d.days < 0 ? "Overdue" : x.d.days === 0 ? "Today" : "In " + x.d.days + " days") + '</span>')).join("") + '</div>' }) : "") +
       (rate.length ? card({ label: "Your feedback", go: "feedback", big: '<p class="m-big">' + rate.length + '</p>', sub: "Rate how they’re doing at work (their behaviours). It takes a minute and counts towards their apprenticeship.",
         inner: '<div class="m-minis">' + rate.slice(0, 3).map((r) => mini(r, '<span class="pill accent">Rate</span>')).join("") + '</div>' }) : "")) });
+  fillWeek();
+}
+
+/* ---------- The week: one summary per apprentice ----------
+   What happened Monday to Sunday, from what Evia Portal already holds: college days (from the tutor's registers),
+   learning hours logged in Evia and how many are waiting for the employer, skills the assessor signed off for the
+   first time that week, evidence added, and when the next progress review is due. "Last week" shows the week before. */
+let weekBack = 0;
+const ymd = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+function weekRange(back) {
+  const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7) - 7 * back);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return { from: ymd(mon), to: ymd(sun), fromT: mon.getTime(), toT: sun.getTime() + 864e5, label: mon.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " – " + sun.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) };
+}
+function weekOf(r, d, w) {
+  const onDay = (x) => { const k = String(x || "").slice(0, 10); return k >= w.from && k <= w.to; }, inTime = (x) => { const t = Date.parse(x); return t >= w.fromT && t < w.toT; };
+  const college = (d.college || []).filter((c) => onDay(c.date)), here = college.filter((c) => c.status === "present");
+  const otj = (d.otj || []).filter((o) => o.type !== "college" && onDay(o.date));
+  const before = new Set(), during = new Set();
+  (d.signoffs || []).forEach((x) => { const t = Date.parse(x.at); (x.ksbs || []).forEach((k) => { if (t < w.fromT) before.add(k); else if (t < w.toT) during.add(k); }); });
+  return { college: college.length, here: here.length, mins: here.reduce((n, c) => n + (Number(c.minutes) || 0), 0),
+    hours: otj.reduce((n, o) => n + (Number(o.hours) || 0), 0), waiting: otj.filter((o) => !o.decision).length,
+    skills: [...during].filter((k) => !before.has(k)).sort(), evidence: (d.evidence || []).filter((e) => inTime(e.at)).length };
+}
+function weekLines(r, x) {
+  const due = reviewDue(r), lines = [];
+  lines.push(x.college ? "At college " + x.here + " of " + x.college + (x.college === 1 ? " day" : " days") + (x.mins ? " (" + hrs(x.mins / 60) + ")" : "") : "No college days");
+  lines.push(x.hours ? hrs(x.hours) + " of learning logged in Evia" + (x.waiting ? " · <b>" + x.waiting + " to confirm</b>" : "") : "No learning hours logged");
+  lines.push(x.skills.length ? x.skills.length + (x.skills.length === 1 ? " skill" : " skills") + " signed off (" + x.skills.slice(0, 6).map(esc).join(", ") + (x.skills.length > 6 ? "…" : "") + ")" : "No new skills signed off");
+  if (x.evidence) lines.push(x.evidence + (x.evidence === 1 ? " piece" : " pieces") + " of evidence added");
+  if (due) lines.push(due.days < 0 ? "<b>Progress review overdue</b>" : "Next progress review " + new Date(due.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+  return lines;
+}
+async function fillWeek() {
+  const box = document.getElementById("pWeek"); if (!box) return;
+  const w = weekRange(weekBack), out = [];
+  for (const r of rows) { try { out.push({ r, x: weekOf(r, await detail(r), w) }); } catch (_) { out.push({ r, x: null }); } }
+  if (document.getElementById("pWeek") !== box) return;
+  box.innerHTML = '<div class="p-week-head"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><button type="button" class="btn ghost p-week-flip">' + (weekBack ? "This week" : "Last week") + '</button></div>' +
+    '<p class="muted small p-week-dates">' + esc(w.label) + '</p>' +
+    out.map(({ r, x }) => '<button type="button" class="p-week-row" data-wk="' + r.enrolment_id + '">' + face(r.name) + '<span class="m-row-main"><b>' + esc(first(r.name)) + '</b>' +
+      (x ? '<ul>' + weekLines(r, x).map((l) => '<li>' + l + '</li>').join("") + '</ul>' : '<span class="sub">Not on this phone yet. Open it once with signal.</span>') + '</span></button>').join("");
+  box.querySelector(".p-week-flip").onclick = () => { weekBack = weekBack ? 0 : 1; hit("week." + (weekBack ? "last" : "this")); fillWeek(); };
+  box.querySelectorAll("[data-wk]").forEach((b) => b.onclick = () => apprentice(rows.find((r) => r.enrolment_id === b.dataset.wk)));
 }
 
 /* ---------- Apprentices ---------- */
