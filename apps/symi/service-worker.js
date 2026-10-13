@@ -1,4 +1,4 @@
-const BUILD='0.34.15';
+const BUILD='0.34.16';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',

@@ -2,7 +2,7 @@
   "name": "Symi",
   "short_name": "Symi",
   "description": "For tutors: registers, classes and teaching, with Evia Portal.",
-  "id": "/nisia-app/symi-app/",
+  "id": "/nisia-app/tutor/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

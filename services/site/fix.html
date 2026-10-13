@@ -25,12 +25,12 @@
   const app = (new URLSearchParams(location.search).get("app") || "").toLowerCase();
   const t = document.getElementById("t"), s = document.getElementById("s");
   if (!APPS[app]) { t.textContent = "Which app?"; s.textContent = "This link needs ?app=symi, milos, paros or nisia at the end."; return; }
-  const home = new URL("./" + (app === "symi" ? "symi-app" : app) + "/", location.href);
+  const home = new URL("./" + (app === "symi" ? "tutor" : app) + "/", location.href);
   try {
     if ("serviceWorker" in navigator)
       for (const r of await navigator.serviceWorker.getRegistrations()) {
         const at = new URL(r.scope).pathname;
-        if (at === home.pathname || (app === "symi" && /\/symi\/$/.test(at))) await r.unregister();
+        if (at === home.pathname || (app === "symi" && /\/symi(-app)?\/$/.test(at))) await r.unregister();
       }
     if ("caches" in window)
       for (const k of await caches.keys()) if (APPS[app].test(k)) await caches.delete(k);
