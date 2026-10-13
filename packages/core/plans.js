@@ -27,7 +27,7 @@ export const PLANS = {
   },
   assistants: [
     {
-      id: "symi", name: "Symi", price: 20, colour: "#38A96B", app: "../symi/",
+      id: "symi", name: "Symi", price: 20, colour: "#38A96B", app: "../symi-app/",
       purpose: "Teaching and course delivery: plan, teach and record learning.",
       who: "Tutors and teaching staff",
       live: [
