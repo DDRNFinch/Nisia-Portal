@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Refreshing the app</title>
+<style>
+  :root{--bg:#f6f7f9;--ink:#172033;--muted:#5b6472;--card:#fff}
+  @media (prefers-color-scheme:dark){:root{--bg:#121820;--ink:#eef2f6;--muted:#b6c0cc;--card:#1d2633}}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:500 16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;box-sizing:border-box}
+  main{background:var(--card);border-radius:20px;padding:24px;max-width:420px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+  h1{font-size:21px;margin:0 0 8px}p{margin:0;color:var(--muted)}
+</style>
+</head>
+<body>
+<main><h1 id="t">Getting the newest version…</h1><p id="s">This only takes a second.</p></main>
+<script>
+/* One link that gets a phone onto the newest copy of one app, when an old copy saved on the phone won't let go
+   (it keeps showing an old version, or Chrome won't install it): fix.html?app=symi
+   It removes only that app's saved copy (its offline worker and files). Nothing the app has saved is touched (registers,
+   learners, sign-in), and the other apps on this website are left alone. Then it opens the app with its install steps. */
+(async () => {
+  const APPS = { symi: /^(symi|samos)-/i, milos: /^milos-/i, paros: /^paros-/i, nisia: /^nisia-app-portal-/i };
+  const app = (new URLSearchParams(location.search).get("app") || "").toLowerCase();
+  const t = document.getElementById("t"), s = document.getElementById("s");
+  if (!APPS[app]) { t.textContent = "Which app?"; s.textContent = "This link needs ?app=symi, milos, paros or nisia at the end."; return; }
+  const home = new URL("./" + app + "/", location.href);
+  try {
+    if ("serviceWorker" in navigator)
+      for (const r of await navigator.serviceWorker.getRegistrations())
+        if (new URL(r.scope).pathname === home.pathname) await r.unregister();
+    if ("caches" in window)
+      for (const k of await caches.keys()) if (APPS[app].test(k)) await caches.delete(k);
+  } catch (_) { /* carry on: the app loads fresh anyway */ }
+  location.replace(home.href + "?install");
+})();
+</script>
+</body>
+</html>
