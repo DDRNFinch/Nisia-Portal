@@ -27,7 +27,7 @@
     if(ios)return {t:"Install "+name,s:(iosChrome?"Tap Share (top right), ":"Tap Share (the square with an arrow, at the bottom), ")+"then Add to Home Screen."};
     if(samsung)return {t:"Install "+name,s:"Tap ☰ (bottom right), then Add page to, then Home screen."};
     if(firefox)return {t:"Install "+name,s:"Tap ⋮, then Install (or Add to Home screen)."};
-    if(android)return {t:"Install "+name,s:"Tap ⋮ (top right in Chrome), then Install app or Add to Home screen. No Install there? Tap Open in Chrome.",go:"Open in Chrome",href:inChrome};
+    if(android)return {t:"Install "+name,s:"The Install button shows here in a moment. (Not in Chrome? Tap Open in Chrome.)",go:"Open in Chrome",href:inChrome};
     return {t:"Install "+name,s:edge?"Click the install icon in the address bar, or ⋯ then Apps, then Install.":"Click the install icon at the right of the address bar, or ⋮ then Cast, save and share, then Install page as app."};
   }
   let prompt=null,el=null;

@@ -48,7 +48,7 @@ for (const [app, dir] of [["Symi", "apps/symi/"], ["Milos", "apps/milos/"], ["Pa
   const w = await open(site + "/apps/milos/?install", UA.chromeAndroid);
   await w.p.waitForSelector(".nisia-install", { timeout: 6000 }).catch(() => {});
   const t = await w.p.textContent(".nisia-install").catch(() => "");
-  check("Milos in Chrome on Android with no install offer: the ⋮ steps, and Open in Chrome", /⋮/.test(t) && /Open in Chrome/.test(t), t);
+  check("Milos in Chrome on Android before the install offer: says the Install button is coming, and Open in Chrome", /Install button/.test(t) && /Open in Chrome/.test(t), t);
   await w.ctx.close();
 }
 
@@ -76,7 +76,7 @@ for (const [app, dir] of [["Symi", "apps/symi/"], ["Milos", "apps/milos/"], ["Pa
 /* 3. The portal's app links. (Signed out it shows the sign-in; the links are tested by opening the menu's handler directly.) */
 {
   const w = await open(site + "/apps/nisia-web/", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36", false);
-  await w.p.evaluate(() => { const a = document.createElement("a"); a.href = "../tutor/"; a.dataset.app = "Symi"; a.id = "t-symi"; a.textContent = "Symi"; document.body.appendChild(a); });
+  await w.p.evaluate(() => { const a = document.createElement("a"); a.href = "../symi/"; a.dataset.app = "Symi"; a.id = "t-symi"; a.textContent = "Symi"; document.body.appendChild(a); });
   await w.p.click("#t-symi"); await w.p.waitForTimeout(500);
   const m = await w.p.textContent("#modal").catch(() => "");
   const qr = await w.p.$("#modal svg");
@@ -88,7 +88,7 @@ for (const [app, dir] of [["Symi", "apps/symi/"], ["Milos", "apps/milos/"], ["Pa
 /* 4. Install identities and start addresses: fixed. */
 const man = (f) => JSON.parse(fs.readFileSync(path.join(root, f), "utf8"));
 const M = { Evia: man("apps/evia/manifest.json"), Symi: man("apps/symi/app.webmanifest"), Milos: man("apps/milos/app.webmanifest"), Paros: man("apps/paros/manifest.webmanifest"), Portal: man("apps/nisia-web/manifest.webmanifest") };
-const ids = { Evia: "/nisia-app/evia/", Symi: "/nisia-app/tutor/", Milos: "/nisia-app/milos/app", Paros: "/nisia-app/paros/", Portal: "/nisia-app/nisia/" };
+const ids = { Evia: "/nisia-app/evia/", Symi: "/nisia-app/symi/", Milos: "/nisia-app/milos/app", Paros: "/nisia-app/paros/", Portal: "/nisia-app/nisia/" };
 const bad = Object.entries(M).filter(([n, m]) => m.id !== ids[n] || m.start_url !== "./" || m.scope !== "./" || m.display !== "standalone");
 check("Every app keeps the same install identity and start address, version after version", !bad.length, JSON.stringify(bad.map(([n, m]) => [n, m.id, m.start_url, m.scope])));
 

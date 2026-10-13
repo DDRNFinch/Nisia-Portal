@@ -18,9 +18,9 @@ const BASE = location.origin + location.pathname;
 /* The portal opened for a test account (?test): its own sign-in, and it stays in test mode. */
 const TEST_PORTAL = BASE + "?test";
 /* The other apps sit beside the portal: /nisia-app/milos/ next to /nisia-app/nisia/ when published,
-   apps/milos/ next to apps/nisia-web/ here. Symi is published at tutor/ (its old addresses, symi/ and symi-app/, forward there). */
+   apps/milos/ next to apps/nisia-web/ here. Symi is published at symi/ (its short-lived addresses symi-app/ and tutor/ forward there). */
 const SITE = BASE.replace(/[^/]*$/, "").replace(/(nisia-web|nisia)\/$/, "");
-const MILOS = new URL("milos/", SITE).href, SYMI = new URL(/\/apps\/$/.test(SITE) ? "symi/" : "tutor/", SITE).href, PAROS = new URL("paros/", SITE).href;
+const MILOS = new URL("milos/", SITE).href, SYMI = new URL(/\/apps\/$/.test(SITE) ? "symi/" : "symi/", SITE).href, PAROS = new URL("paros/", SITE).href;
 /* Every Evia Portal app, for everyone signed in to the portal (each app checks who can use it). */
 const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "Assessors", "#2C85F7"], ["Symi", SYMI, "Tutors, in the classroom", "#63C495"], ["Paros", PAROS, "Employers", "#0E9384"]];
 const DAY = 864e5;
