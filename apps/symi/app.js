@@ -446,11 +446,15 @@
     app.innerHTML=`<section class="assessor-value-home" aria-label="Classroom overview"><div class="vh-arches">${arch('LEARNERS',m.learners,'learners')}${arch('CLASSES',m.classes,'classes')}${arch('REGISTERS',m.registers,'registers')}${arch('COURSES',m.courses,'courses')}</div></section>`;
   }
 
-  function breadcrumb(title,sub='CLASSROOM'){return `<div class="staff-page-head"><button class="staff-back" type="button" data-home-back>←</button><div><small>${esc(sub)}</small><h1>${esc(title)}</h1></div></div>`;}
+  /* The pages the bottom bar opens get a plain title (and a line under it), like Evia, Milos and Paros; pages opened
+     from them keep the way back. */
+  const TOP_PAGES=new Set(['Learners','Registers','Classes','Resources','Course resources']);
+  function breadcrumb(title,sub='CLASSROOM',note=''){if(TOP_PAGES.has(title))return `<div class="staff-page-head sy-top-head"><div><h1>${esc(title)}</h1>${note?`<p class="sy-top-sub">${esc(note)}</p>`:''}</div></div>`;return `<div class="staff-page-head"><button class="staff-back" type="button" data-home-back>←</button><div><small>${esc(sub)}</small><h1>${esc(title)}</h1></div></div>`;}
+  const countOf=(n,one,many)=>n+' '+(n===1?one:many);
 
   function renderLearnersPage(){
     setHomeMode(false);const rows=[...state.learners].sort((a,b)=>a.name.localeCompare(b.name));
-    app.innerHTML=`${breadcrumb('Learners')}<button class="blue-button full" type="button" data-add-learner>+ Add learner</button><section class="staff-card"><div class="samos-section-head"><h2>Learners</h2><small>${rows.length} saved</small></div><div class="learner-list">${rows.length?rows.map(l=>{const n=state.classes.filter(c=>(c.learners||[]).some(x=>x.id===l.id)).length,a=learnerAttendanceStats(l.id);return `<button class="learner-row" type="button" data-learner-info="${attr(l.id)}"><span><strong>${esc(l.name)}</strong><small>${esc(l.externalId||'No learner ID')} · ${a.sessions} session${a.sessions===1?'':'s'}</small></span><span class="mini-progress"><b>${a.percentage}%</b><small>ATT</small></span></button>`}).join(''):'<div class="empty-state"><strong>No learners yet</strong><p>Add your first learner to begin.</p></div>'}</div></section>`;
+    app.innerHTML=`${breadcrumb('Learners','',countOf(rows.length,'learner','learners'))}<button class="blue-button full" type="button" data-add-learner>+ Add learner</button><section class="staff-card"><div class="learner-list">${rows.length?rows.map(l=>{const n=state.classes.filter(c=>(c.learners||[]).some(x=>x.id===l.id)).length,a=learnerAttendanceStats(l.id);return `<button class="learner-row" type="button" data-learner-info="${attr(l.id)}"><span><strong>${esc(l.name)}</strong><small>${esc(l.externalId||'No learner ID')} · ${a.sessions} session${a.sessions===1?'':'s'}</small></span><span class="mini-progress"><b>${a.percentage}%</b><small>attended</small></span></button>`}).join(''):'<div class="empty-state"><strong>No learners yet</strong><p>Add your first learner to begin.</p></div>'}</div></section>`;
   }
 
   function learnerHistoryHtml(id){
@@ -478,7 +482,7 @@
   function renderRegistersPage(){
     setHomeMode(false);selectUsefulRegister();const reg=activeRegister();
     const visible=state.classes.filter(c=>!c.archived),chips=visible.map(c=>`<button class="${c.id===state.activeClassId?'active':''}" type="button" data-select-register="${attr(c.id)}">${esc(c.teachingClassId?`${c.name} · ${c.dayOfMonth||c.day?.slice(0,3)||''}`:c.name)}</button>`).join('');
-    app.innerHTML=`${breadcrumb('Registers','ATTENDANCE')}<div class="register-top-actions"><button class="blue-button" type="button" data-new-register>+ New</button><button class="soft-button" type="button" data-register-list>All registers</button></div>${visible.length?`<div class="segmented samos-register-picker">${chips}</div>`:''}<div id="registerWorkspace"></div>`;
+    app.innerHTML=`${breadcrumb('Registers','ATTENDANCE',countOf(state.classes.filter(c=>!c.archived).length,'register','registers'))}<div class="register-top-actions"><button class="blue-button" type="button" data-new-register>+ New</button><button class="soft-button" type="button" data-register-list>All registers</button></div>${visible.length?`<div class="segmented samos-register-picker">${chips}</div>`:''}<div id="registerWorkspace"></div>`;
     renderRegisterWorkspace(reg);
   }
 
@@ -533,7 +537,7 @@
 
   function renderTeachingClassesPage(){
     setHomeMode(false);const rows=[...state.teachingClasses].sort((a,b)=>a.name.localeCompare(b.name));
-    app.innerHTML=`${breadcrumb('Classes','CLASSROOM')}<button class="blue-button full" type="button" data-new-class>+ Create class</button><section class="staff-card"><div class="samos-section-head"><h2>Classes</h2><small>${rows.length}</small></div>${rows.length?rows.map(c=>{const course=state.courses.find(x=>x.id===c.courseId),a=classAttendanceStats(c);return `<button class="samos-row class-list-row" type="button" data-open-teaching-class="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(course?.name||'No course')} · ${esc(classRecurrenceText(c))}</small><em>${(c.learnerIds||[]).length} learners · ${a.percentage}% attendance</em></span><b>›</b></button>`}).join(''):'<div class="samos-empty"><strong>No classes yet</strong><p>Create a class and Samos will build its recurring registers.</p></div>'}</section>`;
+    app.innerHTML=`${breadcrumb('Classes','CLASSROOM',countOf(rows.length,'class','classes'))}<button class="blue-button full" type="button" data-new-class>+ Create class</button><section class="staff-card"><div class="samos-section-head"><h2>Classes</h2><small>${rows.length}</small></div>${rows.length?rows.map(c=>{const course=state.courses.find(x=>x.id===c.courseId),a=classAttendanceStats(c);return `<button class="samos-row class-list-row" type="button" data-open-teaching-class="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(course?.name||'No course')} · ${esc(classRecurrenceText(c))}</small><em>${(c.learnerIds||[]).length} learners · ${a.percentage}% attendance</em></span><b>›</b></button>`}).join(''):'<div class="samos-empty"><strong>No classes yet</strong><p>Create a class and Samos will build its recurring registers.</p></div>'}</section>`;
   }
 
   function renderTeachingClassDetail(){

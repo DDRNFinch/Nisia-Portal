@@ -83,6 +83,10 @@ function sheet(html) {
 function chip() {
   const nav = document.querySelector(".header-utility-actions");
   if (!nav) return;
+  /* The profile button shows the tutor's initials, like Milos and Paros. */
+  const pb = document.getElementById("profileButton"), nm = (who && who.name) || ((App() && App().getState().settings) || {}).teacherName || "";
+  const ini = nm.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  if (pb && ini && pb.textContent !== ini) { pb.textContent = ini; pb.classList.add("sy-initials"); pb.setAttribute("aria-label", "Profile"); }
   let b = document.getElementById("nisiaButton");
   if (!b) { b = document.createElement("button"); b.type = "button"; b.id = "nisiaButton"; nav.insertBefore(b, nav.firstChild); }
   b.className = "sn-chip" + (signedIn ? " on" : "");
