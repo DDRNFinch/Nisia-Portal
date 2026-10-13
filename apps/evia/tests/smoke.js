@@ -1135,10 +1135,13 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p4.goto(url);await p4.waitForTimeout(2000);
       const gi={shown:await p4.evaluate(()=>{const g=document.getElementById("get-app");return !!g&&/Get the Evia app/.test(g.textContent)&&g.querySelectorAll(".gi-go").length===1})};
       await p4.click("#gi-go");await p4.waitForTimeout(300);gi.iphoneSteps=await p4.evaluate(()=>/Add to Home Screen/.test(document.getElementById("get-app").textContent));
-      gi.noBrowserWayOut=await p4.evaluate(()=>!document.getElementById("gi-later")&&![...document.querySelectorAll("#get-app button")].some(b=>/browser/i.test(b.textContent)));
       await p4.reload();await p4.waitForTimeout(1500);gi.stillAsks=await p4.evaluate(()=>!!document.getElementById("get-app"));
+      /* A phone that can't install it is never stuck: "Can't install it?" carries on in the browser, and stays away. */
+      await p4.click("#gi-browser");gi.carriesOn=await p4.evaluate(()=>!document.getElementById("get-app"));
+      await p4.reload();await p4.waitForTimeout(1500);gi.notAgain=await p4.evaluate(()=>!document.getElementById("get-app"));
+      await p4.evaluate(()=>localStorage.removeItem("evia-install-browser"));
       await p4.goto(url+"?browser");await p4.waitForTimeout(1500);gi.testSwitch=await p4.evaluate(()=>!document.getElementById("get-app"));
-      check("Get the app first: one button in a phone's browser (the Home Screen steps on iPhone), no carrying on in the browser, and not inside the app",Object.values(gi).every(Boolean),JSON.stringify(gi));
+      check("Get the app first: one button in a phone's browser (the Home Screen steps on iPhone), a way to carry on in the browser if it can't be installed, and not inside the app",Object.values(gi).every(Boolean),JSON.stringify(gi));
       await c4.close();
     }
 

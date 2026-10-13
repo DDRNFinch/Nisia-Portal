@@ -38,7 +38,7 @@ export function assistantsPage(deps) {
             '</ol><p class="small muted">Made-up people, for illustration.</p></div>' +
         '</div>' +
         '<div class="as-foot"><p class="as-price"><b>+' + money(a.price) + '</b> per seat a year · covers all ' + seats + ' seats · +' + money(extra) + ' a year + VAT</p>' +
-          '<div class="as-acts"><a class="btn" href="' + esc(a.app) + '" target="_blank" rel="noopener">Open ' + esc(a.name) + '</a>' +
+          '<div class="as-acts"><a class="btn" href="' + esc(a.app) + '" target="_blank" rel="noopener" data-app="' + esc(a.name) + '">Open ' + esc(a.name) + '</a>' +
           '<button class="btn primary" type="button" data-keep="' + a.id + '">Keep after the pilot</button></div></div>' +
       '</section>';
     }).join("") +

@@ -112,15 +112,45 @@ function shell(content) {
       '<div class="brand">' + MARK + '<div><div class="brand-name">Evia Portal</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
       '<nav class="nav" aria-label="Main">' + (S.org && who.platform_admin ? '<button type="button" data-go="colleges">' + ICON.back + 'All colleges</button><div class="nav-sep"></div>' : "") +
         navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + '</button>').join("") +
-        '<div class="nav-sep"></div><span class="nav-label">Apps</span>' + APPS.map(([name, href, who, dot]) => '<a class="nav-app" href="' + esc(href) + '" target="_blank" rel="noopener"><i style="background:' + dot + '" aria-hidden="true"></i><span><b>' + name + '</b><small>' + who + '</small></span></a>').join("") + '</nav>' +
+        '<div class="nav-sep"></div><span class="nav-label">Apps</span>' + APPS.map(([name, href, who, dot]) => '<a class="nav-app" href="' + esc(href) + '" target="_blank" rel="noopener" data-app="' + esc(name) + '"><i style="background:' + dot + '" aria-hidden="true"></i><span><b>' + name + '</b><small>' + who + '</small></span></a>').join("") + '</nav>' +
       '<div class="college"><span class="label">Signed in</span><b>' + esc(who.name || "") + '</b><span class="small muted">' + esc(who.platform_admin && !S.org ? "Master admin" : (m && m.roles.filter((r) => r !== "learner").join(", ")) || "") + '</span><button class="btn ghost small" type="button" id="signOut" style="align-self:flex-start;padding-left:0">Sign out</button></div>' +
     '</aside><main class="main" id="main">' + content + '</main></div>';
   root.querySelector("#signOut").onclick = () => signOut();
   root.querySelector("#menuBtn").onclick = () => root.querySelector("#side").classList.toggle("open");
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => go(b.dataset.go));
 }
-/* Coming back to the tab: bring the page up to date, unless a window is open over it. */
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.org && S.data && Date.now() - S.data.at > 30000 && !document.getElementById("modal")) render(); });
+/* Every "open this app" link in the portal (the menu, the Assistants page) goes the same way. */
+document.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a[data-app]"); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); openApp(a.dataset.app); });
+/* Getting an app, the same way every time, from the portal.
+   On a phone: the app opens in the phone's own browser, which can install it. (Opened from inside the installed
+   portal, or from a link in Gmail or WhatsApp, Android would use a small in-app window that can't install anything,
+   so on Android it's sent to Chrome itself; if the app is already installed, Chrome offers to open it.)
+   On a computer: a code to scan with the phone's camera, and the app on this computer too. */
+const PHONE = /android|iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const ANDROID = /android/i.test(navigator.userAgent);
+const inChrome = (url) => { const u = new URL(url); return "intent://" + u.host + u.pathname + u.search + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(u.href) + ";end"; };
+function openApp(name) {
+  const a = APPS.find((x) => x[0] === name); if (!a) return;
+  const [, href, who, dot] = a, url = new URL(href); url.searchParams.set("install", "");
+  const link = url.href.replace(/=$/, "").replace("install=&", "install&");
+  hit("app.open." + name.toLowerCase());
+  if (PHONE) { location.href = ANDROID ? inChrome(link) : link; return; }
+  modal("Get " + name, '<div style="display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center">' +
+    '<p class="hint" style="margin:0">For ' + esc(who.toLowerCase()) + '. Point your phone’s camera at the code, open the link, and ' + esc(name) + ' shows how to install it on that phone. Sign in with your Evia Portal email and password.</p>' +
+    '<div style="width:220px;padding:10px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 3px ' + dot + '">' + qrSvg(link, 5) + '</div>' +
+    linkBox(link) +
+    '<a class="btn primary wide" href="' + esc(link) + '" target="_blank" rel="noopener">Open ' + esc(name) + ' on this computer</a></div>');
+}
+/* The same account shows the same thing on every device: coming back to the tab brings the page up to date, and it
+   keeps itself up to date every minute while it's on screen. Never under someone's fingers: not with a window open
+   over it or while something's being typed. */
+const refreshPage = (gap) => {
+  if (document.hidden || !S.org || !S.data || Date.now() - S.data.at < gap || document.getElementById("modal")) return;
+  if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+  S.data.at = 0; render();
+};
+document.addEventListener("visibilitychange", () => refreshPage(15000)); addEventListener("focus", () => refreshPage(15000));
+setInterval(() => refreshPage(55000), 60000);
 startUsage("portal", new URL(import.meta.url).searchParams.get("v") || "");
 function go(page, extra) {
   hit("page." + page);

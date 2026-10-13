@@ -137,13 +137,15 @@ export function sync() {
   })();
   return running;
 }
-/* By itself: every 5 minutes while Milos is open, and on coming back to it (from another app, or the phone waking)
-   if it's been a minute. Each sync tells the screens (onSynced), so they show what's new without Sync now. */
+/* By itself: every minute while Milos is on screen, and on coming back to it (from another app, or the phone waking),
+   so the same account shows the same thing on every device. Each sync tells the screens (onSynced), so they show what's new without Sync now. */
 const synced = [];
 export const onSynced = (f) => synced.push(f);
 const due = (ms) => navigator.onLine && !document.hidden && (!state.syncedAt || Date.now() - Date.parse(state.syncedAt) > ms);
-setInterval(() => { if (due(4.5 * 60000)) sync().catch(() => {}); }, 5 * 60000);
-document.addEventListener("visibilitychange", () => { if (due(60000)) sync().catch(() => {}); });
+setInterval(() => { if (due(55000)) sync().catch(() => {}); }, 60000);
+/* Coming back to Milos (another app, another tab, the phone waking): what changed on the assessor's other devices. */
+const back = () => { if (due(15000)) sync().catch(() => {}); };
+document.addEventListener("visibilitychange", back); addEventListener("focus", back); addEventListener("pageshow", (e) => { if (e.persisted) back(); });
 
 /* ---------- The outbox ---------- */
 const uuid = () => crypto.randomUUID();

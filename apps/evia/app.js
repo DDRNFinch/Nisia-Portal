@@ -501,3 +501,11 @@ render();
   document.addEventListener("focusin",update);
   document.addEventListener("focusout",()=>setTimeout(update,120));
 })();
+/* News from the college (a day off cancelled on another device, a class changed): draw the screen again, but never
+   under the learner's fingers. With a sheet open or something being typed, it waits until they're done. */
+(function(){
+  let waiting=null;
+  const busy=()=>!!(document.querySelector("#modal-root > *,.chat-sheet,.pv-sheet,dialog[open]")||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
+  const redraw=()=>{clearTimeout(waiting);if(busy()){waiting=setTimeout(redraw,2000);return}try{render()}catch(err){console.warn("Evia: redraw",err&&err.message)}};
+  addEventListener("evia:college",redraw);
+})();

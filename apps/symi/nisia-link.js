@@ -313,7 +313,7 @@ function markSheet(regId, learnerId) {
     const running = !!(run && run.runningSince);
     if (mark && (mark.kind === "here" || mark.kind === "late") && !running && LIVE.includes(App().timing(regId))) App().startTimer(regId, learnerId);
     if (mark && mark.kind === "absent" && running) { const b = document.querySelector('[data-toggle-timer="' + learnerId + '"]'); if (b) b.click(); }
-    layer.remove();
+    layer.remove(); syncLiveSoon();
     if (done) resend(regId, key);
     hit("register.mark");
     toast(say); decorate();
@@ -563,10 +563,77 @@ async function sendFinished() {
   } finally { sending = false; decorate(); }
 }
 
+/* ---------- The same register on every device ----------
+   Today's registers are kept in Evia Portal while they're on: when each started, every learner's timer, every mark,
+   and whether it's finished. A register started on the phone shows as started on the desktop, and a mark made on
+   either shows on both. Each learner's timer and mark is one piece; the newest change to it wins (Evia Portal stamps
+   the time, so devices whose clocks differ agree). Only learners from Evia Portal are shared, by their enrolment. */
+const LIVE_KEY = "symi.nisia.live.v1";
+/* The same thing always gives the same text, whatever order its parts come back in. */
+const sig = (x) => JSON.stringify(x, (k, v) => v && typeof v === "object" && !Array.isArray(v) ? Object.keys(v).sort().reduce((o, n) => (o[n] = v[n], o), {}) : v);
+const timerOf = (r) => ({ intervals: (r && Array.isArray(r.intervals) ? r.intervals : []).map((i) => ({ start: Number(i.start), end: Number(i.end) })), runningSince: r && r.runningSince ? Number(r.runningSince) : null });
+const markPart = (m) => ({ mark: m ? { kind: m.kind, reason: m.reason || null, why: m.why || null } : null });
+const NONE = { timers: sig(timerOf(null)), marks: sig(markPart(null)) };
+function liveLocal(st, reg, key) {
+  const a = (st.attendance || {})[reg.id + ":" + key] || {}, mk = marks()[reg.id + ":" + key] || {}, timers = {}, mks = {};
+  for (const p of regLearners(st, reg)) { timers[p.nisia.enrolmentId] = timerOf(a[p.id]); mks[p.nisia.enrolmentId] = markPart(mk[p.id]); }
+  const done = (st.history || []).find((h) => h.classId === reg.id && h.date === key);
+  return { startedAt: (a._meta && Number(a._meta.startedAt)) || null, finished: done ? { endAt: Date.now(), auto: !!done.autoCompleted } : null, timers, marks: mks };
+}
+let liveBusy = false, liveAgain = false;
+const liveTried = {};
+async function syncLive() {
+  if (!signedIn || !online()) return;
+  if (liveBusy) { liveAgain = true; return; }
+  liveBusy = true;
+  try {
+    const st = App().getState(), key = App().today(), sessions = read(K.sessions, {}), known = read(LIVE_KEY, {}), items = [], regs = [];
+    for (const reg of st.classes || []) {
+      if (reg.archived || !App().occursOn(reg.id, key)) continue;
+      if (!regLearners(st, reg).length) continue;
+      /* Today's session in Evia Portal (made ahead, or now): the same one on every device. */
+      let s = sessions[reg.id + ":" + key];
+      if (!s && !(liveTried[reg.id] > Date.now() - 300000)) { liveTried[reg.id] = Date.now(); s = await ensureSession(reg.id, key).catch(() => null); }
+      if (!s) continue;
+      const loc = liveLocal(st, reg, key), k = known[s.id] || { timers: {}, marks: {} }, out = {};
+      if (loc.startedAt && loc.startedAt !== k.startedAt) out.startedAt = loc.startedAt;
+      if (loc.finished && !k.finished) out.finished = loc.finished;
+      /* Only what changed on this device since it last heard from Evia Portal. */
+      for (const part of ["timers", "marks"]) for (const [e, v] of Object.entries(loc[part])) if (sig(v) !== (k[part][e] || NONE[part])) (out[part] = out[part] || {})[e] = v;
+      items.push({ session: s.id, state: out }); regs.push({ reg, s, loc });
+    }
+    if (!items.length) return;
+    const res = await rpc("symi_registers_sync", { p_items: items }), next = {};
+    for (const r of res || []) {
+      const x = regs.find((y) => y.s.id === r.session);
+      if (!x) continue;
+      const sv = r.state || {}, k = { timers: {}, marks: {}, startedAt: Number(sv.startedAt) || null, finished: !!(sv.finished && sv.finished.at) };
+      const idOf = Object.fromEntries(regLearners(App().getState(), x.reg).map((p) => [p.nisia.enrolmentId, p.id]));
+      const timers = {}; let marked = false;
+      for (const [e, v] of Object.entries(sv.timers || {})) { const t = timerOf(v); k.timers[e] = sig(t); if (idOf[e] && sig(t) !== sig(x.loc.timers[e] || timerOf(null))) timers[idOf[e]] = t; }
+      for (const [e, v] of Object.entries(sv.marks || {})) { const m = markPart(v.mark); k.marks[e] = sig(m); if (idOf[e] && sig(m) !== sig(x.loc.marks[e] || markPart(null))) { setMark(x.reg.id, key, idOf[e], m.mark); marked = true; } }
+      next[r.session] = k;
+      const started = k.startedAt && k.startedAt !== x.loc.startedAt, finished = k.finished && !x.loc.finished;
+      if (Object.keys(timers).length || started || finished) App().applyLive(x.reg.id, key, { startedAt: k.startedAt, timers, finished: finished ? sv.finished : null });
+      else if (marked) decorate();
+    }
+    write(LIVE_KEY, next);
+  } catch (e) { console.warn("Symi: the register on your other devices", e.message); }
+  finally { liveBusy = false; if (liveAgain) { liveAgain = false; setTimeout(syncLive, 300); } }
+}
+let liveSoon = null;
+const syncLiveSoon = () => { clearTimeout(liveSoon); liveSoon = setTimeout(syncLive, 400); };
+setInterval(() => { if (!document.hidden) syncLive(); }, 8000);
+const comeBack = () => { if (!document.hidden) { syncLive(); pullAbsences().catch(() => {}); } };
+document.addEventListener("visibilitychange", comeBack);
+addEventListener("focus", comeBack);
+addEventListener("pageshow", (e) => { if (e.persisted) comeBack(); });
+
 /* ---------- Start ---------- */
 let queued = false;
 window.addEventListener("symi:render", () => {
   chip();
+  if (signedIn) syncLiveSoon();
   if (queued) return; queued = true;
   requestAnimationFrame(() => { queued = false; decorate(); if (signedIn) sendFinished(); });
 });
@@ -588,7 +655,7 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
 (async () => {
   chip();
   if (inviteCode() || resetCode() || /[?&]reset=email/.test(location.search)) return openSignIn();
-  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); prepareAhead(); }
+  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); syncLive(); prepareAhead(); }
 })();
 
 /* ---------- The class quiz on learners' phones (symi-teach.js runs it) ----------

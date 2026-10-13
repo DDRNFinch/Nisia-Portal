@@ -317,4 +317,16 @@ async function reasons(r) {
   (marks || []).forEach((m) => { if (m.here || !m.reason) return; const p = root.querySelector('[data-att="' + m.id + '"] .pill.bad'); if (p) { p.textContent = "Off · " + m.reason; p.className = "pill warn"; } });
 }
 
+/* The same account shows the same thing on every device: what changed (hours confirmed elsewhere, a day off booked
+   or cancelled) comes in when Paros is come back to and every minute while it's on screen, but never under the
+   employer's fingers: with a sheet open or something being typed, it waits. */
+let refreshedAt = Date.now();
+function refresh(gap) {
+  if (!who || document.hidden || !navigator.onLine || Date.now() - refreshedAt < gap) return;
+  if (document.querySelector(".sheet, dialog[open]") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) return;
+  refreshedAt = Date.now(); start(false);
+}
+const comeBack = () => refresh(15000);
+document.addEventListener("visibilitychange", comeBack); addEventListener("focus", comeBack); addEventListener("pageshow", (e) => { if (e.persisted) comeBack(); });
+setInterval(() => refresh(55000), 60000);
 boot().catch((e) => { root.innerHTML = '<div class="auth"><p class="err">' + esc(e.message) + '</p></div>'; });

@@ -382,7 +382,7 @@
   }
   /* Everything about the learner's registers, in one request: college hours, this week's classes, days off. */
   async function fetchRegisters(){
-    const w=await A.send("whatsNew")||{};
+    const w=await A.send("whatsNew")||{},keys=[SESS_KEY,ABS_KEY,ATT_KEY,VIS_KEY,TT_KEY],was=keys.map(k=>{const v=readJson(k,null);return JSON.stringify(v&&v.list?v.list:v)});
     await fetchCollege(w.college||[]);
     writeJson(SESS_KEY,{at:Date.now(),list:w.sessions||[]});
     const kept=new Set(A.waiting().filter(x=>x.name==="bookAbsence").map(x=>x.tag));
@@ -392,6 +392,8 @@
     if(Array.isArray(w.visits))writeJson(VIS_KEY,w.visits);
     /* The class timetable (days, times, start and end dates), so the Calendar shows every college day ahead. */
     if(Array.isArray(w.timetable))writeJson(TT_KEY,w.timetable);
+    /* Something changed at the college (a day off cancelled on another device, a class moved): draw the screen again. */
+    if(keys.some((k,i)=>{const v=readJson(k,null);return JSON.stringify(v&&v.list?v.list:v)!==was[i]}))try{dispatchEvent(new Event("evia:college"))}catch(_){}
     return w;
   }
   /* Kept with no signal, now sent. A check-in Evia Portal turns down is kept as a problem for the learner to see. */
@@ -576,7 +578,21 @@
     afterRestore();
     let back=false;try{back=sessionStorage.getItem("evia7-welcome-back")==="1";sessionStorage.removeItem("evia7-welcome-back")}catch(_){}
     if(back)setTimeout(()=>{if(typeof showEvidenceToast==="function")showEvidenceToast("Welcome back. Your work is here, and photos follow on WiFi.")},800);
-    if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",soon);setTimeout(soon,back?500:3000);setInterval(soon,5*60000)});
+    if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",soon);setTimeout(soon,back?500:1200);setInterval(soon,5*60000)});
+  /* The college's side (classes, days off, attendance, feedback) on every device the learner uses: straight away when
+     Evia is opened or come back to, and every 30 seconds while it's on screen, so a change made on one device shows on
+     the others within seconds. (The learner's own work goes on its own timetable above.) */
+  let pulling=null,pulledAt=0;
+  function refreshCollege(force){
+    if(pulling||!joined()||!joined().live||!navigator.onLine||document.hidden||(!force&&Date.now()-pulledAt<5000))return pulling;
+    pulledAt=Date.now();
+    pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return;await sendKept();const w=await fetchRegisters();
+      try{if(Array.isArray(w.feedback))await fetchFeedback(w.feedback)}catch(_){}}catch(err){console.warn("Evia: Evia Portal registers",err&&err.message)}finally{pulling=null}})();
+    return pulling;
+  }
+  const back=()=>{if(!document.hidden)refreshCollege(true)};
+  document.addEventListener("visibilitychange",back);addEventListener("focus",back);addEventListener("pageshow",e=>{if(e.persisted)back()});
+  setInterval(()=>refreshCollege(false),30000);
 
   /* A dot on the profile button while anything is waiting (no signal, or photos waiting for WiFi), so nobody thinks
      their work has reached the college when it hasn't. The profile says what's waiting. */

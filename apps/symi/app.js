@@ -1486,6 +1486,16 @@
       const rec=a[learnerId]||{intervals:[],runningSince:null};if(rec.runningSince)return false;
       rec.intervals=Array.isArray(rec.intervals)?rec.intervals:[];rec.runningSince=now;a[learnerId]=rec;save();return true;
     },
+    /* The same register on the tutor's other devices (nisia-link.js): who's in and their timers, when it started, and
+       finishing it when it was finished elsewhere. */
+    applyLive:(regId,key,live)=>{
+      const reg=state.classes.find(c=>c.id===regId);if(!reg||completedSession(reg,key))return false;
+      const a=attendance(reg.id,key);
+      if(live.startedAt&&(!a._meta.startedAt||Number(live.startedAt)<Number(a._meta.startedAt)))a._meta={...a._meta,date:key,startedAt:Number(live.startedAt)};
+      for(const [id,rec] of Object.entries(live.timers||{}))a[id]={intervals:Array.isArray(rec.intervals)?clone(rec.intervals):[],runningSince:rec.runningSince?Number(rec.runningSince):null};
+      if(live.finished)finaliseSession(reg,key,!!live.finished.auto,Number(live.finished.endAt)||Date.now());
+      save();return true;
+    },
     toast
   };
 
