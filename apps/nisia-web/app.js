@@ -22,7 +22,7 @@ const TEST_PORTAL = BASE + "?test";
 const SITE = BASE.replace(/[^/]*$/, "").replace(/(nisia-web|nisia)\/$/, "");
 const MILOS = new URL("milos/", SITE).href, SYMI = new URL(/\/apps\/$/.test(SITE) ? "symi/" : "symi/", SITE).href, PAROS = new URL("paros/", SITE).href;
 /* Every Evia Portal app, for everyone signed in to the portal (each app checks who can use it). */
-const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "Assessors", "#2C85F7"], ["Symi", SYMI, "Tutors, in the classroom", "#63C495"], ["Paros", PAROS, "Employers", "#0E9384"]];
+const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "Assessors", "#2C85F7"], ["Symi", SYMI, "Tutors, in the classroom", "#63C495"], ["Paros", PAROS, "Employers", "#E8781C"]];
 const DAY = 864e5;
 let who = null;
 const S = { page: "overview", org: null, learner: null, filter: "all", q: "", data: null };
