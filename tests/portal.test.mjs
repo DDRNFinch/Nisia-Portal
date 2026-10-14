@@ -224,6 +224,7 @@ try {
     await page.evaluate(() => { const s = document.querySelector("#cForm [name=version]"); s.value = [...s.options].find((o) => /ST0264/.test(o.textContent)).value; s.dispatchEvent(new Event("change")); });
     await page.selectOption("#cOpt", "architectural_joiner"); await page.check("#cForm [name=move]"); await page.click("#cForm [type=submit]");
     await page.waitForFunction(() => !document.querySelector(".modal"));
+    await page.waitForFunction(() => /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(document.getElementById("main").textContent), null, { timeout: 5000 }).catch(() => {});
     check("…and the master admin sets what a course is built on (version and option), moving its learners across", STD.S.courseSet && STD.S.courseSet.p_option === "architectural_joiner" && STD.S.courseSet.p_move_learners === true &&
       /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(await page.textContent("#main")), JSON.stringify(STD.S.courseSet));
     page.off("dialog", okAll);
