@@ -37,6 +37,8 @@
   /* A learner whose phone can't install it carries on in the browser: their work still goes to the college. */
   /* (Not an "evia7-" name: those move into Evia's database, which loads after this has to decide.) */
   const USE_BROWSER="evia-install-browser";
+  /* ?install brings this screen back for a phone that chose the browser earlier. */
+  try{if(/[?&]install\b/.test(location.search)){localStorage.removeItem(USE_BROWSER);sessionStorage.removeItem("evia7-install-later")}}catch(_){}
   const skipped=()=>{try{if(/[?&]browser\b/.test(location.search))sessionStorage.setItem("evia7-install-later","1");return sessionStorage.getItem("evia7-install-later")==="1"||Date.now()-Number(localStorage.getItem(USE_BROWSER)||0)<14*864e5}catch(_){return false}};
   if(window.EVIA_DEMO_ENDED||installed()||skipped()||!(ios||android))return;
 
