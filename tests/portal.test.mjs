@@ -227,6 +227,17 @@ try {
     await page.waitForFunction(() => /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(document.getElementById("main").textContent), null, { timeout: 5000 }).catch(() => {});
     check("…and the master admin sets what a course is built on (version and option), moving its learners across", STD.S.courseSet && STD.S.courseSet.p_option === "architectural_joiner" && STD.S.courseSet.p_move_learners === true &&
       /Carpentry\s*carp\s*ST0264 v1\.4\s*· Architectural joiner/.test(await page.textContent("#main")), JSON.stringify(STD.S.courseSet));
+    /* Each course's minimum off-the-job hours: the official figure, never below 187. */
+    await page.click("[data-course=cb]"); await page.waitForSelector("#cForm [name=min_otj]");
+    const otjLink = await page.getAttribute("#cOtjSrc a", "href").catch(() => "");
+    await page.fill("#cForm [name=min_otj]", "150"); await page.click("#cForm [type=submit]"); await page.waitForSelector("#cErr:not([hidden])");
+    const tooLow = await page.textContent("#cErr");
+    await page.fill("#cForm [name=min_otj]", "416"); await page.click("#cForm [type=submit]");
+    await page.waitForFunction(() => !document.querySelector(".modal"));
+    await page.waitForFunction(() => /Bricklayer \(ST0095\)[\s\S]*?416 hours/.test(document.getElementById("main").textContent), null, { timeout: 5000 }).catch(() => {});
+    check("…and sets a course's minimum off-the-job hours, from the standard's Skills England page, never below 187",
+      /187/.test(tooLow) && STD.S.courseMin && STD.S.courseMin.p_hours === 416 && /Bricklayer \(ST0095\)[\s\S]*?416 hours/.test(await page.textContent("#main")) && /skillsengland\.education\.gov\.uk\/apprenticeships\/st0095-v/.test(otjLink || ""),
+      JSON.stringify({ tooLow, min: STD.S.courseMin, otjLink }));
     page.off("dialog", okAll);
     await page.click("nav [data-go=colleges]"); await page.waitForSelector("#testPanel");
     fake.S.sessionGone = true; /* Evia Portal has already ended this sign-in (expired, or ended elsewhere) */
@@ -268,6 +279,12 @@ try {
     await page.waitForSelector("#c"); await page.fill("#c", "123456"); /* goes by itself once 6 digits are in */
     await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/6-college-empty.png" });
     await page.click("nav [data-go=learners]"); await page.click("#add"); await page.fill("[name=name]", "Callum Hughes"); await page.selectOption("[name=course]", "bricklayer");
+    await page.waitForFunction(() => /minimum/.test((document.querySelector(".otj-hint") || {}).textContent || ""), null, { timeout: 5000 }).catch(() => {});
+    const otjFill = { v: await page.inputValue("[name=planned_otj_hours]"), hint: await page.textContent(".otj-hint") };
+    await page.fill("[name=planned_otj_hours]", "300"); const otjLow = await page.textContent(".otj-hint");
+    await page.fill("[name=planned_otj_hours]", "416");
+    check("Adding a learner starts their planned hours from the course minimum, and says when a plan is below it",
+      otjFill.v === "416" && /minimum is 416/.test(otjFill.hint) && /Below this course’s minimum of 416/.test(otjLow), JSON.stringify({ otjFill, otjLow }));
     await page.fill("[name=start_date]", "2025-09-01"); await page.fill("[name=end_date]", "2027-08-31"); await page.fill("[name=employer_name]", "Hughes & Sons Builders");
     await page.check("[name=staff][value=m2]"); await page.screenshot({ path: shots + "/7-add-learner.png" }); await page.click("#f button[type=submit]");
     await page.waitForSelector(".qr svg"); await page.screenshot({ path: shots + "/8-evia-qr.png" });

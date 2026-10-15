@@ -42,9 +42,10 @@ export async function standardsPage(helpers) {
         '</tbody></table></div></section>').join("")
       : '<section class="panel"><p class="muted">The library is empty. Add the first standard.</p></section>') +
     '<section class="panel"><div class="panel-head"><div><h2>Courses</h2><span class="small muted">What each course is built on. New learners follow it; learners already enrolled stay on their version unless you move them.</span></div></div>' +
-      '<div class="table-wrap flat"><table><thead><tr><th>Course</th><th>Built on</th><th>Learners</th><th></th></tr></thead><tbody>' +
+      '<div class="table-wrap flat"><table><thead><tr><th>Course</th><th>Built on</th><th>Minimum off-the-job hours</th><th>Learners</th><th></th></tr></thead><tbody>' +
       L.courses.map((c) => '<tr class="static"><td><b>' + esc(c.title) + '</b><br><span class="small muted">' + esc(c.code || "") + '</span></td><td>' +
         (c.version_id ? esc(vName(c.version_id)) + (c.option ? ' <span class="small muted">· ' + esc(optName(c.version_id, c.option)) + '</span>' : "") : '<span class="pill idle">Not set</span>') +
+        '</td><td>' + (c.min_otj_hours ? '<b>' + esc(c.min_otj_hours) + '</b> hours' : '<span class="pill idle">Not set</span>') +
         '</td><td class="num">' + c.enrolments + '</td><td style="text-align:right"><button class="btn small" type="button" data-course="' + c.id + '">Change</button></td></tr>').join("") +
       '</tbody></table></div></section>' +
     /* The packs: the topics each course is taught and evidenced in, built on a standard. */
@@ -186,9 +187,12 @@ function courseForm(c, versions) {
   const { esc, modal, rpc, toast, busy, hit } = ui;
   const pub = versions.filter((v) => v.status === "published");
   const m = modal("What " + c.title + " is built on",
-    '<form id="cForm" class="form-grid">' +
+    '<form id="cForm" class="form-grid" novalidate>' +
       '<label class="field" style="grid-column:1/-1">Standard or qualification<select name="version" required>' + pub.map((v) => '<option value="' + v.id + '"' + (v.id === c.version_id ? " selected" : "") + '>' + esc(v.q.code + " v" + v.version + " · " + v.q.title) + '</option>').join("") + '</select></label>' +
       '<label class="field" style="grid-column:1/-1" id="cOptWrap">Option<select name="option" id="cOpt"></select></label>' +
+      '<label class="field" style="grid-column:1/-1">Minimum off-the-job hours <small>(Skills England sets one for each standard; never below 187)</small>' +
+        '<input name="min_otj" type="number" min="187" step="1" inputmode="numeric" placeholder="From the standard’s Skills England page" value="' + esc(c.min_otj_hours ?? "") + '"></label>' +
+      '<p class="small" id="cOtjSrc" style="grid-column:1/-1;margin-top:-6px"></p>' +
       (c.enrolments ? '<label class="check" style="grid-column:1/-1"><input type="checkbox" name="move"> Move the ' + c.enrolments + ' learner' + (c.enrolments === 1 ? "" : "s") + ' already on this course to it too</label>' : "") +
       '<p class="small muted" style="grid-column:1/-1">New learners on the course follow it. Learners already on it stay on the version they started on unless you move them.</p>' +
       '<p class="err" id="cErr" hidden style="grid-column:1/-1"></p>' +
@@ -196,13 +200,20 @@ function courseForm(c, versions) {
   const f = m.querySelector("#cForm");
   const opts = () => { const v = pub.find((x) => x.id === f.version.value), o = (v && v.options) || [];
     m.querySelector("#cOptWrap").hidden = !o.length; f.option.innerHTML = o.map((x) => '<option value="' + esc(x.code) + '"' + (x.code === c.option ? " selected" : "") + '>' + esc(x.title) + '</option>').join(""); };
-  f.version.onchange = opts; opts();
+  /* Where to find the official figure: the chosen version's page on Skills England. */
+  const src = () => { const v = pub.find((x) => x.id === f.version.value), el = m.querySelector("#cOtjSrc");
+    const url = v && (v.q.kind === "standard" && /^ST\d{4}$/i.test(v.q.code) ? "https://skillsengland.education.gov.uk/apprenticeships/" + v.q.code.toLowerCase() + "-v" + String(v.version).replace(/\./g, "-") : v.source_url);
+    el.innerHTML = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">Check the minimum on ' + esc(v.q.code + " v" + v.version) + '’s Skills England page</a>' : ""; };
+  f.version.onchange = () => { opts(); src(); }; opts(); src();
   f.onsubmit = (e) => {
     e.preventDefault();
     const err = m.querySelector("#cErr"); err.hidden = true;
     busy(f.querySelector("[type=submit]"), "Saving…", async () => {
       try {
+        const min = f.min_otj.value.trim() === "" ? null : Number(f.min_otj.value);
+        if (min != null && !(min >= 187)) throw new Error("The minimum can’t be below 187 hours (the funding rules’ floor).");
         const n = await rpc("admin_set_course_standard", { p_course: c.id, p_version: f.version.value, p_option: f.option.value || null, p_move_learners: !!(f.move && f.move.checked) });
+        if (min !== (c.min_otj_hours == null ? null : Number(c.min_otj_hours))) await rpc("admin_set_course_min_otj", { p_course: c.id, p_hours: min });
         hit("standards.course"); ui.closeModal(); toast(c.title + " is built on it now" + (n ? "; " + n + " learner" + (n === 1 ? "" : "s") + " moved." : ".")); standardsPage(ui);
       } catch (x) { err.textContent = x.message; err.hidden = false; }
     });

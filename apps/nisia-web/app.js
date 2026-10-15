@@ -343,6 +343,27 @@ function staffPicker(chosen) {
   if (!people.length) return '<p class="small muted">Invite an assessor, tutor or employer on the Staff page first; you can assign them later.</p>';
   return '<div class="choice">' + people.map((s) => '<label><input type="checkbox" name="staff" value="' + s.member_id + '"' + (chosen.includes(s.member_id) ? " checked" : "") + '> ' + esc(s.name || s.email) + ' <span class="small muted">' + esc(s.roles.filter((r) => r !== "admin").join(", ")) + '</span></label>').join("") + '</div>';
 }
+/* Each course's minimum off-the-job hours (set in Standards). A new learner starts from it, and the form says when a
+   learner's planned hours are below it (allowed, for prior learning, but never below 187). */
+async function courseMinimums() {
+  if (!S.otjMins) { try { S.otjMins = (await rpc("nisia_course_minimums")) || {}; } catch (_) { S.otjMins = {}; } }
+  return S.otjMins;
+}
+function otjMinimum(f, fresh) {
+  const inp = f.planned_otj_hours, hint = f.querySelector(".otj-hint");
+  if (!inp || !hint) return;
+  let mins = {}, last = null;
+  const show = () => {
+    const min = Number(mins[f.course.value]) || null, v = inp.value.trim() === "" ? null : Number(inp.value);
+    if (fresh && min && (v == null || v === last)) { inp.value = min; last = min; }
+    const now = inp.value.trim() === "" ? null : Number(inp.value);
+    hint.className = "otj-hint " + (min && now != null && now < min ? "warn" : "muted");
+    hint.textContent = !min ? "" : now != null && now < 187 ? "Below 187 hours: no apprenticeship can plan less." :
+      now != null && now < min ? "Below this course’s minimum of " + min + " hours. Only if prior learning shortens it." : "This course’s minimum is " + min + " hours.";
+  };
+  f.course.addEventListener("change", show); inp.addEventListener("input", show);
+  courseMinimums().then((m) => { mins = m; show(); });
+}
 function addLearner() {
   const m = modal("Add a learner",
     '<form class="form-grid" id="f" novalidate>' +
@@ -350,7 +371,7 @@ function addLearner() {
     '<label class="field full">Course<select name="course">' + COURSES.map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join("") + '</select></label>' +
     '<label class="field">Start date<input name="start_date" type="date" required></label>' +
     '<label class="field">Planned end date<input name="end_date" type="date" required></label>' +
-    '<label class="field">Planned off-the-job hours<input name="planned_otj_hours" type="number" min="0" placeholder="e.g. 416"></label>' +
+    '<label class="field">Planned off-the-job hours<input name="planned_otj_hours" type="number" min="0" placeholder="e.g. 416"><small class="otj-hint muted"></small></label>' +
     '<label class="field">Learner’s email <small>(optional)</small><input name="email" type="email" autocomplete="off"></label>' +
     '<label class="field">Employer<input name="employer_name" autocomplete="off"></label>' +
     '<label class="field">Employer contact<input name="employer_contact_name" autocomplete="off"></label>' +
@@ -361,6 +382,7 @@ function addLearner() {
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Add learner (uses 1 seat)</button></form>');
   if (!S.classes) loadClasses().then(() => { const sel = m.querySelector("[name=class_id]"); if (sel) sel.insertAdjacentHTML("beforeend", (S.classes || []).map((c) => '<option value="' + esc(c.id) + '">' + esc(c.title + " · " + classWhen(c)) + '</option>').join("")); }).catch(() => {});
   const f = m.querySelector("#f");
+  otjMinimum(f, true);
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Adding…", async () => {
     try {
       const d = formData(f), cls = d.class_id; delete d.staff; delete d.class_id;
@@ -594,7 +616,7 @@ async function editLearner(l) {
     '<label class="field full">Course<select name="course">' + COURSES.map((c) => '<option value="' + c.id + '"' + (c.id === l.course_code ? " selected" : "") + '>' + esc(c.name) + '</option>').join("") + '</select></label>' +
     '<label class="field">Start date<input name="start_date" type="date" value="' + esc(l.start_date || "") + '"></label>' +
     '<label class="field">Planned end date<input name="end_date" type="date" value="' + esc(l.end_date || "") + '"></label>' +
-    '<label class="field">Planned off-the-job hours<input name="planned_otj_hours" type="number" min="0" value="' + esc(l.planned_otj_hours ?? "") + '"></label>' +
+    '<label class="field">Planned off-the-job hours<input name="planned_otj_hours" type="number" min="0" value="' + esc(l.planned_otj_hours ?? "") + '"><small class="otj-hint muted"></small></label>' +
     '<label class="field">Employer<input name="employer_name" value="' + esc(l.employer_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact<input name="employer_contact_name" value="' + esc(en.employer_contact_name || "") + '" autocomplete="off"></label>' +
     '<label class="field">Employer contact’s email<input name="employer_contact_email" type="email" value="' + esc(en.employer_contact_email || "") + '" autocomplete="off"></label>' +
@@ -603,6 +625,7 @@ async function editLearner(l) {
     '<p class="err full"></p><button class="btn primary wide full" type="submit">Save</button></form>';
   m.querySelector(".x").onclick = closeModal;
   const f = m.querySelector("#f");
+  otjMinimum(f, false);
   f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
     try {
       const d = formData(f); delete d.staff;

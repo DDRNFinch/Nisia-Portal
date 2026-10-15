@@ -67,6 +67,9 @@ export function standardsFake(root) {
     admin_save_standard: (b) => { S.saved = b.p; return save(b.p, "draft").id; },
     admin_publish_standard: (b) => { const v = S.versions.find((x) => x.id === b.p_version); v.status = "published"; v.published_at = "2026-10-05T11:00:00Z"; return null; },
     admin_delete_standard_draft: (b) => { S.versions = S.versions.filter((x) => x.id !== b.p_version || x.status !== "draft"); return null; },
+    admin_set_course_min_otj: (b) => { if (b.p_hours != null && b.p_hours < 187) throw new Error("The minimum can't be below 187 hours (the funding rules' floor).");
+      S.courseMin = b; S.courses.find((c) => c.id === b.p_course).min_otj_hours = b.p_hours; return null; },
+    nisia_course_minimums: () => Object.fromEntries(S.courses.filter((c) => c.min_otj_hours).map((c) => [c.code, c.min_otj_hours])),
     admin_set_course_standard: (b) => { const v = S.versions.find((x) => x.id === b.p_version);
       if (v.options.length && !b.p_option) throw new Error("This standard has options: choose which one the course follows.");
       S.courseSet = b; Object.assign(S.courses.find((c) => c.id === b.p_course), { version_id: b.p_version, option: b.p_option || null }); return b.p_move_learners ? S.courses.find((c) => c.id === b.p_course).enrolments : 0; },
