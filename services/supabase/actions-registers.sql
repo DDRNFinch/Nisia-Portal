@@ -64,10 +64,10 @@ begin
   return query select a.enrolment_id, a.checked_in_at, a.late, a.offline from public.class_attendance a where a.session_id = p_session and a.checked_in_at is not null;
 end $$;
 
--- p_marks: [{enrolment_id, minutes, status: present|absent, late, reason}]. Only learners on the class; the tutor confirms.
+-- p_marks: [{enrolment_id, minutes, status: present|absent, late, reason, arrived_at, left_at, left_reason}]. Only learners on the class; the tutor confirms.
 create or replace function public.symi_finish_register(p_session uuid, p_marks jsonb) returns int
 language plpgsql security definer set search_path = '' as $$
-declare v_s public.class_sessions; v_me uuid; m jsonb; v_e uuid; v_status text; v_min int; n int := 0;
+declare v_s public.class_sessions; v_me uuid; m jsonb; v_e uuid; v_status text; v_min int; v_in timestamptz; v_out timestamptz; n int := 0;
 begin
   select * into v_s from public.class_sessions where id = p_session;
   if v_s.id is null or not private.own_class(v_s.class_id) then raise exception 'That class isn’t yours in Nisia.'; end if;
@@ -78,11 +78,18 @@ begin
     if not exists (select 1 from public.class_learners cl where cl.class_id = v_s.class_id and cl.enrolment_id = v_e) then raise exception 'A learner on these marks isn’t on this class in Nisia.'; end if;
     v_status := case when m ->> 'status' = 'present' then 'present' else 'absent' end;
     v_min := least(1440, greatest(0, coalesce((m ->> 'minutes')::int, 0)));
-    insert into public.class_attendance (organisation_id, session_id, enrolment_id, minutes, status, late, reason, confirmed_at, confirmed_by_member_id)
+    -- Times only for a learner who was there, and only on the session's day (give or take a day for time zones).
+    v_in := case when v_status = 'present' then nullif(m ->> 'arrived_at', '')::timestamptz end;
+    v_out := case when v_status = 'present' then nullif(m ->> 'left_at', '')::timestamptz end;
+    if v_in is not null and abs(extract(epoch from v_in - v_s.session_date::timestamptz)) > 2 * 86400 then v_in := null; end if;
+    if v_out is not null and (abs(extract(epoch from v_out - v_s.session_date::timestamptz)) > 2 * 86400 or (v_in is not null and v_out < v_in)) then v_out := null; end if;
+    insert into public.class_attendance (organisation_id, session_id, enrolment_id, minutes, status, late, reason, arrived_at, left_at, left_reason, confirmed_at, confirmed_by_member_id)
     values (v_s.organisation_id, p_session, v_e, case when v_status = 'present' then v_min else 0 end, v_status,
-      v_status = 'present' and coalesce((m ->> 'late')::boolean, false), case when v_status = 'absent' then left(nullif(trim(m ->> 'reason'), ''), 500) end, now(), v_me)
+      v_status = 'present' and coalesce((m ->> 'late')::boolean, false), case when v_status = 'absent' then left(nullif(trim(m ->> 'reason'), ''), 500) end,
+      v_in, v_out, case when v_out is not null then left(nullif(trim(m ->> 'left_reason'), ''), 500) end, now(), v_me)
     on conflict (session_id, enrolment_id) do update set minutes = excluded.minutes, status = excluded.status, late = excluded.late,
-      reason = excluded.reason, confirmed_at = excluded.confirmed_at, confirmed_by_member_id = excluded.confirmed_by_member_id;
+      reason = excluded.reason, arrived_at = excluded.arrived_at, left_at = excluded.left_at, left_reason = excluded.left_reason,
+      confirmed_at = excluded.confirmed_at, confirmed_by_member_id = excluded.confirmed_by_member_id;
     n := n + 1;
   end loop;
   update public.class_sessions set status = 'finished', finished_at = now() where id = p_session;

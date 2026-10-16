@@ -56,6 +56,13 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
     if (p === "/rest/v1/rpc/nisia_college_resources") return json((S.res || []).concat([{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: {}, url: null, shared_by: "Priya Shah", mine: false, can_remove: true, created_at: "2026-10-01T10:00:00Z" }]));
     if (p === "/rest/v1/rpc/nisia_share_resource") { S.res = (S.res || []).concat([{ id: "R2", kind: body.p_kind, title: body.p_title, course_code: body.p_course, unit: body.p_unit, url: body.p_url, shared_by: "Sarah Mitchell", can_remove: true, created_at: "2026-10-08T10:00:00Z" }]); S.shared = body; return json("R2"); }
+    /* Past registers, learner by learner: times, left early and why. */
+    if (p === "/rest/v1/rpc/nisia_registers") { S.regAsk = body; return json([
+      { session_id: "S2", session_date: "2026-10-15", class_id: "T1", title: "L2 Bricklaying Tuesday", tutor: "Priya Shah", status: "finished", lesson_title: "Mixing mortar", ksbs: [], learners: [
+          { enrolment_id: "e1", name: "Callum Hughes", status: "present", late: false, minutes: 300, arrived_at: "2026-10-15T08:05:00Z", left_at: "2026-10-15T13:10:00Z", left_reason: "Family" },
+          { enrolment_id: "e2", name: "Amira Khan", status: "absent", late: false, minutes: 0, reason: "Dentist" },
+          { enrolment_id: "e3", name: "Jordan Pike", status: "present", late: true, minutes: 360, checked_in_at: "2026-10-15T08:20:00Z" }] },
+      { session_id: "S1", session_date: "2026-10-08", class_id: "T9", title: "Plastering Friday", tutor: "Sam Lee", status: "open", learners: [{ enrolment_id: "e4", name: "Sam Lee", status: null }] }]); }
     if (p === "/rest/v1/rpc/nisia_today") return json([
       { id: "T1", title: "L2 Bricklaying Tuesday", room: "Workshop 2", tutor: "Priya Shah", schedule: { start: "09:00", end: "16:00", recurrence: { type: "weekly", weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], startDate: "2020-01-01" } },
         session_status: "open", ksbs: [], learners: [
@@ -325,6 +332,22 @@ try {
     const tt = await page.textContent("#main");
     check("Today: the classes on today, live from Symi, with who's in, late, booked off (ill) and not in yet",
       (await page.$$eval(".today-class", (x) => x.length)) === 1 && /2 of 4 in/.test(tt) && /Late/.test(tt) && /Ill/.test(tt) && /Not in yet/.test(tt) && /Register open/.test(tt) && !/Plastering Friday/.test(tt), tt.slice(0, 400));
+    /* Registers: every past register, opened in full, and downloaded as a spreadsheet. */
+    await page.click("nav [data-go=registers]"); await page.waitForSelector("tr[data-reg]");
+    const rl = await page.textContent("#main");
+    await page.click("tr[data-reg='0']"); await page.waitForSelector("#dlOne");
+    const one = await page.textContent("#modal"); await page.screenshot({ path: shots + "/9f-register.png" });
+    const [d1] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("#dlOne")]);
+    const csv1 = (await import("node:fs")).readFileSync(await d1.path(), "utf8").replace(/^\ufeff/, "").split(/\r\n/);
+    await page.click("#modal .x");
+    const [d2] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("#dlAll")]);
+    const csv2 = (await import("node:fs")).readFileSync(await d2.path(), "utf8").split(/\r\n/);
+    check("Registers: past registers listed (the last 30 days), one opens in full with each learner's times, left early and why, and each downloads as a spreadsheet",
+      /2 of 3/.test(rl) && /Finished/.test(rl) && /Not finished/.test(rl) && !!fake.S.regAsk && fake.S.regAsk.p_org &&
+      /Here · left/.test(one) && /Why: Family/.test(one) && /Absent · Dentist/.test(one) && /Late/.test(one) &&
+      d1.suggestedFilename() === "Register-L2-Bricklaying-Tuesday-2026-10-15.csv" && csv1[0].startsWith("Date,Class,Tutor,Learner,Mark,Arrived,Left early at") &&
+      csv1.some((l) => /^2026-10-15,L2 Bricklaying Tuesday,Priya Shah,Callum Hughes,Here,\d\d:05,\d\d:10,5:00,,Family,Mixing mortar$/.test(l)) && csv1.some((l) => /Amira Khan,Absent,,,,Dentist/.test(l)) &&
+      csv2.length === 5 && /^Registers-/.test(d2.suggestedFilename()), JSON.stringify({ rl: rl.slice(0, 300), one: one.slice(0, 300), csv1 }));
     await page.click("nav [data-go=overview]"); await page.waitForSelector(".stats"); await page.screenshot({ path: shots + "/10-overview.png", fullPage: true });
     check("The overview shows 1 of 2 seats used", /1\s*\/ 2/.test(await page.textContent(".stats")));
     /* Meeting guests: names in, one code card each; they're listed with when they end; "End now" removes them. */

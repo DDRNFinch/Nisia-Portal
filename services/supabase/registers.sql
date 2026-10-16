@@ -209,14 +209,16 @@ create policy attendance_changes_read on public.attendance_changes for select
     or exists (select 1 from public.class_attendance a where a.id = attendance_id and private.is_class_tutor(private.session_class(a.session_id))));
 grant select on public.attendance_changes to authenticated;
 revoke all on public.attendance_changes from anon;
+alter table public.class_attendance add column if not exists arrived_at timestamptz, add column if not exists left_at timestamptz, add column if not exists left_reason text;
 create or replace function private.on_attendance_changed() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-  if old.confirmed_at is not null and (old.status, old.minutes, old.late, old.reason) is distinct from (new.status, new.minutes, new.late, new.reason) then
+  if old.confirmed_at is not null and (old.status, old.minutes, old.late, old.reason, old.arrived_at, old.left_at, old.left_reason)
+       is distinct from (new.status, new.minutes, new.late, new.reason, new.arrived_at, new.left_at, new.left_reason) then
     insert into public.attendance_changes (organisation_id, attendance_id, changed_by, before, after)
     values (new.organisation_id, new.id, auth.uid(),
-      jsonb_build_object('status', old.status, 'minutes', old.minutes, 'late', old.late, 'reason', old.reason),
-      jsonb_build_object('status', new.status, 'minutes', new.minutes, 'late', new.late, 'reason', new.reason));
+      jsonb_build_object('status', old.status, 'minutes', old.minutes, 'late', old.late, 'reason', old.reason, 'arrived_at', old.arrived_at, 'left_at', old.left_at, 'left_reason', old.left_reason),
+      jsonb_build_object('status', new.status, 'minutes', new.minutes, 'late', new.late, 'reason', new.reason, 'arrived_at', new.arrived_at, 'left_at', new.left_at, 'left_reason', new.left_reason));
   end if;
   return new;
 end $$;

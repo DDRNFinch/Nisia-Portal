@@ -69,7 +69,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.34.18");
+    localStorage.setItem("symi-last-seen-release-v1", "0.34.19");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -155,6 +155,32 @@ try {
   const book = posted.find((x) => x.t === "book");
   check("The tutor books days off for a learner from the register (Evia Portal tells everyone)", !!book && book.body.p_enrolment === "E2" && book.body.p_kind === "holiday" && !(await page.$(".sn-sheet")), JSON.stringify(book));
 
+  /* Times: Callum came in 20 minutes before the tutor got to mark him; the tutor puts in when he really arrived. Then he
+     leaves early for his niece: the tutor puts in when, and why. */
+  const hhmm = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const dayStart = new Date(); dayStart.setHours(0, 2, 0, 0);
+  const T1 = Math.max(dayStart.getTime(), Date.now() - 20 * 60000), T2 = Math.max(T1 + 60000, Date.now() - 2 * 60000);
+  const minuteOf = (ms) => { const d = new Date(ms); d.setSeconds(0, 0); return d.getTime(); };
+  await page.click('[data-attendance-learner="x1"] .sn-mark');
+  await page.fill('.sn-times [name=in]', hhmm(T1)); await page.click("[data-times]"); await page.waitForTimeout(300);
+  const came = await page.evaluate((k) => { const t = window.SamosApp.times("r1", window.SamosApp.today(), "x1"), s = window.SamosApp.getState(), a = s.attendance["r1:" + window.SamosApp.today()].x1;
+    return { in: t.in, out: t.out, running: !!a.runningSince }; });
+  check("The tutor can change when a learner arrived (Callum came before he was marked): his time counts from then and his timer keeps going",
+    came.in === minuteOf(T1) && came.out === null && came.running, JSON.stringify({ came, want: minuteOf(T1) }));
+  await page.click('[data-attendance-learner="x1"] .sn-mark');
+  const sheetTimes = await page.evaluate(() => ({ in: document.querySelector(".sn-times [name=in]").value, whyHidden: document.querySelector(".sn-left-why").hidden }));
+  await page.fill('.sn-times [name=out]', hhmm(T2)); await page.dispatchEvent('.sn-times [name=out]', "input");
+  const whyShows = await page.isVisible(".sn-left-why");
+  await page.click('.sn-left-why [data-l="family"]'); await page.click("[data-times]"); await page.waitForTimeout(300);
+  const went = await page.evaluate(() => { const t = window.SamosApp.times("r1", window.SamosApp.today(), "x1"), a = window.SamosApp.getState().attendance["r1:" + window.SamosApp.today()].x1;
+    return { out: t.out, running: !!a.runningSince, label: document.querySelector('[data-attendance-learner="x1"] .sn-mark').textContent }; });
+  check("Left early: the tutor puts in when and why (Family), his timer stops then, and the register says so",
+    sheetTimes.in === hhmm(T1) && sheetTimes.whyHidden && whyShows && went.out === minuteOf(T2) && !went.running && went.label === "Late · left " + hhmm(T2), JSON.stringify({ sheetTimes, whyShows, went }));
+  await page.click('[data-attendance-learner="x1"] .sn-mark');
+  await page.fill('.sn-times [name=out]', hhmm(T1 - 60000)); await page.click("[data-times]");
+  const refused = await page.textContent(".sn-times .sn-err-line");
+  await page.click(".sn-sheet .sn-x");
+  check("Leaving before arriving is refused, in plain words", /can’t leave before they arrive/.test(refused), refused);
   /* No signal in the classroom: the code still shows, from the key kept on this device. */
   await ctx.setOffline(true);
   await page.click("[data-sn-show]");
@@ -182,6 +208,35 @@ try {
     !!fin && fin.body.p_session === "SES1" && att.length === 2 && att[0].enrolment_id === "E1" && att[0].status === "present" && att[0].late === true &&
     att[1].enrolment_id === "E2" && att[1].status === "absent" && att[1].reason === "Dentist" && att[1].minutes === 0 &&
     !posted.some((x) => /^TABLE/.test(x.t)) && /Sent to Evia Portal/.test(await page.textContent(".sn-bar")), JSON.stringify({ att, tables: posted.filter((x) => /^TABLE/.test(x.t)) }));
+  check("The finished register takes each learner's times to Evia Portal: when Callum arrived, when he left early, and why",
+    !!fin && att[0].arrived_at === new Date(minuteOf(T1)).toISOString() && att[0].left_at === new Date(minuteOf(T2)).toISOString() && att[0].left_reason === "Family" &&
+    att[0].minutes === Math.round((minuteOf(T2) - minuteOf(T1)) / 60000) && att[1].arrived_at === null && att[1].left_at === null, JSON.stringify(att));
+  /* Past registers: the tutor opens today's from the list, sees it in full, corrects a time, and downloads it. */
+  await page.click("[data-register-list]"); await page.waitForTimeout(300);
+  await page.click("[data-past-register]"); await page.waitForSelector(".sy-past");
+  const past = await page.evaluate(() => [...document.querySelectorAll(".sy-past-row")].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
+  const callumRow = past.find((x) => /Callum Hughes/.test(x)) || "", amiraRow = past.find((x) => /Amira Khan/.test(x)) || "";
+  check("A finished register opens from the list: each learner with their times and mark (Callum late and left early, Amira absent with her reason)",
+    callumRow.includes(hhmm(T1) + "–" + hhmm(T2)) && /Late · left/.test(callumRow) && /Absent · Dentist/.test(amiraRow) && /Not here/.test(amiraRow), JSON.stringify(past));
+  const sentBefore = posted.filter((x) => x.t === "finish").length;
+  await page.click('[data-past-learner="x1"]'); await page.waitForSelector(".sn-times");
+  await page.fill('.sn-times [name=in]', hhmm(T1 - 5 * 60000)); await page.click("[data-times]");
+  for (let i = 0; i < 40 && posted.filter((x) => x.t === "finish").length <= sentBefore; i++) await page.waitForTimeout(250);
+  const again = posted.filter((x) => x.t === "finish").slice(sentBefore)[0], c2 = again && again.body.p_marks.find((x) => x.enrolment_id === "E1");
+  const rowNow = await page.evaluate(() => (document.querySelector('[data-past-learner="x1"]') || {}).textContent || "");
+  check("Changing a time on a finished register updates it in Symi and sends it to Evia Portal again (where the change is kept)",
+    !!c2 && c2.arrived_at === new Date(minuteOf(T1 - 5 * 60000)).toISOString() && c2.minutes === att[0].minutes + 5 && c2.left_reason === "Family" && rowNow.includes(hhmm(T1 - 5 * 60000)) && await page.isVisible(".sy-past"),
+    JSON.stringify({ c2, rowNow }));
+  const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("[data-download-register]")]);
+  const csv = fs.readFileSync(await dl.path(), "utf8").replace(/^﻿/, "").split(/\r\n/);
+  check("Download gives a spreadsheet of the register (opens in Excel): every learner, mark, arrival, leaving time and reasons",
+    /^Register-.*\.csv$/.test(dl.suggestedFilename()) && csv[0].startsWith("Date,Class,Learner,Mark,Arrived,Left") &&
+    csv.some((l) => /Callum Hughes,Late,/.test(l) && l.includes(hhmm(T1 - 5 * 60000)) && l.endsWith(",Family")) && csv.some((l) => /Amira Khan,Absent,.*Dentist/.test(l)), csv.join(" | "));
+  await page.screenshot({ path: path.join(root, "tests", "shots", "symi-past-register.png") });
+  await page.click(".staff-back"); await page.waitForTimeout(200);
+  const [dl2] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("[data-download-registers]")]);
+  check("Download all gives every past register in one spreadsheet", /^Registers-.*\.csv$/.test(dl2.suggestedFilename()) && fs.readFileSync(await dl2.path(), "utf8").split(/\r\n/).length >= 3, dl2.suggestedFilename());
+  await page.click('.sy-nav [data-sy-tab="registers"]'); await page.waitForTimeout(300);
   /* The tutor changes the class (weekly now, a new finish time): Evia Portal hears within a minute, not the next day, so
      learners' Evia shows the classes coming up. */
   const savedBefore = posted.filter((x) => x.t === "saveClass").length;

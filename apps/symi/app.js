@@ -431,6 +431,8 @@
     else if(state.view==='classes')renderTeachingClassesPage();
     else if(state.view==='class')renderTeachingClassDetail();
     else if(state.view==='registers')renderRegistersPage();
+    else if(state.view==='registerList')renderRegisterList();
+    else if(state.view==='pastRegister')renderPastRegister();
     else if(state.view==='resources')renderResourcesPage();
     else if(state.view==='resource')renderResourceDetail();
     else if(state.view==='courses')renderCoursesPage();
@@ -459,7 +461,7 @@
 
   function learnerHistoryHtml(id){
     const rows=state.history.filter(h=>h?.data?.[id]).slice(0,12);
-    return rows.length?rows.map(h=>{const r=h.data[id],expected=Number(r.expectedMs)||Number(h.scheduledMs)||0,actual=legacyActualMs(h,r,expected),pct=expected?Math.min(100,Math.round(actual/expected*100)):0;return `<div class="samos-row"><span><strong>${esc(h.className)}</strong><small>${esc(h.dateLabel||prettyDateKey(h.date))}</small><em>${formatDuration(actual)} / ${formatDuration(expected)} · ${pct}%</em></span></div>`}).join(''):'<div class="samos-empty"><strong>No completed sessions yet</strong><p>Attendance results will appear here after a register session ends.</p></div>';
+    return rows.length?rows.map(h=>{const r=h.data[id],expected=Number(r.expectedMs)||Number(h.scheduledMs)||0,actual=legacyActualMs(h,r,expected),pct=expected?Math.min(100,Math.round(actual/expected*100)):0;return `<button class="samos-row" type="button" data-past-register="${attr(h.id)}"><span><strong>${esc(h.className)}</strong><small>${esc(h.dateLabel||prettyDateKey(h.date))}</small><em>${formatDuration(actual)} / ${formatDuration(expected)} · ${pct}%</em></span><b>›</b></button>`}).join(''):'<div class="samos-empty"><strong>No completed sessions yet</strong><p>Attendance results will appear here after a register session ends.</p></div>';
   }
 
   function renderLearnerProfile(){
@@ -507,13 +509,57 @@
   }
 
   function historyHtml(classId=null){
-    const rows=state.history.filter(h=>!classId||h.classId===classId).slice(0,8);
-    return rows.length?rows.map(h=>`<div class="samos-row"><span><strong>${esc(h.className)}</strong><small>${esc(h.dateLabel||prettyDateKey(h.date))} · ${h.total} learners</small><em>${h.present}/${h.total} attended · ${formatDuration(Number(h.scheduledMs)||0)} scheduled</em></span></div>`).join(''):'<div class="samos-empty"><strong>No completed registers</strong><p>Finished registers will appear here.</p></div>';
+    const rows=state.history.filter(h=>!classId||h.classId===classId);
+    return rows.length?rows.map(h=>`<button class="samos-row" type="button" data-past-register="${attr(h.id)}"><span><strong>${esc(h.className)}</strong><small>${esc(h.dateLabel||prettyDateKey(h.date))} · ${h.total} learners</small><em>${h.present}/${h.total} attended · ${formatDuration(Number(h.scheduledMs)||0)} scheduled</em></span><b>›</b></button>`).join(''):'<div class="samos-empty"><strong>No completed registers</strong><p>Finished registers will appear here.</p></div>';
   }
 
   function renderRegisterList(){
-    setHomeMode(false);state.view='registers';
-    app.innerHTML=`${breadcrumb('Register list','ATTENDANCE')}<button class="blue-button full" type="button" data-new-register>+ Create register</button><section class="staff-card"><div class="samos-section-head"><h2>Registers</h2><small>${state.classes.filter(c=>!c.archived).length}</small></div>${state.classes.filter(c=>!c.archived).length?state.classes.filter(c=>!c.archived).map(c=>`<button class="samos-row" type="button" data-open-register="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(`${recurrenceText(c)} · ${c.start||'09:00'}–${c.end||'16:00'}`)}</small></span><b>›</b></button>`).join(''):'<div class="samos-empty"><strong>No registers yet</strong></div>'}</section><section class="staff-card"><div class="samos-section-head"><h2>History</h2><small>${state.history.length}</small></div>${historyHtml()}</section>`;
+    setHomeMode(false);state.view='registerList';
+    app.innerHTML=`${breadcrumb('Register list','ATTENDANCE')}<button class="blue-button full" type="button" data-new-register>+ Create register</button><section class="staff-card"><div class="samos-section-head"><h2>Registers</h2><small>${state.classes.filter(c=>!c.archived).length}</small></div>${state.classes.filter(c=>!c.archived).length?state.classes.filter(c=>!c.archived).map(c=>`<button class="samos-row" type="button" data-open-register="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(`${recurrenceText(c)} · ${c.start||'09:00'}–${c.end||'16:00'}`)}</small></span><b>›</b></button>`).join(''):'<div class="samos-empty"><strong>No registers yet</strong></div>'}</section><section class="staff-card"><div class="samos-section-head"><h2>Past registers</h2><small>${state.history.length}</small></div>${state.history.length?'<button class="soft-button full sy-download" type="button" data-download-registers>Download all as a spreadsheet</button>':''}${historyHtml()}</section>`;
+  }
+
+  /* ---------- A past register: who was there, when they came and went, and why anyone wasn't ----------
+     Tapping a learner opens their mark (nisia-link.js) to change it or their times; a change goes to Evia Portal. */
+  function recordTimes(rec){
+    const iv=(Array.isArray(rec?.intervals)?rec.intervals:[]).filter(i=>Number(i.start)),starts=iv.map(i=>Number(i.start));
+    if(rec?.runningSince)starts.push(Number(rec.runningSince));
+    if(!starts.length)return{in:null,out:null};
+    return{in:Math.min(...starts),out:rec?.runningSince?null:Math.max(...iv.map(i=>Number(i.end)||0))};
+  }
+  function pastLearners(h){
+    const reg=state.classes.find(c=>c.id===h.classId),ids=[...new Set([...Object.keys(h.data||{}),...((reg?.learners||[]).filter(l=>h.data?.[l.id]).map(l=>l.id))])];
+    const nameOf=id=>state.learners.find(l=>l.id===id)?.name||(reg?.learners||[]).find(l=>l.id===id)?.name||'Learner';
+    return ids.map(id=>({id,name:nameOf(id),rec:h.data[id]||{}})).sort((a,b)=>a.name.localeCompare(b.name));
+  }
+  /* What the tutor marked (from nisia-link.js), else what the timer says. */
+  function pastMark(h,p){
+    const info=window.SymiNisia?.markInfo?.(h.classId,h.date,p.id)||null,ms=Number(p.rec.attendedMs)||0;
+    return{mark:info?.mark||(ms>0?'Here':'Absent'),reason:info?.reason||'',leftReason:info?.leftReason||'',label:info?.label||(ms>0?'Here':'Absent'),cls:info?.cls||(ms>0?'here':'no')};
+  }
+  function renderPastRegister(){
+    setHomeMode(false);const h=state.history.find(x=>x.id===state.selectedHistoryId);if(!h){state.view='registerList';return renderRegisterList();}
+    const people=pastLearners(h),scheduled=Number(h.scheduledMs)||0;
+    app.innerHTML=`<div class="staff-page-head"><button class="staff-back" type="button" data-home-back>←</button><div><small>${esc(h.dateLabel||prettyDateKey(h.date))}</small><h1>${esc(h.className)}</h1></div></div>`+
+      `<section class="staff-card clean-register-card sy-past"><div class="register-compact-meta"><span>${h.present}/${h.total} here</span><span>${formatDuration(scheduled)} scheduled</span>${h.autoCompleted?'<span>Finished by Symi at the end</span>':''}</div>`+
+      `<div class="attendance-list">${people.length?people.map(p=>{const t=recordTimes(p.rec),m=pastMark(h,p),ms=Number(p.rec.attendedMs)||0;
+        const times=t.in?`${formatTime(t.in)}–${t.out?formatTime(t.out):'end'}`:'';
+        return `<button class="attendance-row sy-past-row" type="button" data-past-learner="${attr(p.id)}"><span class="attendance-name"><strong>${esc(p.name)}</strong><small>${esc([times,ms?formatDuration(ms):''].filter(Boolean).join(' · ')||'Not here')}</small></span><span class="sn-mark ${attr(m.cls)}">${esc(m.label)}</span></button>`}).join(''):'<div class="empty-state compact-empty"><strong>No learners</strong></div>'}</div>`+
+      `<p class="sy-past-note">Tap a learner to change their mark or their times.</p><button class="blue-button full" type="button" data-download-register="${attr(h.id)}">Download as a spreadsheet</button></section>`;
+  }
+  /* A spreadsheet (CSV, opens in Excel) of one register or all of them. */
+  function registerCsv(rows){
+    const q=v=>{const s=String(v??'');return /[",\r\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;},hm=ms=>{const m=Math.round((Number(ms)||0)/60000);return `${Math.floor(m/60)}:${pad(m%60)}`;};
+    const lines=[['Date','Class','Learner','Mark','Arrived','Left','Time in class (h:mm)','Scheduled (h:mm)','Attendance %','Why not here','Why they left early']];
+    for(const h of rows)for(const p of pastLearners(h)){
+      const t=recordTimes(p.rec),m=pastMark(h,p),ms=Number(p.rec.attendedMs)||0,exp=Number(p.rec.expectedMs)||Number(h.scheduledMs)||0;
+      lines.push([h.date,h.className,p.name,m.mark,t.in?formatTime(t.in):'',t.in&&t.out?formatTime(t.out):'',hm(ms),hm(exp),exp?Math.min(100,Math.round(ms/exp*100)):'',m.reason,m.leftReason]);
+    }
+    return '\ufeff'+lines.map(r=>r.map(q).join(',')).join('\r\n');
+  }
+  async function downloadRegisters(rows,name){
+    if(!rows.length)return toast('No finished registers yet');
+    const res=await shareOrDownloadFile(new Blob([registerCsv(rows)],{type:'text/csv'}),name,'Register');
+    if(res!=='cancelled')toast(res==='shared'?'Register shared':'Register downloaded');
   }
 
 
@@ -1234,6 +1280,8 @@
       if(state.view==='resources'&&state.resourceCourseFilter&&state.selectedTeachingClassId){state.view='class';state.resourceCourseFilter='';return save();}
       if(state.view==='class'){state.view='classes';state.selectedTeachingClassId=null;return save();}
       if(state.view==='courses'&&state.selectedCourseId){state.selectedCourseId=null;return save();}
+      if(state.view==='pastRegister'){state.view=state.pastFrom==='learner'&&state.selectedLearnerId?'learner':'registerList';return save();}
+      if(state.view==='registerList'){state.view='registers';return save();}
       return goHome();
     }
     if(b.dataset.homeMetric)return openAssistant(b.dataset.homeMetric==='courses'?'resources':b.dataset.homeMetric);
@@ -1248,7 +1296,11 @@
     if(b.dataset.classResourceFilter){const c=teachingClass(),course=c&&state.courses.find(x=>x.id===c.courseId);if(course){state.resourceFilter=b.dataset.classResourceFilter;state.resourceCourseFilter=course.id;state.view='resources';save();}return;}
     if(b.hasAttribute('data-clear-course-filter')){state.resourceCourseFilter='';save();return;}
     if(b.hasAttribute('data-new-register'))return startRegisterWizard(false);
-    if(b.hasAttribute('data-register-list'))return renderRegisterList();
+    if(b.hasAttribute('data-register-list')){state.view='registerList';return save();}
+    if(b.dataset.pastRegister){state.pastFrom=state.view==='learner'?'learner':'list';state.selectedHistoryId=b.dataset.pastRegister;state.view='pastRegister';save();window.scrollTo({top:0,behavior:'auto'});return;}
+    if(b.dataset.pastLearner){const h=state.history.find(x=>x.id===state.selectedHistoryId);if(!h)return;if(window.SymiNisia?.canMark?.(h.classId,b.dataset.pastLearner))return window.SymiNisia.openMark(h.classId,b.dataset.pastLearner,h.date);return toast('Connect to Evia Portal to change a mark');}
+    if(b.dataset.downloadRegister){const h=state.history.find(x=>x.id===b.dataset.downloadRegister);if(h)downloadRegisters([h],safeFileName(`Register ${h.className} ${h.date}`,'.csv'));return;}
+    if(b.hasAttribute('data-download-registers'))return downloadRegisters(state.history,safeFileName(`Registers ${todayKey()}`,'.csv'));
     if(b.dataset.selectRegister){state.activeClassId=b.dataset.selectRegister;save();return;}
     if(b.dataset.openRegister){state.activeClassId=b.dataset.openRegister;state.view='registers';save();return;}
     if(b.hasAttribute('data-edit-register'))return startRegisterWizard(true);
@@ -1489,6 +1541,28 @@
       const a=attendance(reg.id,key),now=Date.now();a._meta={...(a._meta||{}),date:key,startedAt:a._meta?.startedAt||now};
       const rec=a[learnerId]||{intervals:[],runningSince:null};if(rec.runningSince)return false;
       rec.intervals=Array.isArray(rec.intervals)?rec.intervals:[];rec.runningSince=now;a[learnerId]=rec;save();return true;
+    },
+    /* The tutor's own times for a learner (nisia-link.js): when they came, and when they left (none: still here, or
+       till the end). On a finished register the saved record changes, and its totals with it. */
+    times:(regId,key,learnerId)=>{const reg=state.classes.find(c=>c.id===regId);if(!reg)return{in:null,out:null};const done=completedSession(reg,key);return recordTimes(done?done.data?.[learnerId]:attendance(reg.id,key)[learnerId]);},
+    setTimes:(regId,key,learnerId,inMs,outMs)=>{
+      const reg=state.classes.find(c=>c.id===regId);if(!reg||!Number.isFinite(Number(inMs)))return false;
+      const b=sessionBounds(reg,key);inMs=Math.min(Math.max(Number(inMs),b.open),b.end);
+      if(outMs!=null){outMs=Math.min(Math.max(Number(outMs),inMs),b.end);if(outMs>=b.end-60000&&key!==todayKey())outMs=b.end;}
+      const done=completedSession(reg,key);
+      if(done){
+        done.data=done.data||{};const rec={expectedMs:Number(done.scheduledMs)||scheduledMs(reg,key),...(done.data[learnerId]||{})};
+        rec.intervals=[{start:inMs,end:outMs??b.end}];rec.runningSince=null;rec.attendedMs=recordAttendedMs(rec,reg,key,b.end);rec.status=rec.attendedMs>0?'attended':'absent';
+        done.data[learnerId]=rec;const vals=Object.values(done.data);
+        done.total=vals.length;done.present=vals.filter(r=>Number(r.attendedMs)>0).length;done.absent=done.total-done.present;done.attendedMs=vals.reduce((s,r)=>s+(Number(r.attendedMs)||0),0);
+        const a=attendance(reg.id,key);a[learnerId]={intervals:clone(rec.intervals),runningSince:null};
+        refreshLearnerAttendanceSummaries();save();return true;
+      }
+      const t=sessionTimingState(reg,key),a=attendance(reg.id,key),on=key===todayKey()&&['open-early','live','break'].includes(t.code);
+      if(key===todayKey()&&['early','not-today','outside-dates'].includes(t.code))return false;
+      a._meta={...(a._meta||{}),date:key,startedAt:a._meta?.startedAt?Math.min(Number(a._meta.startedAt),inMs):inMs};
+      a[learnerId]=outMs==null&&on?{intervals:[],runningSince:inMs}:{intervals:[{start:inMs,end:outMs??Math.min(Date.now(),b.end)}],runningSince:null};
+      save();return true;
     },
     /* The same register on the tutor's other devices (nisia-link.js): who's in and their timers, when it started, and
        finishing it when it was finished elsewhere. */

@@ -21,7 +21,7 @@
     registers: [["registers", "Registers", () => S.openRegisters()], ["classes", "Classes", () => go("classes", { selectedTeachingClassId: null })]],
     /* Resources has its own tabs (symi-library.js): Course, College, Community, My resources. */
   };
-  const TAB_OF = { home: "home", registers: "registers", classes: "registers", class: "registers", learners: "learners", learner: "learners", resources: "resources", resource: "resources", courses: "resources", games: "resources" };
+  const TAB_OF = { home: "home", registers: "registers", registerList: "registers", pastRegister: "registers", classes: "registers", class: "registers", learners: "learners", learner: "learners", resources: "resources", resource: "resources", courses: "resources", games: "resources" };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

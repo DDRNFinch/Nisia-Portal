@@ -30,6 +30,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1",
   marks: "symi.nisia.marks.v1", failed: "symi.nisia.failed.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
 const REASONS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
+const LEFT_REASONS = [["family", "Family"], ["appointment", "Appointment"], ["ill", "Ill"], ["work", "Work"], ["other", "Other"]];
 const LIVE = ["open-early", "live", "break"];
 const pad = (n) => String(n).padStart(2, "0");
 const dayKey = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
@@ -254,11 +255,15 @@ function setMark(regId, key, id, m) {
   const all = marks(), one = all[regId + ":" + key] || {};
   if (m) one[id] = { ...m, at: Date.now() }; else delete one[id];
   all[regId + ":" + key] = one;
-  const old = addDays(App().today(), -60);
+  /* Kept for past registers (and their spreadsheets) for over a year. */
+  const old = addDays(App().today(), -400);
   for (const k of Object.keys(all)) if (k.slice(-10) < old) delete all[k];
   write(K.marks, all);
 }
-const markText = (m) => !m ? "" : m.kind === "here" ? "Here" : m.kind === "late" ? "Late" : m.reason ? "Absent · " + m.reason : "Absent · no reason";
+const hm = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const markText = (m) => !m ? "" : (m.kind === "here" ? "Here" : m.kind === "late" ? "Late" : m.reason ? "Absent · " + m.reason : "Absent · no reason") +
+  ((m.kind === "here" || m.kind === "late") && m.left ? " · left " + hm(m.left) : "");
+const markCls = (m) => m.kind === "absent" ? (m.reason ? "why" : "no") : m.kind;
 /* What was kept with no signal (days off booked): sent now there's signal. */
 async function flush() {
   if (!signedIn || !online() || !A.waiting().length) return;
@@ -290,14 +295,20 @@ async function prepareAhead(force) {
 const readyOffline = (regId, key) => { const s = read(K.sessions, {})[regId + ":" + key]; return !!(s && read(K.keys, {})[s.id]); };
 
 /* One tap: here, late, or not here and why. */
-function markSheet(regId, learnerId) {
-  const st = App().getState(), reg = st.classes.find((c) => c.id === regId), key = App().today();
+function markSheet(regId, learnerId, key = App().today()) {
+  const st = App().getState(), reg = st.classes.find((c) => c.id === regId), today = key === App().today();
   const l = reg && (reg.learners || []).find((x) => x.id === learnerId);
   if (!l) return;
   const n = nisiaOf(st, learnerId), m = markOf(regId, key, learnerId), booked = n && bookedFor(n.enrolmentId, key);
   const ci = (checked()[regId + ":" + key] || {})[learnerId], done = App().done(regId, key);
   const now = m ? m.kind : ci ? (ci.late ? "late" : "here") : "";
   const why = m && m.kind === "absent" ? m.reason || "" : "";
+  /* Times: once the class has started (or for a finished register), the tutor can put in when the learner really came
+     and, if they left early, when and why. */
+  const code = today ? App().timing(regId) : null, b = App().bounds(regId, key);
+  const canTime = done || (today && ["open-early", "live", "break", "ended"].includes(code));
+  const tm = App().times(regId, key, learnerId), tIn = tm.in || (ci ? Date.parse(ci.at) : null), tOut = tm.out && b && tm.out < b.end - 60000 ? tm.out : null;
+  const leftWhy = m && m.left ? m.leftReason || "" : "";
   const layer = sheet('<h2>' + esc(l.name) + '</h2>' +
     '<p class="sn-muted">' + (ci ? 'Checked in with Evia at ' + new Date(ci.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (ci.offline ? ' (with no signal)' : '') + '. ' : '') +
       (booked ? 'Booked off: <b>' + esc(booked.reason) + '</b>' + (booked.booked_by ? ' (' + esc(booked.booked_by) + ')' : '') + '. ' : '') +
@@ -306,22 +317,61 @@ function markSheet(regId, learnerId) {
       '<button type="button" data-m="here" class="' + (now === "here" ? "on" : "") + '"><i aria-hidden="true">✓</i>Here</button>' +
       '<button type="button" data-m="late" class="' + (now === "late" ? "on" : "") + '"><i aria-hidden="true">◷</i>Late</button>' +
       '<button type="button" data-m="absent" class="' + (now === "absent" && !why ? "on" : "") + '"><i aria-hidden="true">✕</i>Absent, no reason</button></div>' +
+    (canTime ? '<div class="sn-times"><p class="sn-label">Times</p>' +
+      '<div class="sn-dates"><label>Arrived<input type="time" name="in" value="' + (tIn ? hm(tIn) : "") + '"></label><label>Left early at<input type="time" name="out" value="' + (tOut ? hm(tOut) : "") + '"></label></div>' +
+      '<div class="sn-left-why"' + (tOut ? "" : " hidden") + '><p class="sn-label">Left early because…</p><div class="sn-reasons">' +
+        LEFT_REASONS.map(([k, x]) => '<button type="button" data-l="' + k + '" class="' + (leftWhy === x ? "on" : "") + '">' + x + '</button>').join("") + '</div>' +
+        '<input class="sn-input" name="leftwhy" maxlength="200" placeholder="Or type the reason" aria-label="Why they left early" value="' + esc(LEFT_REASONS.some(([, x]) => x === leftWhy) ? "" : leftWhy) + '" style="margin-top:10px;width:100%;box-sizing:border-box"></div>' +
+      '<p class="sn-err-line" role="alert"></p><div class="sn-actions"><button type="button" class="blue-button" data-times>Save times</button></div></div>' : '') +
     '<p class="sn-label">Not here because…</p>' +
     '<div class="sn-reasons">' + REASONS.map(([k, t]) => '<button type="button" data-r="' + k + '" class="' + (why === t ? "on" : "") + '">' + t + '</button>').join("") + '</div>' +
     '<form class="sn-why"><input name="why" maxlength="200" placeholder="Or type the reason" value="' + esc(REASONS.some(([, t]) => t === why) ? "" : why) + '" aria-label="Reason"><button type="submit" class="blue-button">Save</button></form>' +
     (m ? '<button type="button" class="sn-link" data-clear>Clear the mark</button>' : '') +
     (n ? '<button type="button" class="sn-link" data-book>Book days off for ' + esc(first(l.name)) + '</button>' : ''));
+  /* A past register's page draws itself again with the change. */
+  const redraw = () => { if (App().getState().view === "pastRegister") App().mutate(() => {}); };
   const put = (mark, say) => {
+    /* Here or late keeps when they left early. */
+    if (mark && (mark.kind === "here" || mark.kind === "late") && m && m.left) mark = { ...mark, left: m.left, leftReason: m.leftReason || null, leftWhy: m.leftWhy || null };
     setMark(regId, key, learnerId, mark);
     const run = ((st.attendance || {})[regId + ":" + key] || {})[learnerId];
     const running = !!(run && run.runningSince);
-    if (mark && (mark.kind === "here" || mark.kind === "late") && !running && LIVE.includes(App().timing(regId))) App().startTimer(regId, learnerId);
-    if (mark && mark.kind === "absent" && running) { const b = document.querySelector('[data-toggle-timer="' + learnerId + '"]'); if (b) b.click(); }
+    if (today && mark && (mark.kind === "here" || mark.kind === "late") && !running && LIVE.includes(App().timing(regId))) App().startTimer(regId, learnerId);
+    if (today && mark && mark.kind === "absent" && running) { const b = document.querySelector('[data-toggle-timer="' + learnerId + '"]'); if (b) b.click(); }
     layer.remove(); syncLiveSoon();
     if (done) resend(regId, key);
     hit("register.mark");
-    toast(say); decorate();
+    toast(say); decorate(); redraw();
   };
+  const tf = layer.querySelector(".sn-times");
+  if (tf) {
+    let leftKey = m && m.left ? m.leftWhy || "" : "";
+    const outIn = tf.querySelector("[name=out]"), whyBox = tf.querySelector(".sn-left-why"), err = tf.querySelector(".sn-err-line");
+    outIn.oninput = () => { whyBox.hidden = !outIn.value; };
+    tf.querySelectorAll("[data-l]").forEach((x) => { x.onclick = () => {
+      leftKey = x.dataset.l; tf.querySelectorAll("[data-l]").forEach((y) => y.classList.toggle("on", y === x));
+      if (leftKey === "other") tf.querySelector("[name=leftwhy]").focus(); else tf.querySelector("[name=leftwhy]").value = "";
+    }; });
+    const at = (v) => { const [h, mi] = v.split(":").map(Number), d = new Date(key + "T12:00:00"); d.setHours(h || 0, mi || 0, 0, 0); return d.getTime(); };
+    tf.querySelector("[data-times]").onclick = () => {
+      const vIn = tf.querySelector("[name=in]").value, vOut = outIn.value, typed = tf.querySelector("[name=leftwhy]").value.trim();
+      if (!vIn) { err.textContent = "Put in when " + first(l.name) + " arrived."; return; }
+      const inMs = at(vIn), outMs = vOut ? at(vOut) : null;
+      if (today && inMs > Date.now() + 60000) { err.textContent = "That arrival time hasn’t happened yet."; return; }
+      if (outMs != null && outMs <= inMs) { err.textContent = "They can’t leave before they arrive."; return; }
+      if (outMs != null && today && outMs > Date.now() + 60000) { err.textContent = "That leaving time hasn’t happened yet."; return; }
+      if (outMs != null && leftKey === "other" && !typed) { err.textContent = "Say why they left."; return; }
+      if (!App().setTimes(regId, key, learnerId, inMs, outMs)) { err.textContent = "Times can be changed once the class has started."; return; }
+      const reason = outMs == null ? null : typed || (LEFT_REASONS.find(([k]) => k === leftKey) || [])[1] || null;
+      const kind = m && (m.kind === "here" || m.kind === "late") ? m.kind : ci && ci.late ? "late" : "here";
+      setMark(regId, key, learnerId, { kind, left: outMs, leftReason: reason, leftWhy: outMs == null ? null : typed ? "other" : leftKey || null });
+      layer.remove(); syncLiveSoon();
+      if (done) resend(regId, key);
+      hit("register.times");
+      toast(first(l.name) + ": " + hm(inMs) + (outMs != null ? " to " + hm(outMs) + (reason ? " (" + reason + ")" : "") : today && !done ? " onwards" : "") + ". Saved.");
+      decorate(); redraw();
+    };
+  }
   layer.querySelectorAll("[data-m]").forEach((b) => { b.onclick = () => put({ kind: b.dataset.m }, first(l.name) + ": " + markText({ kind: b.dataset.m })); });
   layer.querySelectorAll("[data-r]").forEach((b) => { b.onclick = () => {
     if (b.dataset.r === "other") { layer.querySelector("[name=why]").focus(); return; }
@@ -499,7 +549,7 @@ function decorate() {
       const old = [...row.querySelectorAll(".sn-mark")];
       const m = p && marking ? markOf(regId, key, id) : null, b = p && marking ? bookedFor(p.nisia.enrolmentId, key) : null;
       const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
-      const cls = m ? (m.kind === "absent" ? (m.reason ? "why" : "no") : m.kind) : b ? "why" : label === "Mark" ? "" : "no";
+      const cls = m ? markCls(m) : b ? "why" : label === "Mark" ? "" : "no";
       if (old.length === 1 && label && old[0].textContent === label && old[0].className.replace(" sn-still", "") === "sn-mark " + cls && old[0].parentElement === n.parentElement) return;
       old.forEach((o) => o.remove());
       if (!label) return;
@@ -552,8 +602,12 @@ async function sendFinished() {
           const here = m ? m.kind === "here" || m.kind === "late" : ms > 0 || !!inAt;
           /* Checked in, but this Symi had no signal to start their timer: from check-in to the end of the session. */
           if (here && !ms && inAt && b) ms = Math.max(0, b.end - Math.max(inAt, b.start));
+          /* When they came and, if before the end, when they left (and why). */
+          const tm = App().times(row.classId, row.date, x.id), came = here ? tm.in || inAt : null, went = here && tm.out && b && tm.out < b.end - 60000 ? tm.out : null;
+          const iso = (v) => v ? new Date(v).toISOString() : null;
           return { enrolment_id: x.n.enrolmentId, minutes: here ? Math.round(ms / 60000) : 0,
-            status: here ? "present" : "absent", late: here && (m ? m.kind === "late" : !!(a && a.late)), reason: here ? null : (m && m.reason) || null };
+            status: here ? "present" : "absent", late: here && (m ? m.kind === "late" : !!(a && a.late)), reason: here ? null : (m && m.reason) || null,
+            arrived_at: iso(came), left_at: iso(went), left_reason: went ? (m && m.leftReason) || null : null };
         });
         await A.run("finishRegister", { p_session: s.id, p_marks: up });
         sent[row.sessionKey] = now; write(K.sent, sent); hit("register.sent");
@@ -576,7 +630,7 @@ const LIVE_KEY = "symi.nisia.live.v1";
 /* The same thing always gives the same text, whatever order its parts come back in. */
 const sig = (x) => JSON.stringify(x, (k, v) => v && typeof v === "object" && !Array.isArray(v) ? Object.keys(v).sort().reduce((o, n) => (o[n] = v[n], o), {}) : v);
 const timerOf = (r) => ({ intervals: (r && Array.isArray(r.intervals) ? r.intervals : []).map((i) => ({ start: Number(i.start), end: Number(i.end) })), runningSince: r && r.runningSince ? Number(r.runningSince) : null });
-const markPart = (m) => ({ mark: m ? { kind: m.kind, reason: m.reason || null, why: m.why || null } : null });
+const markPart = (m) => ({ mark: m ? { kind: m.kind, reason: m.reason || null, why: m.why || null, left: m.left || null, leftReason: m.leftReason || null, leftWhy: m.leftWhy || null } : null });
 const NONE = { timers: sig(timerOf(null)), marks: sig(markPart(null)) };
 function liveLocal(st, reg, key) {
   const a = (st.attendance || {})[reg.id + ":" + key] || {}, mk = marks()[reg.id + ":" + key] || {}, timers = {}, mks = {};
@@ -667,6 +721,16 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
    neither, the quiz is the hands-up kind. */
 window.SymiNisia = {
   live: () => signedIn && online(),
+  /* Symi's past registers (app.js): each learner's mark, and changing it. */
+  markInfo: (regId, key, id) => {
+    const m = markOf(regId, key, id);
+    if (m) return { mark: m.kind === "here" ? "Here" : m.kind === "late" ? "Late" : "Absent", reason: m.kind === "absent" ? m.reason || "No reason given" : "",
+      leftReason: (m.kind === "here" || m.kind === "late") && m.left ? m.leftReason || "Not given" : "", label: markText(m), cls: markCls(m) };
+    const n = nisiaOf(App().getState(), id), bk = n && bookedFor(n.enrolmentId, key);
+    return bk ? { mark: "Absent", reason: bk.reason, leftReason: "", label: "Off · " + bk.reason, cls: "why" } : null;
+  },
+  canMark: (regId, id) => signedIn && !!nisiaOf(App().getState(), id),
+  openMark: (regId, id, key) => markSheet(regId, id, key),
   quizStart: async (regId, key, title, questions) => { const s = await ensureSession(regId, key); return A.send("quizStart", { p_session: s.id, p_title: String(title || "Class quiz").slice(0, 200), p_questions: questions }); },
   quizStep: (id, current, revealed, finished) => A.send("quizStep", { p_quiz: id, p_current: current, p_revealed: !!revealed, p_finished: !!finished }),
   quizState: (id) => A.send("quizState", { p_quiz: id }),

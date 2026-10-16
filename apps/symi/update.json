@@ -1,9 +1,9 @@
 {
-  "version": "0.34.18",
-  "title": "A simpler Symi",
+  "version": "0.34.19",
+  "title": "Registers you can correct and look back on",
   "details": [
-    "Registers, Learners, Resources and Timetable along the bottom",
-    "Tap Symi to see what needs doing today: registers to take, and learners off this week",
-    "Classes now sit with your registers, and courses and games with your resources"
+    "Tap a learner to change when they arrived, or when they left early and why",
+    "All registers › Past registers: open any finished register to see it or change it",
+    "Download a register, or all of them, as a spreadsheet"
   ]
 }

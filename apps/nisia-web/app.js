@@ -99,7 +99,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["registers", "Registers", "register"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"], ["assistants", "Assistants", "spark"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -175,7 +175,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage,
     assistants: () => assistantsPage({ shell, esc, modal, closeModal, toast, hit, ukDate, summary: () => S.data.summary }),
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
@@ -907,6 +907,77 @@ async function attendancePage() {
       hit("attendance.rules"); toast("Saved. Symi and Evia use these from now on."); attendancePage();
     });
   };
+}
+
+/* ---------- Registers: every register the tutors have taken in Symi, to look back on and download ----------
+   Each one learner by learner: their mark, when they came and went (the tutor can correct the times in Symi), why
+   anyone wasn't there, and why anyone left early. Download gives a spreadsheet (CSV, opens in Excel) of one register
+   or of every register in the period. Admins and quality see the whole college's; a tutor sees their own. */
+ICON.register = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3h5a1 1 0 011 1v1.5a1 1 0 01-1 1h-5a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M8.5 5H7a2.5 2.5 0 00-2.5 2.5v11A2.5 2.5 0 007 21h10a2.5 2.5 0 002.5-2.5v-11A2.5 2.5 0 0017 5h-1.5"/><path d="M8.5 13.5l2.3 2.3 4.7-4.7"/></svg>';
+const clock = (t) => t ? new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+const hmm = (min) => { const m = Math.max(0, Math.round(Number(min) || 0)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); };
+function regMark(l, finished) {
+  if (l.status === "present") return [l.late ? "warn" : "good", (l.late ? "Late" : "Here") + (l.left_at ? " · left " + clock(l.left_at) : "")];
+  if (l.status === "absent") return l.reason ? ["off", "Absent · " + l.reason] : ["bad", "Absent · no reason"];
+  if (l.off) return ["off", OFF_NAMES[l.off] || "Booked off"];
+  return finished ? ["bad", "Absent · no reason"] : ["idle", "Not marked"];
+}
+function regCsv(list) {
+  const q = (v) => { const s = String(v == null ? "" : v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const out = [["Date", "Class", "Tutor", "Learner", "Mark", "Arrived", "Left early at", "Time in class (h:mm)", "Why not here", "Why they left early", "Taught"]];
+  for (const r of list) for (const l of r.learners) {
+    const here = l.status === "present", mk = here ? (l.late ? "Late" : "Here") : l.status === "absent" || r.status === "finished" ? "Absent" : l.off ? "Booked off" : "Not marked";
+    out.push([r.session_date, r.title, r.tutor, l.name, mk, here ? clock(l.arrived_at || l.checked_in_at) : "", here ? clock(l.left_at) : "", here ? hmm(l.minutes) : "",
+      here ? "" : l.reason || (l.off ? OFF_NAMES[l.off] || "Booked off" : ""), here && l.left_at ? l.left_reason || "Not given" : "", r.lesson_title || ""]);
+  }
+  return "﻿" + out.map((x) => x.map(q).join(",")).join("\r\n");
+}
+function download(text, name) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv" })), a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const fileSafe = (s) => String(s || "").replace(/[^a-z0-9 _-]+/gi, "").trim().replace(/\s+/g, "-");
+async function registersPage() {
+  const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.regPeriod || "30", P = periodDates(k);
+  shell('<p class="loading">Loading registers…</p>');
+  let rows;
+  try { rows = await rpc("nisia_registers", { p_org: S.org, p_from: P.from, p_to: iso(Date.parse(P.to) - DAY) }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  if (S.page !== "registers") return;
+  const classes = [...new Map(rows.map((r) => [r.class_id, r.title])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const cls = classes.some(([id]) => id === S.regClass) ? S.regClass : "", list = rows.filter((r) => !cls || r.class_id === cls);
+  const count = (r, f) => r.learners.filter(f).length;
+  shell('<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Registers</h1><p class="small muted">Every register taken in Symi. Open one to see it in full.</p></div>' +
+      '<div class="actions"><div class="seg" role="group" aria-label="Period">' + [["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"]].map(([id, x]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (k === id) + '">' + x + '</button>').join("") + '</div>' +
+      '<button class="btn primary" type="button" id="dlAll"' + (list.length ? "" : " disabled") + '>Download spreadsheet</button></div></div>' +
+    (classes.length > 1 ? '<label class="field reg-filter">Class<select class="input" id="regClass"><option value="">Every class</option>' + classes.map(([id, x]) => '<option value="' + esc(id) + '"' + (id === cls ? " selected" : "") + '>' + esc(x) + '</option>').join("") + '</select></label>' : "") +
+    '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Class</th><th>Tutor</th><th>Here</th><th>Late</th><th>Left early</th><th>Absent</th><th>Register</th></tr></thead><tbody>' +
+    (list.length ? list.map((r, i) => { const done = r.status === "finished";
+      return '<tr data-reg="' + i + '" tabindex="0"><td><b>' + esc(new Date(r.session_date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })) + '</b></td>' +
+        '<td>' + esc(r.title) + '</td><td class="small">' + esc(r.tutor) + '</td>' +
+        '<td class="num">' + count(r, (l) => l.status === "present") + ' of ' + r.learners.length + '</td><td class="num">' + (count(r, (l) => l.status === "present" && l.late) || "") + '</td>' +
+        '<td class="num">' + (count(r, (l) => l.status === "present" && l.left_at) || "") + '</td><td class="num">' + (count(r, (l) => l.status !== "present" && (done || l.status === "absent")) || "") + '</td>' +
+        '<td>' + (done ? '<span class="pill good">Finished</span>' : '<span class="pill warn">Not finished</span>') + '</td></tr>'; }).join("")
+      : '<tr class="static"><td colspan="8" class="empty">No registers in this period yet. They appear here as tutors take them in Symi.</td></tr>') +
+    '</tbody></table></div>' +
+    '<p class="small muted">Times are when each learner arrived and, if they left early, when. The tutor can correct them in Symi, and every change to a finished register is kept.</p>');
+  root.querySelectorAll("[data-period]").forEach((b) => b.onclick = () => { S.regPeriod = b.dataset.period; registersPage(); });
+  const sel = root.querySelector("#regClass"); if (sel) sel.onchange = () => { S.regClass = sel.value; registersPage(); };
+  root.querySelector("#dlAll").onclick = () => { hit("registers.download"); download(regCsv(list), fileSafe("Registers " + (cls ? classes.find(([id]) => id === cls)[1] + " " : "") + P.from + " to " + iso(Date.parse(P.to) - DAY)) + ".csv"); };
+  root.querySelectorAll("tr[data-reg]").forEach((tr) => { const open = () => registerSheet(list[Number(tr.dataset.reg)]); tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
+}
+function registerSheet(r) {
+  const done = r.status === "finished", when = new Date(r.session_date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const m = modal(r.title + " · " + when,
+    '<p class="small muted" style="margin-top:0">' + esc([r.tutor, r.room, r.lesson_title ? "Taught: " + r.lesson_title : ""].filter(Boolean).join(" · ")) + (done ? "" : " · Not finished yet") + '</p>' +
+    '<div class="table-wrap"><table><thead><tr><th>Learner</th><th>Mark</th><th>Arrived</th><th>Left early</th><th>Time</th></tr></thead><tbody>' +
+    (r.learners.length ? r.learners.map((l) => { const mk = regMark(l, done), here = l.status === "present";
+      return '<tr class="static"><td><div class="person">' + avatar(l.name) + '<b>' + esc(l.name) + '</b></div></td><td><span class="pill ' + mk[0] + '">' + esc(mk[1]) + '</span>' +
+        (here && l.left_at ? '<br><span class="small muted">Why: ' + esc(l.left_reason || "not given") + '</span>' : "") + '</td>' +
+        '<td class="num">' + (here ? esc(clock(l.arrived_at || l.checked_in_at)) : "") + '</td><td class="num">' + (here ? esc(clock(l.left_at)) : "") + '</td><td class="num">' + (here ? hmm(l.minutes) : "") + '</td></tr>'; }).join("")
+      : '<tr class="static"><td colspan="5" class="empty">No learners on this register.</td></tr>') +
+    '</tbody></table></div><button class="btn primary wide" type="button" id="dlOne" style="margin-top:14px">Download this register</button>');
+  m.classList.add("wide-modal");
+  m.querySelector("#dlOne").onclick = () => { hit("registers.download"); download(regCsv([r]), fileSafe("Register " + r.title + " " + r.session_date) + ".csv"); };
 }
 
 /* ---------- Today: every class on today, with who's in as the registers come in from Symi ----------
