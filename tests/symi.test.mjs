@@ -69,7 +69,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.34.19");
+    localStorage.setItem("symi-last-seen-release-v1", "0.34.20");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -118,7 +118,7 @@ try {
   await page.waitForSelector('[data-attendance-learner="x3"] .sn-mark');
   const offMark = await page.textContent('[data-attendance-learner="x3"] .sn-mark'), barNow = await page.textContent(".sn-bar");
   check("A day Amira booked off (in Evia) shows on the register before anyone arrives, and isn't counted as expected",
-    /Off · Ill/.test(offMark) && /0 of 1/.test(barNow) && /1 booked off/.test(barNow) && !(await page.$('[data-attendance-learner="x2"] .sn-mark')), JSON.stringify({ offMark, barNow }));
+    /Off · Ill/.test(offMark) && /0 of 1/.test(barNow) && /1 booked off/.test(barNow) && (await page.textContent('[data-attendance-learner="x2"] .sn-mark')) === "Mark", JSON.stringify({ offMark, barNow }));
 
   await page.waitForSelector("[data-sn-show]");
   const barText = await page.textContent(".sn-bar");
@@ -181,6 +181,11 @@ try {
   const refused = await page.textContent(".sn-times .sn-err-line");
   await page.click(".sn-sheet .sn-x");
   check("Leaving before arriving is refused, in plain words", /can’t leave before they arrive/.test(refused), refused);
+  /* A learner who's only in Symi (not from Evia Portal) has a mark and times too. */
+  await page.click('[data-attendance-learner="x2"] .sn-mark'); await page.waitForSelector(".sn-times");
+  await page.fill('.sn-times [name=in]', hhmm(T1)); await page.click("[data-times]"); await page.waitForTimeout(300);
+  const local = await page.evaluate(() => ({ in: window.SamosApp.times("r1", window.SamosApp.today(), "x2").in, label: document.querySelector('[data-attendance-learner="x2"] .sn-mark').textContent }));
+  check("A learner only in Symi (not from Evia Portal) can be marked and have their times changed too", local.in === minuteOf(T1) && local.label === "Here", JSON.stringify(local));
   /* No signal in the classroom: the code still shows, from the key kept on this device. */
   await ctx.setOffline(true);
   await page.click("[data-sn-show]");

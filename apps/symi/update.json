@@ -1,8 +1,8 @@
 {
-  "version": "0.34.19",
+  "version": "0.34.20",
   "title": "Registers you can correct and look back on",
   "details": [
-    "Tap a learner to change when they arrived, or when they left early and why",
+    "Tap any learner to change when they arrived, or when they left early and why (every learner, not just Evia Portal ones)",
     "All registers › Past registers: open any finished register to see it or change it",
     "Download a register, or all of them, as a spreadsheet"
   ]

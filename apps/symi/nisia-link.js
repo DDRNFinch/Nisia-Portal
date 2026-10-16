@@ -537,19 +537,23 @@ function decorate() {
     const c = bar.querySelector("[data-sn-connect]"); if (c) c.onclick = openSignIn;
     const sh = bar.querySelector("[data-sn-show]"); if (sh) sh.onclick = () => showCheckIn(regId);
     const rt = bar.querySelector("[data-sn-retry]"); if (rt) rt.onclick = () => { rt.disabled = true; rt.textContent = "Sending…"; sendFinished(); };
-    const marking = signedIn && ["early", "open-early", "live", "break", "ended", "completed"].includes(code);
+    /* Every learner gets a mark (and their times), whether or not they're from Evia Portal: only Evia Portal learners'
+       marks go to Evia Portal, but the tutor's register is theirs either way. */
+    const marking = ["early", "open-early", "live", "break", "ended", "completed"].includes(code);
     host.querySelectorAll("[data-attendance-learner]").forEach((row) => {
       const id = row.dataset.attendanceLearner, x = mine[id], n = row.querySelector(".attendance-name strong");
       if (!n) return;
       /* Checked in: a tick next to the name. */
       if (x && !n.querySelector(".sn-tick")) n.insertAdjacentHTML("beforeend", ' <span class="sn-tick" title="Checked in with Evia">✓ ' + new Date(x.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + (x.late ? " · late" : "") + (x.offline ? " · no signal" : "") + '</span>');
-      const p = people.find((q) => q.id === id);
+      const p = people.find((q) => q.id === id) || (reg.learners || []).find((q) => q.id === id);
       /* The mark: one button. Symi draws the register again every second, so the mark only fades in when it's new or
          has changed (fading in every time, it would flicker). */
       const old = [...row.querySelectorAll(".sn-mark")];
-      const m = p && marking ? markOf(regId, key, id) : null, b = p && marking ? bookedFor(p.nisia.enrolmentId, key) : null;
-      const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
-      const cls = m ? markCls(m) : b ? "why" : label === "Mark" ? "" : "no";
+      const m = p && marking ? markOf(regId, key, id) : null, b = p && p.nisia && marking ? bookedFor(p.nisia.enrolmentId, key) : null;
+      /* No mark yet: someone whose timer ran was here; once the class is over, anyone else was absent. */
+      const ran = !m && !x && p && marking && !!App().times(regId, key, id).in;
+      const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason : ran ? "Here" : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
+      const cls = m ? markCls(m) : b ? "why" : ran ? "here" : label === "Mark" ? "" : "no";
       if (old.length === 1 && label && old[0].textContent === label && old[0].className.replace(" sn-still", "") === "sn-mark " + cls && old[0].parentElement === n.parentElement) return;
       old.forEach((o) => o.remove());
       if (!label) return;
@@ -729,7 +733,7 @@ window.SymiNisia = {
     const n = nisiaOf(App().getState(), id), bk = n && bookedFor(n.enrolmentId, key);
     return bk ? { mark: "Absent", reason: bk.reason, leftReason: "", label: "Off · " + bk.reason, cls: "why" } : null;
   },
-  canMark: (regId, id) => signedIn && !!nisiaOf(App().getState(), id),
+  canMark: (regId, id) => { const r = App().getState().classes.find((c) => c.id === regId); return !!(r && (r.learners || []).some((l) => l.id === id)) || !!nisiaOf(App().getState(), id); },
   openMark: (regId, id, key) => markSheet(regId, id, key),
   quizStart: async (regId, key, title, questions) => { const s = await ensureSession(regId, key); return A.send("quizStart", { p_session: s.id, p_title: String(title || "Class quiz").slice(0, 200), p_questions: questions }); },
   quizStep: (id, current, revealed, finished) => A.send("quizStep", { p_quiz: id, p_current: current, p_revealed: !!revealed, p_finished: !!finished }),
