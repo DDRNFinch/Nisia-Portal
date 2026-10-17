@@ -45,7 +45,7 @@ function handle(route) {
     schedule: { day: "Thursday", start: "09:00", end: "15:30", breaks: [{ start: "12:00", end: "12:30" }], recurrence: { type: "weekly", interval: 1, weekdays: ["Thursday"], monthDays: [], startDate: "2026-10-08", endDate: "2027-07-15", anchorDate: "2026-10-08", onceDate: "" } },
     learners: [{ enrolment_id: "E1", name: "Callum Hughes" }, { enrolment_id: "E2", name: "Amira Khan" }] }]);
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
-  if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Ill", booked_by: "Amira Khan", booked_by_role: "learner" }]);
+  if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Sickness", booked_by: "Amira Khan", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
   /* Symi asks Evia Portal through named actions only; it never touches the class tables. */
   if (/^\/rest\/v1\/(classes|class_learners|class_sessions|class_attendance)/.test(p)) { posted.push({ t: "TABLE " + p.slice(9), m: q.method() }); return json({ message: "Symi touched a table" }, 403); }
@@ -69,7 +69,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.34.20");
+    localStorage.setItem("symi-last-seen-release-v1", "0.34.21");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -118,7 +118,7 @@ try {
   await page.waitForSelector('[data-attendance-learner="x3"] .sn-mark');
   const offMark = await page.textContent('[data-attendance-learner="x3"] .sn-mark'), barNow = await page.textContent(".sn-bar");
   check("A day Amira booked off (in Evia) shows on the register before anyone arrives, and isn't counted as expected",
-    /Off · Ill/.test(offMark) && /0 of 1/.test(barNow) && /1 booked off/.test(barNow) && (await page.textContent('[data-attendance-learner="x2"] .sn-mark')) === "Mark", JSON.stringify({ offMark, barNow }));
+    /Off · Sickness/.test(offMark) && /0 of 1/.test(barNow) && /1 booked off/.test(barNow) && (await page.textContent('[data-attendance-learner="x2"] .sn-mark')) === "Mark", JSON.stringify({ offMark, barNow }));
 
   await page.waitForSelector("[data-sn-show]");
   const barText = await page.textContent(".sn-bar");
@@ -261,7 +261,7 @@ try {
   const ahead = await page.evaluate(() => ((document.querySelector(".sn-ahead") || {}).textContent || ""));
   await page.evaluate(() => { const b = document.querySelector(".sn-bar"); if (b) b.scrollIntoView({ block: "center" }); });
   await page.screenshot({ path: path.join(root, "tests", "shots", "symi-coming-up.png") });
-  check("The register shows days off booked for the coming classes, before the day", /^Coming up: Amira off \w{3} \d{1,2} \w{3}, \w{3} \d{1,2} \w{3} and \w{3} \d{1,2} \w{3} \(Ill\)$/.test(ahead), ahead);
+  check("The register shows days off booked for the coming classes, before the day", /^Coming up: Amira off \w{3} \d{1,2} \w{3}, \w{3} \d{1,2} \w{3} and \w{3} \d{1,2} \w{3} \(Sickness\)$/.test(ahead), ahead);
   /* Explore: every tab, every button, as a new tutor would. */
   { const xp = await explore(page, { app: "Symi", tabSel: ".sy-nav [data-sy-tab]", skip: /present|full screen|start class|start question/, perScreen: 15, max: 350 });
     check("Explore Symi: " + xp.taps + " buttons on " + xp.screens + " screens, none breaks anything", xp.taps > 30 && !xp.problems.length, xp.problems.join("\n")); }

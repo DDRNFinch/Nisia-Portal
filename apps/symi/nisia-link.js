@@ -29,8 +29,8 @@ const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
 const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1",
   marks: "symi.nisia.marks.v1", failed: "symi.nisia.failed.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
-const REASONS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
-const LEFT_REASONS = [["family", "Family"], ["appointment", "Appointment"], ["ill", "Ill"], ["work", "Work"], ["other", "Other"]];
+const REASONS = [["ill", "Sickness"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
+const LEFT_REASONS = [["family", "Family"], ["appointment", "Appointment"], ["ill", "Sickness"], ["work", "Work"], ["other", "Other"]];
 const LIVE = ["open-early", "live", "break"];
 const pad = (n) => String(n).padStart(2, "0");
 const dayKey = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());

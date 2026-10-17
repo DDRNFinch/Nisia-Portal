@@ -995,7 +995,7 @@ function classOn(c, k) {
   const weeks = Math.round((monday(d) - monday(anchor)) / (7 * DAY));
   return days.includes(WEEKDAYS[d.getDay()]) && ((weeks % every) + every) % every === 0;
 }
-const OFF_NAMES = { ill: "Ill", holiday: "Holiday", appointment: "Appointment", work: "At work", other: "Booked off" };
+const OFF_NAMES = { ill: "Sickness", holiday: "Holiday", appointment: "Appointment", work: "At work", other: "Booked off" };
 function markOf(l, done) {
   if (l.status === "present") return l.late ? ["warn", "Late"] : ["good", "In"];
   if (l.off) return ["off", OFF_NAMES[l.off] || "Booked off"];

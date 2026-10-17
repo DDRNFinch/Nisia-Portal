@@ -155,7 +155,7 @@
      work or another reason, booked ahead or given to the tutor). The day itself says which. */
   const ATT_KEY=[["present","Present"],["absent","Absent"],["booked","Booked off"],["coming","Coming up"]];
   const ATT_GROUP={here:"present",late:"present",none:"absent",holiday:"booked",ill:"booked",reason:"booked"};
-  const ATT_DETAIL={here:"Present",late:"Present, late",none:"Absent, unauthorised",holiday:"Booked off, holiday",ill:"Booked off, sick",reason:"Booked off"};
+  const ATT_DETAIL={here:"Present",late:"Present, late",none:"Absent, unauthorised",holiday:"Booked off, holiday",ill:"Booked off, sickness",reason:"Booked off"};
   const dkey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   function markKind(m){
     if(m.status==="present")return m.late?"late":"here";

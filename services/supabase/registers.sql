@@ -60,7 +60,7 @@ revoke all on public.absences from anon;
 -- The reason for an absence, as people read it.
 create or replace function private.absence_text(p_kind text, p_reason text) returns text
 language sql immutable set search_path = '' as $$
-  select coalesce(nullif(trim(p_reason), ''), case p_kind when 'ill' then 'Ill' when 'holiday' then 'Holiday'
+  select coalesce(nullif(trim(p_reason), ''), case p_kind when 'ill' then 'Sickness' when 'holiday' then 'Holiday'
     when 'appointment' then 'Appointment' when 'work' then 'At work' else 'Other' end);
 $$;
 

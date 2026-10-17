@@ -450,7 +450,7 @@
     return out;
   }
   const absences=()=>(readJson(ABS_KEY,[])||[]).filter(a=>a&&a.ends_on>=today()).sort((a,b)=>a.starts_on<b.starts_on?-1:1);
-  const KINDS={ill:"Ill",holiday:"Holiday",appointment:"Appointment",work:"At work",other:"Other"};
+  const KINDS={ill:"Sickness",holiday:"Holiday",appointment:"Appointment",work:"At work",other:"Other"};
   async function bookAbsence(from,to,kind,reason){
     const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");
     if(!from||!to||to<from)throw new Error("Choose the first and last day.");

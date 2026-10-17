@@ -1246,8 +1246,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         if(u.pathname==="/rest/v1/rpc/nisia_whats_new")return json({college:[{id:"A1",session_date:new Date().toISOString().slice(0,10),class:"L2 Brickwork",lesson:"Cavity walls",ksbs:["K5","S3"],minutes:375,status:"present",checked_in_at:new Date().toISOString()}],
           sessions:[{id:"S1",session_date:new Date().toISOString().slice(0,10),starts_at:new Date(Date.now()-5*60e3).toISOString(),ends_at:new Date(Date.now()+3*36e5).toISOString(),class:"L2 Brickwork",room:"Workshop 2",lesson:"Cavity walls",status:"open",checked_in_at:state9.in?new Date().toISOString():null,late:false,reason:null,absence_id:null}],absences:state9.abs,attendance:ATT,employer:{witness:W1,ratings:BR1},feedback:[]});
         if(u.pathname==="/rest/v1/rpc/nisia_my_sessions")return json([{id:"S1",session_date:new Date().toISOString().slice(0,10),starts_at:new Date(Date.now()-5*60e3).toISOString(),ends_at:new Date(Date.now()+3*36e5).toISOString(),class:"L2 Brickwork",room:"Workshop 2",lesson:"Cavity walls",status:"open",checked_in_at:state9.in?new Date().toISOString():null,late:false,reason:null,absence_id:null}]);
-        if(u.pathname==="/rest/v1/rpc/nisia_book_absence"){const b=JSON.parse(q.postData());state9.abs.push({id:"AB1",starts_on:b.p_from,ends_on:b.p_to,kind:b.p_kind,reason:b.p_reason||"Ill",booked_by:"Jo Bloggs",booked_by_role:"learner"})}
-        if(u.pathname==="/rest/v1/rpc/nisia_book_absence")return json({id:"AB1",from:JSON.parse(q.postData()).p_from,to:JSON.parse(q.postData()).p_to,reason:"Ill"});
+        if(u.pathname==="/rest/v1/rpc/nisia_book_absence"){const b=JSON.parse(q.postData());state9.abs.push({id:"AB1",starts_on:b.p_from,ends_on:b.p_to,kind:b.p_kind,reason:b.p_reason||"Sickness",booked_by:"Jo Bloggs",booked_by_role:"learner"})}
+        if(u.pathname==="/rest/v1/rpc/nisia_book_absence")return json({id:"AB1",from:JSON.parse(q.postData()).p_from,to:JSON.parse(q.postData()).p_to,reason:"Sickness"});
         if(u.pathname==="/rest/v1/rpc/nisia_my_college")return json([{id:"A1",session_date:new Date().toISOString().slice(0,10),class:"L2 Brickwork",lesson:"Cavity walls",ksbs:["K5","S3"],minutes:375,status:"present",checked_in_at:new Date().toISOString()}]);
         if(u.pathname.startsWith("/rest/v1/rpc/"))return json([]);
         return r.fulfill({status:201,headers:{"access-control-allow-origin":"*"},body:""});
@@ -1311,7 +1311,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p9.evaluate(()=>{window.eviaChatKit.closeChat();window.chat()});await p9.waitForTimeout(4500);
       await p9.click("#chat .td-away");await p9.waitForTimeout(4500);
       await p9.click('#chat .chat-pill:has-text("Tomorrow")');await p9.waitForTimeout(2000);
-      await p9.click('#chat .chat-pill:has-text("Ill")');await p9.waitForTimeout(2500);
+      await p9.click('#chat .chat-pill:has-text("Sickness")');await p9.waitForTimeout(2500);
       await p9.fill("#chat .td-note input","Flu");await p9.click("#chat .td-note button");await p9.waitForTimeout(3500);
       const bk=calls9.find(x=>x.p==="/rest/v1/rpc/nisia_book_absence"),tm=new Date(Date.now()+864e5),tmk=tm.getFullYear()+"-"+String(tm.getMonth()+1).padStart(2,"0")+"-"+String(tm.getDate()).padStart(2,"0");
       cv.away=!!bk&&JSON.parse(bk.body).p_kind==="ill"&&JSON.parse(bk.body).p_reason==="Flu"&&JSON.parse(bk.body).p_from===tmk&&await p9.evaluate(()=>/is booked/.test(document.getElementById("chat").innerText)&&/tutor, assessor and employer/.test(document.getElementById("chat").innerText)&&window.eviaNisia.absences().length===1);

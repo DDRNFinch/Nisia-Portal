@@ -6,7 +6,7 @@ import { rpc, esc } from "./nisia.js";
 /* Through the shared actions when the app has loaded them (nisia-actions.js); each app connects them to Evia Portal. */
 const ask = (name, fn, args) => window.NisiaActions ? window.NisiaActions.send(name, args) : rpc(fn, args);
 
-export const KINDS = [["ill", "Ill"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
+export const KINDS = [["ill", "Sickness"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
 const pad = (n) => String(n).padStart(2, "0");
 const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
 const sayDay = (k) => new Date(k + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });

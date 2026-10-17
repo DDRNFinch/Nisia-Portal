@@ -55,7 +55,7 @@ do $$ begin perform public.symi_session_key('60000000-0000-0000-0000-00000000000
 
 -- ---- Ben books a day off as ill, from Evia ----
 select pg_temp.as_user(:ben, 'aal1');
-select pg_temp.ok((public.nisia_book_absence((now() at time zone 'Europe/London')::date, (now() at time zone 'Europe/London')::date, 'ill', null)->>'reason') = 'Ill', 'Ben books today off: ill');
+select pg_temp.ok((public.nisia_book_absence((now() at time zone 'Europe/London')::date, (now() at time zone 'Europe/London')::date, 'ill', null)->>'reason') = 'Sickness', 'Ben books today off: ill');
 select pg_temp.ok(pg_temp.notes('absence_booked') = 'Ben', 'Ben is told it''s booked');
 select pg_temp.ok(pg_temp.notes('absence_booked_staff') = 'Tutor', 'his tutor is told (he has no assessor or employer)');
 do $$ begin perform public.nisia_book_absence(current_date, current_date, 'other', '  '); raise exception 'FAILED: other with no words'; exception when others then
@@ -99,11 +99,11 @@ do $$ begin perform public.nisia_check_in('ABC123', now() - interval '4 days'); 
 -- ---- Ben's row on the register takes his reason ----
 select pg_temp.as_user(:tutor);
 insert into public.class_attendance (organisation_id, session_id, enrolment_id) values (:org, '60000000-0000-0000-0000-000000000001', :e_ben);
-select pg_temp.ok((select reason from public.class_attendance where enrolment_id = :e_ben) = 'Ill', 'Ben shows on the register as Ill, not missing');
+select pg_temp.ok((select reason from public.class_attendance where enrolment_id = :e_ben) = 'Sickness', 'Ben shows on the register as Sickness, not missing');
 
 -- ---- Evia: the learner's sessions this week ----
 select pg_temp.as_user(:ben, 'aal1');
-select pg_temp.ok((select reason from public.nisia_my_sessions() limit 1) = 'Ill', 'Ben''s Evia knows today is booked off');
+select pg_temp.ok((select reason from public.nisia_my_sessions() limit 1) = 'Sickness', 'Ben''s Evia knows today is booked off');
 select pg_temp.as_user(:amy, 'aal1');
 select pg_temp.ok((select checked_in_at is not null from public.nisia_my_sessions() limit 1), 'Amy''s Evia knows she''s checked in');
 

@@ -331,7 +331,7 @@ try {
     await page.click("nav [data-go=today]"); await page.waitForSelector(".today-class"); await page.screenshot({ path: shots + "/9d-today.png", fullPage: true });
     const tt = await page.textContent("#main");
     check("Today: the classes on today, live from Symi, with who's in, late, booked off (ill) and not in yet",
-      (await page.$$eval(".today-class", (x) => x.length)) === 1 && /2 of 4 in/.test(tt) && /Late/.test(tt) && /Ill/.test(tt) && /Not in yet/.test(tt) && /Register open/.test(tt) && !/Plastering Friday/.test(tt), tt.slice(0, 400));
+      (await page.$$eval(".today-class", (x) => x.length)) === 1 && /2 of 4 in/.test(tt) && /Late/.test(tt) && /Sickness/.test(tt) && /Not in yet/.test(tt) && /Register open/.test(tt) && !/Plastering Friday/.test(tt), tt.slice(0, 400));
     /* Registers: every past register, opened in full, and downloaded as a spreadsheet. */
     await page.click("nav [data-go=registers]"); await page.waitForSelector("tr[data-reg]");
     const rl = await page.textContent("#main");
