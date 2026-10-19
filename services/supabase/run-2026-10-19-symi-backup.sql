@@ -41,3 +41,9 @@ revoke all on function public.symi_backup_get(timestamptz) from public, anon;
 revoke all on function public.symi_backup_put(jsonb) from public, anon;
 grant execute on function public.symi_backup_get(timestamptz) to authenticated;
 grant execute on function public.symi_backup_put(jsonb) to authenticated;
+
+-- The college server's clock, so Symi's changing check-in code follows it rather than the device's own clock
+-- (a classroom laptop half a minute out made every code look "changed" to Evia Portal).
+create or replace function public.nisia_now() returns timestamptz language sql stable set search_path = '' as $$ select clock_timestamp() $$;
+revoke all on function public.nisia_now() from public, anon;
+grant execute on function public.nisia_now() to authenticated;

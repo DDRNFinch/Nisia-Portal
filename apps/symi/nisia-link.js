@@ -200,7 +200,21 @@ async function ensureSession(regId, key) {
   return { id: ses.id, org, member: m.member_id, status: ses.status, people };
 }
 
-/* ---------- The changing code ---------- */
+/* ---------- The changing code ----------
+   It follows Evia Portal's clock, not this device's: a classroom laptop or tablet whose clock is out by half a minute
+   would otherwise show codes Evia Portal reads as already changed. The difference is measured when the code is shown
+   (and kept, for when there's no signal). */
+const CLOCK = "symi.nisia.clock.v1";
+let clockOff = Number(read(CLOCK, 0)) || 0;
+const serverNow = () => Date.now() + clockOff;
+async function syncClock() {
+  if (!signedIn || !online()) return;
+  try {
+    const t0 = Date.now(), s = await rpc("nisia_now"), t1 = Date.now(), at = Date.parse(s);
+    if (!isFinite(at) || t1 - t0 > 5000) return;
+    clockOff = Math.round(at - (t0 + t1) / 2); write(CLOCK, clockOff);
+  } catch (e) { console.warn("Symi: Evia Portal's clock", e.message); }
+}
 const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 /* Kept on this device (for two weeks), so the code still shows with no signal. */
 async function hmacKey(sessionId) {
@@ -438,6 +452,7 @@ async function showCheckIn(regId) {
       layer.querySelector("[data-close]").onclick = () => layer.remove(); return;
     }
   }
+  await syncClock();
   const st = App().getState(), reg = st.classes.find((c) => c.id === regId), lesson = await lessonOn(st, regId, key);
   layer.innerHTML =
     '<header><div><small>CHECK IN · ' + esc(reg.name) + '</small><h2>' + esc(lesson && lesson.title || "Scan to check in") + '</h2></div>' +
@@ -453,7 +468,7 @@ async function showCheckIn(regId) {
   let lastW = null, stop = false, lastN = -1;
   const tick = async () => {
     if (stop) return;
-    const now = Date.now() / 1000, w = Math.floor(now / WINDOW), remain = WINDOW - (now % WINDOW);
+    const now = serverNow() / 1000, w = Math.floor(now / WINDOW), remain = WINDOW - (now % WINDOW);
     if (w !== lastW) {
       lastW = w;
       const c = await codeFor(s.id, hk, w);
