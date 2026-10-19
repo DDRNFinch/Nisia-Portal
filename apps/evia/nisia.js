@@ -609,6 +609,23 @@
     if(demoEnds()&&Date.now()>=demoEnds())endDemo();
   }
   setInterval(()=>{if(demoEnds()&&Date.now()>=demoEnds())endDemo()},30000);
+  /* A new code (?pair=…) on a phone that is already set up: if it was a meeting guest, or its sign-in has gone (an
+     ended demo, a deleted account), everything of the old learner is cleared and Evia starts again with the new code.
+     A learner who is still connected is left as they are. */
+  (async()=>{
+    let code="";try{code=new URLSearchParams(location.search).get("pair")||""}catch(_){}
+    if(!code)return;
+    for(let i=0;i<50&&!(window.eviaData&&window.eviaData.enrolment&&window.eviaStorage);i++)await new Promise(r=>setTimeout(r,100));
+    if(!window.eviaData||!window.eviaData.enrolment||!window.eviaData.enrolment())return;
+    let guest=wasGuest()||demoEnds()>0,live=false;
+    try{const c=await sb(),{data}=await c.auth.getSession(),em=data&&data.session&&data.session.user&&data.session.user.email||"";live=!!(data&&data.session);if(/^guest-[^@]+@learners\.nisia\.invalid$/i.test(em))guest=true}catch(_){}
+    if(live&&!guest)return;
+    /* A guest still in their meeting (who scanned their code again) keeps their demo. */
+    if(live)try{const c=await sb(),{data,error}=await c.rpc("nisia_my_demo");if(!error&&data&&data.endsAt&&Date.parse(data.endsAt)>Date.now())return}catch(_){return}
+    try{await window.eviaStorage.removeAll()}catch(_){}
+    try{["evia-demo-ended","evia-demo-ends","evia-demo-guest"].forEach(k=>localStorage.removeItem(k))}catch(_){}
+    location.replace(location.pathname+"?pair="+encodeURIComponent(code));
+  })();
   listeners.push(s=>{if(s&&s.error==="signed-out"&&(demoEnds()||wasGuest()))endDemo()});
   let pulling=null,pulledAt=0;
   function refreshCollege(force){

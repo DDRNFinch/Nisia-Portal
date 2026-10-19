@@ -137,5 +137,22 @@ await g2.page.evaluate(() => { Object.defineProperty(document, "hidden", { value
 for (let i = 0; i < 15 && !await g2.page.evaluate(() => /This demo has ended/.test(document.body.textContent)).catch(() => false); i++) await g2.page.waitForTimeout(1000);
 check("Guest: ended early with End now, the open Evia shows “This demo has ended” as soon as it's looked at", knew && await g2.page.evaluate(() => /This demo has ended/.test(document.body.textContent)));
 
+/* 10. A guest still in their meeting who scans their code again keeps their demo. */
+await q("insert into public.meeting_guests (learner_id, organisation_id, user_id, enrolment_id, name, meeting, expires_at) values ($1, $2, $3, $4, 'Lee Erna', 'Investor meeting', now() + interval '1 day')", [lrow.learner_id, lrow.organisation_id, LEE, ENROL]);
+const g3 = await eviaOn({ width: 412, height: 915 });
+await g3.page.evaluate(() => localStorage.setItem("evia-demo-guest", "1"));
+await g3.page.goto(site + "/evia/?pair=ABCDEFG"); await g3.page.waitForTimeout(4000);
+check("Guest: scanning their code again during the meeting keeps their demo", await g3.page.evaluate(() => !!(window.eviaData && window.eviaData.enrolment() && window.eviaData.enrolment().enrolmentId)));
+/* 11. That meeting is over (End now): a new guest's code on the same phone clears the old guest and starts with the new code. */
+await q("delete from public.meeting_guests where learner_id = $1", [lrow.learner_id]);
+await g3.page.goto(site + "/evia/?pair=HJKMNPQ"); await g3.page.waitForTimeout(5000);
+const fresh = await g3.page.evaluate(() => ({ enrolment: window.eviaData && window.eviaData.enrolment(), url: location.search, ended: /This demo has ended/.test(document.body.textContent) }));
+check("Guest: after the meeting, a new code on the same phone starts afresh (the old guest is cleared, not loaded)", !fresh.enrolment && /pair=HJKMNPQ/.test(fresh.url) && !fresh.ended, JSON.stringify(fresh));
+/* 12. A phone whose sign-in has gone (an old guest whose account was deleted): a new code starts afresh too. */
+const g4 = await eviaOn({ width: 412, height: 915 });
+await g4.page.evaluate(() => localStorage.removeItem("evia7-nisia-auth"));
+await g4.page.goto(site + "/evia/?pair=RSTUVWX"); await g4.page.waitForTimeout(5000);
+check("A phone whose old sign-in has gone starts afresh with a new code", await g4.page.evaluate(() => !(window.eviaData && window.eviaData.enrolment())));
+
 check("No script errors", !errors.length, errors.join(" | "));
 await finish();

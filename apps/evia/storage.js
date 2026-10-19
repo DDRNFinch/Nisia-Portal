@@ -291,7 +291,24 @@
     cache.clear();
     try{if(db)db.close()}catch(_){}
     db=null;
+    /* Emptied first, which works even while another part of Evia still has the database open (an iPad can hold a
+       delete back until then, and the page would come back as it was); then deleted as well, if it can be. */
+    await Promise.all([DB_NAME].concat(BLOB_DBS).map(emptyDb));
     await Promise.all([DB_NAME].concat(BLOB_DBS).map(name=>new Promise(res=>{try{const r=indexedDB.deleteDatabase(name);r.onsuccess=r.onerror=r.onblocked=()=>res()}catch(_){res()}})));
+  }
+  /* Every store in a database cleared (one that doesn't exist isn't made). */
+  function emptyDb(name){
+    return new Promise(res=>{
+      const t=setTimeout(res,4000);const done=()=>{clearTimeout(t);res()};
+      try{
+        const r=indexedDB.open(name);
+        r.onupgradeneeded=()=>{try{r.transaction.abort()}catch(_){}};
+        r.onerror=r.onblocked=done;
+        r.onsuccess=()=>{const d=r.result;try{const names=[...d.objectStoreNames];if(!names.length){d.close();return done()}
+          const tx=d.transaction(names,"readwrite");names.forEach(n=>tx.objectStore(n).clear());tx.oncomplete=tx.onerror=tx.onabort=()=>{try{d.close()}catch(_){}done()}}
+          catch(_){try{d.close()}catch(__){}done()}};
+      }catch(_){done()}
+    });
   }
   window.eviaStorage={flush,backup,restore,estimate,persisted,requestPersist,bindProfileCard,formatBytes,keys:appDataKeys,removeAll};
 
