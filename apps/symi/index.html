@@ -2,30 +2,44 @@
 <html lang="en-GB">
 <head>
   <meta charset="utf-8">
+<script>/* Phone view or desktop view on a computer: the app across the screen, or exactly as on a phone in a phone frame
+   (../phone.html), remembered for this app. Phones and tablets just show the app. */
+(function(){var A="symi",D="desktop";try{
+ var q=location.search;
+ if(window.top!==window||/[?&]inframe=1/.test(q)){document.documentElement.classList.add("in-phone-frame");return}
+ if(navigator.webdriver&&!/[?&]view=/.test(q))return;
+ var wide=function(){return innerWidth>=900&&matchMedia("(hover:hover) and (pointer:fine)").matches};
+ var m=/[?&]view=(phone|desktop)/.exec(q);if(m)localStorage.setItem("view-"+A,m[1]);
+ var go=function(){var s=location.search.replace(/([?&])view=\w+&?/,"$1").replace(/[?&]$/,"");location.replace("../phone.html?app="+A+"&u="+encodeURIComponent(location.pathname+s+location.hash))};
+ if(wide()&&(localStorage.getItem("view-"+A)||D)==="phone"){go();return}
+ addEventListener("DOMContentLoaded",function(){if(!wide())return;var b=document.createElement("button");b.type="button";b.id="phone-view";b.textContent="\ud83d\udcf1 Phone view";b.title="Show the app as it is on a phone";
+  b.style.cssText="position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:2147483000;font:700 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 13px;border-radius:999px;border:1.5px solid rgba(23,32,51,.18);background:#fff;color:#172033;box-shadow:0 6px 18px rgba(23,32,51,.12);cursor:pointer";
+  b.onclick=function(){try{localStorage.setItem("view-"+A,"phone")}catch(e){}go()};document.body.appendChild(b)});
+}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f6f8">
   <meta name="application-name" content="Symi">
-  <meta name="samos-build" content="0.34.24">
-  <meta name="symi-build" content="0.34.24">
+  <meta name="samos-build" content="0.34.25">
+  <meta name="symi-build" content="0.34.25">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Symi">
   <link rel="manifest" href="app.webmanifest">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=0.34.24">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=0.34.24">
-  <link rel="stylesheet" href="style.css?v=0.34.24">
-  <link rel="stylesheet" href="staff-style.css?v=0.34.24">
-  <link rel="stylesheet" href="samos-theme.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-week-calendar-v023.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-standard-ui-v024.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-calendar-manager-v025.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-home-polish-v025.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-home-scale-v027.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-nisia.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-look.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-teach.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-teach-pics.css?v=0.34.24">
-  <link rel="stylesheet" href="symi-library.css?v=0.34.24">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=0.34.25">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=0.34.25">
+  <link rel="stylesheet" href="style.css?v=0.34.25">
+  <link rel="stylesheet" href="staff-style.css?v=0.34.25">
+  <link rel="stylesheet" href="samos-theme.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-week-calendar-v023.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-standard-ui-v024.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-calendar-manager-v025.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-home-polish-v025.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-home-scale-v027.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-nisia.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-look.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-teach.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-teach-pics.css?v=0.34.25">
+  <link rel="stylesheet" href="symi-library.css?v=0.34.25">
   <title>Symi</title>
 </head>
 <body class="staff-mode samos-home-centred">
@@ -155,30 +169,30 @@
   <section id="presentationPlayer" class="classroom-player presentation-player" aria-hidden="true"></section>
   <div class="save-toast" id="saveToast" role="status">Saved</div>
 
-  <script>window.SAMOS_BUILD='0.34.24';window.SYMI_BUILD='0.34.24';</script>
-  <script src="evia-animations.js?v=0.34.24"></script>
-  <script src="qr-engine.js?v=0.34.24"></script>
-  <script src="app.js?v=0.34.24"></script>
-  <script src="naxos-controller.js?v=0.34.24"></script>
-  <script src="symi-brand-v017.js?v=0.34.24"></script>
-  <script src="symi-otj-share-v017.js?v=0.34.24"></script>
-  <script src="symi-course-hub-v018.js?v=0.34.24"></script>
-  <script src="symi-teaching-v019.js?v=0.34.24"></script>
-  <script src="symi-attendance-cap-v020.js?v=0.34.24"></script>
-  <script src="symi-data-hub-v021.js?v=0.34.24"></script>
-  <script src="symi-course-first-v021.js?v=0.34.24"></script>
-  <script src="symi-week-calendar-v023.js?v=0.34.24"></script>
-  <script src="symi-standard-ui-v024.js?v=0.34.24"></script>
-  <script src="symi-home-polish-v025.js?v=0.34.24"></script>
-  <script src="symi-updater-v027.js?v=0.34.24"></script>
-  <script src="symi-look.js?v=0.34.24"></script>
-  <script src="symi-teach.js?v=0.34.24"></script>
-  <script src="symi-library.js?v=0.34.24"></script>
+  <script>window.SAMOS_BUILD='0.34.25';window.SYMI_BUILD='0.34.25';</script>
+  <script src="evia-animations.js?v=0.34.25"></script>
+  <script src="qr-engine.js?v=0.34.25"></script>
+  <script src="app.js?v=0.34.25"></script>
+  <script src="naxos-controller.js?v=0.34.25"></script>
+  <script src="symi-brand-v017.js?v=0.34.25"></script>
+  <script src="symi-otj-share-v017.js?v=0.34.25"></script>
+  <script src="symi-course-hub-v018.js?v=0.34.25"></script>
+  <script src="symi-teaching-v019.js?v=0.34.25"></script>
+  <script src="symi-attendance-cap-v020.js?v=0.34.25"></script>
+  <script src="symi-data-hub-v021.js?v=0.34.25"></script>
+  <script src="symi-course-first-v021.js?v=0.34.25"></script>
+  <script src="symi-week-calendar-v023.js?v=0.34.25"></script>
+  <script src="symi-standard-ui-v024.js?v=0.34.25"></script>
+  <script src="symi-home-polish-v025.js?v=0.34.25"></script>
+  <script src="symi-updater-v027.js?v=0.34.25"></script>
+  <script src="symi-look.js?v=0.34.25"></script>
+  <script src="symi-teach.js?v=0.34.25"></script>
+  <script src="symi-library.js?v=0.34.25"></script>
   <!-- Evia Portal: sign-in, learners, check-in and college hours (Symi's own sign-in, separate from Milos and the portal). -->
   <script>window.NISIA_AUTH_KEY='symi-auth';</script>
   <script src="../../packages/vendor/supabase-2.45.4.js"></script>
-  <script src="../../packages/core/nisia-actions.js?v=0.34.24"></script>
-  <script src="../../packages/core/install-chip.js?v=0.34.24" data-app="Symi" data-color="#38A96B" data-icon="icon-192.png"></script>
-  <script type="module" src="nisia-link.js?v=0.34.24"></script>
+  <script src="../../packages/core/nisia-actions.js?v=0.34.25"></script>
+  <script src="../../packages/core/install-chip.js?v=0.34.25" data-app="Symi" data-color="#38A96B" data-icon="icon-192.png"></script>
+  <script type="module" src="nisia-link.js?v=0.34.25"></script>
 </body>
 </html>

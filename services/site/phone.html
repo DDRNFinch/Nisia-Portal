@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Phone view</title>
+<!-- Phone view on a computer: one of the apps, exactly as it is on a phone, in a phone frame in the middle of the
+     screen (for showing people what apprentices and staff see). The app runs inside the frame at phone width, signed
+     in as on this computer. "Desktop view" goes back to the app across the whole screen; each app remembers the choice. -->
+<style>
+  html,body{margin:0;height:100%}
+  body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#172033;overflow:hidden;
+    background:radial-gradient(circle at 50% 20%,var(--soft) 0%,#F6F4EE 55%,#ECE9E1 100%)}
+  .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:56px}
+  .side{width:260px;display:flex;flex-direction:column;gap:14px}
+  .name{display:flex;align-items:center;gap:12px;font-weight:800;font-size:30px;letter-spacing:-.02em}
+  .face{width:46px;height:46px;border-radius:50%;border:4px solid var(--c);background:#fff;display:flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;flex:none}
+  .face i{display:block;width:6px;height:10px;border:3px solid var(--c);border-radius:50%}
+  .who{margin:0;color:#4A5568;font-size:16px;line-height:1.5}
+  .btn{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;border:2px solid var(--c);background:#fff;color:#172033;
+    font:700 15px/1 inherit;padding:11px 16px;border-radius:999px;cursor:pointer}
+  .btn:hover{background:var(--soft)}
+  .note{margin:0;color:#7A8394;font-size:13px;line-height:1.5}
+  .phone{position:relative;width:390px;height:844px;flex:none;border-radius:56px;background:#141821;padding:30px 14px 14px;box-sizing:content-box;
+    box-shadow:0 40px 80px rgba(23,32,51,.28),0 0 0 2px #2A303C inset;transform-origin:center}
+  .phone::before{content:"";position:absolute;top:11px;left:50%;width:9px;height:9px;margin-left:-4px;border-radius:50%;background:#2E3442}
+  .phone iframe{display:block;width:390px;height:844px;border:0;border-radius:30px 30px 44px 44px;background:#fff}
+  @media (max-width:1000px){.side{display:none}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="side">
+    <div class="name"><span class="face"><i></i><i></i></span><span id="name">Evia</span></div>
+    <p class="who" id="who"></p>
+    <button class="btn" type="button" id="desk">🖥&nbsp; Desktop view</button>
+    <p class="note">This is the real app, as it is on a phone. Click and type in it as you would tap.</p>
+  </div>
+  <div class="phone" id="phone"><iframe id="app" title="App" allow="camera; microphone; clipboard-write; fullscreen; geolocation"></iframe></div>
+</div>
+<script>
+(function () {
+  var APPS = {
+    evia: ["Evia", "For apprentices", "#E7B900", "#FFF6CC"],
+    symi: ["Symi", "For tutors", "#38A96B", "#E3F4EA"],
+    milos: ["Milos", "For assessors", "#2C85F7", "#E1EDFE"],
+    paros: ["Paros", "For employers", "#E8781C", "#FDEBDC"],
+    nisia: ["Evia Portal", "For colleges", "#6D5BD0", "#ECE9FB"]
+  };
+  var q = new URLSearchParams(location.search), app = APPS[q.get("app")] ? q.get("app") : "evia", a = APPS[app];
+  /* Only a page of this site, in the app's own folder. */
+  var u = q.get("u") || "";
+  if (!/^\/[A-Za-z0-9._~!$&'()*+,;=:@%\/?#-]*$/.test(u) || u.indexOf("//") === 0 || u.indexOf("/" + app + "/") < 0) u = "./" + app + "/";
+  var withFrame = function (x) { var h = x.split("#"), p = h[0]; return p + (p.indexOf("?") >= 0 ? "&" : "?") + "inframe=1" + (h.length > 1 ? "#" + h.slice(1).join("#") : ""); };
+  document.documentElement.style.setProperty("--c", a[2]);
+  document.documentElement.style.setProperty("--soft", a[3]);
+  document.getElementById("name").textContent = a[0];
+  document.getElementById("who").textContent = a[1] + ". Shown as it is on a phone.";
+  document.title = a[0] + " · Phone view";
+  var frame = document.getElementById("app"), phone = document.getElementById("phone");
+  frame.src = withFrame(u);
+  /* Fits the phone to the window's height (and width, on a narrow window). */
+  function fit() { var s = Math.min(1, (innerHeight - 40) / 888, (innerWidth - 40) / 418); phone.style.transform = "scale(" + s + ")"; }
+  addEventListener("resize", fit); fit();
+  /* Desktop view: the same page the phone is showing, across the whole screen. */
+  document.getElementById("desk").onclick = function () {
+    try { localStorage.setItem("view-" + app, "desktop"); } catch (e) {}
+    var to = u;
+    try { var l = frame.contentWindow.location, s = new URLSearchParams(l.search); s.delete("inframe"); to = l.pathname + (s.toString() ? "?" + s : "") + l.hash; } catch (e) {}
+    location.href = to;
+  };
+})();
+</script>
+</body>
+</html>

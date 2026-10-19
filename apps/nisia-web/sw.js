@@ -2,7 +2,7 @@
    installable as an app. Pages and files of the portal itself come from the network when
    there's signal (so it's always up to date) and from the copy kept here when there isn't. The other apps live in their
    own folders with their own workers, so their requests are left alone. */
-const CACHE = "nisia-app-portal-v5";
+const CACHE = "nisia-app-portal-v6";
 const OTHER_APPS = /\/(evia|milos|symi|paros|preview)\//;
 self.addEventListener("install", (e) => { self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
