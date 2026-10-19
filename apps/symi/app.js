@@ -549,7 +549,9 @@
   }
 
   function renderRegistersPage(){
-    setHomeMode(false);selectUsefulRegister();const reg=activeRegister();
+    /* The most useful register is picked when Registers is opened (openRegisters), not every time it's drawn, so a
+       register the tutor taps stays chosen. */
+    setHomeMode(false);if(!activeRegister()||activeRegister().archived)selectUsefulRegister();const reg=activeRegister();
     const visible=state.classes.filter(c=>!c.archived),chips=visible.map(c=>`<button class="${c.id===state.activeClassId?'active':''}" type="button" data-select-register="${attr(c.id)}">${esc(c.teachingClassId?`${c.name} · ${c.dayOfMonth||c.day?.slice(0,3)||''}`:c.name)}</button>`).join('');
     app.innerHTML=`${breadcrumb('Registers','ATTENDANCE',countOf(state.classes.filter(c=>!c.archived).length,'register','registers'))}<div class="register-top-actions"><button class="blue-button" type="button" data-new-register>+ New</button><button class="soft-button" type="button" data-register-list>All registers</button></div>${visible.length?`<div class="segmented samos-register-picker">${chips}</div>`:''}<div id="registerWorkspace"></div>`;
     renderRegisterWorkspace(reg);

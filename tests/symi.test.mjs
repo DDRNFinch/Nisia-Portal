@@ -29,7 +29,7 @@ const KEY = Buffer.from("0123456789abcdef0123456789abcdef");
 const expected = (w) => { const sig = nc.createHmac("sha256", KEY).update("SES1:" + w).digest(); return { qr: "NISI:IN:1:SES1:" + w + ":" + sig.toString("base64url"), short: [...sig.subarray(0, 6)].map((x) => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[x % 31]).join("") }; };
 const learner = (id, name, mine = true) => ({ learner_id: "L" + id, member_id: "ML" + id, name, enrolment_id: "E" + id, course_code: "bricklayer", course_title: "Bricklayer", status: "active", assessors: [{ member_id: mine ? "MT" : "M9", name: "Tutor", roles: ["tutor"] }] });
 const posted = [];
-let checkins = [], refuse = false;
+let checkins = [], refuse = false, endedRefs = [];
 function handle(route) {
   const q = route.request(), u = new URL(q.url()), p = u.pathname; let body = null; try { body = q.postData() ? JSON.parse(q.postData()) : null; } catch (_) {}
   const json = (d, st = 200) => route.fulfill({ status: st, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(d) });
@@ -45,6 +45,7 @@ function handle(route) {
     schedule: { day: "Thursday", start: "09:00", end: "15:30", breaks: [{ start: "12:00", end: "12:30" }], recurrence: { type: "weekly", interval: 1, weekdays: ["Thursday"], monthDays: [], startDate: "2026-10-08", endDate: "2027-07-15", anchorDate: "2026-10-08", onceDate: "" } },
     learners: [{ enrolment_id: "E1", name: "Callum Hughes" }, { enrolment_id: "E2", name: "Amira Khan" }] }]);
   if (p === "/rest/v1/rpc/symi_session_key") return json(KEY.toString("base64"));
+  if (p === "/rest/v1/rpc/symi_my_ended_classes") return json(endedRefs);
   if (p === "/rest/v1/rpc/symi_absences") return json([{ id: "A1", enrolment_id: "E2", starts_on: "2000-01-01", ends_on: "2100-01-01", kind: "ill", reason: "Sickness", booked_by: "Amira Khan", booked_by_role: "learner" }]);
   if (p === "/rest/v1/rpc/nisia_book_absence") { posted.push({ t: "book", body }); return json({ id: "A2", from: body.p_from, to: body.p_to, reason: body.p_reason || "Holiday" }); }
   /* Symi asks Evia Portal through named actions only; it never touches the class tables. */
@@ -69,7 +70,7 @@ try {
     localStorage.clear();
     const d = new Date(), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const L = [{ id: "x1", name: "Callum Hughes", externalId: "" }, { id: "x2", name: "Local Only", externalId: "" }, { id: "x3", name: "Amira Khan", externalId: "" }];
-    localStorage.setItem("symi-last-seen-release-v1", "0.34.23");
+    localStorage.setItem("symi-last-seen-release-v1", "0.34.24");
     localStorage.setItem("samos.classroom.data", JSON.stringify({ settings: { teacherName: "Priya", centre: "" }, learners: L, teachingClasses: [], attendance: {}, history: [], resources: [], courses: [],
       classes: [{ id: "r1", name: "L2 Brickwork", day: "Monday", room: "Workshop 2", start: "00:01", end: "23:58", breaks: [], learners: L, courseCode: "bricklayer", recurrence: { type: "once", onceDate: key, startDate: key, endDate: key } }],
       activeClassId: "r1", view: "registers" }));
@@ -242,6 +243,18 @@ try {
   const [dl2] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("[data-download-registers]")]);
   check("Download all gives every past register in one spreadsheet", /^Registers-.*\.csv$/.test(dl2.suggestedFilename()) && fs.readFileSync(await dl2.path(), "utf8").split(/\r\n/).length >= 3, dl2.suggestedFilename());
   await page.click('.sy-nav [data-sy-tab="registers"]'); await page.waitForTimeout(300);
+  /* A register made in Symi and ended in Evia Portal is put away in Symi too; and a register the tutor taps stays chosen. */
+  await page.evaluate(() => window.SamosApp.mutate((s) => { s.classes.push({ id: "old1", name: "Old test", day: "Monday", start: "09:00", end: "10:00", breaks: [], learners: [], recurrence: { type: "weekly", interval: 1, weekdays: ["Monday"], startDate: "2026-01-01", endDate: "2027-01-01", anchorDate: "2026-01-01" } }); }));
+  await page.click('.sy-nav [data-sy-tab="registers"]'); await page.waitForTimeout(300);
+  const chosen = await page.evaluate(() => { const b = document.querySelector('[data-select-register="old1"]'); if (!b) return "no chip"; b.click(); return window.SamosApp.activeRegisterId(); });
+  await page.waitForTimeout(400);
+  const stays = await page.evaluate(() => window.SamosApp.activeRegisterId());
+  endedRefs = ["old1"];
+  await page.evaluate(() => { Object.defineProperty(document, "hidden", { value: false, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); });
+  for (let i = 0; i < 20 && !await page.evaluate(() => (window.SamosApp.getState().classes.find((c) => c.id === "old1") || {}).archived); i++) await page.waitForTimeout(250);
+  const putAway = await page.evaluate(() => ({ archived: !!(window.SamosApp.getState().classes.find((c) => c.id === "old1") || {}).archived, chip: !!document.querySelector('[data-select-register="old1"]') }));
+  endedRefs = [];
+  check("A register the tutor taps stays chosen, and one made in Symi then ended in Evia Portal leaves Symi's registers", chosen === "old1" && stays === "old1" && putAway.archived && !putAway.chip, JSON.stringify({ chosen, stays, putAway }));
   /* The tutor changes the class (weekly now, a new finish time): Evia Portal hears within a minute, not the next day, so
      learners' Evia shows the classes coming up. */
   const savedBefore = posted.filter((x) => x.t === "saveClass").length;

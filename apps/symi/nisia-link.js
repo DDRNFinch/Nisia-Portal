@@ -132,6 +132,8 @@ async function pullClasses() {
   let list;
   try { list = await rpc("symi_my_classes"); } catch (e) { console.warn("Symi: classes from Evia Portal", e.message); return; }
   if (!Array.isArray(list)) return;
+  let ended = new Set();
+  try { const e = await rpc("symi_my_ended_classes"); if (Array.isArray(e)) ended = new Set(e); } catch (e) { console.warn("Symi: classes ended in Evia Portal", e.message); }
   let made = 0;
   App().mutate((st) => {
     const today = App().today(), mine = new Set();
@@ -155,6 +157,8 @@ async function pullClasses() {
       else if (!reg.nisiaUpdatedAt || String(c.updated_at) > String(reg.nisiaUpdatedAt)) Object.assign(reg, fromNisia);
     }
     for (const reg of st.classes) if (reg.managed && !reg.archived && !mine.has(reg.id)) reg.archived = true;
+    /* Ended in Evia Portal: put away here too, even a register the tutor made in Symi (its history is kept). */
+    for (const reg of st.classes) if (!reg.archived && ended.has(reg.id) && !mine.has(reg.id)) reg.archived = true;
   }, true);
   if (made) toast(made === 1 ? "A new class from Evia Portal is in your registers" : made + " new classes from Evia Portal are in your registers");
 }

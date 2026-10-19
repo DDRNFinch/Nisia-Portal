@@ -47,3 +47,14 @@ grant execute on function public.symi_backup_put(jsonb) to authenticated;
 create or replace function public.nisia_now() returns timestamptz language sql stable set search_path = '' as $$ select clock_timestamp() $$;
 revoke all on function public.nisia_now() from public, anon;
 grant execute on function public.nisia_now() to authenticated;
+
+-- Symi: the tutor's classes Evia Portal has ended (their Symi register refs), so Symi puts those registers away too,
+-- including ones the tutor made in Symi itself.
+create or replace function public.symi_my_ended_classes() returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce(array_agg(c.client_ref), '{}') from public.classes c
+  join public.organisation_members m on m.id = c.tutor_member_id
+  where m.user_id = auth.uid() and c.archived_at is not null and c.archived_at > now() - interval '400 days';
+$$;
+revoke all on function public.symi_my_ended_classes() from public, anon;
+grant execute on function public.symi_my_ended_classes() to authenticated;
