@@ -588,18 +588,36 @@
   const DEMO_KEY="evia-demo-ends";
   const demoEnds=()=>{try{return Number(localStorage.getItem(DEMO_KEY)||0)}catch(_){return 0}};
   function endDemo(){try{localStorage.setItem("evia-demo-ended","1")}catch(_){}location.reload()}
+  /* Once a guest, always a guest on this phone: if their meeting has gone (ended early from Evia Portal, or their
+     account deleted), the demo has ended, rather than Evia carrying on as if it were never a demo. */
+  const GUEST_KEY="evia-demo-guest";
+  const wasGuest=()=>{try{return localStorage.getItem(GUEST_KEY)==="1"}catch(_){return false}};
   async function checkDemo(c){
-    try{const {data,error}=await c.rpc("nisia_my_demo");if(error)return;const t=data&&data.endsAt?Date.parse(data.endsAt):0;
-      if(t)localStorage.setItem(DEMO_KEY,String(t));else localStorage.removeItem(DEMO_KEY)}catch(_){}
+    try{
+      /* Guests' sign-ins are made for the meeting (guest-…@learners.nisia.invalid), so a phone knows even if it missed the end time. */
+      try{const {data:s}=await c.auth.getSession(),em=s&&s.session&&s.session.user&&s.session.user.email||"";if(/^guest-[^@]+@learners\.nisia\.invalid$/i.test(em))localStorage.setItem(GUEST_KEY,"1")}catch(_){}
+      const {data,error}=await c.rpc("nisia_my_demo");
+      if(!error){
+        const t=data&&data.endsAt?Date.parse(data.endsAt):0;
+        if(t){localStorage.setItem(DEMO_KEY,String(t));localStorage.setItem(GUEST_KEY,"1")}
+        else if(wasGuest())return endDemo();
+        else localStorage.removeItem(DEMO_KEY);
+      }
+      /* A guest whose account is gone: the server no longer knows who they are. */
+      if(wasGuest()){const u=await c.auth.getUser();const st=u.error&&(u.error.status||0);if(u.error&&(st===401||st===403||st===404||/not exist|not found|user_not_found/i.test(u.error.message||"")))return endDemo()}
+    }catch(_){}
     if(demoEnds()&&Date.now()>=demoEnds())endDemo();
   }
   setInterval(()=>{if(demoEnds()&&Date.now()>=demoEnds())endDemo()},30000);
-  listeners.push(s=>{if(s&&s.error==="signed-out"&&demoEnds())endDemo()});
+  listeners.push(s=>{if(s&&s.error==="signed-out"&&(demoEnds()||wasGuest()))endDemo()});
   let pulling=null,pulledAt=0;
   function refreshCollege(force){
     if(pulling||!joined()||!joined().live||!navigator.onLine||document.hidden||(!force&&Date.now()-pulledAt<5000))return pulling;
     pulledAt=Date.now();
-    pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return;await sendKept();const w=await fetchRegisters();
+    pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return;
+      /* A guest: see straight away if their demo was ended early (on opening, coming back, and every 30 seconds). */
+      if(wasGuest()||demoEnds())await checkDemo(c);
+      await sendKept();const w=await fetchRegisters();
       try{if(Array.isArray(w.feedback))await fetchFeedback(w.feedback)}catch(_){}}catch(err){console.warn("Evia: Evia Portal registers",err&&err.message)}finally{pulling=null}})();
     return pulling;
   }

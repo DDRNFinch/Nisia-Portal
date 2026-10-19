@@ -3,6 +3,8 @@
    everything Evia kept on it cleared. Checked first, before anything of Evia loads. (nisia.js keeps the end time.) */
 (function(){
   let ended=false;
+  /* A new code (?pair=…) on a phone whose earlier demo ended starts afresh: the ended demo doesn't lock the phone. */
+  try{if(/[?&]pair=/.test(location.search)&&localStorage.getItem("evia-demo-ended")==="1")["evia-demo-ended","evia-demo-ends","evia-demo-guest"].forEach(k=>localStorage.removeItem(k))}catch(_){}
   try{const ends=Number(localStorage.getItem("evia-demo-ends")||0);ended=localStorage.getItem("evia-demo-ended")==="1"||(ends>0&&Date.now()>=ends);if(ended)localStorage.setItem("evia-demo-ended","1")}catch(_){}
   if(!ended)return;
   window.EVIA_DEMO_ENDED=true;

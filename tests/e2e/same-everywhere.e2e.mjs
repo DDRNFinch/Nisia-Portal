@@ -119,9 +119,23 @@ await gPhone.page.waitForTimeout(Math.max(0, ends - Date.now()) + 1000);
 await gPhone.page.reload(); await gPhone.page.waitForTimeout(2500);
 const after = await gPhone.page.evaluate(async () => ({ text: document.body.textContent, keys: Object.keys(localStorage).filter((k) => /^evia7-/.test(k)), dbs: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name).filter((n) => /^evia7-/.test(n)) : [], app: !!window.eviaNisia }));
 check("Guest: once the time is up, Evia shows “This demo has ended”, and nothing of Evia is left on the phone", !before && /This demo has ended/.test(after.text) && !after.keys.length && !after.dbs.length && !after.app, JSON.stringify(after).slice(0, 300));
+await gPhone.page.goto(site + "/evia/"); await gPhone.page.waitForTimeout(1500);
+check("Guest: it stays ended when Evia is opened again", /This demo has ended/.test(await gPhone.page.textContent("body")));
 await gPhone.page.goto(site + "/evia/?pair=ABCDEFG"); await gPhone.page.waitForTimeout(1500);
-check("Guest: it stays ended, even opened again from a code", /This demo has ended/.test(await gPhone.page.textContent("body")));
+check("Guest: a new code on the same phone starts afresh, so the phone isn't locked for the next meeting", !/This demo has ended/.test(await gPhone.page.textContent("body")));
 await q("delete from public.meeting_guests where learner_id = $1", [lrow.learner_id]);
+
+/* 9. Ended early from Evia Portal ("End now"): the guest's meeting has gone while Evia is open; it shows "This demo has ended"
+   within seconds of being looked at, rather than carrying on as if it were never a demo. */
+await q("insert into public.meeting_guests (learner_id, organisation_id, user_id, enrolment_id, name, meeting, expires_at) values ($1, $2, $3, $4, 'Lee Erna', 'Investor meeting', now() + interval '1 day')", [lrow.learner_id, lrow.organisation_id, LEE, ENROL]);
+const g2 = await eviaOn({ width: 412, height: 915 });
+await g2.page.evaluate(() => window.eviaNisia.sync()).catch(() => {});
+await g2.page.waitForFunction(() => localStorage.getItem("evia-demo-guest") === "1", null, { timeout: 15000 }).catch(() => {});
+const knew = await g2.page.evaluate(() => localStorage.getItem("evia-demo-guest") === "1" && !/This demo has ended/.test(document.body.textContent));
+await q("delete from public.meeting_guests where learner_id = $1", [lrow.learner_id]);
+await g2.page.evaluate(() => { Object.defineProperty(document, "hidden", { value: false, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); });
+for (let i = 0; i < 15 && !await g2.page.evaluate(() => /This demo has ended/.test(document.body.textContent)).catch(() => false); i++) await g2.page.waitForTimeout(1000);
+check("Guest: ended early with End now, the open Evia shows “This demo has ended” as soon as it's looked at", knew && await g2.page.evaluate(() => /This demo has ended/.test(document.body.textContent)));
 
 check("No script errors", !errors.length, errors.join(" | "));
 await finish();
