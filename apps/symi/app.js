@@ -168,7 +168,74 @@
     return merged;
   }
 
+  /* ---------- The same Symi on every device (nisia-link.js carries it to the tutor's Evia Portal account) ----------
+     Each learner, register, class and finished register carries when it last changed (_at, stamped as it's saved),
+     and what's deleted is remembered (deleted: {key: when}), so a merge keeps the newest of each and nothing deleted
+     comes back from another device. */
+  const SYNC_PARTS=['learners','classes','teachingClasses','history'];
+  const syncKey=(part,x)=>part+'|'+(part==='history'?(x.sessionKey||x.id):x.id);
+  const bareSig=x=>{const {_at,...r}=x||{};return JSON.stringify(r);};
+  let seenSigs=null;
+  function primeSeen(){seenSigs=new Map();for(const part of SYNC_PARTS)for(const x of state[part]||[])if(x)seenSigs.set(syncKey(part,x),bareSig(x));}
+  function stampChanges(){
+    if(!seenSigs)return primeSeen();
+    const now=Date.now(),next=new Map();state.deleted=state.deleted&&typeof state.deleted==='object'?state.deleted:{};
+    for(const part of SYNC_PARTS)for(const x of state[part]||[]){if(!x)continue;const k=syncKey(part,x),s=bareSig(x);if(seenSigs.get(k)!==s)x._at=now;next.set(k,s);delete state.deleted[k];}
+    for(const k of seenSigs.keys())if(!next.has(k))state.deleted[k]=now;
+    const old=now-400*864e5;for(const [k,v] of Object.entries(state.deleted))if(v<old)delete state.deleted[k];
+    seenSigs=next;
+  }
+  function exportSync(){return clone({v:1,learners:state.learners,classes:state.classes,teachingClasses:state.teachingClasses,history:state.history,deleted:state.deleted||{}});}
+  /* Which of two copies of the same thing to keep: the newer; if neither knows, the same choice on every device
+     (a register the tutor finished over one Symi closed by itself, then the one with more time, then by content). */
+  function newer(a,b,part){
+    const ta=Number(a._at)||0,tb=Number(b._at)||0;if(ta!==tb)return ta>tb?a:b;
+    if(part==='history'){if(!!a.autoCompleted!==!!b.autoCompleted)return a.autoCompleted?b:a;const ma=Number(a.attendedMs)||0,mb=Number(b.attendedMs)||0;if(ma!==mb)return ma>mb?a:b;}
+    return bareSig(a)>=bareSig(b)?a:b;
+  }
+  /* The same learner can have a different id on each device (each matched them by name): use this device's. */
+  function learnerIdMap(remote){
+    const map={},norm=s=>String(s||'').trim().toLowerCase();
+    for(const r of remote.learners||[]){
+      if(!r||state.learners.some(l=>l.id===r.id))continue;
+      const e=r.nisia&&r.nisia.enrolmentId,mine=state.learners.find(l=>e?l.nisia&&l.nisia.enrolmentId===e:!l.nisia&&norm(l.name)===norm(r.name)&&!(remote.learners||[]).some(x=>x.id===l.id));
+      if(mine)map[r.id]=mine.id;
+    }
+    return map;
+  }
+  function remapRemote(remote,map){
+    if(!Object.keys(map).length)return remote;
+    const m=id=>map[id]||id;
+    remote.learners=(remote.learners||[]).filter(l=>!map[l.id]);
+    for(const c of remote.classes||[])c.learners=(c.learners||[]).map(l=>({...l,id:m(l.id)}));
+    for(const c of remote.teachingClasses||[])c.learnerIds=(c.learnerIds||[]).map(m);
+    for(const h of remote.history||[])if(h&&h.data)h.data=Object.fromEntries(Object.entries(h.data).map(([k,v])=>[m(k),v]));
+    return remote;
+  }
+  function mergeSync(incoming){
+    if(!incoming||typeof incoming!=='object')return{changed:false,map:{}};
+    stampChanges();
+    const before=JSON.stringify(exportSync()),remote=clone(incoming),map=learnerIdMap(remote);remapRemote(remote,map);
+    const del={...(state.deleted||{})};for(const [k,v] of Object.entries(remote.deleted||{}))if(!del[k]||Number(v)>del[k])del[k]=Number(v);
+    for(const part of SYNC_PARTS){
+      const out=new Map();
+      for(const x of state[part]||[])if(x)out.set(syncKey(part,x),x);
+      for(const x of remote[part]||[]){if(!x)continue;const k=syncKey(part,x),have=out.get(k);out.set(k,have?newer(have,x,part):x);}
+      for(const [k,x] of out)if(del[k]&&del[k]>=(Number(x._at)||0))out.delete(k);
+      state[part]=[...out.values()];
+    }
+    state.history.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||(Number(b._at)||0)-(Number(a._at)||0));state.history=state.history.slice(0,250);
+    state.deleted=del;
+    for(const c of state.classes)c.learners=Array.isArray(c.learners)?c.learners:[],c.breaks=normaliseBreaks(c.breaks);
+    if(state.activeClassId&&!state.classes.some(c=>c.id===state.activeClassId))state.activeClassId=null;
+    refreshLearnerAttendanceSummaries();primeSeen();
+    const changed=JSON.stringify(exportSync())!==before;
+    if(changed){localStorage.setItem(STORE_KEY,JSON.stringify(state));render();}
+    return{changed,map};
+  }
+
   function save(doRender=true){
+    stampChanges();
     localStorage.setItem(STORE_KEY,JSON.stringify(state));
     if(doRender)render();
   }
@@ -1527,6 +1594,8 @@
     build:BUILD,getState:()=>clone(state),goHome,openAssistantMenu:()=>openAssistant('main'),
     openLearners:()=>{state.view='learners';save()},openClasses:()=>{state.view='classes';save()},openRegisters:()=>{state.view='registers';selectUsefulRegister();save()},openResources:()=>{state.view='resources';save()},
     clearOldShellCaches,learnerAttendanceStats,scheduledMs,finaliseSession,
+    /* The same Symi on every device (nisia-link.js). */
+    exportSync:()=>{stampChanges();return exportSync();},mergeSync,
     /* For Evia Portal (nisia-link.js): change the classroom data and redraw; start a learner's timer when they check in. */
     mutate:(fn,redraw=true)=>{fn(state);save(redraw)},
     activeRegisterId:()=>state.activeClassId,
@@ -1577,6 +1646,7 @@
     toast
   };
 
+  primeSeen();
   reconcileEndedSessions();
   render();
 })();

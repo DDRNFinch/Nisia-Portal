@@ -1,9 +1,9 @@
 {
-  "version": "0.34.21",
-  "title": "Registers you can correct and look back on",
+  "version": "0.34.22",
+  "title": "Symi on all your devices",
   "details": [
-    "Tap any learner to change when they arrived, or when they left early and why (every learner, not just Evia Portal ones)",
-    "All registers › Past registers: open any finished register to see it or change it",
-    "Download a register, or all of them, as a spreadsheet"
+    "Your learners, registers and marks now follow you between your phone and laptop",
+    "Every device shows the same attendance",
+    "Sign in to Evia Portal on each device to keep them together"
   ]
 }

@@ -60,6 +60,7 @@ function openSignIn() {
       who = await me(); write(K.who, who);
       if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Evia Portal account isn’t a tutor"); return chip(); }
       layer.remove(); signedIn = true; chip();
+      write(BACKUP_AT, null); await syncBackup();
       await pullLearners(true); await pullClasses(); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
     } catch (e) { layer.remove(); toast("Couldn’t reach your college: " + e.message); }
   } }).catch((e) => { layer.querySelector(".sn-auth-root").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
@@ -69,7 +70,7 @@ function account() {
     '<p class="sn-muted">Your learners come from Evia Portal. Learners check in with Evia, and finished registers become their college hours.</p>' +
     '<div class="sn-actions"><button type="button" class="blue-button" data-pull>Update learners from Evia Portal</button><button type="button" class="soft-button" data-out>Sign out of Evia Portal</button></div>');
   layer.querySelector("[data-pull]").onclick = async () => { layer.remove(); await pullLearners(true); await pullClasses(); };
-  layer.querySelector("[data-out]").onclick = async () => { layer.remove(); await signOut(); who = null; write(K.who, null); signedIn = false; chip(); toast("Signed out of Evia Portal. Symi keeps working on this device."); };
+  layer.querySelector("[data-out]").onclick = async () => { layer.remove(); await syncBackup(); await signOut(); who = null; write(K.who, null); write(BACKUP_AT, null); signedIn = false; chip(); toast("Signed out of Evia Portal. Symi keeps working on this device."); };
 }
 function sheet(html) {
   const layer = document.createElement("div");
@@ -691,11 +692,62 @@ document.addEventListener("visibilitychange", comeBack);
 addEventListener("focus", comeBack);
 addEventListener("pageshow", (e) => { if (e.persisted) comeBack(); });
 
+/* ---------- The same Symi on every device ----------
+   The tutor's own learners, registers, classes, finished registers and marks (including learners who aren't from
+   Evia Portal) are kept with their Evia Portal account. Each device merges what's kept with its own (app.js keeps the
+   newest change to each), then puts the result back: on opening, on coming back to Symi, a few seconds after a
+   change, and every minute. Only what has changed is fetched. */
+const BACKUP_AT = "symi.nisia.backup-at.v1";
+function mergeMarks(remote, map) {
+  if (!remote || typeof remote !== "object") return false;
+  const all = marks(); let changed = false;
+  for (const [k, one] of Object.entries(remote)) {
+    if (!one || typeof one !== "object") continue;
+    const mine = all[k] || {};
+    for (const [id0, m] of Object.entries(one)) {
+      const id = (map && map[id0]) || id0;
+      if (m && (!mine[id] || (Number(m.at) || 0) > (Number(mine[id].at) || 0))) { mine[id] = m; changed = true; }
+    }
+    all[k] = mine;
+  }
+  if (changed) write(K.marks, all);
+  return changed;
+}
+let backupBusy = false, backupAgain = false, backupSent = "";
+async function syncBackup() {
+  if (!signedIn || !online() || !App() || !App().exportSync) return;
+  if (backupBusy) { backupAgain = true; return; }
+  backupBusy = true;
+  try {
+    const got = await rpc("symi_backup_get", { p_since: read(BACKUP_AT, null) });
+    let fresh = false;
+    if (got && got.state) {
+      const r = App().mergeSync(got.state);
+      const mk = mergeMarks(got.state.marks, r.map);
+      fresh = r.changed || mk;
+      if (mk) decorate();
+      write(BACKUP_AT, got.updated_at);
+    }
+    const mine = { ...App().exportSync(), marks: marks() }, text = sig(mine);
+    /* Put back only when this device has something the account doesn't. */
+    if (text !== backupSent && (!got || !got.state || sig({ ...got.state }) !== text || fresh)) {
+      const at = await rpc("symi_backup_put", { p_state: mine });
+      write(BACKUP_AT, at);
+    }
+    backupSent = text;
+  } catch (e) { console.warn("Symi: your registers on your other devices", e.message); }
+  finally { backupBusy = false; if (backupAgain) { backupAgain = false; setTimeout(syncBackup, 500); } }
+}
+let backupSoon = null;
+const syncBackupSoon = () => { clearTimeout(backupSoon); backupSoon = setTimeout(syncBackup, 3000); };
+setInterval(() => { if (!document.hidden) syncBackup(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncBackup(); });
+
 /* ---------- Start ---------- */
 let queued = false;
 window.addEventListener("symi:render", () => {
   chip();
-  if (signedIn) syncLiveSoon();
+  if (signedIn) { syncLiveSoon(); syncBackupSoon(); }
   if (queued) return; queued = true;
   requestAnimationFrame(() => { queued = false; decorate(); if (signedIn) sendFinished(); });
 });
@@ -717,7 +769,7 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
 (async () => {
   chip();
   if (inviteCode() || resetCode() || /[?&]reset=email/.test(location.search)) return openSignIn();
-  if (await checkSession()) { decorate(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); syncLive(); prepareAhead(); }
+  if (await checkSession()) { decorate(); await syncBackup(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); syncLive(); prepareAhead(); }
 })();
 
 /* ---------- The class quiz on learners' phones (symi-teach.js runs it) ----------
