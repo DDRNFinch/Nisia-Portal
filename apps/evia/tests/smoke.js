@@ -1239,8 +1239,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         if(q.method()==="OPTIONS")return r.fulfill({status:200,headers:{"access-control-allow-origin":"*","access-control-allow-headers":"*","access-control-allow-methods":"*"}});
         const W1=([{id:"W1",unit:"Jointing Styles",statement:"Jo pointed a full elevation in a bucket handle joint, neat and consistent.",rating:3,ksbs:["S12","B6"],signed_at:new Date().toISOString(),created_at:new Date().toISOString()}]),BR1=[{id:"BR1",ratings:{B1:3,B2:4,B3:2,B4:3,B5:3},comment:"Reliable and keen.",created_at:new Date().toISOString()}];
         const dayAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-        const ATT=[{id:"M1",date:dayAgo(9),class:"L2 Brickwork",status:"present",late:false,minutes:360},{id:"M2",date:dayAgo(8),class:"L2 Brickwork",status:"present",late:true,minutes:330},
-          {id:"M3",date:dayAgo(2),class:"L2 Brickwork",status:"absent",reason:"Holiday",kind:"holiday",minutes:0},{id:"M4",date:dayAgo(1),class:"L2 Brickwork",status:"absent",reason:null,kind:null,minutes:0}];
+        const ATT=[{id:"M1",date:dayAgo(9),class:"L2 Brickwork",status:"present",late:false,minutes:360,lesson:"Cavity walls: wall ties and insulation"},{id:"M2",date:dayAgo(8),class:"L2 Brickwork",status:"present",late:true,minutes:330},
+          {id:"M3",date:dayAgo(2),class:"L2 Brickwork",status:"absent",reason:"Holiday",kind:"holiday",minutes:0,lesson:"Mixing mortar: gauging it right"},{id:"M4",date:dayAgo(1),class:"L2 Brickwork",status:"absent",reason:null,kind:null,minutes:0}];
         if(u.pathname==="/rest/v1/rpc/nisia_check_in"&&JSON.parse(q.postData()||"{}").p_scanned_at){state9.in=true;return json({session:"S1",class:"L2 Brickwork",at:JSON.parse(q.postData()).p_scanned_at,late:false,offline:true})}
         if(u.pathname==="/rest/v1/rpc/nisia_check_in"){const code=JSON.parse(q.postData()||"{}").p_code;return code==="ABC123"||/^NISI:IN:1:/.test(code)?json({class:"L2 Brickwork",lesson:"Cavity walls",at:new Date().toISOString(),late:false,again:false}):r.fulfill({status:400,contentType:"application/json",headers:{"access-control-allow-origin":"*"},body:JSON.stringify({message:"That code has changed. Scan the one on the screen now."})})}
         if(u.pathname==="/rest/v1/rpc/nisia_whats_new")return json({college:[{id:"A1",session_date:new Date().toISOString().slice(0,10),class:"L2 Brickwork",lesson:"Cavity walls",ksbs:["K5","S3"],minutes:375,status:"present",checked_in_at:new Date().toISOString()}],
@@ -1324,7 +1324,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       if(!(await p9.$('.pv-acal-d[data-day="'+calDay+'"]')))await p9.click('.pv-acal-nav[data-m="-1"]');
       cv.attCal=await p9.evaluate(d=>{const key=document.querySelector(".pv-acal-key").textContent,cell=document.querySelector('.pv-acal-d[data-day="'+d+'"]');return !!cell&&cell.classList.contains("pv-a-booked")&&[...document.querySelectorAll(".pv-acal-key span")].map(x=>x.textContent.trim()).join()==="Present,Absent,Booked off,Coming up"&&document.querySelectorAll(".pv-acal-d.pv-a-present,.pv-acal-d.pv-a-absent").length>=1},calDay);
       await p9.click('.pv-acal-d[data-day="'+calDay+'"]');await p9.waitForTimeout(200);
-      cv.attDay=/L2 Brickwork: Booked off, holiday/.test(await p9.textContent("#pv-acal-day"));
+      {const t=await p9.textContent("#pv-acal-day");cv.attDay=/L2 Brickwork: Booked off, holiday/.test(t)&&/You missed: Mixing mortar: gauging it right/.test(t)&&/Catch up on it in Teach me/.test(t)}
+      /* A day they were there says what was taught. */
+      {const d=await p9.evaluate(()=>{const d=new Date();d.setDate(d.getDate()-9);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")});
+        if(!(await p9.$('.pv-acal-d[data-day="'+d+'"]')))await p9.click('.pv-acal-nav[data-m="-1"]');
+        await p9.click('.pv-acal-d[data-day="'+d+'"]');await p9.waitForTimeout(200);const t=await p9.textContent("#pv-acal-day");
+        cv.attDay=cv.attDay&&/Taught: Cavity walls: wall ties and insulation/.test(t)&&!/Catch up/.test(t)}
       if(d9)await p9.screenshot({path:d9+"/attendance-calendar.png"}).catch(()=>{});
       await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
       /* From the employer (Paros): the witness testimony is in Supporting evidence, and their view is in My progress. */

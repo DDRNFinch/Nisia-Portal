@@ -97,9 +97,10 @@
         const lessonOf=x=>{const c=h.find(y=>y.college&&y.college.class===x.class);return c&&c.college.lesson?c.college.lesson:""};
         const rows=[];
         ((o&&o.marks)||[]).forEach(x=>{const here=x.k==="here"||x.k==="late",why=x.reason&&!String(DETAIL[x.k]).toLowerCase().includes(x.reason.toLowerCase())?x.reason:"";
-          rows.push(row("class",esc(x.class||"Class"),esc(lessonOf(x)||why),esc(DETAIL[x.k]||LABEL[x.g]||"")+(here&&x.minutes?" · "+mins(x.minutes):""),"pv-a-"+x.g))});
+          rows.push(row("class",esc(x.class||"Class"),[A.taught&&A.taught(x)||(here?lessonOf(x):""),why].filter(Boolean).map(esc).join("<br>"),esc(DETAIL[x.k]||LABEL[x.g]||"")+(here&&x.minutes?" · "+mins(x.minutes):""),"pv-a-"+x.g))});
         if(o&&o.booked&&!o.marks.length)rows.push(row("off","Booked off",esc(o.booked.reason||""),"",""));
-        if(o&&o.coming&&!o.marks.length)rows.push(row("class",esc(o.coming.class||"College"),time(o.coming)?"Starts at "+esc(time(o.coming)):"","Coming up","pv-a-coming"));
+        if(o&&o.coming&&!o.marks.length)rows.push(row("class",esc(o.coming.class||"College"),[time(o.coming)?"Starts at "+esc(time(o.coming)):"",o.coming.lesson&&A.clip?"Planned: "+esc(A.clip(o.coming.lesson,160)):""].filter(Boolean).join("<br>"),"Coming up","pv-a-coming"));
+        if(o&&o.marks.some(x=>A.missed&&A.missed(x)))rows.push('<li class="cal-row cal-catch"><span class="cal-rt"><small>Catch up on what you missed in Teach me, or ask your tutor for the notes.</small></span></li>');
         ((o&&o.visits)||[]).forEach(v=>rows.push(row("visit",esc(VKIND[v.kind]||"Assessor visit"),[esc(vt(v)),v.place?esc(v.place):"",v.booked_by?"with "+esc(v.booked_by):""].filter(Boolean).join(" · ")+(v.note?"<br><em>"+esc(v.note)+"</em>":""),"","")));
         /* Learning hours (a college session already shows as its class, so it isn't listed twice). */
         h.filter(x=>!(x.college&&o&&o.marks.length)).forEach(x=>{const d=String(x.description||"").replace(/^([^:.]+):\s*\1\b[.:]?\s*/,"$1. ").trim(),m=d.match(/^([^.:]{2,60})[.:]\s*(.*)$/);

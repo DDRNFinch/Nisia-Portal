@@ -164,6 +164,10 @@
     if(m.kind==="ill"||/\bill\b|sick/i.test(why))return "ill";
     return why||m.kind?"reason":"none";
   }
+  /* What was taught that session (the lesson the tutor recorded in Symi), or, on a day the learner wasn't there, what they missed. */
+  const clip=(t,n)=>{t=String(t||"").replace(/\s+/g," ").trim();return t.length>n?t.slice(0,n).replace(/\s+\S*$/,"")+"…":t};
+  const taught=x=>{const t=clip(x&&x.lesson,160);return t?(x.k==="here"||x.k==="late"?"Taught: ":"You missed: ")+t:""};
+  const missedLesson=x=>x&&x.lesson&&x.k!=="here"&&x.k!=="late";
   /* Classes coming up: the sessions Symi has opened, then every other day on the class timetable, up to a year ahead. */
   function coming(N,t){
     const open=(N.sessions?N.sessions():[]).filter(x=>x.session_date>=t&&!x.checked_in_at&&x.status!=="finished"),seen=new Set((N.sessions?N.sessions():[]).map(x=>x.session_date+"|"+x.class));
@@ -206,16 +210,17 @@
       box.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{
         box.querySelectorAll(".pv-picked").forEach(x=>x.classList.remove("pv-picked"));b.classList.add("pv-picked");
         const k=b.dataset.day,o=byDay[k],when=new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
-        const lines=o?o.marks.map(x=>esc(x.class)+": <strong>"+esc(ATT_DETAIL[x.k])+"</strong>"+(x.k==="here"||x.k==="late"?(x.minutes?" · "+Math.floor(x.minutes/60)+"h"+(x.minutes%60?" "+(x.minutes%60)+"m":""):""):x.reason&&!ATT_DETAIL[x.k].toLowerCase().includes(x.reason.toLowerCase())?" · "+esc(x.reason):"")):[];
+        const lines=o?o.marks.map(x=>esc(x.class)+": <strong>"+esc(ATT_DETAIL[x.k])+"</strong>"+(x.k==="here"||x.k==="late"?(x.minutes?" · "+Math.floor(x.minutes/60)+"h"+(x.minutes%60?" "+(x.minutes%60)+"m":""):""):x.reason&&!ATT_DETAIL[x.k].toLowerCase().includes(x.reason.toLowerCase())?" · "+esc(x.reason):"")+(taught(x)?'<small class="pv-acal-taught">'+esc(taught(x))+'</small>':"")):[];
         if(o&&o.booked&&!o.marks.length)lines.push("<strong>Booked off</strong> · "+esc(o.booked.reason));
-        if(o&&o.coming&&!o.marks.length)lines.push(esc(o.coming.class)+(o.coming.starts_at?" at "+new Date(o.coming.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"")+": <strong>class coming up</strong>");
-        el.querySelector("#pv-acal-day").innerHTML="<span>"+esc(when)+"</span>"+(lines.length?lines.join("<br>"):"No class that day.");
+        if(o&&o.coming&&!o.marks.length)lines.push(esc(o.coming.class)+(o.coming.starts_at?" at "+new Date(o.coming.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"")+": <strong>class coming up</strong>"+(o.coming.lesson?'<small class="pv-acal-taught">Planned: '+esc(clip(o.coming.lesson,160))+'</small>':""));
+        if(o&&o.marks.some(missedLesson))lines.push('<small class="pv-acal-taught">Catch up on it in Teach me, or ask your tutor for the notes.</small>');
+        el.querySelector("#pv-acal-day").innerHTML="<span>"+esc(when)+"</span>"+(lines.length?lines.map(l=>"<div>"+l+"</div>").join(""):"No class that day.");
       });
     };
     draw();
   }
   /* The Calendar tab (calendar.js) draws the same days. */
-  window.eviaAttendance={data:attendanceData,KEY:ATT_KEY,DETAIL:ATT_DETAIL};
+  window.eviaAttendance={data:attendanceData,KEY:ATT_KEY,DETAIL:ATT_DETAIL,taught,clip,missed:missedLesson};
   const BEH=["","Needs support","Developing","Good","Excellent"],WIT=["","Getting there","Competent","Excellent"];
   const behName=k=>{try{const o=window.EVIA_KSB_OFFICIAL||{},c=typeof course==="string"?course:"",m=o[c]||o[c==="trowel3"?"bricklayer":c]||{};return m[k]||""}catch(_){return ""}};
   window.eviaOpenEmployer=()=>{if(typeof nav==="function")nav("learning");setTimeout(()=>openDeep("employer"),250)};

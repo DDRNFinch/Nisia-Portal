@@ -1,5 +1,6 @@
 -- Evia's calendar shows every college day ahead, not only the sessions Symi has already opened: nisia_whats_new
 -- carries the learner's class timetable (each class's days, times and start and end dates), and Evia works out the days.
+-- Each attendance day also says what was taught (or, on a missed day, what the learner missed): the lesson Symi recorded.
 create or replace function public.nisia_whats_new() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_e uuid;
@@ -12,7 +13,8 @@ begin
     'sessions', coalesce((select jsonb_agg(to_jsonb(s)) from public.nisia_my_sessions(7) s), '[]'::jsonb),
     'absences', coalesce((select jsonb_agg(to_jsonb(a)) from public.nisia_absences() a), '[]'::jsonb),
     'attendance', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'date', s.session_date, 'class', c.title, 'status', a.status, 'late', a.late, 'minutes', a.minutes,
-        'reason', a.reason, 'kind', ab.kind, 'checked_in_at', a.checked_in_at) order by s.session_date, s.starts_at nulls last)
+        'reason', a.reason, 'kind', ab.kind, 'checked_in_at', a.checked_in_at,
+        'lesson', s.lesson_title, 'summary', s.lesson_summary) order by s.session_date, s.starts_at nulls last)
       from public.class_attendance a join public.class_sessions s on s.id = a.session_id join public.classes c on c.id = s.class_id
       left join public.absences ab on ab.id = a.absence_id
       where a.enrolment_id = v_e and a.confirmed_at is not null and s.session_date > current_date - 400), '[]'::jsonb),
