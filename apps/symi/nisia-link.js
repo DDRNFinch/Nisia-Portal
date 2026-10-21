@@ -820,5 +820,5 @@ window.SymiNisia = {
 };
 
 /* ---------- Messages: the icon next to the profile button, with the unread count (packages/core/messages-ui.js) ---------- */
-window.NisiaMessages.mount({ app: "symi", color: "#38A96B", ink: "#1e7a4c", soft: "#E3F4EA", rpc, ready: () => signedIn,
+window.NisiaMessages.mount({ app: "symi", color: "#38A96B", ink: "#1e7a4c", soft: "#E3F4EA", group: true, rpc, ready: () => signedIn,
   place: (btn) => { const pb = document.getElementById("profileButton"); if (!pb) { btn.remove(); return; } if (btn.nextElementSibling !== pb) pb.parentElement.insertBefore(btn, pb); } });

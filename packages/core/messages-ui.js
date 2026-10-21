@@ -8,19 +8,21 @@
    Plain script, so it works in Evia (classic scripts) and the module apps alike. The same file is copied into Evia
    (tools/sync-actions.sh).
 
-   NisiaMessages.mount({app, color, soft, rpc, ready, place})   returns {open(withMember?), refresh(), update(), unread(), close()}
+   NisiaMessages.mount({app, color, soft, rpc, ready, place})   returns {open(withMember? | "group"), refresh(), update(), unread(), close()}
    NisiaMessages.under(id)   a place() that puts the icon just below the app's profile button with that id
      rpc(fn, args)   runs an Evia Portal function and returns its data, or throws
      ready()         true when this person is signed in to Evia Portal (the icon only shows then)
+     group           true in the staff and employer apps: a "Group message" button, one message to many people
      place(button)   puts the icon in the app's header; without it the icon sits fixed at the top right
      top, right      where the fixed icon sits (px), below the profile button
      ink, on         the icon's colour on white (default: color) and the text colour on the app's colour (default: white)
-   version: messages-ui 1 */
+   version: messages-ui 2 */
 (function (g) {
   if (g.NisiaMessages) return;
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[x]));
   const ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/><path d="M8.5 11.5h7M8.5 14.3h4.5"/></svg>';
   const BACK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>';
+  const GROUP = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M15.6 14.5c2.4-.3 4.3 1.1 4.9 4"/></svg>';
   const SEND = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 8-9"/></svg>';
   const CSS = `
 .nm-btn{position:relative;width:42px;height:42px;border-radius:50%;border:1px solid #e4e8ed;background:#fff;color:var(--nm-c);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 10px rgba(16,24,40,.06);padding:0;flex:none;-webkit-tap-highlight-color:transparent}
@@ -40,6 +42,15 @@
 .nm-icon{width:40px;height:40px;border-radius:50%;border:0;background:#f4f6f8;color:#344054;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;font-size:24px;line-height:1}
 .nm-body{flex:1;overflow:auto;padding:12px 16px;-webkit-overflow-scrolling:touch}
 .nm-new{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:14px;background:var(--nm-c);color:#fff;font-weight:700;font-size:15px;line-height:1;font-family:inherit;padding:13px;cursor:pointer;margin:2px 0 12px}
+.nm-starts{display:flex;gap:8px;margin:2px 0 12px}.nm-starts .nm-new{margin:0;flex:1}
+.nm-new.nm-alt{background:var(--nm-soft);color:var(--nm-ink,#172033)}
+.nm-chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}
+.nm-chip{border:1px solid #e4e7ec;background:#fff;border-radius:999px;padding:8px 12px;font:inherit;font-size:13.5px;font-weight:650;color:#344054;cursor:pointer;line-height:1}
+.nm-chip.nm-on{background:var(--nm-c);border-color:var(--nm-c);color:var(--nm-on,#fff)}
+.nm-pick input{width:20px;height:20px;accent-color:var(--nm-c);flex:none;margin:0}
+.nm-gcompose{flex-direction:column;align-items:stretch;gap:6px}.nm-grow{display:flex;gap:8px;align-items:flex-end}
+.nm-gwho{font-size:13px;font-weight:700;color:#475467;padding:0 2px}
+.nm-done{color:#067647;font-weight:650;padding-top:0}
 .nm-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;text-align:left;padding:11px 6px;border-bottom:1px solid #f1f3f6;cursor:pointer;font:inherit;color:inherit}
 .nm-row:hover{background:#fafbfc}
 .nm-av{width:42px;height:42px;border-radius:50%;background:var(--nm-soft);color:var(--nm-ink,#172033);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none}
@@ -142,16 +153,20 @@
     async function list() {
       clearInterval(timer); view = { kind: "list" };
       const p = loading("Messages");
+      let last = "";
       const draw = (threads) => {
         if (!view || view.kind !== "list") return;
+        const sig = JSON.stringify(threads); if (sig === last) return; last = sig;
         const total = threads.reduce((n, t) => n + (t.unread || 0), 0); badge(total);
-        p.innerHTML = head("Messages") + '<div class="nm-body"><button type="button" class="nm-new" data-nm="new">' + ICON + "New message</button>" +
+        p.innerHTML = head("Messages") + '<div class="nm-body"><div class="nm-starts"><button type="button" class="nm-new" data-nm="new">' + ICON + "New message</button>" +
+          (o.group ? '<button type="button" class="nm-new nm-alt" data-nm="group">' + GROUP + "Group message</button>" : "") + "</div>" +
           (threads.length ? threads.map((t) => '<button type="button" class="nm-row' + (t.unread ? " nm-unread" : "") + '" data-with="' + esc(t.with) + '"><span class="nm-av">' + esc(initials(t.name)) +
             '</span><span class="nm-main"><b>' + esc(t.name) + "</b><span>" + esc(t.last ? (t.last.mine ? "You: " : "") + t.last.body : t.about) + '</span></span><span class="nm-side">' +
             (t.last ? esc(when(t.last.at)) : "") + (t.unread ? '<span class="nm-count">' + t.unread + "</span>" : "") + "</span></button>").join("")
             : '<p class="nm-empty">No messages yet.<br>Tap <b>New message</b> to start one.</p>') + NOTE + "</div>";
         wire(p);
         p.querySelector('[data-nm="new"]').onclick = contacts;
+        const g = p.querySelector('[data-nm="group"]'); if (g) g.onclick = () => group();
         p.querySelectorAll("[data-with]").forEach((b) => (b.onclick = () => chat(b.dataset.with)));
       };
       const load = async () => { try { draw((await o.rpc("msg_threads", {})) || []); } catch (e) { if (view && view.kind === "list" && !p.querySelector(".nm-row")) failed(p, e); } };
@@ -181,12 +196,15 @@
     async function chat(withId) {
       clearInterval(timer); view = { kind: "chat", with: withId, picked: null };
       const p = loading("Messages", true);
-      let data = null, draft = "";
+      let data = null, built = "", last = "";
       const draw = (keepScroll) => {
         if (!view || view.kind !== "chat" || view.with !== withId || !data) return;
-        const box = p.querySelector(".nm-body"), atEnd = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 60, top = box ? box.scrollTop : 0;
-        const ta = p.querySelector("textarea"); if (ta) draft = ta.value;
         const ms = data.messages || [], lastMine = [...ms].reverse().find((m) => m.mine && !m.removed && !m.pending);
+        /* Nothing new: leave the screen alone (no jump, and a tap in progress isn't lost). */
+        const sig = JSON.stringify([ms.map((m) => [m.id, m.removed, m.pending, m.reported]), data.their_read_at, view.picked, view.err]);
+        const shape = data.name + "|" + data.about + "|" + !!data.can_send;
+        if (built === shape && sig === last) return;
+        last = sig;
         let html = "", day = "";
         ms.forEach((m) => {
           const d = new Date(m.at), k = dayKey(d);
@@ -199,24 +217,29 @@
           else if (m === lastMine && data.their_read_at && Date.parse(data.their_read_at) >= Date.parse(m.at)) html += '<span class="nm-time nm-r">Seen</span>';
           else if (m.pending) html += '<span class="nm-time nm-r">Sending…</span>';
         });
-        const firstTime = !ms.length;
-        p.innerHTML = head(data.name, data.about, true) + '<div class="nm-body nm-chat">' + (firstTime ? '<p class="nm-empty">Say hello to ' + esc(String(data.name).split(" ")[0]) + ".</p>" + NOTE : html) + "</div>" +
-          (view.err ? '<p class="nm-err" role="alert">' + esc(view.err) + "</p>" : "") +
-          (data.can_send ? '<div class="nm-compose"><textarea rows="1" maxlength="2000" placeholder="Message ' + esc(String(data.name).split(" ")[0]) + '" aria-label="Message"></textarea><button type="button" class="nm-send" aria-label="Send" disabled>' + SEND + "</button></div>"
-            : '<p class="nm-closed">You can’t send messages to ' + esc(data.name) + " any more.</p>");
-        wire(p);
-        const body = p.querySelector(".nm-body");
+        if (!ms.length) html = '<p class="nm-empty">Say hello to ' + esc(String(data.name).split(" ")[0]) + ".</p>" + NOTE;
+        /* The frame (heading and typing box) is built once, so typing and the keyboard are never interrupted. */
+        if (built !== shape) {
+          const keep = p.querySelector("textarea"), draft = keep ? keep.value : "";
+          p.innerHTML = head(data.name, data.about, true) + '<div class="nm-body nm-chat"></div><p class="nm-err" role="alert" hidden></p>' +
+            (data.can_send ? '<div class="nm-compose"><textarea rows="1" maxlength="2000" placeholder="Message ' + esc(String(data.name).split(" ")[0]) + '" aria-label="Message"></textarea><button type="button" class="nm-send" aria-label="Send" disabled>' + SEND + "</button></div>"
+              : '<p class="nm-closed">You can’t send messages to ' + esc(data.name) + " any more.</p>");
+          wire(p); built = shape; keepScroll = false;
+          const t = p.querySelector("textarea"), s = p.querySelector(".nm-send");
+          if (t) {
+            t.value = draft;
+            const grow = () => { t.style.height = "auto"; t.style.height = Math.min(140, t.scrollHeight) + "px"; s.disabled = !t.value.trim() || busy; };
+            t.oninput = grow; grow();
+            t.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && matchMedia("(pointer:fine)").matches) { e.preventDefault(); send(); } };
+            s.onclick = send;
+          }
+        }
+        const body = p.querySelector(".nm-body"), atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 60, top = body.scrollTop;
+        body.innerHTML = html;
         body.scrollTop = keepScroll && !atEnd ? top : body.scrollHeight;
+        const er = p.querySelector(".nm-err"); er.hidden = !view.err; er.textContent = view.err || "";
         body.querySelectorAll(".nm-msg[data-id]").forEach((b) => (b.onclick = () => { view.picked = view.picked === b.dataset.id ? null : b.dataset.id; draw(true); }));
         body.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => act(b.dataset.act)));
-        const t = p.querySelector("textarea"), s = p.querySelector(".nm-send");
-        if (t) {
-          t.value = draft; s.disabled = !t.value.trim();
-          const grow = () => { t.style.height = "auto"; t.style.height = Math.min(140, t.scrollHeight) + "px"; s.disabled = !t.value.trim() || busy; };
-          t.oninput = grow; grow();
-          t.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && matchMedia("(pointer:fine)").matches) { e.preventDefault(); send(); } };
-          s.onclick = send;
-        }
       };
       async function load(keepScroll) {
         try { const d = await o.rpc("msg_open", { p_with: withId }); if (!view || view.kind !== "chat" || view.with !== withId) return; data = Object.assign(d, { messages: (d.messages || []).concat((data && data.messages || []).filter((m) => m.pending)) }); draw(keepScroll); }
@@ -225,12 +248,12 @@
       async function send() {
         const t = p.querySelector("textarea"); if (!t || busy) return;
         const body = t.value.trim(); if (!body) return;
-        busy = true; view.err = ""; draft = "";
+        busy = true; view.err = "";
         const temp = { id: "tmp" + Date.now(), mine: true, body, at: new Date().toISOString(), pending: true };
-        data.messages.push(temp); t.value = ""; draw();
+        data.messages.push(temp); t.value = ""; t.oninput(); draw();
         try { await o.rpc("msg_send", { p_with: withId, p_body: body }); data.messages = data.messages.filter((m) => m !== temp); await load(); }
-        catch (e) { data.messages = data.messages.filter((m) => m !== temp); draft = body; view.err = navigator.onLine === false ? "No signal. Your message wasn’t sent; try again when you have signal." : (e && e.message) || "That didn’t send. Try again."; draw(); }
-        finally { busy = false; const s = p.querySelector(".nm-send"), ta = p.querySelector("textarea"); if (s && ta) s.disabled = !ta.value.trim(); if (ta) ta.focus({ preventScroll: true }); }
+        catch (e) { data.messages = data.messages.filter((m) => m !== temp); if (!t.value) t.value = body; view.err = navigator.onLine === false ? "No signal. Your message wasn’t sent; try again when you have signal." : (e && e.message) || "That didn’t send. Try again."; draw(); }
+        finally { busy = false; const ta = p.querySelector("textarea"); if (ta) { ta.oninput(); ta.focus({ preventScroll: true }); } }
       }
       async function act(a) {
         const id = view.picked; view.picked = null;
@@ -246,10 +269,71 @@
       timer = setInterval(() => { if (document.visibilityState === "visible" && !busy) load(true); }, 5000);
     }
 
+    /* A group message: tick the people (or a whole group at once), write it once, and each person gets it in their
+       own conversation, so their replies come back privately. */
+    async function group() {
+      clearInterval(timer); view = { kind: "group" };
+      const p = loading("Group message", true);
+      let people = [];
+      try { people = (await o.rpc("msg_contacts", {})) || []; } catch (e) { return failed(p, e); }
+      if (!view || view.kind !== "group") return;
+      const picked = new Set(), KINDS = [["learner", "Learners"], ["employer", "Employers"], ["staff", "Staff"]];
+      const kind = (x) => x.role === "learner" ? "learner" : x.role === "employer" ? "employer" : "staff";
+      const have = KINDS.filter(([k]) => people.some((x) => kind(x) === k));
+      let q = "";
+      p.innerHTML = head("Group message", "Replies come back to you privately", true) + '<div class="nm-body">' +
+        (people.length ? (people.length > 7 ? '<input class="nm-search" type="search" placeholder="Search by name" aria-label="Search by name">' : "") +
+          '<div class="nm-chips">' + have.map(([k, l]) => '<button type="button" class="nm-chip" data-all="' + k + '">All ' + l.toLowerCase() + "</button>").join("") +
+          '<button type="button" class="nm-chip" data-all="none">Clear</button></div><div class="nm-people"></div>'
+          : '<p class="nm-empty">There’s nobody you can message yet.</p>') + "</div>" +
+        '<p class="nm-err" role="alert" hidden></p>' +
+        (people.length ? '<div class="nm-compose nm-gcompose"><div class="nm-gwho">Pick people above</div><div class="nm-grow"><textarea rows="1" maxlength="2000" placeholder="Your message" aria-label="Message"></textarea><button type="button" class="nm-send" aria-label="Send" disabled>' + SEND + "</button></div></div>" : "");
+      wire(p);
+      if (!people.length) return;
+      const box = p.querySelector(".nm-people"), t = p.querySelector("textarea"), s = p.querySelector(".nm-send"), who = p.querySelector(".nm-gwho"), er = p.querySelector(".nm-err");
+      const sync = () => {
+        const n = picked.size;
+        who.textContent = n ? "To " + n + (n === 1 ? " person" : " people") : "Pick people above";
+        s.disabled = !n || !t.value.trim() || busy;
+        p.querySelectorAll("[data-all]").forEach((c) => { const k = c.dataset.all; if (k === "none") return; const all = people.filter((x) => kind(x) === k); c.classList.toggle("nm-on", all.length > 0 && all.every((x) => picked.has(x.member_id))); });
+      };
+      const rows = () => {
+        const f = people.filter((x) => !q || (x.name + " " + x.about).toLowerCase().includes(q.toLowerCase()));
+        box.innerHTML = f.length ? f.map((x) => '<label class="nm-row nm-pick"><input type="checkbox" value="' + esc(x.member_id) + '"' + (picked.has(x.member_id) ? " checked" : "") + '><span class="nm-av">' + esc(initials(x.name)) +
+          '</span><span class="nm-main"><b>' + esc(x.name) + "</b><span>" + esc(x.about) + "</span></span></label>").join("") : '<p class="nm-empty">Nobody by that name.</p>';
+        box.querySelectorAll("input").forEach((c) => (c.onchange = () => { if (c.checked) picked.add(c.value); else picked.delete(c.value); sync(); }));
+      };
+      p.querySelectorAll("[data-all]").forEach((c) => (c.onclick = () => {
+        const k = c.dataset.all;
+        if (k === "none") picked.clear();
+        else { const all = people.filter((x) => kind(x) === k), on = all.every((x) => picked.has(x.member_id)); all.forEach((x) => on ? picked.delete(x.member_id) : picked.add(x.member_id)); }
+        rows(); sync();
+      }));
+      const se = p.querySelector(".nm-search"); if (se) se.oninput = () => { q = se.value.trim(); rows(); };
+      t.oninput = () => { t.style.height = "auto"; t.style.height = Math.min(140, t.scrollHeight) + "px"; sync(); };
+      s.onclick = async () => {
+        const body = t.value.trim(); if (!body || !picked.size || busy) return;
+        busy = true; s.disabled = true; er.hidden = true; who.textContent = "Sending…";
+        try {
+          const r = await o.rpc("msg_send_many", { p_with: [...picked], p_body: body });
+          busy = false;
+          await list();
+          const n = document.createElement("p"); n.className = "nm-note nm-done"; n.setAttribute("role", "status");
+          n.textContent = "Sent to " + r.sent + (r.sent === 1 ? " person" : " people") + (r.skipped ? ". " + r.skipped + " couldn’t get it (they may have left their course)." : ".");
+          const b = panel().querySelector(".nm-body"); if (b) b.prepend(n);
+        } catch (e) {
+          busy = false; er.hidden = false;
+          er.textContent = navigator.onLine === false ? "No signal. It wasn’t sent; try again when you have signal." : (e && e.message) || "That didn’t send. Try again.";
+          sync();
+        }
+      };
+      rows(); sync();
+    }
+
     function open(withMember) {
       if (!ready()) return;
       shell();
-      if (withMember) chat(withMember); else list();
+      if (withMember === "group") group(); else if (withMember) chat(withMember); else list();
     }
 
     placeIt();

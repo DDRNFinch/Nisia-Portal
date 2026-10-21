@@ -125,7 +125,7 @@ const ratingDue = (r) => !r.last_rating || Date.now() - Date.parse(r.last_rating
 
 startUsage("paros", new URL(import.meta.url).searchParams.get("v") || "");
 /* Messages: the icon under your initials, with the unread count (packages/core/messages-ui.js). */
-window.NisiaMessages.mount({ app: "paros", color: "#E8781C", ink: "#C2410C", soft: "#FDEBDC", rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
+window.NisiaMessages.mount({ app: "paros", color: "#E8781C", ink: "#C2410C", soft: "#FDEBDC", group: true, rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
 function draw() {
   hit(view ? "apprentice" : "tab." + tab);
   if (view) return apprentice(view, true);

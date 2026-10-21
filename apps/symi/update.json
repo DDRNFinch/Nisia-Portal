@@ -1,9 +1,10 @@
 {
-  "version": "0.34.27",
-  "title": "Messages",
+  "version": "0.34.28",
+  "title": "Group messages",
   "details": [
-    "Message your learners, their employers and your colleagues from the new icon next to your profile",
-    "Unread messages show as a number on the icon",
-    "Learners who have left or finished come off your classes automatically"
+    "Send one message to several people at once: tap the message icon, then Group message",
+    "Pick people one by one, or all your learners in one tap",
+    "Each person gets it on their own, and replies come back to you privately",
+    "Fixed: the message box no longer closes while you type"
   ]
 }

@@ -77,6 +77,16 @@ try {
   const touch = await q(`select has_table_privilege('authenticated', 'public.messages', 'select') s, has_table_privilege('authenticated', 'public.message_threads', 'select') t`);
   check("Nobody can read the message tables directly, only through these actions", !touch[0].s && !touch[0].t, JSON.stringify(touch));
 
+  /* ---------- Group messages ---------- */
+  const g1 = await rpc("msg_send_many", { p_with: [LEE_M, EM_M, KIM_M], p_body: " Class moved to room 4 tomorrow " }, tee);
+  const gLee = await rpc("msg_send_many", { p_with: [TEE_M, EM_M], p_body: "hi all" }, lee), gBlank = await rpc("msg_send_many", { p_with: [LEE_M], p_body: " " }, tee);
+  const gRows = await q(`select m.body, m.group_id from public.messages m where m.group_id is not null`);
+  const emSees = (await rpc("msg_threads", {}, em)).body.find((t) => t.name === "Tee Rainer");
+  check("Group message: staff send one message to the people they pick, each in their own conversation; people they can't message are skipped; learners can't send groups",
+    g1.status === 200 && g1.body.sent === 2 && g1.body.skipped === 1 && gRows.length === 2 && new Set(gRows.map((r) => r.group_id)).size === 1 && gRows[0].body === "Class moved to room 4 tomorrow" &&
+    emSees && emSees.last.body === "Class moved to room 4 tomorrow" && gLee.status >= 400 && /staff and employers/.test(gLee.body.message) && gBlank.status >= 400,
+    JSON.stringify({ g1: g1.body, gLee: gLee.body, gRows, emSees }));
+
   /* ---------- A learner who has left can't be messaged ---------- */
   await q(`update public.enrolments set status = 'withdrawn' where id = '${id("e2")}'`);
   const left = await rpc("msg_send", { p_with: KIM_M, p_body: "Hi Kim" }, ada);
@@ -99,6 +109,24 @@ try {
   await par.page.fill(".nm-compose textarea", "Great work on the wall today"); await par.page.click(".nm-send");
   await par.page.waitForFunction(() => [...document.querySelectorAll(".nm-msg.nm-mine")].some((m) => /Great work/.test(m.textContent) && !m.classList.contains("nm-sending")), null, { timeout: 10000 });
   await shot(par.page, "msg-paros-chat");
+  /* The typing box stays put while the conversation checks for new messages (every 5 seconds). */
+  await par.page.focus(".nm-compose textarea"); await par.page.keyboard.type("Half-typed");
+  await par.page.evaluate(() => { window.__ta = document.querySelector(".nm-compose textarea"); });
+  await par.page.waitForTimeout(6500);
+  const steady = await par.page.evaluate(() => { const t = document.querySelector(".nm-compose textarea"); return { same: t === window.__ta, focused: document.activeElement === t, value: t.value, open: !!document.querySelector(".nm-overlay") }; });
+  check("Paros: while typing, the conversation stays open and the typing box keeps its words and the keyboard (it isn't redrawn)",
+    steady.same && steady.focused && steady.value === "Half-typed" && steady.open, JSON.stringify(steady));
+  await par.page.fill(".nm-compose textarea", "");
+  /* A group message from the employer to the college staff. */
+  await par.page.click(".nm-panel [data-nm=back]"); await par.page.waitForSelector('[data-nm="group"]'); await par.page.click('[data-nm="group"]');
+  await par.page.waitForSelector(".nm-pick"); await par.page.click('[data-all="staff"]');
+  const gPicked = await par.page.$$eval(".nm-pick input:checked", (x) => x.length);
+  await par.page.fill(".nm-gcompose textarea", "Site closed Friday"); const gWho = await par.page.textContent(".nm-gwho");
+  await shot(par.page, "msg-paros-group");
+  await par.page.click(".nm-gcompose .nm-send"); await par.page.waitForSelector(".nm-done", { timeout: 10000 });
+  const gDone = await par.page.textContent(".nm-done");
+  check("Paros: Group message picks all the staff in one tap, says who it's going to, sends, and says it went to 2 people",
+    gPicked === 2 && /To 2 people/.test(gWho) && /Sent to 2 people/.test(gDone), JSON.stringify({ gPicked, gWho, gDone }));
   check("Paros: the message icon sits just below the employer's initials; New message lists their apprentice and the college staff who work with them; a message sends",
     parPlace.stacked && parPlace.below && parPeople === "Ada Min, Lee Erna, Tee Rainer", JSON.stringify({ parPlace, parPeople }));
 
@@ -116,7 +144,7 @@ try {
   }, [session(LEE, "aal1", "lee@e2e.test")]);
   await ev.page.goto(site + "/evia/"); await ev.page.waitForTimeout(2000);
   await ev.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); if (typeof nav === "function") nav("course"); });
-  await ev.page.waitForFunction(() => { const b = document.getElementById("nm-btn"); return b && !b.hidden && b.querySelector(".nm-badge").textContent === "1"; }, null, { timeout: 15000 });
+  await ev.page.waitForFunction(() => { const b = document.getElementById("nm-btn"); return b && !b.hidden && b.querySelector(".nm-badge").textContent === "2"; }, null, { timeout: 15000 });
   const evPlace = await ev.page.evaluate(() => { const b = document.getElementById("nm-btn").getBoundingClientRect(), p = document.getElementById("profile-btn").getBoundingClientRect();
     return { below: Math.abs(b.top - p.top) < 3 && p.left - b.right >= 4 && p.left - b.right < 16, todo: (window.eviaTodo.list() || []).some((t) => /new message/.test(t.title)) }; });
   await shot(ev.page, "msg-evia-icon");
@@ -126,7 +154,7 @@ try {
   await ev.page.evaluate(() => document.getElementById("profile-btn").style.display = "flex"); await ev.page.waitForTimeout(150);
   await ev.page.click("#nm-btn"); await ev.page.waitForSelector(".nm-row.nm-unread");
   const evRows = await ev.page.$$eval(".nm-row", (x) => x.map((y) => y.textContent.replace(/\s+/g, " ").trim()));
-  await ev.page.click(".nm-row.nm-unread"); await ev.page.waitForSelector(".nm-compose textarea");
+  await ev.page.click(".nm-row.nm-unread:has-text(\"Em Ployer\")"); await ev.page.waitForSelector(".nm-compose textarea");
   await ev.page.fill(".nm-compose textarea", "Thanks Em!"); await ev.page.click(".nm-send");
   await ev.page.waitForFunction(() => [...document.querySelectorAll(".nm-msg.nm-mine")].some((m) => /Thanks Em/.test(m.textContent) && !m.classList.contains("nm-sending")), null, { timeout: 10000 });
   await shot(ev.page, "msg-evia-chat");
@@ -134,10 +162,10 @@ try {
   await ev.page.click(".nm-msg.nm-theirs"); const offer = await ev.page.textContent(".nm-menu");
   await ev.page.click('[data-act="cancel"]');
   await ev.page.click(".nm-panel [data-nm=close]"); await ev.page.waitForTimeout(400);
-  const evAfter = await ev.page.evaluate(() => document.querySelector("#nm-btn .nm-badge").hidden);
+  const evAfter = await ev.page.evaluate(() => document.querySelector("#nm-btn .nm-badge").textContent === "1"); /* the tutor's group message is still unread */
   check("Evia: the message icon sits beside the profile button (clear of the page) with the unread count, goes when the profile button does, and Evia's list says there's a new message",
     evPlace.below && evPlace.todo && hidesWith, JSON.stringify({ evPlace, hidesWith }));
-  check("Evia: the conversation with the employer opens from the list, the learner replies, can report the employer's message, and the count clears",
+  check("Evia: the conversation with the employer opens from the list, the learner replies, can report the employer's message, and the count goes down",
     evRows.some((r) => /Em Ployer/.test(r) && /Great work/.test(r)) && /Report to the college/.test(offer) && evAfter, JSON.stringify({ evRows, offer, evAfter }));
 
   /* Symi (Tee): the icon next to the profile button once signed in to Evia Portal; Lee's conversation is there. */
@@ -171,7 +199,7 @@ try {
   const log = await po.page.textContent(".msg-log");
   await shot(po.page, "msg-portal-college");
   check("Evia Portal: Messages is in the menu; an admin sees every conversation, the reported one first, and reads it in full (removed and reported messages marked)",
-    colRows.length === 2 && /1 reported/.test(colRows[0]) && /Removed by the sender/.test(log) && /Reported by Lee Erna/.test(log) && /Bus broke down/.test(log), JSON.stringify({ colRows, log: log.slice(0, 400) }));
+    colRows.length === 4 && /1 reported/.test(colRows[0]) && /Removed by the sender/.test(log) && /Reported by Lee Erna/.test(log) && /Bus broke down/.test(log), JSON.stringify({ colRows, log: log.slice(0, 400) }));
   check("No script errors in the apps", !errors.length, errors.join(" | "));
 } catch (e) { check("Messages ran without crashing", false, e.stack || e.message); }
 await finish();

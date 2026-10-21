@@ -991,7 +991,7 @@ const fileSafe = (s) => String(s || "").replace(/[^a-z0-9 _-]+/gi, "").trim().re
 /* ---------- Messages ----------
    Everyone: their own conversations (the same screens as in Evia, Symi, Milos and Paros: packages/core/messages-ui.js).
    Admins, for safeguarding: every conversation in the college, reported ones first, in full (removed messages too). */
-const msgs = window.NisiaMessages.mount({ app: "nisia", color: "#6D5BD0", soft: "#ECE9FB", rpc, ready: () => !!S.org,
+const msgs = window.NisiaMessages.mount({ app: "nisia", color: "#6D5BD0", soft: "#ECE9FB", group: true, rpc, ready: () => !!S.org,
   place: (btn) => { const mb = document.getElementById("menuBtn"); if (!mb) { btn.remove(); return; } if (btn.nextElementSibling !== mb) mb.parentElement.insertBefore(btn, mb); },
   onUnread: (n) => { msgUnread = n; const c = document.getElementById("navMsgCount"); if (c) { c.hidden = !n; c.textContent = n; } if (S.page === "messages" && S.msgShown !== n) messagesPage(); } });
 const who2 = (n, r) => esc(n) + ' <span class="small muted">' + esc({ learner: "Apprentice", admin: "Admin", assessor: "Assessor", tutor: "Tutor", quality: "Quality", employer: "Employer" }[r] || "") + "</span>";
@@ -1004,7 +1004,7 @@ async function messagesPage() {
   S.msgShown = msgUnread;
   const when = (t) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   shell('<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Messages</h1><p class="small muted">Between apprentices, tutors, assessors and employers, in every app.</p></div>' +
-      '<div class="actions"><button class="btn primary" type="button" id="msgNew">' + ICON.plus + 'New message</button></div></div>' +
+      '<div class="actions"><button class="btn" type="button" id="msgGroup">Group message</button><button class="btn primary" type="button" id="msgNew">' + ICON.plus + 'New message</button></div></div>' +
     '<h2 class="section-h">Your conversations</h2><div class="table-wrap"><table><thead><tr><th>With</th><th>Last message</th><th>When</th><th></th></tr></thead><tbody>' +
     (mineT.length ? mineT.map((t, i) => '<tr data-mine="' + i + '" tabindex="0"><td><div class="person">' + avatar(t.name) + '<span><b>' + esc(t.name) + '</b><br><span class="small muted">' + esc(t.about) + '</span></span></div></td>' +
         '<td class="small">' + esc(t.last ? (t.last.mine ? "You: " : "") + t.last.body : "") + '</td><td class="small">' + (t.last ? esc(when(t.last.at)) : "") + '</td><td>' + (t.unread ? '<span class="pill warn">' + t.unread + ' new</span>' : "") + '</td></tr>').join("")
@@ -1015,6 +1015,7 @@ async function messagesPage() {
           (t.reported ? '<span class="pill bad">' + t.reported + ' reported</span>' : "") + '</td></tr>').join("")
         : '<tr class="static"><td colspan="5" class="empty">Nobody has sent a message yet.</td></tr>') + '</tbody></table></div>' : ""));
   root.querySelector("#msgNew").onclick = () => msgs.open();
+  root.querySelector("#msgGroup").onclick = () => msgs.open("group");
   root.querySelectorAll("tr[data-mine]").forEach((tr) => { const open = () => msgs.open(mineT[Number(tr.dataset.mine)].with); tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelectorAll("tr[data-col]").forEach((tr) => { const open = () => collegeThread(college[Number(tr.dataset.col)]); tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
 }

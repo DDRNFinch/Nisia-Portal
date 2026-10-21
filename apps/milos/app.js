@@ -262,7 +262,7 @@ async function quietSync() {
 }
 startUsage("milos", new URL(import.meta.url).searchParams.get("v") || "");
 /* ---------- Messages: the icon under your initials, with the unread count (packages/core/messages-ui.js) ---------- */
-const msgs = window.NisiaMessages.mount({ app: "milos", color: "#2C85F7", soft: "#E1EDFE", rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
+const msgs = window.NisiaMessages.mount({ app: "milos", color: "#2C85F7", soft: "#E1EDFE", group: true, rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
 async function drawTab() {
   hit("tab." + tab);
   const X = await index();
