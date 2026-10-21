@@ -61,3 +61,5 @@ begin
 end; $$;
 create or replace function private.notify_org_admins(p_org_id uuid, p_type text, p_title text, p_body text, p_data jsonb) returns void language plpgsql security definer set search_path to '' as $$
 begin insert into public.notifications(organisation_id, recipient_user_id, notification_type, title, body, data) select distinct p_org_id, om.user_id, p_type, p_title, p_body, coalesce(p_data, '{}'::jsonb) from public.organisation_members om join public.organisation_member_roles omr on omr.organisation_member_id = om.id join public.roles r on r.id = omr.role_id where om.organisation_id = p_org_id and om.active and r.code in ('admin', 'quality'); end $$;
+create or replace function private.seats_used(p_org uuid) returns integer language sql stable security definer set search_path to '' as $$
+  select count(*)::int from public.learners l join public.organisation_members om on om.id = l.organisation_member_id and om.active where l.organisation_id = p_org and (not exists (select 1 from public.enrolments e where e.learner_id = l.id) or exists (select 1 from public.enrolments e where e.learner_id = l.id and e.status not in ('completed','withdrawn'))); $$;

@@ -329,6 +329,7 @@
     return {rd,key,todo,commentsDone,all:areas()};
   }
   window.eviaReviewPrepCount=()=>{try{const p=prepTasks();return p.todo.length+(p.commentsDone?0:1)}catch(_){return 0}};
+  window.eviaReviewPrep=()=>prepTasks();
   function prepare(){
     const k=K(),p=prepTasks(),rd=p.rd;
     const when=rd?(rd.days<0?"Your review was due on <strong>"+rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"long"})+"</strong>.":rd.days===0?"Your review is <strong>today</strong>.":"Your review is on <strong>"+rd.due.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+"</strong>, in "+k.plural(rd.days,"day")+"."):"";
@@ -337,14 +338,15 @@
     k.say((when?when+" ":"")+(left?"Let’s get you ready. "+(p.todo.length?"There "+(p.todo.length===1?"is <strong>1 thing</strong>":"are <strong>"+p.todo.length+" things</strong>")+" to look at"+(p.commentsDone?"":", then your comments for your assessor")+". One at a time.":"Just your comments for your assessor to do."):"You’re all ready. Everything looks good and your comments are in. Brilliant."));
     k.widget('<div class="qr prep">'+p.all.filter(x=>x.id!=="review").map(x=>'<div class="qr-row '+(x.ok?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(x.ok?"✓":"!")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span></div>').join("")+
       '<div class="qr-row '+(p.commentsDone?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(p.commentsDone?"✓":"!")+'</span><span><strong>Your comments</strong><small>'+(p.commentsDone?"Done: your assessor can read them":"How it’s going, how things are at work, any help you need")+'</small></span></div></div>');
-    if(!left)return k.replies([{label:"Something else",run:k.somethingElse}]);
+    const packBtn={label:"See my prep pack",run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.open(),120)}};
+    if(!left)return k.replies([Object.assign({primary:true},packBtn),{label:"Something else",run:k.somethingElse}]);
     passed=new Set();nextPrep();
   }
   let passed=new Set();   /* skipped in this go, so "Skip for now" moves on */
   function nextPrep(){
     const k=K(),p=prepTasks(),t=p.todo.find(x=>!passed.has(x.id));
     if(!t){
-      if(p.commentsDone){k.say("That’s everything. You’re ready for your review.");return k.replies([{label:"Something else",run:k.somethingElse}])}
+      if(p.commentsDone){k.say("That’s everything. You’re ready for your review.");return k.replies([{label:"See my prep pack",primary:true,run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.open(),120)}},{label:"Something else",run:k.somethingElse}])}
       k.say("Last one: your comments. Your assessor reads them before the review, and they fill in part of it, so it’s quicker on the day.");
       return k.replies([{label:"Add my comments",primary:true,run:()=>{window.eviaChatReview?window.eviaChatReview():(k.closeChat(),setTimeout(window.eviaStartReview,80))}},{label:"Later",run:k.somethingElse}]);
     }

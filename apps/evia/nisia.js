@@ -141,6 +141,11 @@
         otj:{total:S.otjTotal,month:S.otjMonth,week:S.otjWeek},streak:S.streak,writeupCoverage:S.coverage,
         tests:(S.tests||[]).map(t=>({type:t.type,name:t.name,count:t.count,best:t.best,latest:t.latest?{pct:t.latest.pct,takenAt:t.latest.takenAt}:null})),
         confidence:S.confidence,teach:S.teach,maths:S.maths,english:S.english,ppeDone:S.ppeDone,
+        /* The learner's review prep (review-prep.js): how ready they are, time spent learning in Evia since the last review
+           (to the quarter hour, so the summary isn't re-sent every minute), and their future goals (future.js). */
+        prep:(()=>{const P=window.eviaPrepPack,r=P&&P.ready();return r?{ready:r.pct,todo:r.todo,commentsDone:r.commentsDone}:null})(),
+        activity:(()=>{const P=window.eviaPrepPack;if(!P)return null;let f=0;try{f=P.pack().from}catch(_){return null}return {sinceReview:Math.floor(P.minutesSince(f)/15)*15,from:new Date(f).toISOString()}})(),
+        future:window.eviaFuture&&window.eviaFuture.summary?window.eviaFuture.summary():null,
         /* Each target and how far along it is, so the next review marks it met, partly met or not met. */
         targets:(window.eviaTargets?window.eviaTargets.mine():[]).map(t=>{const p=window.eviaTargets.progress(t,S);return {id:t.id,nisiaId:t.nisiaId||null,title:t.title,due:t.due,done:!!t.done,doneAt:t.doneAt||null,pct:Math.round((p.pct||0)*100),text:p.text||"",reviewId:t.reviewId||null}})};
     }catch(err){console.warn("Evia: snapshot",err&&err.message);return null}
@@ -505,8 +510,11 @@
     const next=Object.assign({},e,{name:keep(d.name)??e.name,college:keep(d.college)??e.college,start:keep(d.start)??e.start,end:keep(d.end)??e.end,
       employer:keep(d.employer)??e.employer,employerContact:keep(d.employerContact)??e.employerContact,assessor:keep(d.assessor)??e.assessor,tutor:keep(d.tutor)??e.tutor,
       plannedOtjHours:keep(d.plannedOtjHours)??e.plannedOtjHours,reviewDue:d.reviewDue||null,lastReview:d.lastReview||null,safeguarding:d.safeguarding||e.safeguarding});
-    const pick=o=>JSON.stringify([o.name,o.college,o.start,o.end,o.employer,o.employerContact,o.assessor,o.tutor,o.plannedOtjHours,o.reviewDue,o.lastReview,o.safeguarding]);
+    /* Left or finished (marked in Evia Portal): Evia says goodbye and offers a copy of their portfolio (goodbye.js). */
+    if(d.status==="completed"||d.status==="withdrawn")next.ended={status:d.status,on:d.endedOn||null};else delete next.ended;
+    const pick=o=>JSON.stringify([o.name,o.college,o.start,o.end,o.employer,o.employerContact,o.assessor,o.tutor,o.plannedOtjHours,o.reviewDue,o.lastReview,o.safeguarding,o.ended||null]);
     if(pick(next)!==pick(e))window.eviaData.enrol(next);
+    if(next.ended&&window.eviaGoodbye)setTimeout(()=>window.eviaGoodbye.show(),600);
     const L=window.eviaData.learner()||{},upd={};
     if(d.name&&d.name!==L.name)upd.name=d.name;
     if(d.start&&d.start!==L.start)upd.start=d.start;

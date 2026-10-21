@@ -1344,6 +1344,27 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       if(d9)await p9.screenshot({path:d9+"/employer-progress.png"}).catch(()=>{});
       cv.noErrors=!e9.length;
       check("Check in to class: Evia's first action when connected, a typed or scanned code checks in (jsQR reads it on iPhones), the tutor's register comes back as college hours the learner can't delete, a class on now is top of Evia's list, a scan with no signal is kept and sent later, a learner books a day off, the employer's witness testimony and behaviour ratings arrive, and My progress shows attendance as a percentage and a calendar",Object.values(cv).every(v=>v===true),JSON.stringify(cv)+" "+e9.join(" | "));
+      /* My future: a goal, Evia's steps for it, one ticked, one of their own; kept with the profile (it goes to the college).
+         Then the review prep pack: how ready they are, everything since the last review, and a PDF to share. */
+      {
+        await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML="";nav("learning")});await p9.waitForTimeout(700);
+        await p9.click("#pv-future");await p9.waitForSelector('.fu-sheet [data-k="business"]');
+        await p9.click('.fu-sheet [data-k="business"]');await p9.click('.fu-sheet [data-w="In 5 years or more"]');await p9.click("#fu-save");
+        await p9.waitForSelector(".fu-steps li");
+        const n=await p9.$$eval(".fu-steps li",x=>x.length);
+        await p9.evaluate(()=>{const li=[...document.querySelectorAll(".fu-steps li")].find(x=>/CSCS/.test(x.textContent));li.querySelector(".fu-tick").click()});await p9.waitForTimeout(150);
+        await p9.fill("#fu-new","Save up for a van");await p9.click("#fu-add");await p9.waitForTimeout(150);
+        if(d9)await p9.screenshot({path:d9+"/my-future.png"}).catch(()=>{});
+        const fu=await p9.evaluate(()=>({sum:window.eviaFuture.summary(),kept:(window.eviaData.list("learner")[0]||{}).future,text:document.querySelector(".fu-sheet").textContent}));
+        check("My future: the learner picks a goal and when, Evia suggests steps for it, they tick one and add their own, and it's kept with their profile (so it goes to their college)",
+          n>=5&&fu.sum.goal==="Run my own business"&&fu.sum.when==="In 5 years or more"&&fu.sum.done===1&&fu.sum.steps===n+1&&fu.kept&&fu.kept.goal==="Run my own business"&&/Save up for a van/.test(fu.text)&&/1 of /.test(fu.text),JSON.stringify(fu).slice(0,600));
+        await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaPrepPack.open()});await p9.waitForSelector(".rp-sheet");
+        const rp=await p9.evaluate(async()=>{const t=document.querySelector(".rp-sheet").textContent,b=await window.eviaPrepPack.pdf();return {t,ring:document.querySelector(".rp-ring").textContent,pdf:b&&b.type==="application/pdf"&&b.size>1500,share:!!document.getElementById("rp-share")}});
+        if(d9)await p9.screenshot({path:d9+"/review-prep.png"}).catch(()=>{});
+        check("Review prep pack: a ready percentage and the checklist, then everything since the last review (evidence, KSBs, hours, attendance, targets, time learning in Evia, their future goal), and a PDF to share from their own phone",
+          /^\d+%$/.test(rp.ring)&&/Your comments/.test(rp.t)&&/Evidence added/.test(rp.t)&&/Attendance/.test(rp.t)&&/Time learning in Evia/.test(rp.t)&&/Run my own business/.test(rp.t)&&/Milos/.test(rp.t)&&rp.pdf&&rp.share,JSON.stringify(rp).slice(0,700));
+        check("…no script errors with My future and the prep pack",!e9.length,e9.join(" | "));
+      }
       await c9.close();
     }
     // Remove all data from this phone: Evia's data goes, the other Evia Portal apps' (same website) stays, Evia starts again.

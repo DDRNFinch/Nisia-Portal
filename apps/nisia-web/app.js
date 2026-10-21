@@ -58,6 +58,8 @@ const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7"
 const colorFor = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return COLORS[Math.abs(h) % COLORS.length]; };
 const initials = (n) => String(n || "?").split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 const avatar = (n) => '<span class="av-i" style="background:' + colorFor(n) + '">' + esc(initials(n)) + '</span>';
+const ENDED = (l) => l.status === "completed" || l.status === "withdrawn";
+const endedPill = (l) => l.status === "completed" ? '<span class="pill good">Finished</span>' : '<span class="pill idle">Left</span>';
 const pillFor = (s) => s === "good" ? '<span class="pill good">On track</span>' : s === "warn" ? '<span class="pill warn">Needs a look</span>' : s === "bad" ? '<span class="pill bad">At risk</span>' : '<span class="pill idle">Not started</span>';
 const stripeFor = (s) => s === "good" ? "var(--good)" : s === "warn" ? "var(--warn)" : "var(--bad)";
 function pbar(value, expected) {
@@ -213,6 +215,7 @@ function assess(l) {
   if (l.reviewIn != null && l.reviewIn < 0) { l.reasons.push("Progress review overdue by " + -l.reviewIn + " days"); worse(l.reviewIn < -14 ? "bad" : "warn"); }
   else if (l.reviewIn != null && l.reviewIn <= 7) { l.reasons.push(l.reviewIn === 0 ? "Progress review due today" : "Progress review due in " + l.reviewIn + " days"); worse("warn"); }
   l.state = st;
+  if (ENDED(l)) { l.state = "ended"; l.reasons = []; }
 }
 
 /* ---------- Overview ---------- */
@@ -260,28 +263,70 @@ function overview() {
 function learnersPage() {
   const D = S.data, sum = D.summary;
   let list = D.learners.slice();
-  if (S.filter !== "all") list = list.filter((l) => l.state === S.filter);
+  /* Learners who have left or finished are only under their own filter. */
+  list = S.filter === "all" ? list.filter((l) => !ENDED(l)) : list.filter((l) => l.state === S.filter);
   if (S.q) list = list.filter((l) => (l.name || "").toLowerCase().includes(S.q.toLowerCase()));
-  const count = (k) => D.learners.filter((l) => k === "all" || l.state === k).length;
+  const count = (k) => D.learners.filter((l) => k === "all" ? !ENDED(l) : l.state === k).length;
   const full = sum && (sum.seats_used >= sum.seats || sum.status !== "active");
   shell(
     '<div class="topbar"><div><div class="label">' + esc(sum ? sum.name : "") + '</div><h1>Learners</h1></div><div class="actions">' + (D.admin ? '<button class="btn" type="button" id="guests">Meeting guests</button><button class="btn primary" type="button" id="add"' + (full ? " disabled" : "") + '>' + ICON.plus + 'Add a learner</button>' : "") + '</div></div>' +
     (D.admin && sum && sum.status !== "active" ? '<p class="err">This college’s licence is suspended. Existing learners carry on; new ones can’t be added.</p>' : D.admin && full ? '<p class="hint">All ' + sum.seats + ' seats are in use. Contact Evia to add more.</p>' : "") +
     '<div class="filters"><input class="input search" id="q" type="search" placeholder="Search by name" value="' + esc(S.q) + '" aria-label="Search learners">' +
-      '<div class="seg" role="group" aria-label="Filter by status">' + [["all", "All"], ["bad", "At risk"], ["warn", "Needs a look"], ["good", "On track"]].map(([k, t]) => '<button type="button" data-filter="' + k + '" aria-pressed="' + (S.filter === k) + '">' + t + ' <span class="num" style="opacity:.6">' + count(k) + '</span></button>').join("") + '</div></div>' +
+      '<div class="seg" role="group" aria-label="Filter by status">' + [["all", "All"], ["bad", "At risk"], ["warn", "Needs a look"], ["good", "On track"]].concat(D.learners.some(ENDED) ? [["ended", "Left or finished"]] : []).map(([k, t]) => '<button type="button" data-filter="' + k + '" aria-pressed="' + (S.filter === k) + '">' + t + ' <span class="num" style="opacity:.6">' + count(k) + '</span></button>').join("") + '</div></div>' +
     '<div class="table-wrap"><table><thead><tr><th>Learner</th><th>Course</th><th>Last active</th><th>Evidence</th><th>KSB coverage vs plan</th><th>Learning hours vs plan</th><th>Status</th></tr></thead><tbody>' +
     (list.length ? list.map((l) => '<tr data-learner="' + l.learner_id + '" tabindex="0"><td><div class="person">' + avatar(l.name) + '<div><b>' + esc(l.name) + '</b>' + (l.employer_name ? '<br><span class="small muted">' + esc(l.employer_name) + '</span>' : "") + '</div></div></td>' +
       '<td class="small">' + esc(courseName(l.course_code)) + '</td>' +
       '<td class="num small" style="' + (l.quiet != null && l.quiet > 14 ? "color:var(--bad);font-weight:600" : "") + '">' + (l.paired ? lastActive(l.last_activity) : '<span class="muted">Evia not connected</span>') + '</td>' +
-      '<td class="num">' + (l.evidence || 0) + '</td><td style="min-width:190px">' + pbar(l.ksb_pct, l.through) + '</td><td style="min-width:190px">' + pbar(l.otjPct, l.through) + '</td><td>' + pillFor(l.paired ? l.state : "none") + '</td></tr>').join("")
+      '<td class="num">' + (l.evidence || 0) + '</td><td style="min-width:190px">' + pbar(l.ksb_pct, l.through) + '</td><td style="min-width:190px">' + pbar(l.otjPct, l.through) + '</td><td>' + (ENDED(l) ? endedPill(l) + '<br><span class="small muted">' + esc(ukDate(l.ended_on || "")) + '</span>' : pillFor(l.paired ? l.state : "none")) + '</td></tr>').join("")
       : '<tr class="static"><td colspan="7" class="empty">' + (D.learners.length ? "No learners match these filters." : D.admin ? "No learners yet. Add your first apprentice." : "No learners are assigned to you yet.") + '</td></tr>') +
-    '</tbody></table></div><p class="small muted">The dark mark on each bar shows where the learner should be by now, based on time through their programme.</p>');
+    '</tbody></table></div>' + (S.filter === "ended" && D.admin ? '<div class="row-actions" style="margin-top:12px"><button class="btn" type="button" id="leaversDl">Download the leavers list</button></div>' : "") + '<p class="small muted">The dark mark on each bar shows where the learner should be by now, based on time through their programme.</p>');
+  const ld = root.querySelector("#leaversDl"); if (ld) ld.onclick = leaversCsv;
   const q = root.querySelector("#q"); q.oninput = () => { S.q = q.value; learnersPage(); const n = root.querySelector("#q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
   root.querySelectorAll("[data-filter]").forEach((b) => b.onclick = () => { S.filter = b.dataset.filter; learnersPage(); });
   root.querySelectorAll("tr[data-learner]").forEach((r) => { const open = () => go("learner", { learner: r.dataset.learner }); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   const add = root.querySelector("#add"); if (add) add.onclick = addLearner;
   const gu = root.querySelector("#guests"); if (gu) gu.onclick = meetingGuests;
   if (S.adding) { S.adding = false; if (add && !add.disabled) addLearner(); }
+}
+/* ---------- A learner leaves or finishes ----------
+   Their seat frees up, they come off class registers (Symi) and their employer's list (Paros), and Evia tells them
+   (with a copy of their portfolio to keep). Nothing is deleted, and it can be undone. (services/supabase/leavers.sql) */
+const LEFT_WHY = ["Changed job", "Moved away", "Health", "Personal reasons", "The course wasn’t right for them", "Dismissed by the employer", "Other"];
+function endSheet(l) {
+  const pad = (n) => String(n).padStart(2, "0"), d = new Date(), today = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const m = modal(l.name + ": left or finished",
+    '<form id="endF"><div class="field">What happened?<div class="seg" role="group" style="margin-top:6px"><button type="button" data-kind="finished" aria-pressed="false">Finished the course</button><button type="button" data-kind="left" aria-pressed="false">Left the course</button></div></div>' +
+    '<label class="field">On<input class="input" type="date" name="on" value="' + today + '" max="' + today + '" required></label>' +
+    '<label class="field" id="whyF" hidden>Why they left<select class="input" name="why"><option value="">Choose…</option>' + LEFT_WHY.map((x) => '<option>' + esc(x) + '</option>').join("") + '</select></label>' +
+    '<label class="field" id="whyMore" hidden>A few words (optional)<input class="input" name="more" maxlength="120"></label>' +
+    '<p class="hint">Their seat frees up straight away, and they come off class registers and their employer’s list. Their evidence, hours, reviews and attendance are all kept. You can undo this.</p>' +
+    '<p class="err" hidden></p><div class="row-actions"><button class="btn primary" type="submit" disabled>Confirm</button></div></form>');
+  const f = m.querySelector("#endF"), err = f.querySelector(".err"), sub = f.querySelector("[type=submit]"); let kind = "";
+  const ok = () => { sub.disabled = !kind || (kind === "left" && !f.why.value); };
+  f.querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => { kind = b.dataset.kind; f.querySelectorAll("[data-kind]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); f.querySelector("#whyF").hidden = kind !== "left"; f.querySelector("#whyMore").hidden = kind !== "left"; ok(); });
+  f.why.onchange = ok;
+  f.onsubmit = async (e) => {
+    e.preventDefault(); err.hidden = true; sub.disabled = true;
+    const reason = kind === "left" ? [f.why.value, f.more.value.trim()].filter(Boolean).join(": ") : null;
+    try { await rpc("nisia_end_enrolment", { p_enrolment: l.enrolment_id, p_kind: kind, p_on: f.on.value || today, p_reason: reason }); }
+    catch (x) { err.textContent = x.message; err.hidden = false; sub.disabled = false; return; }
+    hit("learner." + kind); closeModal(); toast(l.name + (kind === "left" ? " is marked as left." : " is marked as finished.") + " Their seat is free.");
+    await loadCollege(); learnerPage();
+  };
+}
+async function undoEnd(l) {
+  if (!confirm("Put " + l.name + " back on the course? They go back on their classes and take a seat again.")) return;
+  try { const r = await rpc("nisia_undo_end_enrolment", { p_enrolment: l.enrolment_id }); toast(l.name + " is back on the course" + (r && r.classes ? " and " + (r.classes === 1 ? "their class" : "their " + r.classes + " classes") : "") + "."); }
+  catch (x) { toast(x.message); return; }
+  await loadCollege(); learnerPage();
+}
+async function leaversCsv() {
+  let rows;
+  try { rows = (await rpc("nisia_leavers", { p_org: S.org })) || []; } catch (e) { toast(e.message); return; }
+  const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const csv = "﻿" + [["Learner", "Course", "Left or finished", "On", "Reason", "Started", "Planned end", "Employer", "Marked by"].map(q).join(",")]
+    .concat(rows.map((r) => [r.name, r.course, r.status === "completed" ? "Finished" : "Left", r.ended_on, r.reason, r.start_date, r.end_date, r.employer_name, r.ended_by].map(q).join(","))).join("\r\n");
+  hit("leavers.download"); download(csv, fileSafe("Leavers " + new Date().toISOString().slice(0, 10)) + ".csv");
 }
 /* ---------- Meeting guests ----------
    People at a meeting (investors, visitors) added as learners for the day, so they can try Evia on their own phones:
@@ -509,9 +554,10 @@ async function learnerPage() {
   shell(
     '<button class="btn ghost back" type="button" data-go="learners">' + ICON.back + 'All learners</button>' +
     '<div class="lhead">' + avatar(l.name) + '<div style="flex:1;min-width:220px"><h1>' + esc(l.name) + '</h1>' +
-      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + ((coursePack(l.course_code, l.enrolment_id) || {}).pack ? '<span class="tag" title="The topics ' + esc(first) + ' is taught and evidenced in">Pack: ' + esc(coursePack(l.course_code, l.enrolment_id).pack.title) + '</span>' : "") + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">' + ((a.roles || []).includes("employer") && !(a.roles || []).some((x) => x === "assessor" || x === "tutor") ? "Employer: " : (a.roles || []).includes("tutor") && !(a.roles || []).includes("assessor") ? "Tutor: " : "Assessor: ") + esc(a.name) + '</span>').join("") + pillFor(l.paired ? l.state : "none") + '</div>' +
+      '<div class="lmeta"><span class="tag">' + esc(courseName(l.course_code)) + '</span>' + ((coursePack(l.course_code, l.enrolment_id) || {}).pack ? '<span class="tag" title="The topics ' + esc(first) + ' is taught and evidenced in">Pack: ' + esc(coursePack(l.course_code, l.enrolment_id).pack.title) + '</span>' : "") + (l.employer_name ? '<span class="tag">' + esc(l.employer_name) + '</span>' : "") + (l.assessors || []).map((a) => '<span class="tag">' + ((a.roles || []).includes("employer") && !(a.roles || []).some((x) => x === "assessor" || x === "tutor") ? "Employer: " : (a.roles || []).includes("tutor") && !(a.roles || []).includes("assessor") ? "Tutor: " : "Assessor: ") + esc(a.name) + '</span>').join("") + (ENDED(l) ? endedPill(l) : pillFor(l.paired ? l.state : "none")) + '</div>' +
       '<div style="margin-top:8px"><span class="sync ' + (!l.paired || l.quiet == null || l.quiet > 3 ? "stale" : "") + '">' + (l.paired ? "Last update from Evia: " + lastActive(d.snapshot_at || l.last_activity) : "Evia not connected yet") + '</span></div></div>' +
-      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin && packsLike(l.course_code, l.enrolment_id).length > 1 ? '<button class="btn" type="button" id="packL">Pack</button>' : "") + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + '</div></div>' +
+      '<div class="row-actions"><button class="btn primary" type="button" id="pair">' + ICON.evia + (l.paired ? "Connect Evia on a new phone" : "Connect Evia") + '</button>' + (S.data.admin && packsLike(l.course_code, l.enrolment_id).length > 1 ? '<button class="btn" type="button" id="packL">Pack</button>' : "") + (S.data.admin ? '<button class="btn" type="button" id="editL">Edit details</button>' : "") + (S.data.admin ? (ENDED(l) ? '<button class="btn" type="button" id="undoEnd">Undo: back on the course</button>' : '<button class="btn" type="button" id="endL">Left or finished</button>') : "") + '</div></div>' +
+    (ENDED(l) ? '<div class="panel" style="display:flex;gap:10px;align-items:center">' + endedPill(l) + '<span>' + esc(first) + (l.status === "completed" ? " finished the course" : " left the course") + (l.ended_on ? " on " + esc(ukDate(l.ended_on)) : "") + '. Their seat is free and they’re off the registers and lists. Everything they did is kept.</span></div>' : "") +
     (l.reasons.length ? '<div class="panel" style="border-color:' + stripeFor(l.state) + ';display:flex;gap:10px;flex-direction:column"><span class="label">Why this learner is flagged</span>' + l.reasons.map((r) => '<span>• ' + esc(r) + '</span>').join("") + '</div>' : "") +
     '<section class="stats" aria-label="Learner summary">' +
       '<div class="stat"><span class="label">Through the course</span><span class="big num">' + (l.through ?? "–") + '%</span><span class="sub">' + esc(ukDate(l.start_date)) + ' to ' + esc(ukDate(l.end_date)) + '</span></div>' +
@@ -534,6 +580,8 @@ async function learnerPage() {
   root.querySelectorAll("[data-review]").forEach((r) => { const open = () => showReview(r.dataset.review); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelectorAll("#main [data-ev]").forEach((r) => { const open = () => showEvidence(d.evidence.find((x) => x.id === r.dataset.ev)); r.onclick = open; r.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
   root.querySelector("#pair").onclick = () => pairing(l);
+  const en = root.querySelector("#endL"); if (en) en.onclick = () => endSheet(l);
+  const un = root.querySelector("#undoEnd"); if (un) un.onclick = () => undoEnd(l);
   const ed = root.querySelector("#editL"); if (ed) ed.onclick = () => editLearner(l);
   const pk = root.querySelector("#packL"); if (pk) pk.onclick = () => choosePack(l);
 }

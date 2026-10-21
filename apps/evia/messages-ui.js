@@ -8,7 +8,8 @@
    Plain script, so it works in Evia (classic scripts) and the module apps alike. The same file is copied into Evia
    (tools/sync-actions.sh).
 
-   NisiaMessages.mount({app, color, soft, rpc, ready, place})   returns {open(withMember?), refresh(), unread(), close()}
+   NisiaMessages.mount({app, color, soft, rpc, ready, place})   returns {open(withMember?), refresh(), update(), unread(), close()}
+   NisiaMessages.under(id)   a place() that puts the icon just below the app's profile button with that id
      rpc(fn, args)   runs an Evia Portal function and returns its data, or throws
      ready()         true when this person is signed in to Evia Portal (the icon only shows then)
      place(button)   puts the icon in the app's header; without it the icon sits fixed at the top right
@@ -25,6 +26,7 @@
 .nm-btn{position:relative;width:42px;height:42px;border-radius:50%;border:1px solid #e4e8ed;background:#fff;color:var(--nm-c);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 10px rgba(16,24,40,.06);padding:0;flex:none;-webkit-tap-highlight-color:transparent}
 .nm-btn:hover{background:var(--nm-soft)}.nm-btn:focus-visible{outline:3px solid var(--nm-c);outline-offset:2px}
 .nm-btn.nm-fixed{position:fixed;z-index:60}
+.nm-stack{display:flex;flex-direction:column;align-items:center;gap:8px;flex:none}
 .nm-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#d92d20;color:#fff;font:700 11.5px/20px system-ui,-apple-system,"Segoe UI",Arial,sans-serif;text-align:center;border:2px solid #fff;box-sizing:content-box}
 .nm-badge[hidden]{display:none}
 .nm-overlay{position:fixed;inset:0;z-index:10050;background:rgba(20,28,42,.32);display:flex;align-items:flex-end;justify-content:center;animation:nm-fade .16s ease-out}
@@ -91,11 +93,11 @@
       const on = ready();
       btn.hidden = !on;
       if (!on) return;
-      if (o.place) { try { o.place(btn); } catch (_) {} }
+      if (o.place) { try { o.place(btn); } catch (_) {} return; }
       if (!btn.isConnected) { btn.classList.add("nm-fixed"); btn.style.top = "calc(" + (o.top == null ? 62 : o.top) + "px + env(safe-area-inset-top))"; btn.style.right = "calc(" + (o.right == null ? 12 : o.right) + "px + env(safe-area-inset-right))"; document.body.appendChild(btn); }
     };
     const badge = (n) => {
-      unread = n || 0;
+      unread = Math.max(0, parseInt(n, 10) || 0);
       const b = btn.querySelector(".nm-badge");
       b.hidden = !unread; b.textContent = unread > 99 ? "99+" : String(unread);
       btn.setAttribute("aria-label", unread ? "Messages, " + unread + " unread" : "Messages");
@@ -252,11 +254,23 @@
 
     placeIt();
     refresh();
+    /* The app redraws its header: put the icon back straight away. */
+    if (o.place && typeof MutationObserver !== "undefined") { let q = 0; new MutationObserver(() => { if (!q) q = requestAnimationFrame(() => { q = 0; if (!btn.isConnected || btn.hidden === ready()) placeIt(); }); }).observe(document.body, { childList: true, subtree: true }); }
     setInterval(() => { placeIt(); if (document.visibilityState === "visible") refresh(); }, 30000);
     setInterval(placeIt, 1500);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
     addEventListener("online", refresh);
     return { open, close, refresh, update: placeIt, unread: () => unread, button: btn };
   }
-  g.NisiaMessages = { mount };
+  /* A place(): the icon just below the app's own profile button (#id), the two in a column. */
+  function under(id) {
+    return (btn) => {
+      const me = document.getElementById(id);
+      if (!me) { btn.remove(); return; }
+      const p = me.parentElement;
+      if (p && p.classList.contains("nm-stack")) { if (btn.parentElement !== p) p.appendChild(btn); return; }
+      const st = document.createElement("div"); st.className = "nm-stack"; me.replaceWith(st); st.append(me, btn);
+    };
+  }
+  g.NisiaMessages = { mount, under };
 })(typeof window !== "undefined" ? window : globalThis);

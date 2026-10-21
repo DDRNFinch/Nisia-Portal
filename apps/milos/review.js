@@ -92,6 +92,8 @@ export function facts(L, now = Date.now()) {
     mock: test("epa"), confidence: snap.confidence || null,
     reflection: { feedback: reflection.learnerFeedback || "", support: reflection.support || "", nextSteps: reflection.nextSteps || "", at: eviaReview ? eviaReview.date : null },
     previousTargets: tracked.length ? prevMilos : prevMilos.concat(prevEvia), hasEvia: !!L.snapshot,
+    /* The learner's own prep in Evia: how ready they are, time spent learning in the app, and their future goals. */
+    prep: snap.prep || null, minutes: snap.activity ? snap.activity.sinceReview : null, future: snap.future || null,
     checkIn: eviaReview && Date.parse(eviaReview.date) >= periodStart - 14 * DAY ? reflection : {}, checkInAt: eviaReview ? eviaReview.date : null,
     snap: { ksbMet: ksb.met || 0, otjTotal: otjTotal, coverage: snap.writeupCoverage ?? null, edi: ((snap.teach && snap.teach.subjects) || []).find((x) => x.id === "edi") || null, strengthWeak: (snap.units || []).filter((u) => u.strength === "weak").map((u) => u.name) },
   };
@@ -187,6 +189,7 @@ export function openReview(L, me, onDone) {
   document.body.appendChild(root); document.body.style.overflow = "hidden";
   const close = () => { save(); root.remove(); document.body.style.overflow = ""; };
 
+  const hmm = (m) => { m = Math.round(Number(m) || 0); return m >= 60 ? Math.floor(m / 60) + "h" + (m % 60 ? " " + (m % 60) + "m" : "") : m + "m"; };
   const fact = (label, value, note) => '<div class="fact"><span>' + esc(label) + '</span><b>' + esc(value ?? "—") + '</b>' + (note ? '<small>' + esc(note) + '</small>' : "") + '</div>';
   const fromEvia = (html) => '<section class="from"><p class="label">From Evia' + (F.hasEvia ? "" : " (not connected yet)") + '</p><div class="facts">' + html + '</div></section>';
   const choice = (name, opts, val) => '<div class="checks" role="radiogroup">' + opts.map((o) => '<label class="check"><input type="radio" name="' + name + '" value="' + esc(o) + '"' + (val === o ? " checked" : "") + '> ' + esc(o) + '</label>').join("") + '</div>';
@@ -210,7 +213,9 @@ export function openReview(L, me, onDone) {
         fromEvia(fact("Time through", F.timePct != null ? F.timePct + "%" : "—") + fact(F.nvq ? "Criteria signed off" : "KSBs signed off", F.ksb.met + " of " + F.ksb.total + " (" + F.ksb.pct + "%)", F.timePct != null ? (F.ksb.pct >= F.timePct - 10 ? "On track for time" : "Behind for time") : "") +
           fact("Evidence this period", F.evidencePeriod, F.evidenceTotal + " in total") + fact("Off-the-job hours", F.otj.total + " h", F.otj.expected != null ? F.otj.expected + " h expected by now" : "") +
           (F.maths.on ? fact("Maths", F.maths.test ? "Best " + F.maths.test.best + "%" : subj(F.maths.teach)) : "") + (F.english.on ? fact("English", F.english.test ? "Best " + F.english.test.best + "%" : subj(F.english.teach)) : "") +
-          fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—")) +
+          fact(F.nvq ? "Knowledge tests" : "Mock tests", F.mock ? "Best " + F.mock.best + "%" : "None yet") + fact("Last active", F.lastActive ? ukDate(F.lastActive) : "—") +
+          (F.prep ? fact("Ready for this review", F.prep.ready + "%", F.prep.todo && F.prep.todo.length ? "Still to do: " + F.prep.todo.join(", ") : "Everything done in Evia") : "") +
+          (F.minutes != null ? fact("Time learning in Evia", hmm(F.minutes), "Since the last review") : "")) +
         (F.missingUnits.length ? '<details class="card flat"><summary><b>Still to evidence</b> (' + F.missingUnits.length + ' units)</summary><ul class="small">' + F.missingUnits.map((u) => '<li>' + esc(u.name) + ': ' + u.missing + ' of ' + u.total + ' still to do</li>').join("") + '</ul></details>' : "") +
         (R.previous.length ? '<div class="field">Previous targets' + (R.previous.some((t) => t.source === "evia-tracked") ? ' <small class="muted">marked from Evia’s tracking; change any</small>' : "") + R.previous.map((t, i) => '<div class="prev"><span>' + esc(t.title) + (t.text || t.pct != null ? '<small class="evia-note">Evia: ' + esc(t.met ? "done" : (t.pct != null ? t.pct + "% · " : "") + (t.text || "")) + '</small>' : "") + '</span>' + choice("prev_" + i, ["Met", "Partly met", "Not met"], t.outcome) + '</div>').join("") + '</div>' : "") +
         '<div class="field">Progress against the training plan' + choice("progressRag", ["On track", "Slightly behind", "At risk"], R.progressRag) + hint(rag) + '</div>' +
@@ -233,7 +238,8 @@ export function openReview(L, me, onDone) {
         when("supportInPlace!=Not needed", area("supportNeeds", "What support, and who’s arranging it", R.supportNeeds, F.reflection.support ? "In Evia they said: " + F.reflection.support : "")) +
         '<div class="field">Any change to job, employer, hours or contract, or a need for a break in learning?' + choice("changes", ["None", "Yes"], R.changes) + '</div>' +
         when("changes=Yes", area("changesDetail", "What’s changed (tell the college straight away)", R.changesDetail));
-      case "next": return fromEvia(fact("How it’s going", F.reflection.feedback || "Nothing added") + fact("Future plans", F.reflection.nextSteps || "Nothing added")) +
+      case "next": return fromEvia(fact("How it’s going", F.reflection.feedback || "Nothing added") + fact("Future plans", F.reflection.nextSteps || "Nothing added") +
+          (F.future && F.future.goal ? fact("Their goal (My future)", F.future.goal, (F.future.list || []).slice(0, 3).join(" · ")) : "")) +
         area("apprenticeComment", "Apprentice’s comments", R.apprenticeComment, "In their own words") +
         '<div class="field">Careers advice and next steps discussed?' + choice("iagGiven", ["Yes", "Not this time"], R.iagGiven) + '</div>' +
         when("iagGiven=Yes", input("nextSteps", "What was discussed", R.nextSteps)) +

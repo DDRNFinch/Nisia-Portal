@@ -133,7 +133,7 @@
   const coach=name=>inChat(()=>{const C=window.eviaCoachFlows||{};if(C[name])C[name]()});
   const kit=name=>inChat(()=>{const k=window.eviaChatKit;if(k&&k[name])k[name]()});
   const ACTS={
-    review:[["Get ready for my review",coach("prepare"),1],["My review",inChat(()=>window.eviaChatReview&&window.eviaChatReview())],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
+    review:[["Get ready for my review",coach("prepare"),1],["My review prep pack",()=>window.eviaPrepPack&&window.eviaPrepPack.open()],["My review",inChat(()=>window.eviaChatReview&&window.eviaChatReview())],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
     where:[["Go to Topics",()=>nav("course")]],
     ksb:[["Add evidence",()=>{let q=null;try{q=window.eviaChatKit.analyse().quickest}catch(_){}if(q&&window.openUnit)window.openUnit(q.index);else nav("course")},1]],
     otj:[["Log hours",coach("hours"),1],["Learning logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs()]],
@@ -296,6 +296,9 @@
         (fresh?"New · ":"")+(b?"behaviours overall"+(n?" · "+n+" witness testimon"+(n===1?"y":"ies"):""):"witness testimon"+(n===1?"y":"ies")),
         b?'<span class="pv-rows">'+Object.entries(b.ratings||{}).sort().slice(0,3).map(([k,v],i)=>'<span class="pv-row"><span class="pv-row-top"><span>'+esc(k+" "+behName(k))+'</span><strong>'+esc(BEH[v]||v)+'</strong></span>'+bar(v/4*100,v<=2?"low":v>=4?"good":"",i*80)+'</span>').join("")+'</span>':"",fresh?" pv-new":""));
     }
+    // My future (future.js): their goal, and how many of the steps towards it are done.
+    const FU=window.eviaFuture&&window.eviaFuture.summary();
+    if(window.eviaFuture)out.push(card("future","My future",FU?num(FU.done)+'<small> / '+FU.steps+'</small>':"Set a goal",FU?FU.goal:"Where do you want your trade to take you?",""));
     // Achievements
     const ach=window.eviaStats.achievements(S),earned=ach.list.filter(x=>x.earned);
     out.push(card("ach","Achievements",num(ach.count)+'<small> / '+ach.list.length+'</small>',ach.fresh.length?"New one earned":"earned",earned.length?'<span class="pv-badges">'+earned.slice(0,6).map((x,i)=>'<span class="pv-badge pv-pop" style="--d:'+(i*70)+'ms" title="'+esc(x.label)+'">'+BADGE+'</span>').join("")+(earned.length>6?'<span class="pv-badge more">+'+(earned.length-6)+'</span>':"")+'</span>':empty("Your first one isn’t far away")));
@@ -319,6 +322,7 @@
   function deep(id,D){
     if(id==="guide"){window.eviaStrength.guide();return}
     if(id==="attendance"){attendanceSheet();return}
+    if(id==="future"){window.eviaFuture.open();return}
     /* What the employer has sent (Paros): behaviour ratings and witness testimonies. Shown in the progress review. */
     const employerHtml=EM=>{
       const b=(EM.ratings||[])[0],prev=(EM.ratings||[])[1];

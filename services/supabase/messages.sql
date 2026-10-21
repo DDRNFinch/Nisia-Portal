@@ -78,14 +78,14 @@ language sql stable security definer set search_path = '' as $$
       where e.learner_id = p_learner and c.tutor_member_id = p_member and c.archived_at is null);
 $$;
 
--- The learner behind a member (if they are one) and whether they're still on a course.
+-- The learner behind a member (if they are one) and whether they're still on a course (not left or finished).
 create or replace function private.msg_learner(p_member uuid) returns uuid
 language sql stable security definer set search_path = '' as $$
   select l.id from public.learners l where l.organisation_member_id = p_member limit 1;
 $$;
 create or replace function private.msg_learner_active(p_learner uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.enrolments e where e.learner_id = p_learner and coalesce(e.status, 'active') = 'active');
+  select exists (select 1 from public.enrolments e where e.learner_id = p_learner and coalesce(e.status, 'active') not in ('completed', 'withdrawn'));
 $$;
 
 -- Can p_from message p_to? Both active in the same college, and the rules at the top.

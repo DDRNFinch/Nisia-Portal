@@ -97,7 +97,7 @@
       if (!btn.isConnected) { btn.classList.add("nm-fixed"); btn.style.top = "calc(" + (o.top == null ? 62 : o.top) + "px + env(safe-area-inset-top))"; btn.style.right = "calc(" + (o.right == null ? 12 : o.right) + "px + env(safe-area-inset-right))"; document.body.appendChild(btn); }
     };
     const badge = (n) => {
-      unread = n || 0;
+      unread = Math.max(0, parseInt(n, 10) || 0);
       const b = btn.querySelector(".nm-badge");
       b.hidden = !unread; b.textContent = unread > 99 ? "99+" : String(unread);
       btn.setAttribute("aria-label", unread ? "Messages, " + unread + " unread" : "Messages");

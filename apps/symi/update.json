@@ -1,9 +1,9 @@
 {
-  "version": "0.34.26",
+  "version": "0.34.27",
   "title": "Messages",
   "details": [
     "Message your learners, their employers and your colleagues from the new icon next to your profile",
     "Unread messages show as a number on the icon",
-    "Messages are kept by your college, and anything worrying can be reported"
+    "Learners who have left or finished come off your classes automatically"
   ]
 }

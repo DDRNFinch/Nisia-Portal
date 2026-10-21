@@ -105,7 +105,8 @@ async function pullLearners(say) {
   for (const o of tutorOrgs()) {
     const list = await rpc("nisia_college_learners", { p_org: o.organisation_id });
     const mine = o.roles.includes("admin") && !o.roles.includes("tutor") ? list : list.filter((l) => (l.assessors || []).some((a) => a.member_id === o.member_id));
-    found.push(...mine.filter((l) => l.enrolment_id).map((l) => ({ ...l, org: o.organisation_id })));
+    /* Learners who have left or finished aren't added (Evia Portal takes them off their classes too). */
+    found.push(...mine.filter((l) => l.enrolment_id && l.status !== "completed" && l.status !== "withdrawn").map((l) => ({ ...l, org: o.organisation_id })));
   }
   let added = 0;
   App().mutate((st) => {

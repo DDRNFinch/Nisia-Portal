@@ -73,7 +73,9 @@ async function download() {
   const rows = [];
   for (const o of orgs) {
     const list = await rpc("nisia_college_learners", { p_org: o.organisation_id });
-    const mine = o.roles.includes("admin") && !o.roles.includes("assessor") ? list : list.filter((l) => (l.assessors || []).some((a) => a.member_id === o.member_id));
+    /* Learners who have left or finished are off the list (their records stay in Evia Portal). */
+    const on = list.filter((l) => l.status !== "completed" && l.status !== "withdrawn");
+    const mine = o.roles.includes("admin") && !o.roles.includes("assessor") ? on : on.filter((l) => (l.assessors || []).some((a) => a.member_id === o.member_id));
     rows.push(...mine.map((l) => ({ ...l, org: o })));
   }
   const ids = rows.map((x) => x.enrolment_id).filter(Boolean);
