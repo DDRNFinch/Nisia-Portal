@@ -1,9 +1,9 @@
 {
-  "version": "0.34.25",
-  "title": "Symi on all your devices",
+  "version": "0.34.26",
+  "title": "Messages",
   "details": [
-    "Your learners, registers and marks now follow you between your phone and laptop",
-    "Every device shows the same attendance",
-    "Sign in to Evia Portal on each device to keep them together"
+    "Message your learners, their employers and your colleagues from the new icon next to your profile",
+    "Unread messages show as a number on the icon",
+    "Messages are kept by your college, and anything worrying can be reported"
   ]
 }

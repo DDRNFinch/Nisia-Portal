@@ -653,7 +653,12 @@
     const e=joined();if(!e||!e.live)throw new Error("not connected");if(!navigator.onLine)throw new Error("offline");
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
-  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn),
+  /* Any of Evia Portal's functions as the signed-in learner (messages). Needs signal and a live connection. */
+  async function call(name,args){
+    const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");if(!navigator.onLine)throw new Error("No signal. Try again when you have signal.");
+    const c=await sb(),{data,error}=await c.rpc(name,args||{});if(error)throw new Error(error.message||"That didn’t work. Try again.");return data;
+  }
+  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,call,checkIn,onStatus:fn=>listeners.push(fn),
     sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,timetableDays,visits:()=>(readJson(VIS_KEY,[])||[]).filter(v=>v&&v.starts_at),checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
@@ -713,6 +718,7 @@
       else if(what==="review")K.runNudge({action:{kind:"prep",label:"Get ready for my review"}});
       else if(what==="calendar"){if(typeof nav==="function")nav("calendar")}
       else if(what==="hours")K.runNudge({action:{kind:"learning",label:"Log learning hours"}});
+      else if(what==="messages"&&window.eviaMessages)window.eviaMessages.open();
     };
     /* Fetch what the assessor did first, so it's there to show. */
     Promise.race([joined()?sync().catch(()=>{}):null,new Promise(r=>setTimeout(r,6000))]).then(run);

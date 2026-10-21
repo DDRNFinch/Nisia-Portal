@@ -50,6 +50,9 @@
     const soonV=(live&&N.visits?N.visits():[]).filter(v=>{const t=Date.parse(v.starts_at);return t+(v.minutes||60)*6e4>Date.now()&&t<Date.now()+3*864e5}).sort((x,y)=>String(x.starts_at).localeCompare(y.starts_at))[0];
     if(soonV){const t=new Date(soonV.starts_at),day=t.toDateString()===new Date().toDateString()?"Today":t.toLocaleDateString("en-GB",{weekday:"long"});
       add(97,"assessor",(soonV.kind==="review"?"Progress review ":"Your assessor visits ")+(day==="Today"?"today":"on "+day),t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(soonV.place?" · "+soonV.place:"")+(soonV.note?" · "+soonV.note:""),"See it on my calendar",leave(()=>nav("calendar")))}
+    /* Unread messages from the people at college or work (messages, from the icon under the profile button). */
+    const unread=live&&window.eviaMessages?window.eviaMessages.unread():0;
+    if(unread)add(98,"message",unread===1?"You have a new message":"You have "+unread+" new messages","From your college or employer","Read "+(unread===1?"it":"them"),leave(()=>window.eviaMessages.open()));
     /* The assessor asked for more on a unit. */
     const more=window.eviaMoreRequired?window.eviaMoreRequired():[];
     [...new Set(more.map(x=>x.unit))].forEach(name=>{const u=units.find(x=>x.name===name);if(!u)return;
@@ -118,6 +121,7 @@
   /* ---------- In the chat ---------- */
   const SVG=p=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>';
   const ICON={
+    message:'<path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/>',
     assessor:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',
     evidence:'<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5Z"/><circle cx="12" cy="13" r="3.5"/>',
     photo:'<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5Z"/><circle cx="12" cy="13" r="3.5"/>',

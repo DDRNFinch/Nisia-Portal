@@ -22,6 +22,7 @@ const A = window.NisiaActions;
 A.use(rpc, { app: "symi" });
 import { auth, inviteCode, resetCode } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
+import "../../packages/core/messages-ui.js";
 startUsage("symi", window.SYMI_BUILD || "");
 
 const App = () => window.SamosApp;
@@ -816,3 +817,7 @@ window.SymiNisia = {
     return A.send("shareResource", { p_org: o.organisation_id, p_kind: kind, p_title: title, p_course: (opts && opts.course) || null, p_unit: (opts && opts.unit) || null, p_content: (opts && opts.content) || {}, p_url: (opts && opts.url) || null }); },
   unshare: (id) => A.send("unshareResource", { p_id: id }),
 };
+
+/* ---------- Messages: the icon next to the profile button, with the unread count (packages/core/messages-ui.js) ---------- */
+window.NisiaMessages.mount({ app: "symi", color: "#38A96B", ink: "#1e7a4c", soft: "#E3F4EA", rpc, ready: () => signedIn,
+  place: (btn) => { const pb = document.getElementById("profileButton"); if (!pb) { btn.remove(); return; } if (btn.nextElementSibling !== pb) pb.parentElement.insertBefore(btn, pb); } });

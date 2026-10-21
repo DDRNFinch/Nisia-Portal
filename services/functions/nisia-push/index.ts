@@ -1,8 +1,9 @@
 // nisia-push: sends what's waiting in notifications to people's phones, as Web Push. pg_cron calls it every 5 minutes
 // when something is waiting (with the key from the vault); nobody else can.
-//   Course things only: evidence signed off or sent back, new targets, reviews, observations and witness testimony
+//   Course things: evidence signed off or sent back, new targets, reviews, observations and witness testimony
 //   (learners, in Evia); new evidence to assess (assessors and tutors, in Milos); and the dated reminders that
-//   private.course_reminders() writes (reviews and targets due, Friday learning hours, Monday reviews to book).
+//   private.course_reminders() writes (reviews and targets due, Friday learning hours, Monday reviews to book). And
+//   new messages (who from, never what they say): to Evia for a learner, to Milos for staff.
 //   Bursts are grouped into one message ("3 pieces of evidence from Sam"). Nothing between 9pm and 7:30am (it waits
 //   until the morning), nothing to staff at the weekend, and at most 4 a day to anyone (the rest stay in the app).
 import { CORS, reply, fail, service } from "../_shared/nisia.ts";
@@ -15,7 +16,7 @@ type Row = {
 };
 type Message = { title: string; body: string; tag: string; open: string; app: "evia" | "milos" };
 
-const STAFF = new Set(["evidence_submitted", "reviews_due", "witness_testimony_staff", "behaviour_rated_staff"]);
+const STAFF = new Set(["evidence_submitted", "reviews_due", "witness_testimony_staff", "behaviour_rated_staff", "message_reported"]);
 const DAILY_CAP = 4;
 const plural = (n: number, one: string, many = one + "s") => n + " " + (n === 1 ? one : many);
 const list = (xs: (string | null)[]) => {
@@ -33,7 +34,9 @@ function london(now = new Date()) {
 
 /* The words for one group of notifications (same person, same kind, same learner or decision). */
 export function word(rows: Row[]): Message {
-  const r = rows[0], n = rows.length, t = r.notification_type, app = STAFF.has(t) ? "milos" : "evia";
+  const r = rows[0], n = rows.length, t = r.notification_type;
+  /* Messages say which app (Evia for a learner, Milos for staff); everything else goes by its kind. */
+  const app = r.data?.app === "evia" || r.data?.app === "milos" ? r.data.app as "evia" | "milos" : STAFF.has(t) ? "milos" : "evia";
   const units = list(rows.map((x) => x.unit));
   switch (t) {
     case "evidence_submitted":
@@ -60,6 +63,13 @@ export function word(rows: Row[]): Message {
       return { app, open: "feedback", tag: "observation", title: "Your assessor added an observation", body: "It’s in your supporting evidence." };
     case "witness_testimony":
       return { app, open: "feedback", tag: "witness", title: "Witness testimony added", body: "It counts towards your units." };
+    case "message": {
+      /* Only who it's from, never the words (they could show on a lock screen). */
+      const from = [...new Set(rows.map((x) => x.title.replace(/^Message from /, "")))];
+      return { app, open: "messages", tag: "messages",
+        title: n === 1 ? r.title : plural(n, "new message") + (from.length === 1 ? " from " + from[0] : ""),
+        body: "Open " + (app === "evia" ? "Evia" : "Milos") + " to read " + (n === 1 ? "it." : "them.") };
+    }
     default:
       /* The reminders are worded when they're made. */
       return { app, open: r.data?.open || "home", tag: t, title: r.title, body: r.body };

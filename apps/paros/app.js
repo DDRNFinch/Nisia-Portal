@@ -10,6 +10,7 @@ import { startUsage, hit } from "../../packages/core/usage.js";
 import { auth } from "../../packages/core/signin.js";
 import { coursePack, loadPacks } from "../../packages/core/packs.js";
 import { mountAbsences } from "../../packages/core/absences.js";
+import "../../packages/core/messages-ui.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos", "paros");
@@ -123,6 +124,8 @@ const reviewDue = (r) => { const from = Date.parse(r.last_review || r.start_date
 const ratingDue = (r) => !r.last_rating || Date.now() - Date.parse(r.last_rating) > 8 * 7 * 864e5;
 
 startUsage("paros", new URL(import.meta.url).searchParams.get("v") || "");
+/* Messages: the icon under your initials, with the unread count (packages/core/messages-ui.js). */
+window.NisiaMessages.mount({ app: "paros", color: "#E8781C", ink: "#C2410C", soft: "#FDEBDC", rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
 function draw() {
   hit(view ? "apprentice" : "tab." + tab);
   if (view) return apprentice(view, true);

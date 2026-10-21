@@ -12,6 +12,7 @@ import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { standardsPage } from "./standards.js";
 import { collegePacksPage } from "./college-packs.js";
 import { assistantsPage } from "./assistants.js";
+import "../../packages/core/messages-ui.js";
 
 const root = document.getElementById("app");
 const BASE = location.origin + location.pathname;
@@ -26,6 +27,7 @@ const APPS = [["Evia", EVIA_URL, "Apprentices", "#E8B400"], ["Milos", MILOS, "As
 const DAY = 864e5;
 let who = null;
 const S = { page: "overview", org: null, learner: null, filter: "all", q: "", data: null };
+let msgUnread = 0; /* unread messages, for the Messages count in the menu */
 
 const start = () => auth(root, { title: "Evia Portal", subtitle: "For college and training provider staff.", split: true, onReady: home });
 db.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") start(); });
@@ -33,6 +35,7 @@ start();
 
 /* ---------- Helpers ---------- */
 const ICON = {
+  message: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/><path d="M8.5 11.5h7M8.5 14.3h4.5"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>',
   learners: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.3.2 3.9 1.8 4.5 4.8"/></svg>',
   review: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5h6v3H9zM8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>',
@@ -99,7 +102,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["registers", "Registers", "register"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["messages", "Messages", "message"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["registers", "Registers", "register"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"], ["assistants", "Assistants", "spark"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -111,7 +114,7 @@ function shell(content) {
     '<div class="shell"><aside class="side" id="side">' +
       '<div class="brand">' + MARK + '<div><div class="brand-name">Evia Portal</div><div class="brand-sub">' + (S.org ? esc(orgName || "College") : "Master admin") + '</div></div></div>' +
       '<nav class="nav" aria-label="Main">' + (S.org && who.platform_admin ? '<button type="button" data-go="colleges">' + ICON.back + 'All colleges</button><div class="nav-sep"></div>' : "") +
-        navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + '</button>').join("") +
+        navFor().map(([id, label, ic]) => '<button type="button" data-go="' + id + '"' + (cur === id ? ' aria-current="page"' : "") + '>' + ICON[ic] + label + (id === "messages" ? '<span class="nav-count" id="navMsgCount"' + (msgUnread ? "" : " hidden") + '>' + msgUnread + '</span>' : "") + '</button>').join("") +
         '<div class="nav-sep"></div><span class="nav-label">Apps</span>' + APPS.map(([name, href, who, dot]) => '<a class="nav-app" href="' + esc(href) + '" target="_blank" rel="noopener" data-app="' + esc(name) + '"><i style="background:' + dot + '" aria-hidden="true"></i><span><b>' + name + '</b><small>' + who + '</small></span></a>').join("") + '</nav>' +
       '<div class="college"><span class="label">Signed in</span><b>' + esc(who.name || "") + '</b><span class="small muted">' + esc(who.platform_admin && !S.org ? "Master admin" : (m && m.roles.filter((r) => r !== "learner").join(", ")) || "") + '</span><button class="btn ghost small" type="button" id="signOut" style="align-self:flex-start;padding-left:0">Sign out</button></div>' +
     '</aside><main class="main" id="main">' + content + '</main></div>';
@@ -175,7 +178,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage, messages: messagesPage,
     assistants: () => assistantsPage({ shell, esc, modal, closeModal, toast, hit, ukDate, summary: () => S.data.summary }),
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
@@ -937,6 +940,48 @@ function download(text, name) {
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 const fileSafe = (s) => String(s || "").replace(/[^a-z0-9 _-]+/gi, "").trim().replace(/\s+/g, "-");
+/* ---------- Messages ----------
+   Everyone: their own conversations (the same screens as in Evia, Symi, Milos and Paros: packages/core/messages-ui.js).
+   Admins, for safeguarding: every conversation in the college, reported ones first, in full (removed messages too). */
+const msgs = window.NisiaMessages.mount({ app: "nisia", color: "#6D5BD0", soft: "#ECE9FB", rpc, ready: () => !!S.org,
+  place: (btn) => { const mb = document.getElementById("menuBtn"); if (!mb) { btn.remove(); return; } if (btn.nextElementSibling !== mb) mb.parentElement.insertBefore(btn, mb); },
+  onUnread: (n) => { msgUnread = n; const c = document.getElementById("navMsgCount"); if (c) { c.hidden = !n; c.textContent = n; } if (S.page === "messages" && S.msgShown !== n) messagesPage(); } });
+const who2 = (n, r) => esc(n) + ' <span class="small muted">' + esc({ learner: "Apprentice", admin: "Admin", assessor: "Assessor", tutor: "Tutor", quality: "Quality", employer: "Employer" }[r] || "") + "</span>";
+async function messagesPage() {
+  const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin;
+  if (!root.querySelector("#msgNew")) shell('<p class="loading">Loading messages…</p>');
+  let mineT = [], college = null;
+  try { mineT = (await rpc("msg_threads")) || []; if (admin) college = (await rpc("msg_college", { p_org: S.org })) || []; } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  if (S.page !== "messages") return;
+  S.msgShown = msgUnread;
+  const when = (t) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  shell('<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Messages</h1><p class="small muted">Between apprentices, tutors, assessors and employers, in every app.</p></div>' +
+      '<div class="actions"><button class="btn primary" type="button" id="msgNew">' + ICON.plus + 'New message</button></div></div>' +
+    '<h2 class="section-h">Your conversations</h2><div class="table-wrap"><table><thead><tr><th>With</th><th>Last message</th><th>When</th><th></th></tr></thead><tbody>' +
+    (mineT.length ? mineT.map((t, i) => '<tr data-mine="' + i + '" tabindex="0"><td><div class="person">' + avatar(t.name) + '<span><b>' + esc(t.name) + '</b><br><span class="small muted">' + esc(t.about) + '</span></span></div></td>' +
+        '<td class="small">' + esc(t.last ? (t.last.mine ? "You: " : "") + t.last.body : "") + '</td><td class="small">' + (t.last ? esc(when(t.last.at)) : "") + '</td><td>' + (t.unread ? '<span class="pill warn">' + t.unread + ' new</span>' : "") + '</td></tr>').join("")
+      : '<tr class="static"><td colspan="4" class="empty">No conversations yet. Press New message to start one.</td></tr>') + '</tbody></table></div>' +
+    (college ? '<h2 class="section-h">Everyone’s messages</h2><p class="small muted">For safeguarding, admins can read every conversation in the college, including removed messages. Reported ones are first.</p>' +
+      '<div class="table-wrap"><table><thead><tr><th>Between</th><th>And</th><th>Messages</th><th>Last</th><th></th></tr></thead><tbody>' +
+      (college.length ? college.map((t, i) => '<tr data-col="' + i + '" tabindex="0"><td>' + who2(t.a, t.a_role) + '</td><td>' + who2(t.b, t.b_role) + '</td><td class="num">' + t.count + '</td><td class="small">' + esc(when(t.last_at)) + '</td><td>' +
+          (t.reported ? '<span class="pill bad">' + t.reported + ' reported</span>' : "") + '</td></tr>').join("")
+        : '<tr class="static"><td colspan="5" class="empty">Nobody has sent a message yet.</td></tr>') + '</tbody></table></div>' : ""));
+  root.querySelector("#msgNew").onclick = () => msgs.open();
+  root.querySelectorAll("tr[data-mine]").forEach((tr) => { const open = () => msgs.open(mineT[Number(tr.dataset.mine)].with); tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
+  root.querySelectorAll("tr[data-col]").forEach((tr) => { const open = () => collegeThread(college[Number(tr.dataset.col)]); tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); }; });
+}
+async function collegeThread(t) {
+  hit("messages.college");
+  let full;
+  try { full = await rpc("msg_college_thread", { p_thread: t.id }); } catch (e) { toast(e.message); return; }
+  const m = modal(t.a + " and " + t.b,
+    '<div class="msg-log">' + (full.messages || []).map((x) => '<div class="msg-line ' + (x.side === "a" ? "a" : "b") + (x.reported_at ? " reported" : "") + '"><div class="small muted">' + esc(x.from) + " · " + esc(new Date(x.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) + '</div>' +
+      '<div class="msg-body">' + esc(x.body) + '</div>' +
+      (x.removed_at ? '<div class="small muted">Removed by the sender ' + esc(new Date(x.removed_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) + '</div>' : "") +
+      (x.reported_at ? '<div class="small" style="color:var(--bad)">Reported by ' + esc(x.reported_by || "") + (x.report_reason ? ": “" + esc(x.report_reason) + "”" : "") + '</div>' : "") + '</div>').join("") + '</div>' +
+    '<p class="small muted">Read only. Messages are never deleted. If a message worries you, follow your college’s safeguarding policy.</p>');
+  m.classList.add("wide-modal");
+}
 async function registersPage() {
   const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.regPeriod || "30", P = periodDates(k);
   shell('<p class="loading">Loading registers…</p>');

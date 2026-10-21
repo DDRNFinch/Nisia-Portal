@@ -4,4 +4,5 @@
 set -e
 here=$(cd "$(dirname "$0")/.." && pwd); evia=${1:-$here/apps/evia}
 cp "$here/packages/core/nisia-actions.js" "$evia/nisia-actions.js"
-echo "Copied nisia-actions.js to $evia"
+cp "$here/packages/core/messages-ui.js" "$evia/messages-ui.js"
+echo "Copied nisia-actions.js and messages-ui.js to $evia"

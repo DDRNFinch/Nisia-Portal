@@ -11,6 +11,7 @@ import { dueText, facts, openReview, downloadPdf } from "./review.js";
 import { groupByUnit, portfolioHtml, openEvidence, insightsHtml, consistencyHtml } from "./portfolio.js";
 import { openObservation } from "./observe.js";
 import { mountAbsences } from "../../packages/core/absences.js";
+import "../../packages/core/messages-ui.js";
 import { coursePack, packsLike, loadPacks } from "../../packages/core/packs.js";
 import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
@@ -187,6 +188,7 @@ function pushRow() {
 }
 /* A tapped notification opens its tab: To assess, or Reviews. */
 function pushOpen(what) {
+  if (what === "messages" && who) return msgs.open();
   if (!["assess", "reviews", "today", "learners", "calendar"].includes(what) || !who) return;
   tab = what; filter = "all"; home(); scrollTo(0, 0);
 }
@@ -246,7 +248,7 @@ async function home(fresh) {
   const have = await cached().catch(() => null);
   if (have) {
     who = have.who; rows = have.rows;
-    if (openFirst) { tab = ["assess", "reviews", "today", "learners", "calendar"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
+    if (openFirst) { if (openFirst === "messages") setTimeout(() => msgs.open(), 300); tab = ["assess", "reviews", "today", "learners", "calendar"].includes(openFirst) ? openFirst : tab; openFirst = ""; }
     await drawTab(); if (fresh && navigator.onLine) { quietSync(); push.refresh(); } return;
   }
   frame({ title: "Milos", body: '<div class="m-loading">' + EYES + '<p class="muted">Downloading your learners from Evia Portal…</p></div>' });
@@ -259,6 +261,8 @@ async function quietSync() {
   catch (e) { if (e.signedOut) { await clear(); signOut(); } }
 }
 startUsage("milos", new URL(import.meta.url).searchParams.get("v") || "");
+/* ---------- Messages: the icon under your initials, with the unread count (packages/core/messages-ui.js) ---------- */
+const msgs = window.NisiaMessages.mount({ app: "milos", color: "#2C85F7", soft: "#E1EDFE", rpc, ready: () => !!who, place: window.NisiaMessages.under("meBtn") });
 async function drawTab() {
   hit("tab." + tab);
   const X = await index();
