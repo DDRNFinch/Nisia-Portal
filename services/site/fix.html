@@ -22,9 +22,10 @@
    learners, sign-in), and the other apps on this website are left alone. Then it opens the app with its install steps. */
 (async () => {
   const APPS = { symi: /^(symi|samos)-/i, milos: /^milos-/i, paros: /^paros-/i, nisia: /^nisia-app-portal-/i, evia: /^evia7-offline-/i };
-  const app = (new URLSearchParams(location.search).get("app") || "").toLowerCase();
+  const app = ((new URLSearchParams(location.search).get("app") || (/app[-=_:]?(\w+)/i.exec(location.search) || [])[1] || "")).toLowerCase();
   const t = document.getElementById("t"), s = document.getElementById("s");
-  if (!APPS[app]) { t.textContent = "Which app?"; s.textContent = "This link needs ?app=evia, symi, milos, paros or nisia at the end."; return; }
+  /* No app named (the end of the link got lost): one button per app. */
+  if (!APPS[app]) { t.textContent = "Which app needs fixing?"; s.innerHTML = ["evia", "milos", "symi", "paros", "nisia"].map((a) => '<a href="?app=' + a + '" style="display:block;margin-top:12px;padding:14px;border-radius:14px;background:#e7b900;color:#172033;font-weight:800;text-decoration:none;text-align:center">' + (a === "nisia" ? "Evia Portal" : a[0].toUpperCase() + a.slice(1)) + '</a>').join(""); return; }
   const home = new URL("./" + app + "/", location.href);
   try {
     if ("serviceWorker" in navigator)
