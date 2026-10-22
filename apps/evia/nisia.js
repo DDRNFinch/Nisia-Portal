@@ -13,6 +13,7 @@
   const MEDIA_KEY="evia7-nisia-media",STATUS_KEY="evia7-nisia-status",IDS_KEY="evia7-nisia-ids";
   /* supabase-js is only loaded once the learner connects (vendor/, about 110 KB). */
   let client=null;
+  const READ_ONLY_SIGN_IN=false;
   function sb(){
     if(client)return Promise.resolve(client);
     return new Promise((res,rej)=>{
@@ -23,7 +24,10 @@
         const c=new AbortController(),t=setTimeout(()=>c.abort(),/\/storage\/v1\/object\//.test(String(url))&&o.method&&o.method!=="GET"?120000:25000);
         return fetch(url,Object.assign({},o,{signal:c.signal})).catch(e=>{throw e.name==="AbortError"?new Error("Your college didn’t answer in time. Check your signal and try again."):e}).finally(()=>clearTimeout(t));
       };
-      const go=()=>{client=window.supabase.createClient(NISIA_URL,NISIA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"evia7-nisia-auth",detectSessionInUrl:false},global:{fetch:timedFetch}});res(client)};
+      /* A copy of Evia beside the real one (the tester) only borrows its sign-in while it's fresh and never renews or
+         changes it: two apps renewing one sign-in makes the server cancel it for both. */
+      const borrow=READ_ONLY_SIGN_IN?{getItem:k=>{try{const v=localStorage.getItem(k),j=JSON.parse(v||"null");return j&&j.expires_at*1000>Date.now()+60000?v:null}catch(_){return null}},setItem:()=>{},removeItem:()=>{}}:undefined;
+      const go=()=>{client=window.supabase.createClient(NISIA_URL,NISIA_KEY,{auth:{persistSession:true,autoRefreshToken:!READ_ONLY_SIGN_IN,storageKey:"evia7-nisia-auth",storage:borrow,detectSessionInUrl:false},global:{fetch:timedFetch}});res(client)};
       if(window.supabase&&window.supabase.createClient)return go();
       const el=document.createElement("script");el.src="vendor/supabase-2.45.4.js";el.onload=go;el.onerror=()=>rej(new Error("Evia couldn’t reach your college. Check your signal and try again."));document.head.appendChild(el);
     });
@@ -617,6 +621,44 @@
     if(demoEnds()&&Date.now()>=demoEnds())endDemo();
   }
   setInterval(()=>{if(demoEnds()&&Date.now()>=demoEnds())endDemo()},30000);
+  /* ---------- A lost sign-in ----------
+     The server can cancel a learner's sign-in (or the phone can lose it). Their work is still on the phone, so a new
+     code from their assessor (Milos: Connect a new phone) signs this phone back in as the same learner and keeps it all. */
+  async function reconnect(code){
+    const cur=joined();if(!cur||!cur.live)throw new Error("Evia isn’t connected to a college.");
+    const en=await pair(code);
+    if(!en.live)throw new Error("That code didn’t work. Ask your assessor for a new one.");
+    if(en.enrolmentId!==cur.enrolmentId)throw new Error("That code is for someone else. Ask your assessor for your own code.");
+    const c=await sb(),{error}=await c.auth.verifyOtp({token_hash:en.token_hash,type:"magiclink"});
+    if(error)throw new Error("That code has already been used. Ask your assessor for a new one.");
+    const e=Object.assign({},cur,en,{joinedAt:cur.joinedAt});delete e.token_hash;window.eviaData.enrol(e);
+    note({error:null});
+    setTimeout(()=>{sync().catch(()=>{});refreshCollege(true)},300);
+    return e;
+  }
+  const toast=t=>{const d=document.createElement("div");d.className="ev-toast";d.setAttribute("role","status");d.textContent=t;d.style.cssText="position:fixed;left:16px;right:16px;bottom:96px;z-index:9999;background:#172033;color:#fff;padding:14px 16px;border-radius:14px;font-weight:600;text-align:center";document.body.appendChild(d);setTimeout(()=>d.remove(),4000)};
+  function showReconnect(err,code){
+    const root=document.getElementById("modal-root");if(!root||document.getElementById("rc-code"))return;
+    root.innerHTML='<div class="overlay"><section class="sheet pr-sheet" role="dialog" aria-labelledby="rc-title"><div class="sheet-head"><div><div class="chat-kicker">YOUR COLLEGE</div><h2 id="rc-title">Reconnect Evia</h2></div><button class="close" id="rc-close" aria-label="Close">×</button></div><div class="pr-body">'+
+      '<p style="margin:0 0 10px">Evia has lost its connection to your college. Your work is safe on this phone. It just can’t send anything until you reconnect.</p>'+
+      '<p style="margin:0 0 14px">Ask your assessor for a new code, then type it here.</p>'+
+      '<label for="rc-code" style="display:block;font-weight:700;margin:6px 0">The code</label><input id="rc-code" style="width:100%;box-sizing:border-box;font:inherit;font-size:22px;font-weight:700;letter-spacing:.08em;text-align:center;padding:14px;border:1px solid #d0d5dd;border-radius:14px;background:#fff" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="ABC-1234" value="'+String(code||"").replace(/[^A-Za-z0-9-]/g,"")+'">'+
+      '<p class="small" id="rc-err" role="alert" style="color:#b42318">'+(err?String(err).replace(/[<&>]/g,""):"")+'</p>'+
+      '<button type="button" class="primary" id="rc-go" style="width:100%">Reconnect</button></div></section></div>';
+    const close=()=>{root.innerHTML=""},go=document.getElementById("rc-go"),box=document.getElementById("rc-code"),msg=document.getElementById("rc-err");
+    document.getElementById("rc-close").onclick=close;
+    go.onclick=async()=>{go.disabled=true;go.textContent="Reconnecting…";msg.textContent="";
+      try{await reconnect(box.value);close();toast("You’re reconnected. Your work is sending to your college.")}
+      catch(e){msg.textContent=e.message;go.disabled=false;go.textContent="Reconnect"}};
+  }
+  /* Asked once each time Evia opens (or when something needs the college); guests and the tester are left alone. */
+  let lostAsked=false;
+  function lostSignIn(now){
+    const e=joined();if(!e||!e.live||READ_ONLY_SIGN_IN||wasGuest()||demoEnds())return;
+    note({error:"signed-out"});
+    if(now||!lostAsked){lostAsked=true;setTimeout(()=>showReconnect(""),now?0:1500)}
+  }
+  document.addEventListener("click",ev=>{if(ev.target&&ev.target.id==="pf-reconnect")showReconnect("")});
   /* A new code (?pair=…) on a phone that is already set up: if it was a meeting guest, or its sign-in has gone (an
      ended demo, a deleted account), everything of the old learner is cleared and Evia starts again with the new code.
      A learner who is still connected is left as they are. */
@@ -628,6 +670,12 @@
     let guest=wasGuest()||demoEnds()>0,live=false;
     try{const c=await sb(),{data}=await c.auth.getSession(),em=data&&data.session&&data.session.user&&data.session.user.email||"";live=!!(data&&data.session);if(/^guest-[^@]+@learners\.nisia\.invalid$/i.test(em))guest=true}catch(_){}
     if(live&&!guest)return;
+    /* A learner (not a guest) whose sign-in has gone: the code signs them back in and nothing on the phone is cleared. */
+    if(!guest&&window.eviaData.enrolment().live){
+      try{history.replaceState(null,"",location.pathname)}catch(_){}
+      try{await reconnect(code);toast("You’re reconnected. Your work is sending to your college.")}catch(e){showReconnect(e.message,code)}
+      return;
+    }
     /* A guest still in their meeting (who scanned their code again) keeps their demo. */
     if(live)try{const c=await sb(),{data,error}=await c.rpc("nisia_my_demo");if(!error&&data&&data.endsAt&&Date.parse(data.endsAt)>Date.now())return}catch(_){return}
     try{await window.eviaStorage.removeAll()}catch(_){}
@@ -639,7 +687,7 @@
   function refreshCollege(force){
     if(pulling||!joined()||!joined().live||!navigator.onLine||document.hidden||(!force&&Date.now()-pulledAt<5000))return pulling;
     pulledAt=Date.now();
-    pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return;
+    pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return lostSignIn(false);
       /* A guest: see straight away if their demo was ended early (on opening, coming back, and every 30 seconds). */
       if(wasGuest()||demoEnds())await checkDemo(c);
       await sendKept();const w=await fetchRegisters();
@@ -666,9 +714,11 @@
   /* Any of Evia Portal's functions as the signed-in learner (messages). Needs signal and a live connection. */
   async function call(name,args){
     const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");if(!navigator.onLine)throw new Error("No signal. Try again when you have signal.");
-    const c=await sb(),{data,error}=await c.rpc(name,args||{});if(error)throw new Error(error.message||"That didn’t work. Try again.");return data;
+    const c=await sb();
+    if(!(await c.auth.getSession()).data.session){lostSignIn(false);throw new Error("Evia needs reconnecting to your college. Your work is safe on this phone.")}
+    const {data,error}=await c.rpc(name,args||{});if(error)throw new Error(error.message||"That didn’t work. Try again.");return data;
   }
-  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,call,checkIn,onStatus:fn=>listeners.push(fn),
+  window.eviaNisia={pair,accept,reconnect,showReconnect,joined,sync,status,statusText,clean,rpc,call,checkIn,onStatus:fn=>listeners.push(fn),
     sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,timetableDays,visits:()=>(readJson(VIS_KEY,[])||[]).filter(v=>v&&v.starts_at),checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
