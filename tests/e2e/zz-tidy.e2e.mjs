@@ -18,7 +18,7 @@ try {
   await ev.page.goto(site + "/evia/"); await ev.page.waitForTimeout(2500);
   await ev.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); nav("course"); });
   const res = {};
-  for (const [tab, sel] of [["course", "#ui-course-head"], ["learning", "#th-log"], ["calendar", "#th-cal"], ["teach", "#th-shop"]]) {
+  for (const [tab, sel] of [["course", "#ui-course-head"], ["learning", "#th-log"], ["calendar", "#th-cal"], ["teach", ".tg-player"]]) {
     await ev.page.evaluate((t) => nav(t), tab); await ev.page.waitForTimeout(1500);
     res[tab] = await ev.page.evaluate((s) => !!document.querySelector(s) && !!document.getElementById("th-me"), sel);
     await ev.page.screenshot({ path: out(tab), fullPage: true });
