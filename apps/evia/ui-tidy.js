@@ -1,7 +1,7 @@
 /* Evia7 tidy layout: every tab looks the same and everything lives in one place.
    Each page: the same header (the page name, then Messages and the learner's photo, which opens their profile), one
    main thing at the top, then tidy rows. One job per tab:
-     Topics    your evidence: "Add evidence" any time (pick the topic after), then the topics and how strong each is
+     Topics    your evidence: the topics and how strong each is (open one to add evidence any time)
      Time      learning hours and college: this week's hours, the week's college days, attendance, can't make it
      Review    the ONE checklist in the app: what the assessor needs at the next review, ticking itself off
      Learn     getting better: the Teach me page as it was, with the shared header
@@ -93,31 +93,14 @@
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':lv?'<span class="th-pill th-pill-'+LV[lv][1]+'">'+LV[lv][0]+'</span>':"")+GO+'</button>'});
     scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+
-      '<button type="button" class="th-add" id="th-add">'+IC.cam+'Add evidence</button>'+hero+
+hero+
       group(rows,nvq?"Site jobs":"Units")+
       group([row({id:"th-sup",ic:"clip",c:"p",title:"Supporting evidence",sub:"Witness statements, videos and files"}),
         row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"Share your evidence as one PDF"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
-    on("th-add",()=>pickTopic(us,nvq));
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     on("th-share",()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio());
-  }
-
-  /* Add evidence, any time: which topic is it for? (The topics used most recently first.) Then straight into it. */
-  function pickTopic(us,nvq){
-    const ev=typeof evidence!=="undefined"?evidence:[],last={};
-    ev.filter(e=>e.c===course).forEach(e=>{const t=Date.parse(e.savedAt||e.d||"")||0;if(!last[e.u]||t>last[e.u])last[e.u]=t});
-    const order=us.map((u,i)=>[u[0],i]).sort((a,b)=>(last[b[0]]||0)-(last[a[0]]||0));
-    const o=document.createElement("div");o.className="th-sheet-wrap";
-    o.innerHTML='<section class="th-sheet" role="dialog" aria-modal="true" aria-labelledby="th-pick-t"><header class="th-sheet-head"><h2 id="th-pick-t">What’s it for?</h2><button type="button" class="th-x" aria-label="Close">×</button></header>'+
-      '<p class="th-note" style="margin:0 4px 10px">Pick the '+(nvq?"site job":"topic")+'. You can add photos, video and a write-up next.</p><div class="th-group">'+
-      order.map(([n,i])=>'<button type="button" class="th-row" data-pick="'+i+'"><span class="th-num">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(n)+'</strong>'+(last[n]?'<small>Last added '+new Date(last[n]).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'</small>':"")+'</span>'+GO+'</button>').join("")+
-      '<button type="button" class="th-row" data-pick="sup"><span class="th-ic">'+IC.clip+'</span><span class="th-copy"><strong>Supporting evidence</strong><small>A witness statement, video or file</small></span>'+GO+'</button></div></section>';
-    const close=()=>o.remove();
-    o.onclick=e=>{if(e.target===o)close()};o.querySelector(".th-x").onclick=close;
-    o.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{close();const k=b.dataset.pick;if(k==="sup")window.openSupportingEvidence&&window.openSupportingEvidence();else window.openUnit(+k)});
-    document.body.appendChild(o);
   }
 
   /* ---------- Shared: the hours aim ---------- */
@@ -149,11 +132,41 @@
       {id:"targets",title:"Targets met",ok:!tg.length||tdone===tg.length,sub:tg.length?tdone+" of "+tg.length+" done":"None set yet",run:()=>window.eviaProgressDeep&&window.eviaProgressDeep("targets")},
       {id:"conf",title:"Confidence check",ok:confNew,sub:confNew?"Done "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Two minutes: rate your skills",run:()=>window.eviaPractice&&window.eviaPractice.openConfidence?window.eviaPractice.openConfidence():go(()=>window.eviaCoachFlows.confidence())()},
       live()?{id:"employer",title:"Employer feedback",ok:emNew,sub:emNew?(EM.who||"Your employer")+" rated you "+new Date(rated.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not yet since "+fromTxt+": ask your employer",run:()=>emNew?window.eviaProgressDeep("employer"):window.eviaMessages&&window.eviaMessages.open()}:null,
-      prep&&prep.rd&&(prep.rd.college||live())?{id:"comments",title:"Your comments",ok:!!prep.commentsDone,sub:prep.commentsDone?"Done: your assessor can read them":"How it’s going, any help you need",run:()=>window.eviaChatReview?go(()=>window.eviaChatReview())():window.eviaStartReview()}:null
+      prep&&prep.rd&&(prep.rd.college||live())?{id:"comments",title:"Your comments",ok:!!prep.commentsDone,sub:prep.commentsDone?"Done: your assessor can read them":"How it’s going, any help you need",run:comments}:null
     ].filter(Boolean);
     return {items,done:items.filter(x=>x.ok).length,rd:window.eviaReviewDue&&window.eviaReviewDue()};
   }
   window.eviaReviewChecklist=checklist;
+  /* Your comments for the assessor: one page, tap answers, a few optional lines. The assessor reads them before the
+     review and they fill in part of it. */
+  function comments(){
+    const C=window.eviaComments;if(!C)return window.eviaChatReview&&window.eviaChatReview();
+    const old=C.latest(),c=Object.assign({},old&&old.reflection||{}),dsl=((D().learner&&D().learner())||{}).safeguarding||{};
+    const Q=[["feelsSafe","Do you feel safe at work and at college?",["Yes","No","I’d like to talk about it"]],
+      ["knowsReporting","If something worried you, do you know who to tell?"+(dsl.name?" Your safeguarding lead is "+dsl.name+(dsl.phone?", "+dsl.phone:"")+".":""),["Yes","No"]],
+      ["changes","Has anything changed at work? Your employer, job, hours or contract.",["No","Yes"],"changesDetail","What’s changed?"],
+      ["hsIncident","Any accidents, near misses or safety worries at work?",["No","Yes"],"hsDetail","What happened?"],
+      ["otjHappening","Is your training time happening in your paid hours?",["Yes","Mostly","No"]]];
+    const W=[["learnerFeedback","How are you finding your apprenticeship?"],["support","Is there anything that would help you learn?"],["nextSteps","What would you like to do after your apprenticeship?"]];
+    const pills=(k,opts)=>'<span class="th-pills">'+opts.map(o=>'<button type="button" class="th-pick'+(c[k]===o?" on":"")+'" data-k="'+k+'" data-v="'+esc(o)+'">'+esc(o)+'</button>').join("")+'</span>';
+    const o=document.createElement("div");o.className="th-sheet-wrap";
+    o.innerHTML='<section class="th-sheet th-tall" role="dialog" aria-modal="true" aria-labelledby="th-cm-t"><header class="th-sheet-head"><h2 id="th-cm-t">Your comments</h2><button type="button" class="th-x" aria-label="Close">×</button></header>'+
+      '<p class="th-note" style="margin:0 4px 12px">Your assessor reads these before your review. Tap your answers; the rest is optional.</p>'+
+      '<div class="th-group th-form">'+Q.map(q=>'<div class="th-q"><span class="th-qt">'+esc(q[1])+'</span>'+pills(q[0],q[2])+(q[3]?'<textarea class="th-ta" data-no-mic data-w="'+q[3]+'" rows="2" placeholder="'+esc(q[4])+'"'+(c[q[0]]==="Yes"?"":" hidden")+'>'+esc(c[q[3]]||"")+'</textarea>':"")+'</div>').join("")+'</div>'+
+      '<h2 class="th-h2">In your own words <small>optional</small></h2><div class="th-group th-form">'+W.map(w=>'<div class="th-q"><span class="th-qt">'+esc(w[1])+'</span><textarea class="th-ta" data-w="'+w[0]+'" rows="2">'+esc(c[w[0]]||"")+'</textarea></div>').join("")+'</div>'+
+      '<div class="th-btns th-sticky"><button type="button" class="primary" id="th-cm-save">Save my comments</button></div></section>';
+    const close=()=>o.remove();
+    o.querySelector(".th-x").onclick=close;
+    o.querySelectorAll(".th-pick").forEach(b=>b.onclick=()=>{c[b.dataset.k]=b.dataset.v;o.querySelectorAll('.th-pick[data-k="'+b.dataset.k+'"]').forEach(x=>x.classList.toggle("on",x===b));
+      const q=Q.find(x=>x[0]===b.dataset.k);if(q&&q[3]){const t=o.querySelector('[data-w="'+q[3]+'"]');t.hidden=b.dataset.v!=="Yes";if(!t.hidden)t.focus()}check()});
+    const save=o.querySelector("#th-cm-save");
+    const check=()=>{const missing=Q.filter(q=>!c[q[0]]).length;save.disabled=!!missing;save.textContent=missing?"Answer "+missing+" more to save":"Save my comments"};
+    save.onclick=()=>{o.querySelectorAll("[data-w]").forEach(t=>{c[t.dataset.w]=t.hidden?"":t.value.trim()});
+      if(!C.save(c)){alert("Evia couldn’t save that just now. Please try again.");return}
+      close();if(typeof showEvidenceToast==="function")showEvidenceToast("Comments saved for your assessor");if(screen==="learning")review()};
+    check();document.body.appendChild(o);
+  }
+  window.eviaTidyComments=comments;
   function review(){
     const t=document.getElementById("page-title");if(t)t.textContent="Review";
     const C=checklist(),rd=C.rd,n=C.items.length,pct=n?Math.round(C.done/n*100):0;

@@ -126,29 +126,117 @@
     if(window.jspdf)return Promise.resolve(window.jspdf);
     return new Promise((res,rej)=>{const s=document.createElement("script");s.src="vendor/jspdf.umd.min.js";s.onload=()=>window.jspdf?res(window.jspdf):rej(new Error("The PDF maker didn’t load."));s.onerror=()=>rej(new Error("The PDF maker didn’t load."));document.head.appendChild(s)});
   }
+  /* The PDF reads like the review already written: Evia's summary in plain sentences, then each part of the review
+     with the facts behind it, the learner's own comments, what the employer said, and space to sign. Everything comes
+     from what's in Evia; the assessor checks it and adds their own words on the day. */
   async function pdf(P){
     P=P||pack();
-    const {jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4"}),W=210,M=18;let y=20;
-    const line=(t,o)=>{o=o||{};doc.setFont("helvetica",o.bold?"bold":"normal");doc.setFontSize(o.size||11);doc.setTextColor(o.grey?110:23,o.grey?118:32,o.grey?132:51);
-      doc.splitTextToSize(String(t),W-2*M).forEach(l=>{if(y>280){doc.addPage();y=20}doc.text(l,M,y);y+=(o.size||11)*0.48});y+=o.gap==null?1.5:o.gap};
+    const {jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4"}),W=210,H=297,M=16,CW=W-2*M;let y=0,page=1;
+    const D=window.eviaData,L=(D.learner&&D.learner())||{},EN=(D.enrolment&&D.enrolment())||{};
+    const first=String(P.name||L.name||"The learner").split(" ")[0];
+    const fmt=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+    const short=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+    const INK=[23,32,51],MUT=[102,112,133],LINE=[228,231,236],SOFT=[246,247,249],Y=[231,185,0];
+    const col=(c,f)=>f?doc.setFillColor(...c):doc.setTextColor(...c);
+    const foot=()=>{doc.setFont("helvetica","normal");doc.setFontSize(8);col(MUT);doc.text("Prepared by Evia from "+first+"’s records on "+fmt(Date.now())+". The assessor checks it and adds their own comments at the review.",M,H-9);doc.text("Page "+page,W-M,H-9,{align:"right"})};
+    const room=h=>{if(y+h>H-18){foot();doc.addPage();page++;y=18}};
+    const text=(t,o)=>{o=o||{};doc.setFont("helvetica",o.bold?"bold":"normal");doc.setFontSize(o.size||10);col(o.c||INK);
+      const lines=doc.splitTextToSize(String(t),o.w||CW),lh=(o.size||10)*0.46;lines.forEach(l=>{room(lh+1);doc.text(l,o.x||M,y);y+=lh});y+=o.gap==null?1.6:o.gap};
+    const section=t=>{room(18);y+=4;col(Y,true);doc.rect(M,y-3.6,1.6,5,"F");doc.setFont("helvetica","bold");doc.setFontSize(12.5);col(INK);doc.text(t,M+4,y);y+=3;doc.setDrawColor(...LINE);doc.line(M,y,W-M,y);y+=5};
+    /* A small table: [label, value] rows, or columns with a header. */
+    const table=(head,rows,widths)=>{
+      const ws=widths||head.map(()=>CW/head.length),draw=(cells,bold,fill)=>{
+        doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(9);
+        const split=cells.map((c,i)=>doc.splitTextToSize(String(c==null?"":c),ws[i]-4)),h=Math.max(...split.map(s=>s.length))*4.2+3;
+        room(h);if(fill){col(SOFT,true);doc.rect(M,y-3.6,CW,h,"F")}
+        let x=M;split.forEach((s,i)=>{col(bold?MUT:INK);s.forEach((l,j)=>doc.text(l,x+2,y+j*4.2));x+=ws[i]});
+        y+=h;doc.setDrawColor(...LINE);doc.line(M,y-3.4,W-M,y-3.4)};
+      if(head)draw(head,true,true);rows.forEach(r=>draw(r,false,false));y+=3};
+    const bar=(pct,label)=>{room(9);col(MUT);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(label,M,y);y+=2;col([238,240,243],true);doc.roundedRect(M,y,CW,3,1.5,1.5,"F");col(Y,true);doc.roundedRect(M,y,Math.max(3,CW*Math.min(100,pct)/100),3,1.5,1.5,"F");y+=8};
+
+    /* ---- The top ---- */
+    col(INK,true);doc.rect(0,0,W,38,"F");
+    doc.setFont("helvetica","bold");doc.setFontSize(20);doc.setTextColor(255,255,255);doc.text("Progress review",M,16);
+    doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(220,224,230);
+    doc.text([P.name||L.name,P.course].filter(Boolean).join("  ·  "),M,24);
+    doc.text("Covering "+fmt(P.from)+" to "+fmt(P.to),M,30);
+    doc.setFontSize(8.5);doc.setTextColor(231,185,0);doc.text("PREPARED BY EVIA",W-M,16,{align:"right"});
+    y=48;
+    const rd=window.eviaReviewDue&&window.eviaReviewDue();
+    table(null,[["Learner",P.name||L.name||""],["Apprenticeship",P.course||""],["College",EN.college||""],["Employer",EN.employer||L.employer||""],
+      ["Assessor",EN.assessor||""],["Started",EN.start||L.start?fmt((EN.start||L.start)+"T12:00:00"):""],["Planned end",EN.end||L.end?fmt((EN.end||L.end)+"T12:00:00"):""],
+      ["Review date",rd&&rd.due?fmt(rd.due):"To be agreed"]].filter(r=>r[1]),[45,CW-45]);
+
+    /* ---- Evia's summary ---- */
+    const behind=P.ksb.timePct!=null&&P.ksb.timePct-P.ksb.pct>10,aimWk=P.hours.planned&&EN.start&&EN.end?P.hours.planned/((Date.parse(EN.end)-Date.parse(EN.start))/(7*DAY)):6;
+    const weeks=Math.max(1,(P.to-P.from)/(7*DAY)),perWk=P.hours.since/weeks;
     const R=P.ready||{pct:0,todo:[]};
-    line("Progress review prep",{bold:true,size:20,gap:2});
-    line([P.name,P.course].filter(Boolean).join(" · "),{grey:true});
-    line("From "+new Date(P.from).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})+" to "+new Date(P.to).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),{grey:true,gap:5});
-    line("Ready: "+R.pct+"%"+(R.todo.length?" · Still to do: "+R.todo.join(", "):""),{bold:true,size:13,gap:5});
-    const row=(l,v)=>line(l+": "+v);
-    line("Since the last review",{bold:true,size:13});
-    row("Evidence added",P.evidence.since+(P.evidence.units.length?" ("+P.evidence.units.join(", ")+")":""));
-    row("KSBs with evidence",P.ksb.met+" of "+P.ksb.total+" ("+P.ksb.pct+"%), "+P.ksb.timePct+"% of the way through the course");
-    row("Learning hours",hm(Math.round(P.hours.since*60))+" since; "+P.hours.total+"h in total"+(P.hours.planned?" of "+P.hours.planned+"h":""));
-    if(P.attendance)row("College attendance",P.attendance.pct+"% ("+P.attendance.here+" of "+P.attendance.n+" sessions"+(P.attendance.absent?", "+P.attendance.absent+" absent":"")+")");
-    if(P.teach&&P.teach.total)row("Teach me lessons",P.teach.done+" of "+P.teach.total+(P.teach.avg!=null?", average "+P.teach.avg+"%":""));
-    P.tests.forEach(t=>row(t.name,t.count+" taken, best "+t.best+"%"+(t.latest!=null?", latest "+t.latest+"%":"")));
-    if(P.confidence)row("Confidence",P.confidence.confident+" of "+P.confidence.total+" skills confident"+(P.confidence.practise.length?"; practising "+P.confidence.practise.join(", "):""));
-    row("Targets",P.targets.done+" of "+P.targets.total+" done"+(P.targets.open.length?"; still open: "+P.targets.open.join("; "):""));
-    row("Time learning in Evia",hm(P.minutes));
-    if(P.future&&P.future.goal){y+=3;line("My future",{bold:true,size:13});line(P.future.goal);(P.future.list||[]).forEach(s=>line("• "+s))}
-    y+=4;line("Made in Evia on "+new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})+". The figures are Evia’s own, from what was added to the app.",{grey:true,size:9});
+    section("Summary");
+    text(first+" has added "+(P.evidence.since?P.evidence.since+" piece"+(P.evidence.since===1?"":"s")+" of evidence"+(P.evidence.units.length?" ("+P.evidence.units.slice(0,4).join(", ")+")":""):"no new evidence")+" since the last review. "+
+      (P.ksb.total?P.ksb.pct+"% of the course’s KSBs now have evidence ("+P.ksb.met+" of "+P.ksb.total+")"+(P.ksb.timePct!=null?", "+P.ksb.timePct+"% of the way through the apprenticeship, so "+(behind?"a little behind where they should be.":"on track."):"."):"")+" "+
+      "Off-the-job learning averaged about "+hm(Math.round(perWk*60))+" a week (aim "+hm(Math.round(aimWk*60))+"), "+(perWk>=aimWk*0.9?"which is on track.":"which is below the aim.")+
+      (P.attendance?" College attendance is "+P.attendance.pct+"%.":"")+
+      (P.targets.total?" "+P.targets.done+" of "+P.targets.total+" targets from the last review are done.":""),{size:10.5,gap:3});
+    bar(P.ksb.pct,"KSBs with evidence: "+P.ksb.pct+"%"+(P.ksb.timePct!=null?" (time through the course: "+P.ksb.timePct+"%)":""));
+    const CL=window.eviaReviewChecklist?window.eviaReviewChecklist():null,todo=CL?CL.items.filter(x=>!x.ok).map(x=>x.title):R.todo||[];
+    if(CL)text("Ready for the review: "+CL.done+" of "+CL.items.length+(todo.length?". Still to do: "+todo.join(", ")+".":". Everything’s in."),{c:MUT,size:9.5});
+    else if(todo.length)text("Still to do before the review: "+todo.join(", ")+".",{c:MUT,size:9.5});
+
+    /* ---- Evidence ---- */
+    section("Evidence and the standard");
+    const us=typeof data==="function"?(data().u||[]):[],ev=typeof evidence!=="undefined"?evidence:[];
+    const LV={strong:"Strong",good:"Good",weak:"Weak"};
+    table(["Topic","Evidence","Strength","Since last review"],us.map(u=>{const all=ev.filter(e=>e.c===course&&e.u===u[0]&&!e.induction),nw=all.filter(e=>entryTime(e)>=P.from).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(u[0]):null;
+      return [u[0],all.length||"–",lv?LV[lv]:"Not started",nw?"+"+nw:""]}),[CW*0.46,CW*0.16,CW*0.18,CW*0.2]);
+
+    /* ---- Learning hours ---- */
+    section("Off-the-job learning");
+    text("Since the last review: "+hm(Math.round(P.hours.since*60))+" logged, about "+hm(Math.round(perWk*60))+" a week. In total: "+P.hours.total+"h"+(P.hours.planned?" of the "+P.hours.planned+"h planned":"")+".");
+    const H2=(typeof hours!=="undefined"&&Array.isArray(hours)?hours:[]).filter(x=>Number(x.on||x.createdAt)>=P.from).sort((a,b)=>Number(b.on||b.createdAt)-Number(a.on||a.createdAt));
+    if(H2.length)table(["Date","Time","What"],H2.slice(0,12).map(x=>[short(Number(x.on||x.createdAt)),hm(Math.round(Number(x.n||0)*60)),String(x.description||x.t||"").slice(0,120)]),[CW*0.16,CW*0.14,CW*0.7]);
+    if(H2.length>12)text("And "+(H2.length-12)+" more entries in Evia’s learning log.",{c:MUT,size:9});
+    if(P.attendance){section("College attendance");text(P.attendance.pct+"% attendance: "+P.attendance.here+" of "+P.attendance.n+" sessions"+(P.attendance.absent?", "+P.attendance.absent+" missed":"")+".")}
+
+    /* ---- Targets ---- */
+    section("Targets from the last review");
+    const tg=window.eviaTargets?window.eviaTargets.mine():[];
+    if(tg.length){let S=null;try{S=window.eviaStats.compute()}catch(_){}
+      table(["Target","Due","Progress"],tg.map(t=>{let p=0;try{p=window.eviaTargets.progress(t,S).pct}catch(_){}return [t.title,t.due?short(t.due+"T12:00:00"):"",t.done?"Done":Math.round(p*100)+"%"]}),[CW*0.62,CW*0.18,CW*0.2])}
+    else text("No targets were set at the last review.",{c:MUT});
+
+    /* ---- Skills and knowledge ---- */
+    section("Skills and knowledge");
+    if(P.confidence)text("Confidence check: confident in "+P.confidence.confident+" of "+P.confidence.total+" skills"+(P.confidence.practise.length?"; wants more practice with "+P.confidence.practise.join(", ")+".":"."));
+    else text("Confidence check: not done yet.",{c:MUT});
+    if(P.tests.length)table(["Test","Taken","Best","Latest"],P.tests.map(t=>[t.name,t.count,t.best+"%",t.latest!=null?t.latest+"%":""]),[CW*0.46,CW*0.18,CW*0.18,CW*0.18]);
+    if(P.teach&&P.teach.total)text("Teach me lessons: "+P.teach.done+" of "+P.teach.total+" done"+(P.teach.avg!=null?", average score "+P.teach.avg+"%":"")+".");
+
+    /* ---- The employer ---- */
+    const EM=window.eviaEmployer&&window.eviaEmployer.get();
+    if(EM){section("From the employer");
+      const BEH=["","Needs support","Developing","Good","Excellent"],r=(EM.ratings||[])[0];
+      if(r){text((EM.who||"The employer")+" rated "+first+"’s behaviours on "+fmt(r.created_at)+":",{gap:2});
+        table(["Behaviour","Rating"],Object.entries(r.ratings||{}).sort().map(([k,v])=>[k,BEH[v]||v]),[CW*0.7,CW*0.3]);
+        if(r.comment)text("“"+r.comment+"”",{c:MUT})}
+      (EM.witness||[]).filter(w=>Date.parse(w.at)>=P.from).slice(0,3).forEach(w=>text("Witness testimony"+(w.unit?" ("+w.unit+")":"")+": “"+String(w.statement||"").slice(0,400)+"”",{c:MUT}));
+    }
+
+    /* ---- The learner's own words ---- */
+    section(first+"’s comments");
+    const C=window.eviaComments&&window.eviaComments.latest(),c=C&&C.reflection||{};
+    if(C){table(null,[["Feels safe at work and college",c.feelsSafe],["Knows who to tell if worried",c.knowsReporting],["Changes at work",c.changes+(c.changesDetail?": "+c.changesDetail:"")],
+        ["Accidents or safety worries",c.hsIncident+(c.hsDetail?": "+c.hsDetail:"")],["Training time in paid hours",c.otjHappening]].filter(r=>r[1]&&r[1]!=="undefined"),[CW*0.5,CW*0.5]);
+      [["How it’s going",c.learnerFeedback],["Help that would make a difference",c.support],["After the apprenticeship",c.nextSteps]].filter(x=>x[1]).forEach(x=>{text(x[0],{bold:true,size:9.5,gap:1});text(x[1],{gap:3})})}
+    else text(first+" hasn’t added comments yet.",{c:MUT});
+    if(P.future&&P.future.goal){text("Their goal: "+P.future.goal+(P.future.list&&P.future.list.length?". Next steps: "+P.future.list.slice(0,3).join("; ")+".":"."),{gap:3})}
+
+    /* ---- To agree on the day ---- */
+    section("Agreed at the review");
+    text("New targets, and anything else agreed:",{c:MUT,size:9.5,gap:2});
+    room(40);doc.setDrawColor(...LINE);for(let i=0;i<5;i++){doc.line(M,y+i*7,W-M,y+i*7)}y+=38;
+    section("Signatures");
+    room(30);const third=CW/3;["Learner","Employer","Assessor"].forEach((who,i)=>{const x=M+i*third;doc.setFont("helvetica","bold");doc.setFontSize(9);col(MUT);doc.text(who,x,y);doc.setDrawColor(...LINE);doc.line(x,y+14,x+third-6,y+14);doc.setFont("helvetica","normal");doc.text("Signature and date",x,y+18)});y+=24;
+    foot();
     return doc.output("blob");
   }
   async function share(P){

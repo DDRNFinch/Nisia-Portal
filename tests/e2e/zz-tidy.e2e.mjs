@@ -31,11 +31,24 @@ try {
   res.profile = await ev.page.evaluate(() => !!document.querySelector(".profile-sheet"));
   await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; }); await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1200);
   res.unit = await ev.page.evaluate(() => !document.getElementById("ui-course-head"));
-  await ev.page.evaluate(() => nav("course")); await ev.page.waitForTimeout(800); await ev.page.click("#th-add"); await ev.page.waitForTimeout(400);
-  res.picker = await ev.page.evaluate(() => document.querySelectorAll(".th-sheet [data-pick]").length > 3);
-  await ev.page.screenshot({ path: out("picker"), fullPage: false });
-  await ev.page.click('.th-sheet [data-pick="1"]'); await ev.page.waitForTimeout(1200); res.picked = await ev.page.evaluate(() => !document.querySelector(".th-sheet") && !document.getElementById("ui-course-head"));
   await ev.page.evaluate(() => nav("learning")); await ev.page.waitForTimeout(800); res.items = await ev.page.evaluate(() => document.querySelectorAll(".th-check").length);
+  /* Your comments: one page of taps. */
+  await ev.page.evaluate(() => nav("learning")); await ev.page.waitForTimeout(800);
+  res.commentsRow = await ev.page.evaluate(() => !!document.querySelector('[data-check="comments"]'));
+  if (res.commentsRow) { await ev.page.click('[data-check="comments"]'); await ev.page.waitForSelector(".th-form");
+    for (const [k, v] of [["feelsSafe", "Yes"], ["knowsReporting", "Yes"], ["changes", "No"], ["hsIncident", "No"], ["otjHappening", "Mostly"]]) await ev.page.click('.th-pick[data-k="' + k + '"][data-v="' + v + '"]');
+    await ev.page.fill('[data-w="learnerFeedback"]', "Enjoying it, the cavity work is hard"); await ev.page.screenshot({ path: out("comments") });
+    await ev.page.click("#th-cm-save"); await ev.page.waitForTimeout(800);
+    res.commentsSaved = await ev.page.evaluate(() => !!window.eviaComments.latest() && window.eviaComments.latest().reflection.otjHappening === "Mostly"); }
+  /* The review PDF. */
+  const pdf = await ev.page.evaluate(async () => { const b = await window.eviaPrepPack.pdf(); const r = new FileReader(); return await new Promise((ok) => { r.onload = () => ok(r.result.split(",")[1]); r.readAsDataURL(b); }); });
+  (await import("node:fs")).writeFileSync(new URL("../shots/tidy-review.pdf", import.meta.url).pathname, Buffer.from(pdf, "base64"));
+  res.pdf = pdf.length > 5000;
+  /* Let Evia guide you: the photo list. */
+  await ev.page.evaluate(() => nav("course")); await ev.page.waitForTimeout(800); await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1500);
+  await ev.page.click("#eg-start"); await ev.page.waitForTimeout(800);
+  res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-shots li").length > 2);
+  await ev.page.screenshot({ path: out("shots") });
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));
   check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Time", JSON.stringify(res));

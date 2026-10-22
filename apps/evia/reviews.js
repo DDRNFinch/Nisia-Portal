@@ -445,6 +445,11 @@
   window.eviaStartReview=()=>startReview();
   window.eviaReviewReminder=reminder;
   window.eviaChatReview=chatReview;
+  /* The learner's comments for the assessor, on one page (ui-tidy.js): the latest ones, and saving new ones. */
+  window.eviaComments={
+    latest:()=>{const all=reviewsNow();for(let i=all.length-1;i>=0;i--){const r=all[i];if(r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim()))return r}return null},
+    save:reflection=>{const r=newReview();if(!r)return false;r.reflection=reflection;save(r);return true}
+  };
   window.eviaResumeReview=resumeReview;
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
   window.eviaReviewDue=()=>{
@@ -453,7 +458,7 @@
        before, the learner's comments are wanted: done once they've finished a review here with something written. */
     const en=window.eviaData.enrolment&&window.eviaData.enrolment(),nd=en&&en.reviewDue?new Date(en.reviewDue+"T12:00:00"):null;
     if(nd&&!isNaN(nd)){
-      const from=Math.max(nd-7*864e5,en.lastReview?Date.parse(en.lastReview):0);
+      const from=Math.max(nd-28*864e5,en.lastReview?Date.parse(en.lastReview):0);
       const said=r=>r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim());
       const commentsDone=all.some(r=>Date.parse(r.date)>=from&&said(r));
       return {due:nd,days:Math.ceil((nd-Date.now())/864e5),first:!en.lastReview,college:true,commentsDone};

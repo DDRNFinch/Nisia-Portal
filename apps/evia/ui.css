@@ -3031,3 +3031,26 @@ body.evia-dark .th-add{background:var(--yellow,#e7b900);color:#172033}
 .th-sheet-head h2{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ui-ink,#172033)}
 .th-x{width:40px;height:40px;border-radius:50%;border:0;background:var(--ui-soft,#eef0f3);font-size:24px;line-height:1;color:#344054;cursor:pointer}
 @media(min-width:760px){.th-sheet-wrap{align-items:center}.th-sheet{border-radius:22px}}
+/* Evia's photo list (guide.js shots). */
+.eg-shots{list-style:none;margin:6px 0 12px;padding:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--ui-line,#e9edf2);border-radius:16px;background:var(--ui-card,#fff);overflow:hidden}
+.eg-shots li{display:flex;flex-direction:column;gap:2px;padding:10px 14px 10px 40px;border-top:1px solid var(--ui-line,#f2f3f5);position:relative}
+.eg-shots li:first-child{border-top:0}
+.eg-shots li::before{content:"";position:absolute;left:14px;top:13px;width:14px;height:14px;border-radius:4px;border:2px solid #98a2b3;box-sizing:border-box}
+.eg-shots strong{font-size:15px;color:var(--ui-ink,#172033)}.eg-shots small{font-size:12.5px;color:var(--ui-muted,#667085);line-height:1.35}
+.eg-thumbs{display:flex;gap:6px;overflow-x:auto;margin:0 0 10px}.eg-thumbs img{width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none}
+.eg-photo{width:100%;aspect-ratio:4/3;max-height:34vh;border-radius:16px;overflow:hidden;background:var(--ui-soft,#f2f4f7);margin:4px 0 10px}
+.eg-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.eg-tight .eg-photo{max-height:18vh}
+/* Your comments (one page). */
+.th-tall{max-height:92vh;max-height:92dvh;padding-bottom:0}
+.th-form .th-q{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-top:1px solid var(--ui-line,#f2f3f5)}
+.th-form .th-q:first-child{border-top:0}
+.th-qt{font-size:15px;font-weight:650;line-height:1.35;color:var(--ui-ink,#172033)}
+.th-pills{display:flex;flex-wrap:wrap;gap:8px}
+.th-pick{min-height:40px;padding:8px 14px;border-radius:999px;border:1px solid var(--ui-line,#d0d5dd);background:var(--ui-card,#fff);font:inherit;font-size:14px;font-weight:700;color:#344054;cursor:pointer}
+.th-pick.on{background:var(--ui-ink,#172033);border-color:var(--ui-ink,#172033);color:#fff}
+.th-ta{width:100%;box-sizing:border-box;border:1px solid var(--ui-line,#d0d5dd);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;resize:vertical;min-height:52px}
+.th-ta[hidden]{display:none}
+.th-h2 small{text-transform:none;letter-spacing:0;font-weight:600}
+.th-sticky{position:sticky;bottom:0;background:var(--ui-bg,#f7f6f2);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:12px}
+.th-sticky button:disabled{opacity:.55}
