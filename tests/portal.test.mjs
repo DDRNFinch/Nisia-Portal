@@ -54,6 +54,8 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_meeting_guests") return json(S.guests || []);
     /* Classes set up here: they become the tutor's registers in Symi. */
     if (p === "/rest/v1/rpc/nisia_classes") return json(S.classes || []);
+    if (p === "/rest/v1/rpc/nisia_careers") return json([{ id: "K1", title: "Level 3 open evening", starts_at: new Date(Date.now() + 2 * 864e5).toISOString(), minutes: 90, place: "Room B12", details: null, link: null, goals: ["level3"], added_by: "Priya Shah", interested: ["Callum Hughes"] }]);
+    if (p === "/rest/v1/rpc/nisia_careers_save" || p === "/rest/v1/rpc/nisia_careers_cancel") return json(null);
     if (p === "/rest/v1/rpc/nisia_college_resources") return json((S.res || []).concat([{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: {}, url: null, shared_by: "Priya Shah", mine: false, can_remove: true, created_at: "2026-10-01T10:00:00Z" }]));
     if (p === "/rest/v1/rpc/nisia_share_resource") { S.res = (S.res || []).concat([{ id: "R2", kind: body.p_kind, title: body.p_title, course_code: body.p_course, unit: body.p_unit, url: body.p_url, shared_by: "Sarah Mitchell", can_remove: true, created_at: "2026-10-08T10:00:00Z" }]); S.shared = body; return json("R2"); }
     /* Past registers, learner by learner: times, left early and why. */
