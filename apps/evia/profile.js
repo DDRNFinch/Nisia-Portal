@@ -61,7 +61,7 @@
         '<span class="pf-course">'+esc(C[course].name)+' · '+esc(C[course].std)+'</span></header>'+
       group("Apprenticeship",
         '<div class="pf-dates"><label>Started<input id="profile-start" type="date" value="'+esc(p.start)+'"'+ro+'></label><label>Finishes<input id="profile-end" type="date" value="'+esc(p.end)+'"'+ro+'></label></div>'+
-        (nis?'<div class="pf-college"><strong>'+esc(nis.college)+'</strong>'+[nis.employer&&"Employer: "+nis.employer,nis.assessor&&"Assessor: "+nis.assessor,nis.tutor&&"Tutor: "+nis.tutor].filter(Boolean).map(t=>'<small>'+esc(t)+'</small>').join("")+'<small class="pf-sync" id="pf-sync">'+esc(window.eviaNisia.statusText())+'</small></div>'
+        (nis?'<div class="pf-college"><strong>'+esc(nis.college)+'</strong>'+[nis.employer&&"Employer: "+nis.employer,nis.assessor&&"Assessor: "+nis.assessor,nis.tutor&&"Tutor: "+nis.tutor].filter(Boolean).map(t=>'<small>'+esc(t)+'</small>').join("")+'<small class="pf-sync" id="pf-sync">'+esc(window.eviaNisia.statusText())+'</small>'+(nis.live&&(window.eviaNisia.status()||{}).error==="signed-out"?'<button type="button" class="secondary" id="pf-reconnect" style="margin-top:8px">Reconnect</button>':"")+'</div>'
           :window.eviaJoinCollege?row("join-college",'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 5l9 5-9 5z"/><path d="M7 12.5V17c3 2 7 2 10 0v-4.5"/></svg>',"Connect to your college","Scan your assessor’s QR code"):"")+
         (nvqOn?'<details class="pf-more"><summary>Optional units<span>'+esc(window.eviaNvq.optionalChosen().join(", "))+'</span></summary><div class="nvq-opts" id="profile-nvq-opts">'+window.eviaNvq.optionalHtml()+'</div></details>':"")+
         sw("profile-maths","Maths","Include maths in tests and reviews")+
