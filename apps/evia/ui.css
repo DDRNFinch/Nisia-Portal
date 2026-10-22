@@ -3054,3 +3054,10 @@ body.evia-dark .th-add{background:var(--yellow,#e7b900);color:#172033}
 .th-h2 small{text-transform:none;letter-spacing:0;font-weight:600}
 .th-sticky{position:sticky;bottom:0;background:var(--ui-bg,#f7f6f2);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:12px}
 .th-sticky button:disabled{opacity:.55}
+/* Free range: one open pack (guide.js freePack). */
+.fr-photos{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.fr-add{min-height:50px;border-radius:14px;border:0;background:var(--ui-ink,#172033);color:#fff;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer}
+.fr-ideas{margin-top:10px;font-size:13.5px;color:var(--ui-muted,#667085)}
+.fr-ideas summary{cursor:pointer;font-weight:700;color:#344054}
+.fr-ideas p{margin:6px 0 0;line-height:1.5}
+html body .eg-full .eg-text.fr-text{flex:none;height:140px}

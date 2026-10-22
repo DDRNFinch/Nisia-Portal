@@ -49,6 +49,22 @@ try {
   await ev.page.click("#eg-start"); await ev.page.waitForTimeout(800);
   res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-shots li").length > 2);
   await ev.page.screenshot({ path: out("shots") });
+  /* Free range: drop in a photo, a few words, close, come back, save as one pack. */
+  await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; window.eviaCamera.supported = () => false; nav("course"); }); await ev.page.waitForTimeout(800);
+  await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1500);
+  await ev.page.click("#fr-start"); await ev.page.waitForTimeout(800);
+  res.frOpen = await ev.page.evaluate(() => !!document.getElementById("fr-add") && document.querySelector(".eg-actions .primary").disabled);
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const [fc] = await Promise.all([ev.page.waitForEvent("filechooser"), ev.page.click("#fr-add")]);
+  await fc.setFiles({ name: "wall.png", mimeType: "image/png", buffer: png }); await ev.page.waitForTimeout(1500);
+  await ev.page.fill("#write", "Laid the first course with a line and pins"); await ev.page.waitForTimeout(300);
+  await ev.page.screenshot({ path: out("free") });
+  res.frPhoto = await ev.page.evaluate(() => /1 photo so far/.test(document.body.textContent));
+  await ev.page.click(".eg-actions button:not(.primary)"); await ev.page.waitForTimeout(1000);
+  await ev.page.click("#fr-start"); await ev.page.waitForTimeout(800);
+  res.frKept = await ev.page.evaluate(() => document.getElementById("write").value.includes("line and pins"));
+  await ev.page.click(".eg-actions .primary"); await ev.page.waitForTimeout(2500);
+  res.frSaved = await ev.page.evaluate(async () => window.eviaData.list("evidence").some((e) => String(e.text || "").includes("line and pins")));
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));
   check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Time", JSON.stringify(res));
