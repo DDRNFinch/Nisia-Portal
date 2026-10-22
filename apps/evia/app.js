@@ -196,28 +196,11 @@ function showEvidenceToast(message,isError){
    setTimeout(()=>toast.remove(),320);
  },isError?3600:2200);
 }
-/* Supporting photos as one PDF: who and when, the comment, then the photos two to a page. */
+/* Supporting photos as one PDF, laid out just like a topic's evidence pack (eportfolio.js): the details, the photos
+   as square tiles four to a row, then the comment. */
 async function supportingPhotosPdf(files,note,when){
- const {jsPDF}=await window.eviaLoadJsPdf(),doc=new jsPDF({unit:"mm",format:"a4",compress:true}),W=210,H=297,M=15;
- const shrink=f=>new Promise((ok,no)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
-   c.getContext("2d").drawImage(img,0,0,c.width,c.height);ok({src:c.toDataURL("image/jpeg",.82),w:c.width,h:c.height})};img.onerror=()=>no(new Error("A photo couldn’t be read"));img.src=f.url||URL.createObjectURL(f)});
- const who=(()=>{try{return (window.eviaData.learner()||{}).name||""}catch(_){return ""}})(),cname=(()=>{try{return data().name}catch(_){return ""}})();
- let y=M+4;
- doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text("Supporting evidence: photos",M,y);y+=7;
- doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(90);
- doc.text([who,cname,when.toLocaleString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}),files.length+(files.length===1?" photo":" photos")].filter(Boolean).join("  ·  "),M,y);y+=6;
- doc.setTextColor(0);
- if(note){doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Comments",M,y+4);y+=9;doc.setFont("helvetica","normal");doc.setFontSize(11);
-  const lines=doc.splitTextToSize(note,W-2*M);doc.text(lines,M,y);y+=lines.length*5+2}
- y+=4;const boxH=(H-2*M-12)/2;
- for(let i=0;i<files.length;i++){
-  const im=await shrink(files[i]),maxW=W-2*M,maxH=Math.min(boxH,H-M-y-8),k0=Math.min(maxW/im.w,boxH/im.h);
-  if(im.h*k0>maxH){doc.addPage();y=M}
-  const k=Math.min(maxW/im.w,Math.min(boxH,H-M-y-8)/im.h),w=im.w*k,h=im.h*k;
-  doc.addImage(im.src,"JPEG",M+(maxW-w)/2,y,w,h,undefined,"FAST");y+=h+4;
-  doc.setFontSize(9.5);doc.setTextColor(110);doc.text("Photo "+(i+1)+" of "+files.length,M,y+1);doc.setTextColor(0);y+=7;
- }
- return doc.output("blob");
+ const urls=files.map(f=>f.url||URL.createObjectURL(f));
+ return window.eviaBuildUnitPdf("Supporting evidence",[{w:note||"",wTitle:"Comments",savedAt:when.toISOString(),k:[]}],[urls]);
 }
 function supportingPrepare(base,type){
  const label={photo:"Photos",video:"Video",audio:"Audio",document:"File"}[type]||"File";

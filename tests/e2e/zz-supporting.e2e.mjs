@@ -1,7 +1,7 @@
 /* Supporting evidence photos: several photos (camera or gallery) and an optional comment, saved as one PDF. */
 import { site, check, errors, app, finish } from "./harness.mjs";
 const png = (c) => Buffer.from(c, "base64");
-const RED = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const RED = (await import("node:fs")).readFileSync(new URL("../../apps/evia/icon-512.png", import.meta.url)).toString("base64");
 try {
   const ev = await app({ width: 412, height: 915 });
   await ev.page.goto(site + "/evia/manifest.json");
