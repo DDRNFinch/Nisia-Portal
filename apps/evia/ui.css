@@ -2963,3 +2963,13 @@ html body .cw-arrow{flex:none;padding:0;margin:0;min-width:0;min-height:0;box-sh
 .cw-pick{margin:0 0 14px}
 html body #screen .cw-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;width:100%;box-sizing:border-box}
 html body #screen .cw-nav{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;width:auto;min-width:156px;justify-content:flex-end}
+/* Supporting photos: several photos and a comment, saved as one PDF (app.js supportingPrepare). */
+.sp-lead{margin:0 0 12px;color:var(--ui-muted,#667085);font-size:14.5px;line-height:1.45}
+.sp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.sp-grid:empty{display:none}
+.sp-shot{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#f2f4f7}
+.sp-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-x{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(16,24,40,.7);color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0}
+.sp-label{display:block;margin:16px 0 6px;font-weight:700;font-size:14px}.sp-label span{font-weight:400;color:var(--ui-muted,#667085)}
+.sp-note{width:100%;box-sizing:border-box;border:1px solid var(--pm-hair,rgba(16,24,40,.12));border-radius:14px;padding:12px;font:inherit;font-size:15px;resize:vertical;min-height:80px}
+.sp-save{width:100%;margin-top:14px}
