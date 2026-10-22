@@ -52,6 +52,18 @@ function render(){
  const profileBtn=document.getElementById("profile-btn");
  if(profileBtn)profileBtn.style.display=["learning","course","progress","portfolio"].includes(screen)?"flex":"none";
  document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===screen));
+ /* The course's topics not loaded yet (a restart while Evia was updating, or no signal): load them, then carry on,
+    rather than a blank page. */
+ if(typeof C!=="undefined"&&!C[course]){
+  /* A course name Evia doesn't know (left behind by a restart part-way through reconnecting): the enrolment's course. */
+  let fix="";try{const en=window.eviaData&&window.eviaData.enrolment();fix=en&&en.course||"";if(!fix)fix=JSON.parse(course)}catch(_){}
+  if(fix&&fix!==course&&C[fix]){course=fix;try{localStorage.setItem("evia7-course",course)}catch(_){}return render()}
+ }
+ if(typeof C!=="undefined"&&!C[course]&&window.eviaPacks&&window.eviaPacks.ensure){
+  $("#screen").innerHTML='<div class="card" style="text-align:center"><p id="pack-wait">Getting your course ready…</p></div>';
+  const again=()=>window.eviaPacks.ensure(course).then(()=>{if(C[course])render();else throw new Error("missing")}).catch(()=>{const w=$("#pack-wait");if(w)w.innerHTML='Evia couldn’t load your course. Check your signal.<br><button type="button" class="primary" id="pack-retry" style="margin-top:12px">Try again</button>';const b=$("#pack-retry");if(b)b.onclick=()=>{w.textContent="Getting your course ready…";again()}});
+  again();return;
+ }
  if(screen==="learning")learning();
  else if(screen==="course")courses();
  else if(screen==="progress")progress();
