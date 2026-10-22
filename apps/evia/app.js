@@ -41,7 +41,11 @@ joiner:{name:"Bench Joiner",std:"ST0264 v1.4",u:[
 ]}};
 Object.assign(C,window.EVIA_EXTRA_COURSES||{}); /* NVQ courses (nvq.js) */
 const esc=s=>String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
-let course=localStorage.getItem("evia7-course")||"bricklayer", screen="course", unit=-1, photos=[], evidence=JSON.parse(localStorage.getItem("evia7-evidence")||"[]"), hours=JSON.parse(localStorage.getItem("evia7-hours")||"[]"), otjBatches=JSON.parse(localStorage.getItem("evia7-otj-batches")||"[]");
+/* A saved list that can't be read (damaged on the phone) starts Evia with the rest of its work rather than stopping it;
+   the damaged copy is kept aside so nothing is thrown away. */
+function savedList(k){const raw=localStorage.getItem(k);if(!raw)return [];try{const v=JSON.parse(raw);if(Array.isArray(v))return v}catch(_){}
+ try{localStorage.setItem(k+"-damaged-"+Date.now(),raw)}catch(_){}console.error("Evia: "+k+" couldn’t be read; kept aside");return []}
+let course=localStorage.getItem("evia7-course")||"bricklayer", screen="course", unit=-1, photos=[], evidence=savedList("evia7-evidence"), hours=savedList("evia7-hours"), otjBatches=savedList("evia7-otj-batches");
 hours=hours.map((x,i)=>Object.assign({id:"legacy-"+i,createdAt:x.createdAt||Date.parse(x.d)||Date.now(),savedAt:x.savedAt||x.d||""},x));
 const $=s=>document.querySelector(s), data=()=>C[course], code=x=>x.split("|")[0], text=x=>x.split("|").slice(1).join("|");
 function persist(){localStorage.setItem("evia7-course",course);localStorage.setItem("evia7-evidence",JSON.stringify(evidence));localStorage.setItem("evia7-hours",JSON.stringify(hours));localStorage.setItem("evia7-otj-batches",JSON.stringify(otjBatches))}

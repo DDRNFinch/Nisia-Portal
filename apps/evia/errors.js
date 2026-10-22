@@ -33,6 +33,19 @@
     const err=ev.error;
     log(err&&err.message||ev.message,{where:ev.filename?String(ev.filename).split("/").pop().replace(/\?.*$/,"")+":"+ev.lineno+":"+ev.colno:"",stack:err&&err.stack});
   },true);
+  /* A page that stays empty after Evia starts (it broke while starting): say so, with what went wrong, instead of a
+     blank screen, so the learner can show it to their tutor. */
+  const blank=()=>{const sc=document.getElementById("screen"),app=document.getElementById("app");
+    return sc&&app&&!app.classList.contains("welcome-app-hidden")&&!document.getElementById("welcome-screen")&&!sc.textContent.trim()&&!sc.querySelector("img,svg,canvas")};
+  let checks=0;const watch=setInterval(()=>{
+    if(++checks>15)return clearInterval(watch);
+    if(checks<3||!blank())return;
+    clearInterval(watch);
+    const recent=read().slice(-3).reverse(),esc=t=>String(t).replace(/[<&>]/g,c=>({"<":"&lt;","&":"&amp;",">":"&gt;"}[c]));
+    document.getElementById("screen").innerHTML='<div class="card" style="margin:16px"><h2 style="margin:0 0 8px">Evia didn’t start properly</h2><p style="margin:0 0 12px">Your work is safe. Tap Try again. If this keeps happening, send a screenshot of this to your tutor.</p>'+
+      '<button type="button" class="primary" style="width:100%" onclick="location.reload()">Try again</button>'+
+      '<pre style="white-space:pre-wrap;font-size:12px;margin:14px 0 0;color:#667085">'+esc(version()+"\n"+(recent.map(x=>x.message+(x.where?"\n  at "+x.where:"")+"\n  "+String(x.stack||"").split("\n").slice(1,4).map(l=>l.trim().replace(/https?:\/\/[^)\s]*\//g,"")).join(" < ")).join("\n\n")||"No error was recorded."))+'</pre></div>';
+  },1000);
   window.addEventListener("unhandledrejection",ev=>{const r=ev.reason;log(r&&r.message||String(r),{stack:r&&r.stack,kind:"promise"})});
   /* Problems Evia catches and reports itself. */
   const original=console.error.bind(console);
