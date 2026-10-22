@@ -38,7 +38,7 @@
   /* The tab is "College" for a learner connected to their college, "Me" on their own. At the top: their profile
      (where the profile button used to be) and their messages, then the calendar. */
   const live=()=>{try{const N=window.eviaNisia,e=N&&N.joined&&N.joined();return !!(e&&e.live)}catch(_){return false}};
-  function tabName(){return live()?"College":"Me"}
+  function tabName(){return "Plan"}
   function label(){const l=document.getElementById("nav-college");if(l&&l.textContent!==tabName())l.textContent=tabName()}
   function meCards(){
     const D=window.eviaData,p=(D&&D.learner&&D.learner())||{},photo=D&&D.files&&D.files.photo?D.files.photo():"",e=(D&&D.enrolment&&D.enrolment())||{};
@@ -159,5 +159,5 @@
   };
   /* New hours or a synced register while it's open: draw it again. */
   let t=null;
-  if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",()=>{clearTimeout(t);t=setTimeout(()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))page()},300)});
+  if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",()=>{clearTimeout(t);t=setTimeout(()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))(window.eviaTidy?window.eviaTidy.plan():page())},300)});
 })();
