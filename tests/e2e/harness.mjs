@@ -113,7 +113,7 @@ const browser = await pw.chromium.launch();
 const errors = [], warnings = [];
 async function app(device) {
   const ctx = await browser.newContext({ viewport: device || { width: 1280, height: 860 }, locale: "en-GB", serviceWorkers: "block" }), page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(e.message)); page.on("dialog", (d) => d.accept());
+  page.on("pageerror", (e) => errors.push(e.message + " @ " + String(e.stack).split("\n").slice(1,4).join(" < "))); page.on("dialog", (d) => d.accept());
   page.on("console", (m) => { if (m.type() === "warning" && /Evia Portal/.test(m.text())) warnings.push(m.text()); });
   await page.route(/supabase\.co/, nisia);
   return { ctx, page };
