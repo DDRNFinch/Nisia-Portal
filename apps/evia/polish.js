@@ -143,7 +143,6 @@
         (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up",(assessor?"Just what your assessor still needs: ":"Just what this topic still needs: ")+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
         (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"A list of photos to take, in any order"):"")+
         card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
-        (window.eviaDrops?card("dr-start","free","Evidence drop",(()=>{const n=window.eviaDrops.count(u[0]);return n?n+" photo"+(n===1?"":"s")+" dropped so far · add more any time":"Add photos any time. Say what each one shows, now or later."})()):"")+
         (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
         '</div>'+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
@@ -178,7 +177,6 @@
     const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}})));
     const fr=$("#fr-start");if(fr)fr.onclick=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}window.eviaGuide.free(ctx)};
     const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
-    const dr=$("#dr-start");if(dr)dr.onclick=()=>window.eviaDrops.open({unitName:u[0],ksbs:u[1].map(code),prompts,done:()=>renderPack(pack)});
     /* Catch up on an empty pack makes a pack just for the missing KSBs; added to a pack in progress, the pack keeps the unit's. */
     const cu=$("#cu-start");if(cu)cu.onclick=()=>{const empty=!photos.length&&!text&&!media.length;if(empty)pack.onlyKsbs=missing.map(x=>x.code);savePack(pack);
       window.eviaGuide.catchUp(Object.assign({},ctx,{missing,assessor,done:()=>renderPack(pack)}))};
@@ -237,7 +235,6 @@
   /* A photo from Evia Portal (Evia on a new device), under the id its evidence already uses. */
   window.eviaDeleteEvidencePhoto=id=>idbDelete(id);
   window.eviaPutEvidencePhoto=(id,blob)=>idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id);
-  window.eviaMakeThumb=f=>makeThumb(f);
   window.eviaStoreEvidencePhoto=blob=>{const id="submitted-"+Date.now()+"-"+Math.random().toString(36).slice(2);return idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id)};
   const supportingPut=value=>openDB().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(SUPPORT_STORE,"readwrite");tx.objectStore(SUPPORT_STORE).put(value);tx.oncomplete=()=>resolve(value);tx.onerror=()=>reject(tx.error||new Error("Supporting evidence save failed"))}));
   const supportingGet=id=>openDB().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(SUPPORT_STORE,"readonly"),req=tx.objectStore(SUPPORT_STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error||new Error("Supporting evidence load failed"))}));
