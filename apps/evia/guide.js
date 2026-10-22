@@ -398,9 +398,14 @@
     cur="free";
     if(at==="photos")return freePhotos(ctx);
     if(at==="write")return freeWrite(ctx);
-    /* A drop: straight to the camera; with photos already in, straight to the few words. */
-    const n=(ctx.pack.photos||[]).length;
-    return n?freeWrite(ctx):freePhotos(ctx);
+    const n=(ctx.pack.photos||[]).length,w=words(ctx.pack.write);
+    sheet('<p class="eg-say">'+(n||w?"Welcome back. So far you’ve got "+plural(n,"photo")+(w?" and "+plural(w,"word")+" written":"")+".":
+        "Add whatever you like, your way. Take all your photos first, with everything worth capturing listed. Then write it up in your own words, with everything worth mentioning listed.")+'</p>'+
+      '<ol class="eg-stages"><li>Photos</li><li>Write-up</li></ol>'+
+      '<p class="eg-small">Everything saves as you go, so you can stop and carry on later.</p>',
+      [{label:"Get started",primary:true,run:()=>freePhotos(ctx)}],
+      {kicker:"FREE RANGE",title:ctx.unitName,free:true,wide:true});
+    closeRefreshes(ctx);
   }
   /* Closing a free range sheet redraws the unit page, so what's in progress shows there. */
   const closeRefreshes=ctx=>{const x=document.getElementById("eg-close");if(x){const was=x.onclick;x.onclick=()=>{was();ctx.done()}}};
@@ -415,33 +420,28 @@
       if(files.length)await ctx.addFiles(files);
       const n=(ctx.pack.photos||[]).length;
       setTimeout(()=>{
-        if(n)return freeWrite(ctx);
-        sheet('<p class="eg-say">No photos this time. You can still drop a few words, a video or a voice note.</p>',
-          [{label:"Write a few words",primary:true,run:()=>freeWrite(ctx)},{label:"Take a photo",run:()=>freePhotos(ctx)},{label:"Close",run:()=>{close();ctx.done()}}],
-          {kicker:"DROP",title:ctx.unitName,free:true});
+        sheet('<p class="eg-say">'+(files.length?"Saved: "+plural(files.length,"photo")+". ":"")+"You’ve got "+plural(n,"photo")+" in this pack. Take more, or write it up.</p>",
+          [{label:"Write it up",primary:true,run:()=>freeWrite(ctx)},{label:"Take more photos",run:()=>freePhotos(ctx)},{label:"Stop for now",run:()=>{close();ctx.done()}}],
+          {kicker:"FREE RANGE · PHOTOS",title:ctx.unitName,free:true});
         closeRefreshes(ctx);
       },60);
     }});
   }
   function freeWrite(ctx){
-    const pack=ctx.pack,terms=split(ctx.prompts&&ctx.prompts.writeup),n=(pack.photos||[]).length;
-    const ready=()=>!!(n||String(pack.write||"").trim());
+    const pack=ctx.pack,terms=split(ctx.prompts&&ctx.prompts.writeup);
+    const ready=()=>!!((pack.photos||[]).length||String(pack.write||"").trim());
+    const hintText=()=>ready()?"Ready to submit.":"Write something, or add a photo, to submit.";
     const el=sheet(
-      (n?'<div class="eg-thumbs" id="eg-thumbs"></div>':"")+
-      '<p class="eg-say eg-q">What do '+(n===1?"this show":n?"these show":"you want to say")+'?</p>'+
-      '<p class="eg-small">A sentence or two is fine: what you did and how. Tap the mic to say it instead of typing.</p>'+
-      '<textarea class="eg-text" id="write" data-otj="'+esc(ctx.unitName)+'" rows="4" placeholder="Here I’m…" aria-label="What this shows">'+esc(pack.write||"")+'</textarea>'+
-      (terms.length?'<div class="eg-mention"><span class="eg-mention-h">Ideas to mention, if they fit</span>'+terms.slice(0,8).map(t=>'<span class="eg-chip" data-t="'+esc(cap(t))+'">'+esc(cap(t))+'</span>').join("")+'</div>':""),
-      [{label:"Save to "+ctx.unitName,primary:true,run:async()=>{if(!ready())return;close(true);await ctx.submit();
-          if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Dropped into "+ctx.unitName+". Add more any time."),300)}},
-       {label:"Add more photos",run:()=>freePhotos(ctx)}],
-      {kicker:"DROP · "+ctx.unitName.toUpperCase(),title:"A few words",keep:true,full:true,compact:true,free:true});
-    const box=el.querySelector("#write"),btn=el.querySelector(".eg-actions .primary"),chips=[...el.querySelectorAll(".eg-chip")];
-    const light=()=>{const t=box.value.toLowerCase();chips.forEach(c=>c.classList.toggle("on",!!(window.eviaTermMatched?window.eviaTermMatched(c.dataset.t,t):t.includes(c.dataset.t.toLowerCase()))))};
-    const update=()=>{btn.disabled=!ready();light()};
+      '<p class="eg-ctx">Write about the job in your own words: what you did, how and why.</p>'+
+      (terms.length?'<div class="fr-mention"><div class="evidence-section-title">THINGS TO MENTION</div><div class="compact-prompts">'+esc(terms.join(" · "))+'</div></div>':"")+
+      '<textarea class="eg-text" id="write" data-otj="'+esc(ctx.unitName)+'" rows="8" placeholder="Write about the process and what you did…" aria-label="Your write-up">'+esc(pack.write||"")+'</textarea>'+
+      '<p class="eg-small fr-hint" id="fr-hint">'+hintText()+'</p>',
+      [{label:"Submit to Portfolio",primary:true,run:async()=>{if(!ready())return;close(true);await ctx.submit()}}],
+      {kicker:"FREE RANGE · WRITE-UP",title:ctx.unitName,back:()=>{close(true);free(ctx)},keep:true,full:true,compact:true,free:true});
+    const box=el.querySelector("#write"),btn=el.querySelector(".eg-actions .primary"),hint=el.querySelector("#fr-hint");
+    const update=()=>{btn.disabled=!ready();hint.textContent=hintText()};
     box.oninput=()=>{pack.write=box.value;ctx.save();update()};
     update();closeRefreshes(ctx);
-    if(n&&ctx.photoSrc){const b=el.querySelector("#eg-thumbs");Promise.all((pack.photos||[]).slice(-8).map(ctx.photoSrc)).then(srcs=>{if(b)b.innerHTML=srcs.filter(Boolean).map(s=>'<img src="'+s+'" alt="">').join("")})}
   }
 
   /* ---------- Film it or talk it through ----------

@@ -120,20 +120,6 @@
      Whatever is in progress shows on the unit page, above the saved evidence. openAt opens free range at "photos" or
      "write" once the page is drawn (Evia's coach uses it). */
   let openAt=null;
-  /* The topic so far: how many drops, and the ideas worth capturing and mentioning, ticked off once any drop has
-     covered them. Ideas, not a checklist: a topic builds up over the whole course. */
-  function soFar(u,prompts){
-    const mine=evidence.filter(e=>e.c===course&&e.u===u[0]&&!e.induction),split=s=>String(s||"").split("·").map(t=>t.trim()).filter(Boolean);
-    const said=mine.map(e=>[e.w||"",...(e.media||[]).map(m=>m.transcript||"")].join(" ")).join(" ").toLowerCase();
-    const hit=t=>window.eviaTermMatched?window.eviaTermMatched(t,said):said.includes(t.toLowerCase());
-    const say=split(prompts.writeup),snap=split(prompts.photos),n=mine.length,covered=say.filter(hit).length;
-    if(!say.length&&!snap.length)return "";
-    return '<section class="evidence-section ev-sofar"><div class="evidence-section-title">THIS TOPIC SO FAR</div>'+
-      '<p class="ev-sofar-sum"><strong>'+n+' drop'+(n===1?"":"s")+'</strong>'+(say.length?' · '+covered+' of '+say.length+' things mentioned':"")+'</p>'+
-      (snap.length?'<div class="ev-ideas-h">Ideas for photos</div><div class="ev-ideas">'+snap.map(t=>'<span>'+esc(t)+'</span>').join("")+'</div>':"")+
-      (say.length?'<div class="ev-ideas-h">Ideas to talk about</div><div class="ev-ideas">'+say.map(t=>'<span class="'+(hit(t)?"on":"")+'">'+(hit(t)?"✓ ":"")+esc(t)+'</span>').join("")+'</div>':"")+
-      '<p class="ev-sofar-note">You don’t need all of these at once. Add to the topic whenever you’re on this kind of job.</p></section>';
-  }
   async function renderPack(pack){
     const u=data().u[unit],photos=pack.photos||[],media=pack.media||[],prompts=learnerPrompts();
     const text=String(pack.write||"").trim(),started=photos.length||text||media.length,ready=!!(photos.length||text||media.length);
@@ -152,14 +138,13 @@
     const mediaSum=[nv?nv+" video"+(nv===1?"":"s"):"",na?na+" voice note"+(na===1?"":"s"):""].filter(Boolean).join(" · ");
     $("#page-title").textContent=u[0];
     $("#screen").innerHTML='<div class="evidence-pack-page">'+
-      '<div class="evidence-heading"><div class="evidence-label">TOPIC</div><h2>'+esc(u[0])+'</h2><p>Build this up a bit at a time. Whenever you’re doing something for this topic, drop a few photos and a line about them. <strong>The more drops, the better.</strong></p></div>'+
+      '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
         '<div class="ev-modes">'+
-        card("fr-start","free",photos.length||text?"Finish your drop":"Add a drop",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a few words":"")+" so far":"A few photos and a sentence or two. Saved as evidence straight away.","fr-start ev-primary")+
         (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up",(assessor?"Just what your assessor still needs: ":"Just what this topic still needs: ")+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
         (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"A list of photos to take, in any order"):"")+
+        card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
         (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
         '</div>'+
-      soFar(u,prompts)+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
         '<div class="evidence-thumbs" id="evidence-photos"></div>'+
         (media.length?'<div class="ev-media-chips">'+media.map((m,i)=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")+'<button type="button" data-remove-media="'+i+'" aria-label="Remove recording">×</button></span>').join("")+'</div>':"")+

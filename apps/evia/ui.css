@@ -3054,12 +3054,3 @@ body.evia-dark .th-add{background:var(--yellow,#e7b900);color:#172033}
 .th-h2 small{text-transform:none;letter-spacing:0;font-weight:600}
 .th-sticky{position:sticky;bottom:0;background:var(--ui-bg,#f7f6f2);padding:12px 0 calc(14px + env(safe-area-inset-bottom));margin-top:12px}
 .th-sticky button:disabled{opacity:.55}
-/* Topics build up from drops (polish.js soFar, guide.js free). */
-.ev-modes .ev-primary{background:var(--ui-ink,#172033);color:#fff;border-color:transparent}
-.ev-modes .ev-primary small{color:rgba(255,255,255,.75)}.ev-modes .ev-primary .eg-start-chev{color:#fff}
-.ev-sofar-sum{margin:2px 0 10px;font-size:14.5px;color:var(--ui-ink,#172033)}
-.ev-ideas-h{font-size:12.5px;font-weight:800;color:var(--ui-muted,#667085);margin:8px 0 6px}
-.ev-ideas{display:flex;flex-wrap:wrap;gap:6px}
-.ev-ideas span{padding:6px 10px;border-radius:999px;background:var(--ui-soft,#f2f4f7);font-size:13px;font-weight:600;color:#344054}
-.ev-ideas span.on{background:#e7f6ee;color:#067647}
-.ev-sofar-note{margin:10px 0 0;font-size:12.5px;color:var(--ui-muted,#667085)}

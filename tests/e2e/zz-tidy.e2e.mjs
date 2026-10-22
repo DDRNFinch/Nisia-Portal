@@ -49,18 +49,6 @@ try {
   await ev.page.click("#eg-start"); await ev.page.waitForTimeout(800);
   res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-shots li").length > 2);
   await ev.page.screenshot({ path: out("shots") });
-  /* A drop: photos, a line, saved as evidence; the topic builds up. */
-  await ev.page.keyboard.press("Escape"); await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; nav("course"); }); await ev.page.waitForTimeout(800);
-  await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1500);
-  const before = await ev.page.evaluate(() => { if (window.eviaCamera) window.eviaCamera.supported = () => false; return evidence.length; });
-  const [fc] = await Promise.all([ev.page.waitForEvent("filechooser", { timeout: 8000 }), ev.page.click("#fr-start")]);
-  await fc.setFiles(new URL("../shots/tidy-shots.png", import.meta.url).pathname); await ev.page.waitForSelector("#write", { timeout: 8000 });
-  await ev.page.fill("#write", "Here I'm mixing mortar at one to four with a gauging bucket so every batch matches.");
-  await ev.page.screenshot({ path: out("drop") });
-  await ev.page.click(".eg-actions .primary"); await ev.page.waitForTimeout(2500);
-  res.dropSaved = await ev.page.evaluate((b) => evidence.length === b + 1, before);
-  res.sofar = await ev.page.evaluate(() => /1 drop/.test((document.querySelector(".ev-sofar-sum") || {}).textContent || ""));
-  await ev.page.screenshot({ path: out("topic"), fullPage: true });
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));
   check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Time", JSON.stringify(res));
