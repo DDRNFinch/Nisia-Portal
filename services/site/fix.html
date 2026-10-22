@@ -21,10 +21,10 @@
    It removes only that app's saved copy (its offline worker and files). Nothing the app has saved is touched (registers,
    learners, sign-in), and the other apps on this website are left alone. Then it opens the app with its install steps. */
 (async () => {
-  const APPS = { symi: /^(symi|samos)-/i, milos: /^milos-/i, paros: /^paros-/i, nisia: /^nisia-app-portal-/i };
+  const APPS = { symi: /^(symi|samos)-/i, milos: /^milos-/i, paros: /^paros-/i, nisia: /^nisia-app-portal-/i, evia: /^evia7-offline-/i };
   const app = (new URLSearchParams(location.search).get("app") || "").toLowerCase();
   const t = document.getElementById("t"), s = document.getElementById("s");
-  if (!APPS[app]) { t.textContent = "Which app?"; s.textContent = "This link needs ?app=symi, milos, paros or nisia at the end."; return; }
+  if (!APPS[app]) { t.textContent = "Which app?"; s.textContent = "This link needs ?app=evia, symi, milos, paros or nisia at the end."; return; }
   const home = new URL("./" + app + "/", location.href);
   try {
     if ("serviceWorker" in navigator)
@@ -35,7 +35,7 @@
     if ("caches" in window)
       for (const k of await caches.keys()) if (APPS[app].test(k)) await caches.delete(k);
   } catch (_) { /* carry on: the app loads fresh anyway */ }
-  location.replace(home.href + "?install");
+  location.replace(home.href + (app === "evia" ? "" : "?install"));
 })();
 </script>
 </body>
