@@ -265,7 +265,10 @@
     const S=window.eviaStats.compute(),a=S.a,out=[],add=(id,title,ok,text)=>out.push({id,title,ok,text});
     const gap=a.timePct==null?0:a.timePct-a.ksbPct;
     add("where","Evidence",gap<=10,a.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(a.signoff?" signed off":" have evidence")+(gap>10?", a little behind for this point in your course":a.timePct!=null?", on track":""));
-    add("quality","Evidence quality",S.coverage!=null&&S.coverage>=70,S.coverage==null?"No write-ups checked yet":"Write-ups cover "+S.coverage+"% of the things to mention");
+    /* On track with evidence: the rest only needs looking at when it's well short (a learner who's ahead shouldn't
+       always have something to do). */
+    const onTrack=gap<=10;
+    add("quality","Evidence quality",S.coverage!=null&&(S.coverage>=70||onTrack&&S.coverage>=40),S.coverage==null?"No write-ups checked yet":"Write-ups cover "+S.coverage+"% of the things to mention");
     /* Learning hours over the review period (since the last review, at most 12 weeks, at least 1), by the day each
        entry happened, so backdated hours count. The aim is the planned hours spread over the programme when the
        college has set them, otherwise 6 hours a week. */
@@ -280,14 +283,17 @@
       add("otj","Learning hours",avg>=aim*0.9,inPeriod?hm(Math.round(inPeriod*100)/100)+" since "+since+", about "+hm(Math.round(avg*10)/10)+" a week (aim for "+hm(aim)+")":"Nothing logged since "+since+" (aim for "+hm(aim)+" a week)");
     }
     const sc=S.confidence.scores,low=sc.filter(x=>x.score<=2);
-    add("conf","Confidence",sc.length>=3&&!low.length,sc.length<3?"Skills not rated yet":low.length?"Low in "+K().listText(low.slice(0,2).map(x=>x.area)):"Confident across your skills");
+    add("conf","Confidence",sc.length>=3&&(onTrack||!low.length),sc.length<3?"Skills not rated yet":low.length?"Low in "+K().listText(low.slice(0,2).map(x=>x.area)):"Confident across your skills");
     const T=window.eviaTeach,st=T&&T.stats?T.stats():{days:{}},sum=T&&T.summary?T.summary():{done:0,total:0};
     const recent=Object.keys(st.days||{}).some(d=>Date.now()-Date.parse(d)<8*864e5);
-    add("teach","Teach me",recent,sum.done+" of "+sum.total+" lessons done"+(recent?", learning this week":", nothing this week"));
+    /* Teach me is extra learning: never something to do. */
+    add("teach","Teach me",true,sum.done+" of "+sum.total+" lessons done"+(recent?", learning this week":""));
     const tests=window.eviaData.list("tests").filter(t=>t&&t.course===course&&(t.type==="epa")),lt=tests[tests.length-1];
     add("tests",nvqOn()?"Knowledge tests":"EPA practice",!!lt&&lt.pct>=70,lt?"Last score "+lt.pct+"%"+(lt.pct>=70?"":" (aim for 70%)"):"No practice yet");
     const TG=window.eviaTargets,tg=TG?TG.mine():[],open=tg.filter(t=>!t.done),late=open.filter(t=>t.due&&Date.parse(t.due)<Date.now());
-    add("targets","Targets",tg.length>0&&!late.length,!tg.length?"None set yet":tg.length-open.length+" of "+tg.length+" done"+(late.length?", "+late.length+" overdue":""));
+    /* A tick only when they're all done. */
+    const nextDue=open.map(t=>t.due).filter(Boolean).sort()[0];
+    add("targets","Targets",tg.length>0&&!open.length,!tg.length?"None set yet":tg.length-open.length+" of "+tg.length+" done"+(late.length?", "+late.length+" overdue":open.length&&nextDue?", next due "+new Date(nextDue+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}):""));
     const rd=window.eviaReviewDue&&window.eviaReviewDue();
     add("review","Progress review",!!rd&&rd.days>=0,!rd?"No date yet":rd.days<0?"Overdue":"Next one in "+K().plural(rd.days,"day"));
     return out;
@@ -328,11 +334,19 @@
     const commentsDone=rd?(rd.college||(window.eviaNisia&&window.eviaNisia.joined())?!!rd.commentsDone:true):false;
     return {rd,key,todo,commentsDone,all:areas()};
   }
-  window.eviaReviewPrepCount=()=>{try{const p=prepTasks();return p.todo.length+(p.commentsDone?0:1)}catch(_){return 0}};
+  /* Nothing to get ready while the review is more than 4 weeks off. */
+  window.eviaReviewPrepCount=()=>{try{const p=prepTasks();if(p.rd&&p.rd.days>28)return 0;return p.todo.length+(p.commentsDone?0:1)}catch(_){return 0}};
   window.eviaReviewPrep=()=>prepTasks();
   function prepare(){
     const k=K(),p=prepTasks(),rd=p.rd;
     const when=rd?(rd.days<0?"Your review was due on <strong>"+rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"long"})+"</strong>.":rd.days===0?"Your review is <strong>today</strong>.":"Your review is on <strong>"+rd.due.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+"</strong>, in "+k.plural(rd.days,"day")+"."):"";
+    /* More than 4 weeks away: nothing to do yet, just how it's looking. */
+    if(rd&&rd.days>28){
+      if(window.eviaMood)window.eviaMood("happy");
+      k.say((when?when+" ":"")+"Nothing to get ready yet. I’ll help you get ready nearer the time. Here’s how it’s looking so far.");
+      k.widget('<div class="qr prep">'+p.all.filter(x=>x.id!=="review").map(x=>'<div class="qr-row '+(x.ok?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(x.ok?"✓":"!")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span></div>').join("")+'</div>');
+      return k.replies([{label:"See my prep pack",run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.open(),120)}},{label:"Something else",run:k.somethingElse}]);
+    }
     const left=p.todo.length+(p.commentsDone?0:1);
     if(window.eviaMood)window.eviaMood(left?"think":"happy");
     k.say((when?when+" ":"")+(left?"Let’s get you ready. "+(p.todo.length?"There "+(p.todo.length===1?"is <strong>1 thing</strong>":"are <strong>"+p.todo.length+" things</strong>")+" to look at"+(p.commentsDone?"":", then your comments for your assessor")+". One at a time.":"Just your comments for your assessor to do."):"You’re all ready. Everything looks good and your comments are in. Brilliant."));

@@ -80,7 +80,13 @@
 
   /* ---------- Stored targets ---------- */
   const all=()=>window.eviaData.list("targets",{store:"review-targets"}).map(t=>t.detail);
-  const mine=()=>all().filter(t=>t.course===course);
+  /* Only the targets from the latest review: older ones (kept from a backup, a restore or a sync) drop away. */
+  const mine=()=>{
+    const list=all().filter(t=>t.course===course),fromReviews=list.filter(t=>t.reviewId);
+    if(!fromReviews.length)return list;
+    const last=fromReviews.reduce((a,b)=>(Number(b.createdAt)||Date.parse(b.reviewDate)||0)>(Number(a.createdAt)||Date.parse(a.reviewDate)||0)?b:a).reviewId;
+    return list.filter(t=>t.reviewId===last);
+  };
   /* All target and review writes go through eviaData (data.js). */
   function setTargets(list){window.eviaData.replace("targets",{course},list)}
   function ensureTargets(){

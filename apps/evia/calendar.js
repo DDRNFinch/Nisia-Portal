@@ -35,7 +35,30 @@
     hours:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
     visit:'<svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>',
     off:'<svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8 3.5v4M16 3.5v4M9.5 13.5l5 5M14.5 13.5l-5 5"/></svg>'};
+  /* The tab is "College" for a learner connected to their college, "Me" on their own. At the top: their profile
+     (where the profile button used to be) and their messages, then the calendar. */
+  const live=()=>{try{const N=window.eviaNisia,e=N&&N.joined&&N.joined();return !!(e&&e.live)}catch(_){return false}};
+  function tabName(){return live()?"College":"Me"}
+  function label(){const l=document.getElementById("nav-college");if(l&&l.textContent!==tabName())l.textContent=tabName()}
+  function meCards(){
+    const D=window.eviaData,p=(D&&D.learner&&D.learner())||{},photo=D&&D.files&&D.files.photo?D.files.photo():"",e=(D&&D.enrolment&&D.enrolment())||{};
+    const name=String(p.name||"").trim()||"Your profile",n=live()&&window.eviaMessages?window.eviaMessages.unread():0;
+    const initials=name.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+    return '<div class="cal-me-wrap"><button type="button" class="cal-me" id="cal-me" aria-label="Your profile"><span class="cal-me-av">'+(photo?'<img src="'+photo+'" alt="">':esc(initials||"·"))+'</span>'+
+      '<span class="cal-me-copy"><strong>'+esc(name)+'</strong><small>'+esc([courseName(),live()?e.college:""].filter(Boolean).join(" · ")||"Your details, signature and backups")+'</small></span><span class="cal-go" aria-hidden="true">›</span></button>'+
+      (live()&&window.eviaMessages?'<button type="button" class="cal-me cal-msgs" id="cal-msgs"><span class="cal-me-av cal-msgs-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/><path d="M8.5 11.5h7M8.5 14.3h4.5"/></svg></span>'+
+        '<span class="cal-me-copy"><strong>Messages</strong><small>'+(n?(n===1?"1 new message":n+" new messages"):"Your tutor, assessor and employer")+'</small></span>'+(n?'<span class="cal-msgs-n">'+(n>99?"99+":n)+'</span>':"")+'<span class="cal-go" aria-hidden="true">›</span></button>':"")+'</div>';
+  }
+  /* New messages: the number on the tab, and on the Messages row when the page is open. */
+  window.eviaCollegeUnread=n=>{
+    label();
+    const b=document.getElementById("nav-college-n");if(b){b.hidden=!n;b.textContent=n>99?"99+":String(n||"")}
+    const row=document.getElementById("cal-msgs");if(row&&typeof screen!=="undefined"&&screen==="calendar")row.outerHTML=(new DOMParser().parseFromString(meCards(),"text/html").getElementById("cal-msgs")||row).outerHTML,on2();
+  };
+  const on2=()=>{const r=document.getElementById("cal-msgs");if(r)r.onclick=()=>window.eviaMessages&&window.eviaMessages.open()};
+  setTimeout(label,0);if(window.eviaNisia&&window.eviaNisia.onStatus)window.eviaNisia.onStatus(label);
   function page(){
+    label();
     const A=window.eviaAttendance,AT=A&&A.data?A.data():null,KEY=A?A.KEY:[],LABEL=Object.fromEntries(KEY),DETAIL=(A&&A.DETAIL)||{},by=hoursByDay(),today=dkey(new Date());
     const N=window.eviaNisia,now=N&&N.classNow?N.classNow():null,V=N&&N.visits?N.visits():[];
     const VKIND={visit:"Assessor visit",observation:"Assessor observation",review:"Progress review"},vt=v=>new Date(v.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
@@ -65,8 +88,8 @@
     const mOf=k=>{const d=new Date(k+"T12:00:00");return isNaN(d)?0:d.getFullYear()*12+d.getMonth()};
     const n0=new Date(),minM=start.getFullYear()*12+start.getMonth(),maxM=Math.min(n0.getFullYear()*12+n0.getMonth()+36,Math.max(n0.getFullYear()*12+n0.getMonth()+12,endOf?mOf(endOf):0,lastClass?mOf(lastClass):0));
     if(cur==null||cur<minM||cur>maxM)cur=n0.getFullYear()*12+n0.getMonth();
-    scr().innerHTML='<header class="ui-page-head"><h1>Calendar</h1><span>'+esc(courseName())+'</span></header>'+
-      '<div class="cal-top">'+classCard+hoursCard+'</div>'+
+    scr().innerHTML='<header class="ui-page-head"><h1>'+esc(tabName())+'</h1><span>'+esc(courseName())+'</span></header>'+meCards()+
+      '<h2 class="cal-h">Calendar</h2><div class="cal-top">'+classCard+hoursCard+'</div>'+
       (nextV?'<button type="button" class="cal-visit" id="cal-visit"><span class="cal-visit-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span><span><small>'+esc(VKIND[nextV.kind]||"Assessor visit")+'</small><strong>'+esc((dkey(new Date(nextV.starts_at))===today?"Today":shortDay(dkey(new Date(nextV.starts_at))))+" at "+vt(nextV))+'</strong>'+(nextV.place?'<em>'+esc(nextV.place)+'</em>':"")+'</span></button>':"")+
       '<div class="pv-acal cal-month" id="cal-month"></div>'+
       '<div class="pv-acal-key cal-key">'+(AT?KEY.map(([k,t])=>'<span><i class="pv-a-'+k+'"></i>'+esc(t)+'</span>').join(""):"")+(!AT&&own.length?'<span><i class="pv-a-coming"></i>College day</span>':"")+(V.length?'<span><i class="cal-key-v"></i>Visit</span>':"")+'<span><i class="cal-key-h"></i>Learning</span></div>'+
@@ -119,18 +142,19 @@
     on("cal-days-done",()=>{editDays=false;page()});
     on("cal-days-edit",()=>{editDays=true;page()});
     on("cal-checkin",()=>window.eviaCheckIn&&window.eviaCheckIn.open());
+    on("cal-me",()=>window.eviaOpenProfile&&window.eviaOpenProfile());
+    on("cal-msgs",()=>window.eviaMessages&&window.eviaMessages.open());
     on("cal-away",()=>inChat(()=>window.eviaTodo.away()));
     on("cal-logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs());
   }
-  window.eviaCalendar={page};
+  window.eviaCalendar={page,name:tabName};
 
   const prev=window.render;
   window.render=function(){
     if(screen!=="calendar")return prev();
-    const pb=document.getElementById("profile-btn");if(pb)pb.style.display="flex";
     document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav==="calendar"));
     const s=scr();if(s)s.classList.add("ui-top");
-    const t=document.getElementById("page-title");if(t)t.textContent="Calendar";
+    const t=document.getElementById("page-title");if(t)t.textContent=tabName();
     page();
   };
   /* New hours or a synced register while it's open: draw it again. */

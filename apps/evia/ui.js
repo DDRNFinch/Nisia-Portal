@@ -92,7 +92,8 @@
        one each time Evia's opened and one a day (new assessor feedback can still say so once). Everything else waits in
        Evia's list in the chat. */
     if(bubbledThisOpen)return;
-    const IMPORTANT=/^(fb-|review|backup$|first-evidence$|quiet$)/;
+    /* Only new feedback from the assessor and backup reminders: the rest (reviews, quiet weeks) is in Evia's list. */
+    const IMPORTANT=/^(fb-|backup$)/;
     let n;try{n=window.eviaStats.nudges(window.eviaStats.compute()).filter(x=>IMPORTANT.test(x.id))[0]}catch(_){return}
     if(!n)return;
     const today=new Date().toDateString(),seen=readJson(TIP_KEY,{});

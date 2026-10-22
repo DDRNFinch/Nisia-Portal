@@ -2902,3 +2902,20 @@ body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}
 
 /* Evia's list: "See all" under the 3 most urgent */
 .td-all{align-self:flex-start;margin:2px 4px 0;padding:8px 2px;border:0;background:none;font:inherit;font-size:14px;font-weight:750;color:var(--yellow-ink,#6b5100);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+/* College tab: the profile and messages live at the top of it, so the top corner stays clear. */
+html body #profile-btn{display:none!important}
+.cal-me-wrap{display:flex;flex-direction:column;gap:8px;margin:2px 0 16px}
+.cal-me{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow);font:inherit;color:var(--ui-ink,#172033);cursor:pointer}
+.cal-me-av{width:46px;height:46px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-weight:800;font-size:16px}
+.cal-me-av img{width:100%;height:100%;object-fit:cover}
+.cal-msgs-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.cal-me-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cal-me-copy strong{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-me-copy small{font-size:13px;color:var(--ui-muted,#667085);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-go{font-size:22px;color:var(--ui-muted,#98a2b3);flex:none;line-height:1}
+.cal-msgs-n{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#d92d20;color:#fff;font-weight:800;font-size:12px;line-height:22px;text-align:center;flex:none;box-sizing:border-box}
+.cal-h{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--ui-ink,#172033)}
+.bottom-nav .nav-badge{position:absolute;top:7px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#d92d20;color:#fff;font:800 10.5px/18px system-ui,-apple-system,"Segoe UI",Arial,sans-serif;text-align:center;box-shadow:0 0 0 2px #fff;box-sizing:border-box}
+.bottom-nav .nav-badge[hidden]{display:none}
+.bottom-nav button.nisia-waiting::before{content:"";position:absolute;top:10px;right:calc(50% - 16px);width:8px;height:8px;border-radius:50%;background:#f79009;box-shadow:0 0 0 2px #fff}
+body.evia-dark .cal-me{background:var(--ui-card)}

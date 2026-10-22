@@ -35,7 +35,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       hours.push({id:"h1",n:3,description:"Toolbox talk",createdAt:Date.now()});persist();render()});
     await page.waitForTimeout(500);
 
-    check("The app opens on Topics; the nav is Topics, Progress, Evia, Calendar and Learn",await page.evaluate(()=>screen==="course"&&!!document.getElementById("ui-course-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Topics,Progress,Calendar,Learn"));
+    check("The app opens on Topics; the nav is Topics, Progress, Evia, College (Me without a college) and Learn",await page.evaluate(()=>screen==="course"&&!!document.getElementById("ui-course-head")&&/^Topics,Progress,(College|Me),Learn$/.test([...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join())));
     for(const s of ["course","progress","portfolio","learning"]){await page.evaluate(s=>nav(s),s);await page.waitForTimeout(450)}
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
     /* On a computer screen the bottom bar sits in the middle, with Evia at its centre. */
@@ -161,7 +161,13 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.waitForFunction(()=>!!document.querySelector("#chat .ev-check")&&[...document.querySelectorAll("#chat .ui-replies button")].some(b=>/Add photos/.test(b.textContent)),null,{timeout:15000});
     check("Evidence check rates a piece of evidence, lists what's still to mention and offers ways to fix it",await page.evaluate(()=>{const t=[...document.querySelectorAll("#chat .ui-replies button")].map(b=>b.textContent);return /Weak|Good|Strong/.test(document.querySelector("#chat .ev-check").textContent)&&["Add photos","Improve my write-up","Let Evia guide me","Check another"].every(x=>t.includes(x))}));
     check("Replies never offer Something else: a small link goes back to Evia's list",await page.evaluate(()=>![...document.querySelectorAll("#chat .ui-replies .chat-pill")].some(b=>b.textContent==="Something else")&&/Back to my list/.test(document.querySelector("#chat .ui-replies .ui-pill-back").textContent)));
-    await page.evaluate(()=>{window.eviaChatKit.userSays("Get ready for my review");window.eviaCoachFlows.prepare()});
+    /* A review more than 4 weeks off: nothing to get ready yet, just how it's looking. */
+    const farOff=await page.evaluate(async()=>{const o=window.eviaReviewDue;window.__rd=o;window.eviaReviewDue=()=>{const r=o();return r&&Object.assign({},r,{days:60})};
+      window.eviaChatKit.userSays("Get ready for my review");window.eviaCoachFlows.prepare();await new Promise(r=>setTimeout(r,3000));
+      const t=document.getElementById("chat").innerText;return {nothing:/Nothing to get ready yet/.test(t),noSkip:![...document.querySelectorAll("#chat .ui-replies button")].some(b=>b.textContent==="Skip for now"),count:window.eviaReviewPrepCount()}});
+    check("Get ready for my review, 2 months away: nothing to do yet, just how it's looking (no list of jobs)",farOff.nothing&&farOff.noSkip&&farOff.count===0,JSON.stringify(farOff));
+    /* Two weeks away: the step-by-step. */
+    await page.evaluate(()=>{const o=window.__rd;window.eviaReviewDue=()=>{const r=o();return r&&Object.assign({},r,{days:10})};window.eviaChatKit.userSays("Get ready for my review");window.eviaCoachFlows.prepare()});
     await page.waitForSelector("#chat .qr.prep",{timeout:15000});await page.waitForFunction(()=>[...document.querySelectorAll("#chat .ui-replies button")].some(b=>b.textContent==="Skip for now"),null,{timeout:15000});
     const prep1=await page.evaluate(()=>({rows:document.querySelectorAll("#chat .qr.prep .qr-row").length,btns:[...document.querySelectorAll("#chat .ui-replies button")].map(b=>b.textContent),text:document.getElementById("chat").innerText}));
     check("Get ready for my review lists every area and their comments, then offers one thing at a time",prep1.rows>=7&&prep1.btns.includes("Skip for now")&&/One at a time/.test(prep1.text),JSON.stringify(prep1.btns));
@@ -169,6 +175,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     const endBtns=await page.evaluate(()=>[...document.querySelectorAll("#chat .ui-replies button")].map(b=>b.textContent));
     await page.waitForTimeout(2500);const endTxt=await page.evaluate(()=>document.getElementById("chat").innerText);
     check("…skipping moves on to the end: their comments for the assessor, or ready if they're in",(await page.evaluate(()=>[...document.querySelectorAll("#chat .ui-replies button")].some(b=>b.textContent==="Add my comments")))||/You’re ready for your review/.test(endTxt),JSON.stringify(endBtns)+" "+(await page.evaluate(()=>document.getElementById("chat").innerText.slice(-400))));
+    await page.evaluate(()=>{window.eviaReviewDue=window.__rd});
     await page.click('#x');await page.waitForTimeout(400);await page.evaluate(()=>nav("teach"));await page.waitForSelector("#tg-epa",{timeout:10000});
     if(process.env.EVIA_SHOTS)await page.screenshot({path:process.env.EVIA_SHOTS+"/teach-epa.png",fullPage:true});
     check("Teach me: Skills sits beside a half-width EPA practice tile",await page.evaluate(()=>{const s=document.getElementById("tg-skills"),e=document.getElementById("tg-epa");if(!s||!e||s.parentNode!==e.parentNode)return false;const a=s.getBoundingClientRect(),b=e.getBoundingClientRect();return Math.abs(a.top-b.top)<2&&b.left>a.right-1&&Math.abs(a.width-b.width)<4}));
@@ -250,7 +257,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Evia's brain (behind the calculators and follow-up buttons): a brick count, a follow-up (what about 6 m?), live recalculation, a tool with its picture, and a KSB with where the learner is",
       /303 bricks/.test(firstCalc)&&/454 bricks/.test(followUp)&&live==="756 bricks"&&/club hammer/i.test(term)&&new RegExp(code+" · ").test(ksbTxt)&&/(Signed off|In your evidence|No evidence yet)/.test(ksbTxt),JSON.stringify({firstCalc:firstCalc.slice(0,80),followUp:followUp.slice(0,80),live,term:term.slice(0,80),code,course:await page.evaluate(()=>course)}));
     await page.click('#x');await page.waitForTimeout(300);
-    check("Profile button comes back after closing the chat",await page.evaluate(()=>getComputedStyle(document.getElementById("profile-btn")).display!=="none"));
+    check("The top corner stays clear (the profile is on the College tab)",await page.evaluate(()=>getComputedStyle(document.getElementById("profile-btn")).display==="none"&&!document.querySelector("#nm-btn:not([hidden])")));
 
     // Tests run as a serious exam on their own screen: no hints until the end.
     await page.evaluate(()=>window.eviaStartTest("epa",5,"EPA quick quiz"));
@@ -288,7 +295,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("A college practice task is suggested",await page.evaluate(()=>/COLLEGE TASK/.test((document.querySelector(".pr-sheet .chat-kicker")||{}).textContent||"")));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
-    await page.evaluate(()=>document.getElementById("profile-btn").click());await page.waitForTimeout(300);
+    await page.evaluate(()=>window.eviaOpenProfile());await page.waitForTimeout(300);
     await page.evaluate(()=>document.getElementById("profile-dsl-name").closest("details").open=true);await page.fill("#profile-dsl-name","Jo Smith");await page.fill("#profile-dsl-phone","01234 567890");await page.click("#save-profile");await page.waitForTimeout(200);
     await page.evaluate(()=>window.eviaTeach.open("edi"));await page.waitForTimeout(400);
     check("A safeguarding lead saved in Profile shows on the Who to talk to card, under the EDI and safeguarding lessons",await page.evaluate(()=>/Jo Smith/.test(document.querySelector(".tm .sc-contacts").innerText)&&!!document.querySelector('.tm .sc-contacts a[href="tel:01234567890"]')));
@@ -305,6 +312,9 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
     check("The first-run demo can point at Where you are on My progress",!!await page.$("#pv-where"));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
+    check("College tab: the profile is at the top and opens the profile, above the calendar",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
+      const me=document.getElementById("cal-me"),first=me&&me.compareDocumentPosition(document.getElementById("cal-month"))&Node.DOCUMENT_POSITION_FOLLOWING;if(!me)return false;me.click();await w(400);
+      const opened=!!document.querySelector(".profile-sheet");document.getElementById("modal-root").innerHTML="";await w(100);return !!first&&opened}));
     check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month .pv-acal-d").length>=28&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
@@ -612,7 +622,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const mine=E.list().find(x=>x.message==="Smoke test problem");
       out.logged=!!mine&&mine.count===2&&mine.where==="app.js:12:3"&&/^evia7-v\d+$/.test(mine.version);
       out.synced=window.eviaData.changesSince().some(c=>c.collection==="errors"&&c.record.message==="Smoke test problem");
-      document.getElementById("profile-btn").click();await w(150);
+      window.eviaOpenProfile();await w(150);
       const row=document.getElementById("open-problems");out.row=!!row&&/recorded/.test(row.textContent);
       row.click();await w(150);
       out.sheet=/Smoke test problem/.test(document.querySelector(".pf-problems").textContent)&&!!document.getElementById("pl-send");
@@ -879,9 +889,9 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       // No signal: work waits on the phone, and a dot on the profile button says so until it's sent.
       await p5.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});await c5.setOffline(true);
       await p5.evaluate(()=>{window.eviaData.put("hours",{minutes:30,description:"Toolbox talk"});dispatchEvent(new Event("offline"))});await p5.waitForTimeout(300);
-      jl.waitingDot=await p5.evaluate(()=>document.getElementById("profile-btn").classList.contains("nisia-waiting"));
+      jl.waitingDot=await p5.evaluate(()=>document.querySelector('.bottom-nav [data-nav="calendar"]').classList.contains("nisia-waiting"));
       await c5.setOffline(false);await p5.evaluate(async()=>{dispatchEvent(new Event("online"));await window.eviaNisia.sync()});await p5.waitForTimeout(300);
-      jl.sentWhenBack=await p5.evaluate(()=>!document.getElementById("profile-btn").classList.contains("nisia-waiting")&&!window.eviaNisia.status().changes);
+      jl.sentWhenBack=await p5.evaluate(()=>!document.querySelector('.bottom-nav [data-nav="calendar"]').classList.contains("nisia-waiting")&&!window.eviaNisia.status().changes);
       jl.noErrors=!e5.length;
       check("No code yet: pick the course, then connect to the college later from the profile, which then shows the college's details",Object.values(jl).every(Boolean),JSON.stringify(jl)+" "+e5.join(" | "));
       await c5.close();
@@ -1106,26 +1116,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await c8.close();
     }
 
-    // First-visit notes: once the tour is done, the first time a page or section opens Evia says what it's for; never again.
+    // No first-visit notes: pages and sections open without Evia explaining them.
     {
       const c3=await browser.newContext({...devices["Pixel 7"],serviceWorkers:"block"}),p3=await c3.newPage(),e3=[];p3.on("pageerror",e=>e3.push(e.message));
       await p3.goto(url+"manifest.json");
-      await p3.evaluate(()=>{localStorage.clear();sessionStorage.setItem("evia7-install-later","1");["evia7-theme-picked","evia7-shape-picked"].forEach(k=>localStorage.setItem(k,"1"));localStorage.setItem("evia7-onboarding",'{"stage":"done"}');localStorage.setItem("evia7-home-tip",JSON.stringify({day:new Date().toDateString(),id:"x"}));localStorage.setItem("evia7-profile",JSON.stringify({name:"Jo",start:"2025-01-01",end:"2026-12-01"}))});
+      await p3.evaluate(()=>{localStorage.clear();sessionStorage.setItem("evia7-install-later","1");["evia7-theme-picked","evia7-shape-picked"].forEach(k=>localStorage.setItem(k,"1"));localStorage.setItem("evia7-onboarding",'{"stage":"done"}');localStorage.setItem("evia7-home-tip",JSON.stringify({day:new Date().toDateString(),id:"x"}))});
       await p3.goto(url);await p3.waitForTimeout(2500);
       await p3.evaluate(()=>{document.getElementById("app").classList.remove("welcome-app-hidden");const w=document.getElementById("welcome-screen");if(w)w.remove()});
-      const tipText=()=>p3.evaluate(()=>{const t=document.querySelector(".ev-tip");return t?t.querySelector("strong").textContent:""});
-      const gotIt=()=>p3.evaluate(()=>{const b=document.querySelector(".ev-tip button");if(b)b.click()});
+      const anyNote=()=>p3.evaluate(()=>!!document.querySelector(".ev-tip"));
       const tp={};
-      await p3.evaluate(()=>nav("teach"));await p3.waitForTimeout(900);tp.first=await tipText()==="Learn";
-      await gotIt();await p3.waitForTimeout(400);
-      await p3.evaluate(()=>nav("course"));await p3.waitForTimeout(900);tp.course=await tipText()==="Topics";await gotIt();await p3.waitForTimeout(400);
-      await p3.evaluate(()=>nav("calendar"));await p3.waitForTimeout(900);tp.calendar=await tipText()==="Calendar";await gotIt();await p3.waitForTimeout(400);
-      await p3.evaluate(()=>nav("teach"));await p3.waitForTimeout(900);tp.onlyOnce=await tipText()==="";
-      await p3.evaluate(()=>window.chat());await p3.waitForTimeout(1200);tp.section=await tipText()==="That’s me";
-      await p3.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});await p3.waitForTimeout(500);tp.closesWithSection=await tipText()==="";
-      await p3.evaluate(()=>window.chat());await p3.waitForTimeout(1200);tp.sectionOnce=await tipText()==="";
+      for(const pg of ["teach","course","calendar","progress"]){await p3.evaluate(x=>nav(x),pg);await p3.waitForTimeout(900);tp[pg]=!(await anyNote())}
+      await p3.evaluate(()=>window.chat());await p3.waitForTimeout(1200);tp.chat=!(await anyNote());
       tp.noErrors=!e3.length;
-      check("First-visit notes: Evia explains each page and section the first time it opens, and never again",Object.values(tp).every(Boolean),JSON.stringify(tp)+" "+e3.join(" | "));
+      check("No first-visit notes: pages and Evia's chat open without Evia explaining them",Object.values(tp).every(Boolean),JSON.stringify(tp)+" "+e3.join(" | "));
       await c3.close();
     }
 

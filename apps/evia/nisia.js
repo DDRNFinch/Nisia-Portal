@@ -652,7 +652,9 @@
 
   /* A dot on the profile button while anything is waiting (no signal, or photos waiting for WiFi), so nobody thinks
      their work has reached the college when it hasn't. The profile says what's waiting. */
-  function badge(){const b=document.getElementById("profile-btn");if(!b)return;const st=status();b.classList.toggle("nisia-waiting",st.joined&&(st.changes>0&&!st.online||st.media>0&&!st.wifi));
+  function badge(){const st=status(),w=st.joined&&(st.changes>0&&!st.online||st.media>0&&!st.wifi);
+    /* Waiting to send: a dot on the College tab (where the profile is now). */
+    [document.getElementById("profile-btn"),document.querySelector('.bottom-nav [data-nav="calendar"]')].forEach(b=>{if(b)b.classList.toggle("nisia-waiting",w)});
     const line=document.getElementById("pf-sync");if(line)line.textContent=statusText()}
   listeners.push(badge);addEventListener("offline",badge);addEventListener("online",badge);
   addEventListener("load",()=>setInterval(badge,30000));

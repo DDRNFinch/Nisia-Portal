@@ -5,7 +5,9 @@
 //   private.course_reminders() writes (reviews and targets due, Friday learning hours, Monday reviews to book). And
 //   new messages (who from, never what they say): to Evia for a learner, to Milos for staff.
 //   Bursts are grouped into one message ("3 pieces of evidence from Sam"). Nothing between 9pm and 7:30am (it waits
-//   until the morning), nothing to staff at the weekend, and at most 4 a day to anyone (the rest stay in the app).
+//   until the morning), nothing to staff at the weekend, and at most 4 a day to anyone (the rest stay in the app). Messages are the
+//   exception to the weekend and the 4 a day (someone wrote to them), and are sent the moment they arrive
+//   (run-2026-10-22-messages-push-now.sql); they still wait for the morning at night.
 import { CORS, reply, fail, service } from "../_shared/nisia.ts";
 import { sendPush, type Vapid } from "../_shared/webpush.ts";
 
@@ -111,21 +113,21 @@ Deno.serve(async (req) => {
   let sent = 0;
 
   for (const g of group(rows)) {
-    const m = word(g), who = g[0].recipient_user_id, ids = g.map((r) => r.id);
-    if (m.app === "milos" && when.weekend) continue;            // waits for Monday
+    const m = word(g), who = g[0].recipient_user_id, ids = g.map((r) => r.id), msg = g[0].notification_type === "message";
+    if (m.app === "milos" && when.weekend && !msg) continue;    // waits for Monday (messages don't: someone wrote to them)
     const phones = (devices || []).filter((d) => d.user_id === who && d.app === m.app);
     if (!phones.length) { mark("no_device", ids); continue; }
-    if ((sentToday.get(who) || 0) >= DAILY_CAP) { mark("capped", ids); continue; }
+    if (!msg && (sentToday.get(who) || 0) >= DAILY_CAP) { mark("capped", ids); continue; }
     let ok = false;
     for (const d of phones) {
       try {
-        const res = await sendPush(d.subscription, { title: m.title, body: m.body, tag: m.tag, open: m.open }, vapid, { topic: m.tag, urgency: "normal" });
+        const res = await sendPush(d.subscription, { title: m.title, body: m.body, tag: m.tag, open: m.open }, vapid, { topic: m.tag, urgency: msg ? "high" : "normal" });
         if (res.ok) ok = true;
         else if (res.gone) await admin.from("device_tokens").delete().eq("id", d.id);
         else console.warn("nisia-push", res.status, res.text);
       } catch (e) { console.warn("nisia-push", (e as Error).message); }
     }
-    if (ok) { sent++; sentToday.set(who, (sentToday.get(who) || 0) + 1); mark("sent", ids.slice(0, 1)); mark("grouped", ids.slice(1)); }
+    if (ok) { sent++; if (!msg) sentToday.set(who, (sentToday.get(who) || 0) + 1); mark("sent", ids.slice(0, 1)); mark("grouped", ids.slice(1)); }
     else mark("failed", ids);
   }
   const at = new Date().toISOString();

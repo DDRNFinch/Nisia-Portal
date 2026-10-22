@@ -3,8 +3,8 @@
    ways to get ahead. The work itself happens in the rest of the app.
    What counts, most urgent first: checking in to the class that's on now (and a check-in that didn't go through),
    what the assessor asked for, the first piece of evidence, overdue targets, a review
-   that's close, evidence drafts, targets due soon, the next unit when behind pace, weak evidence, learning hours,
-   other targets, the confidence check, a backup, and course notifications.
+   that's close, evidence drafts, targets due in the next 2 weeks, weak evidence (only very weak when on track),
+   learning hours, the confidence check (once), a backup, and course notifications.
    Connected to a college with classes, "Can't make college?" sits quietly under the list: the days and why, and
    everyone with the learner is told.
    window.eviaTodo: list(), show(opts), away(). */
@@ -31,6 +31,8 @@
     let S=null;try{S=window.eviaStats.compute()}catch(_){return []}
     const a=S.a,units=a.units,out=[],add=(u,ic,title,detail,label,run)=>out.push({u,ic,title,detail,label,run});
     const N=window.eviaNisia,live=N&&N.joined&&N.joined()&&N.joined().live;
+    /* On track (or ahead) with evidence: only what's actually needed, not every way to do better. */
+    const onTrack=a.timePct==null||a.timePct-a.ksbPct<=10;
 
     /* A class on now: check in (works with no signal too). */
     const now=live&&N.classNow?N.classNow():null;
@@ -68,7 +70,7 @@
     targets.forEach(t=>{const due=new Date(t.due+"T23:59:59").getTime(),days=Math.ceil((due-Date.now())/DAY),go=C().targetDo?C().targetDo(t):leave(()=>nav("learning"));
       if(days<0)add(90,"target",t.title,"Target overdue since "+shortDay(due),"Do it now",go);
       else if(days<=14)add(70,"target",t.title,"Target due "+(days===0?"today":days===1?"tomorrow":"in "+plural(days,"day")),"Do it now",go);
-      else add(40,"target",t.title,"Target due "+shortDay(due),"Do it now",go)});
+      /* Further off: in My targets, not on the list yet. */});
 
     /* A review that's close, with things to get ready (including their comments for the assessor). */
     const rd=window.eviaReviewDue&&window.eviaReviewDue(),prep=window.eviaReviewPrepCount?window.eviaReviewPrepCount():0;
@@ -81,7 +83,7 @@
     /* (No "Next unit: …": Evia doesn't push a topic the learner may not be doing on site yet.) */
 
     /* Weak evidence: too few photos, or a write-up missing what the assessor looks for. */
-    (S.checks||[]).map(c=>({c,p:c.terms.length?c.covered.length/c.terms.length:1})).filter(x=>x.p<.5||x.c.photos<3).sort((x,y)=>x.p-y.p).slice(0,2).forEach(({c})=>{
+    (S.checks||[]).map(c=>({c,p:c.terms.length?c.covered.length/c.terms.length:1})).filter(x=>onTrack?x.p<.25||!x.c.photos:x.p<.5||x.c.photos<3).sort((x,y)=>x.p-y.p).slice(0,2).forEach(({c})=>{
       const few=c.photos<3;
       add(55,few?"photo":"write","Strengthen "+c.u.name,few?(c.photos?"Only "+plural(c.photos,"photo")+": add more":"No photos yet"):"Covers "+c.covered.length+" of "+c.terms.length+" key points",
         few?"Add photos":"Improve it",few?unitAt(c.u,"#evidence-photos"):unitAt(c.u,"#write","focus"))});
@@ -92,10 +94,9 @@
     if(S.otjWeek<aim&&(wd===0||wd>=3))add(50,"hours","Log your learning hours",(S.otjWeek?hm(S.otjWeek):"Nothing")+" this week, aim for "+hm(aim),"Log hours",inChat("Log my hours",()=>C().hours&&C().hours()));
     else if(S.otjWeek<aim&&last<aim&&started.length)add(45,"hours","Log your learning hours",hm(last)+" last week, aim for "+hm(aim),"Log hours",inChat("Log my hours",()=>C().hours&&C().hours()));
 
-    /* The confidence check: never done, or over 12 weeks ago. */
+    /* The confidence check: never done (doing it again is up to them, or their review asks). */
     const conf=S.confidence;
     if(!conf.sessions)add(35,"skills","Rate your skills","Two minutes, tells your tutor what to practise","Start",inChat("Rate my skills",()=>C().confidence&&C().confidence()));
-    else if(conf.last&&Date.now()-conf.last>84*DAY)add(30,"skills","Rate your skills again","Last done "+shortDay(conf.last),"Start",inChat("Rate my skills",()=>C().confidence&&C().confidence()));
 
     /* A backup, for learners not connected to a college (their work only lives on this phone). */
     const joined=window.eviaNisia&&window.eviaNisia.joined&&window.eviaNisia.joined();

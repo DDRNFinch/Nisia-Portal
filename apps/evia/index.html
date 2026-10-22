@@ -17,7 +17,7 @@
   b.onclick=function(){try{localStorage.setItem("view-"+A,"phone")}catch(e){}go()};document.body.appendChild(b)});
 }catch(e){}})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="evia-version" content="evia7-v261">
+<meta name="evia-version" content="evia7-v263">
 <meta name="theme-color" content="#fffdfa">
 <meta name="description" content="Evia apprenticeship tracking">
 <meta name="evia-build-policy" content="network-first-v1">
@@ -87,7 +87,7 @@ html.evia-booting body{visibility:hidden}
 <button data-nav="course"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4.5" y="2.8" width="15" height="18.4" rx="2.6"/><path d="m7.6 8.2 1.4 1.4 2.4-2.6M7.6 14.2l1.4 1.4 2.4-2.6M13.6 8.6h3M13.6 14.6h3"/></svg></span><span>Topics</span></button>
 <button data-nav="learning"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20.5h18"/><path d="M5.5 20.5v-5h3v5M10.5 20.5v-8h3v8"/><path d="M15.5 20.5V9h-2.2L17 3.5 20.7 9h-2.2v11.5"/></svg></span><span>Progress</span></button>
 <div></div>
-<button data-nav="calendar"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg></span><span>Calendar</span></button>
+<button data-nav="calendar"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 9.2 12 4l9 5.2"/><path d="M5.5 10.5v7.5M10 10.5v7.5M14 10.5v7.5M18.5 10.5v7.5"/><path d="M3.5 20.5h17"/></svg></span><span id="nav-college">College</span><b class="nav-badge" id="nav-college-n" hidden></b></button>
 <button data-nav="teach"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 3h12v15h-12a2 2 0 0 0-2 2V5a2 2 0 0 1 2-2Z"/><path d="M4.5 20a2 2 0 0 0 2 1.5h12V18"/><path d="M8.5 3v15"/><path d="M11.5 18v4.5l1.5-1.2 1.5 1.2V18"/></svg></span><span>Learn</span></button>
 </nav>
 </div>
@@ -106,7 +106,7 @@ html.evia-booting body{visibility:hidden}
   navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloading||!hadController||Date.now()-openedAt>8000)return;reloading=true;window.location.reload();});
   window.addEventListener("load", async function(){
     try {
-      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v261",{updateViaCache:"none"});
+      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v263",{updateViaCache:"none"});
       await registration.update().catch(()=>{}); /* fails harmlessly with no signal */
       const activateWaiting=worker=>{if(!worker)return;worker.postMessage({type:"SKIP_WAITING"});};
       if(registration.waiting) activateWaiting(registration.waiting);
