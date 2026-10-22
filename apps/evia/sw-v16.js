@@ -13,7 +13,7 @@ const APP_SHELL = [
   "./vendor/fonts/lexend-latin-400-normal.woff2",
   "./vendor/fonts/lexend-latin-600-normal.woff2",
   "./vendor/fonts/inter-latin-wght-normal.woff2",
-  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./vendor/supabase-2.45.4.js",
+  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./drops.js","./vendor/supabase-2.45.4.js",
   "./storage.js",
   "./app.js",
   "./data.js",

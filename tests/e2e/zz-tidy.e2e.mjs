@@ -49,6 +49,20 @@ try {
   await ev.page.click("#eg-start"); await ev.page.waitForTimeout(800);
   res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-shots li").length > 2);
   await ev.page.screenshot({ path: out("shots") });
+  /* Evidence drop: photos into the topic's folder, each saved as evidence; a line added later. */
+  await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; nav("course"); }); await ev.page.waitForTimeout(800);
+  await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1500);
+  const before = await ev.page.evaluate(() => { if (window.eviaCamera) window.eviaCamera.supported = () => false; return evidence.length; });
+  await ev.page.click("#dr-start"); await ev.page.waitForSelector("#dr-add");
+  const [fc] = await Promise.all([ev.page.waitForEvent("filechooser", { timeout: 8000 }), ev.page.click("#dr-add")]);
+  const pic = new URL("../shots/tidy-course.png", import.meta.url).pathname;
+  await fc.setFiles([pic, pic]); await ev.page.waitForSelector(".dr-item", { timeout: 8000 }); await ev.page.waitForTimeout(500);
+  res.dropped = await ev.page.evaluate((b) => evidence.length === b + 2 && document.querySelectorAll(".dr-item .dr-need").length === 2, before);
+  await ev.page.screenshot({ path: out("drop-folder") });
+  await ev.page.click(".dr-item"); await ev.page.waitForSelector("#dr-text"); await ev.page.fill("#dr-text", "Wall ties every 900 along and 450 up");
+  await ev.page.screenshot({ path: out("drop-line") });
+  await ev.page.click("#dr-save"); await ev.page.waitForTimeout(500);
+  res.described = await ev.page.evaluate(() => evidence.some((e) => e.w === "Wall ties every 900 along and 450 up") && document.querySelectorAll(".dr-item .dr-need").length === 1);
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));
   check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Time", JSON.stringify(res));
