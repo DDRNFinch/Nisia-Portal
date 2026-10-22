@@ -315,7 +315,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("College tab: the profile is at the top and opens the profile, above the calendar",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
       const me=document.getElementById("cal-me"),first=me&&me.compareDocumentPosition(document.getElementById("cal-month"))&Node.DOCUMENT_POSITION_FOLLOWING;if(!me)return false;me.click();await w(400);
       const opened=!!document.querySelector(".profile-sheet");document.getElementById("modal-root").innerHTML="";await w(100);return !!first&&opened}));
-    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month .pv-acal-d").length>=28&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
+    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month #cw-strip .cw-d").length===7&&!!document.getElementById("cw-month")===!!window.eviaAttendance.data()&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
       const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
@@ -323,19 +323,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       localStorage.setItem("evia7-nisia-timetable",JSON.stringify([{class:"L2 Bricklaying",room:"W2",schedule:{day:"Tuesday",start:"09:00",end:"16:00",recurrence:{type:"weekly",interval:1,weekdays:["Tuesday"],startDate:"2026-10-05",endDate:"2026-12-22",anchorDate:"2026-10-05"}}},{class:"Maths",schedule:{day:"Monday",start:"10:00",recurrence:{type:"weekly",interval:2,weekdays:["Monday"],startDate:"2026-10-05",endDate:"2026-11-30",anchorDate:"2026-10-05"}}}]));
       const d=N.timetableDays("2026-10-01","2027-06-30"),tue=d.filter(x=>x.class==="L2 Bricklaying").map(x=>x.session_date),mon=d.filter(x=>x.class==="Maths").map(x=>x.session_date);
       localStorage.removeItem("evia7-nisia-timetable");
-      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<14;i++){const b=document.querySelector('#cal-month [data-m="1"]');if(!b||b.disabled)break;b.click();n++;await new Promise(r=>setTimeout(r,30))}
-      return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=12}));
-    check("Calendar: a visit the assessor booked in Milos shows at the top, on its day, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
+      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<53;i++){const b=document.querySelector('[data-w="1"]');if(!b)break;b.click();n++;await new Promise(r=>setTimeout(r,10))}
+      return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=52}));
+    check("Calendar: a visit the assessor booked in Milos shows as Next, on its day in the week, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
       const t=new Date(Date.now()+2*864e5);t.setHours(11,30,0,0);localStorage.setItem("evia7-nisia-visits",JSON.stringify([{id:"V1",starts_at:t.toISOString(),minutes:90,kind:"observation",place:"Kings Road site",note:"Bring your PPE",booked_by:"Mark Ellis"}]));
       nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
       top.click();await w(300);const k=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
-      const ok=!!document.querySelector('#cal-month .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
+      const ok=!!document.querySelector('#cw-strip .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
       const card=!!document.querySelector("#cal-day.cal-dcard .cal-row .ri-visit")&&!!document.querySelector(".cal-card #cal-logs")&&!document.querySelector(".cal-links");
       localStorage.removeItem("evia7-nisia-visits");return ok&&card}));
     check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
       const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
-      const tue=[...document.querySelectorAll("#cal-month .pv-acal-d.pv-a-coming")].every(b=>new Date(b.dataset.day+"T12:00:00").getDay()===2);
-      const next=/Tue|Today/.test(document.querySelector(".cal-card strong").textContent)&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
+      const cs=[...document.querySelectorAll("#cw-strip .cw-d.cw-coming")],tue=cs.length===1&&new Date(cs[0].dataset.day+"T12:00:00").getDay()===2||(cs.length===0&&new Date().getDay()>2);
+      const next=/Tue|Today/.test((document.querySelector(".cw-next")||{}).textContent||"")&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
     await page.evaluate(()=>{document.body.classList.remove("evia-onboarding");nav("home")});await page.waitForTimeout(450);
 
     await page.evaluate(()=>{window.__joined=window.eviaNisia.joined;window.eviaNisia.joined=()=>({college:"Brookfield College"});window.eviaStartReview()});await page.waitForTimeout(400);

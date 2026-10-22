@@ -628,7 +628,7 @@
     const cur=joined();if(!cur||!cur.live)throw new Error("Evia isn’t connected to a college.");
     const en=await pair(code);
     if(!en.live)throw new Error("That code didn’t work. Ask your assessor for a new one.");
-    if(en.enrolmentId!==cur.enrolmentId)throw new Error("That code is for someone else. Ask your assessor for your own code.");
+    if(en.enrolmentId!==cur.enrolmentId)throw Object.assign(new Error("That code is for someone else. Ask your assessor for your own code."),{other:true});
     const c=await sb(),{error}=await c.auth.verifyOtp({token_hash:en.token_hash,type:"magiclink"});
     if(error)throw new Error("That code has already been used. Ask your assessor for a new one.");
     const e=Object.assign({},cur,en,{joinedAt:cur.joinedAt});delete e.token_hash;window.eviaData.enrol(e);
@@ -673,8 +673,13 @@
     /* A learner (not a guest) whose sign-in has gone: the code signs them back in and nothing on the phone is cleared. */
     if(!guest&&window.eviaData.enrolment().live){
       try{history.replaceState(null,"",location.pathname)}catch(_){}
-      try{await reconnect(code);toast("You’re reconnected. Your work is sending to your college.")}catch(e){showReconnect(e.message,code)}
-      return;
+      let other=false;
+      try{await reconnect(code);toast("You’re reconnected. Your work is sending to your college.");return}catch(e){other=!!e.other;if(!other){showReconnect(e.message,code);return}}
+      /* Someone else's code (a phone passed on, or an old guest's): a fresh start, but only if nothing here is still
+         waiting to reach the college. */
+      const st=status();let work=0;try{work=window.eviaData.changesSince().filter(x=>/^(evidence|hours|supporting)$/.test(x.collection)).length}catch(_){}
+      if(work>0||st.media>0){showReconnect("That code is for someone else. This phone still has work waiting to send, so Evia has kept it.",code);return}
+      try{history.replaceState(null,"",location.pathname+"?pair="+encodeURIComponent(code))}catch(_){}
     }
     /* A guest still in their meeting (who scanned their code again) keeps their demo. */
     if(live)try{const c=await sb(),{data,error}=await c.rpc("nisia_my_demo");if(!error&&data&&data.endsAt&&Date.parse(data.endsAt)>Date.now())return}catch(_){return}

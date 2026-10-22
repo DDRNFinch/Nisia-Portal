@@ -2919,3 +2919,47 @@ html body #profile-btn{display:none!important}
 .bottom-nav .nav-badge[hidden]{display:none}
 .bottom-nav button.nisia-waiting::before{content:"";position:absolute;top:10px;right:calc(50% - 16px);width:8px;height:8px;border-radius:50%;background:#f79009;box-shadow:0 0 0 2px #fff}
 body.evia-dark .cal-me{background:var(--ui-card)}
+/* College page: profile and messages as one card, the week (calendar.js). */
+.cw-group{gap:0;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow);overflow:hidden}
+.cw-group .cal-me{border:0;border-radius:0;box-shadow:none;background:none}
+.cw-group .cal-me+.cal-me{border-top:1px solid var(--ui-line,#eef0f3)}
+.cw-group .cal-me-av{width:40px;height:40px;font-size:15px}
+.cw-checkin{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0 0 14px;padding:14px 16px;border:0;border-radius:18px;background:var(--at-here,#2f9e62);color:#fff;font:inherit;cursor:pointer}
+.cw-checkin strong{font-size:16px}.cw-checkin span{background:#fff;color:var(--at-here,#2f9e62);border-radius:12px;padding:8px 14px;font-weight:800}
+.cw-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 8px}
+html body .cw-head .cal-h{margin:0;flex:1 1 auto;min-width:0;width:auto;max-width:none}
+.cw-nav{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:var(--ui-muted,#667085);flex:none}
+#cw-range{white-space:nowrap;min-width:74px;text-align:center}
+html body .cw-arrow{flex:none;padding:0;margin:0;min-width:0;min-height:0;box-shadow:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--ui-line,#e4e7ec);background:var(--ui-card,#fff);font-size:20px;line-height:1;cursor:pointer;color:var(--ui-ink,#172033)}
+.cw-card{padding:12px;border-radius:20px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow);margin:0 0 14px}
+.cw-next{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 10px;padding:10px 12px;border:0;border-radius:14px;background:var(--soft,#fff7d6);font:inherit;color:var(--ui-ink,#172033);text-align:left;cursor:pointer}
+.cw-next-k{flex:none;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow-ink,#6e5c00)}
+.cw-next-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.cw-next strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-next small{font-size:13px;color:var(--ui-muted,#667085)}
+.cw-none{margin:0 0 10px;font-size:13.5px;color:var(--ui-muted,#667085)}
+.cw-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cw-d{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 6px;border:0;border-radius:14px;background:none;font:inherit;color:var(--ui-ink,#172033);cursor:pointer;min-height:64px}
+.cw-d small{font-size:11.5px;font-weight:700;color:var(--ui-muted,#667085)}
+.cw-d b{font-size:17px;width:32px;height:32px;display:grid;place-items:center;border-radius:50%}
+.cw-d.pv-today b{box-shadow:inset 0 0 0 2px var(--ui-ink,#172033)}
+.cw-d.pv-picked{background:var(--soft,#fff7d6)}
+.cw-d.pv-picked small{color:var(--yellow-ink,#6e5c00)}
+.cw-dots{display:flex;gap:3px;height:6px}
+.cw-dot{width:6px;height:6px;border-radius:50%;background:var(--at,#98a2b3)}
+.cw-dot.pv-a-coming{background:transparent;box-shadow:inset 0 0 0 1.5px var(--at-here,#2f9e62)}
+.cw-dot.pv-a-booked{background:var(--at-hol,#2e90fa)}
+.cw-dot.cw-dv{background:#2c85f7}.cw-dot.cw-dc{background:#7a5af8}.cw-dot.cw-dh{background:var(--yellow-ink,#b7791f)}
+.cw-card .cal-dcard{margin:10px 0 0;padding:12px 4px 2px;border:0;border-top:1px solid var(--ui-line,#eef0f3);border-radius:0;box-shadow:none;background:none}
+.cw-tap{cursor:pointer}
+.cal-ri.ri-career{background:#f4f3ff;color:#7a5af8}
+.cal-chip.cw-chip-c{background:#f4f3ff;color:#5925dc}
+.cw-hours{gap:8px;margin:0 0 6px}
+.cw-hours-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cw-hours-top>span{display:flex;flex-direction:column;gap:2px}
+.cw-hours .cal-btn{margin:0;flex:none}
+.cw-hours .cal-mini{margin-top:0}
+.cw-links{display:flex;flex-wrap:wrap;gap:4px 18px;margin:4px 2px 10px}
+.cw-pick{margin:0 0 14px}
+html body #screen .cw-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;width:100%;box-sizing:border-box}
+html body #screen .cw-nav{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;width:auto;min-width:156px;justify-content:flex-end}

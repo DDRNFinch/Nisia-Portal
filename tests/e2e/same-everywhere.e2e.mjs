@@ -150,9 +150,13 @@ const fresh = await g3.page.evaluate(() => ({ enrolment: window.eviaData && wind
 check("Guest: after the meeting, a new code on the same phone starts afresh (the old guest is cleared, not loaded)", !fresh.enrolment && /pair=HJKMNPQ/.test(fresh.url) && !fresh.ended, JSON.stringify(fresh));
 /* 12. A phone whose sign-in has gone (an old guest whose account was deleted): a new code starts afresh too. */
 const g4 = await eviaOn({ width: 412, height: 915 });
-await g4.page.evaluate(() => localStorage.removeItem("evia7-nisia-auth"));
+await g4.page.evaluate(() => { localStorage.removeItem("evia7-nisia-auth"); window.eviaData.put("evidence", { id: "e-unsent", text: "Photos of my wall" }); });
 await g4.page.goto(site + "/evia/?pair=RSTUVWX"); await g4.page.waitForTimeout(5000);
-check("A phone whose old sign-in has gone starts afresh with a new code", await g4.page.evaluate(() => !(window.eviaData && window.eviaData.enrolment())));
+/* Work still waiting to send is never thrown away for someone else's code: Evia keeps it and says so. */
+const kept = await g4.page.evaluate(() => !!(window.eviaData && window.eviaData.enrolment()) && /work waiting to send/.test((document.getElementById("rc-err") || {}).textContent || ""));
+await g4.page.evaluate(async () => { window.eviaData.markSynced(window.eviaData.changesSince()); localStorage.removeItem("evia7-nisia-auth"); if (window.eviaStorage && window.eviaStorage.flush) await window.eviaStorage.flush(); });
+await g4.page.goto(site + "/evia/?pair=RSTUVWX"); await g4.page.waitForTimeout(5000);
+check("A phone whose old sign-in has gone starts afresh with someone else's code, but only once nothing is waiting to send", kept && await g4.page.evaluate(() => !(window.eviaData && window.eviaData.enrolment())));
 
 check("No script errors", !errors.length, errors.join(" | "));
 await finish();
