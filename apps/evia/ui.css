@@ -2288,7 +2288,7 @@ html[data-a11y-motion="reduce"] .ra-net-catch{opacity:1;transform:translate(0,9p
 /* ---------- Site Showdown (showdown.js) ---------- */
 .gm-showdown .gm-body{padding:0;overflow:hidden;display:flex;flex-direction:column}
 .sd{flex:1;display:flex;flex-direction:column;min-height:0}
-.sd-field{position:relative;flex:1;min-height:300px;overflow:hidden;background:linear-gradient(180deg,#bfe0ff 0%,#e3f1ff 58%,#cfe7bf 58%,#b5d79f 100%)}
+.sd .sd-field{position:relative;flex:1;min-height:300px;overflow:hidden;background:linear-gradient(180deg,#bfe0ff 0%,#e3f1ff 58%,#cfe7bf 58%,#b5d79f 100%)}
 .sd-bg{position:absolute;left:0;right:0;bottom:42%;width:100%;height:58%;opacity:.9}
 .sd-pad{position:absolute;left:50%;bottom:-4px;width:118%;height:26%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse at 50% 40%,#a3cf88 0%,#8fbf73 60%,rgba(143,191,115,0) 72%)}
 .sd-foe{position:absolute;right:6%;top:11%;width:40%;max-width:190px;aspect-ratio:1}
@@ -2356,13 +2356,13 @@ html body .sd-evia{width:34px;height:34px;transform:scale(2.5);transform-origin:
 @media (prefers-reduced-motion:reduce){.sd *,.sd{animation:none!important}}
 html[data-a11y-motion="reduce"] .sd *{animation:none!important}
 /* Bigger fighters on tall phones, and a little life on the ground */
-.sd-field{container-type:size}
+.sd .sd-field{container-type:size}
 .sd-foe{width:min(52cqw,44cqh);max-width:none;top:12%;right:4%}
 .sd-foe.boss{width:min(60cqw,50cqh);max-width:none;top:8%}
 .sd-me{width:min(46cqw,38cqh);max-width:none;left:4%;bottom:9%}
 html body .sd-evia{transform:scale(3.3);animation-name:sdBreathe3}
 @keyframes sdBreathe3{0%,100%{transform:scale(3.3)}50%{transform:scale(3.3,3.2)}}
-.sd-field{background:linear-gradient(180deg,#bfe0ff 0%,#e3f1ff 46%,#cfe7bf 46%,#b5d79f 100%)}
+.sd .sd-field{background:linear-gradient(180deg,#bfe0ff 0%,#e3f1ff 46%,#cfe7bf 46%,#b5d79f 100%)}
 .sd-bg{bottom:54%;height:46%}
 .sd-card{z-index:2}
 

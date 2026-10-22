@@ -22,6 +22,8 @@ try {
   await ev.page.fill("#sp-note", "Setting out the corner with a builder's square");
   await ev.page.screenshot({ path: new URL("../shots/supporting-photos.png", import.meta.url).pathname });
   await ev.page.click("#supporting-save-photo"); await ev.page.waitForTimeout(2500);
+  await ev.page.screenshot({ path: new URL("../shots/supporting-about.png", import.meta.url).pathname });
+  res.plain = await ev.page.evaluate(() => getComputedStyle(document.querySelector("label.sd-field")).backgroundImage === "none");
   const saved = await ev.page.evaluate(async () => { const r = supportingMeta().slice(-1)[0]; const f = await window.eviaSupportingFileGet(r.id); const b = f && (f.blob || f);
     const head = b ? await b.slice(0, 5).text() : ""; const b64 = b ? await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.readAsDataURL(b); }) : ""; return { r, head, size: b ? b.size : 0, about: !!document.getElementById("sd-title"), b64 }; });
   (await import("node:fs")).writeFileSync(new URL("../shots/supporting-photos.pdf", import.meta.url).pathname, Buffer.from(saved.b64, "base64")); delete saved.b64;
