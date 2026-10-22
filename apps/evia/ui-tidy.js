@@ -1,9 +1,9 @@
 /* Evia7 tidy layout: every tab looks the same and everything lives in one place.
    Each page: the same header (the page name, then Messages and the learner's photo, which opens their profile), one
    main thing at the top, then tidy rows. One job per tab:
-     Topics    doing the work: units, supporting evidence, sending to the portfolio
-     Progress  how am I doing: tiles with the numbers on them (hours, KSBs, attendance, review, tests, targets)
-     Plan      what's coming up: today, the week as a strip of days, the full calendar, My future
+     Topics    your evidence: "Add evidence" any time (pick the topic after), then the topics and how strong each is
+     Time      learning hours and college: this week's hours, the week's college days, attendance, can't make it
+     Review    the ONE checklist in the app: what the assessor needs at the next review, ticking itself off
      Learn     getting better: the Teach me page as it was, with the shared header
    Every icon is the same quiet grey.
    The pages reuse what's already there (units, deep-dive sheets, Teach me, the calendar); only the layout is new.
@@ -20,6 +20,7 @@
   const S=p=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>';
   const IC={
     msg:S('<path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/>'),
+    cam:S('<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5Z"/><circle cx="12" cy="13" r="3.5"/>'),
     clip:S('<path d="M8 12.5 14.5 6a3 3 0 0 1 4.2 4.2l-8 8a5 5 0 0 1-7-7L11 4"/>'),
     send:S('<path d="M4 12 20 4l-4 16-4-7-8-1Z"/>'),
     star:S('<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z"/>'),
@@ -91,69 +92,88 @@
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':lv?'<span class="th-pill th-pill-'+LV[lv][1]+'">'+LV[lv][0]+'</span>':"")+GO+'</button>'});
-    scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+hero+
+    scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+
+      '<button type="button" class="th-add" id="th-add">'+IC.cam+'Add evidence</button>'+hero+
       group(rows,nvq?"Site jobs":"Units")+
       group([row({id:"th-sup",ic:"clip",c:"p",title:"Supporting evidence",sub:"Witness statements, videos and files"}),
         row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"Share your evidence as one PDF"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
+    on("th-add",()=>pickTopic(us,nvq));
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     on("th-share",()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio());
   }
 
-  /* ---------- Progress: how am I doing ---------- */
+  /* Add evidence, any time: which topic is it for? (The topics used most recently first.) Then straight into it. */
+  function pickTopic(us,nvq){
+    const ev=typeof evidence!=="undefined"?evidence:[],last={};
+    ev.filter(e=>e.c===course).forEach(e=>{const t=Date.parse(e.savedAt||e.d||"")||0;if(!last[e.u]||t>last[e.u])last[e.u]=t});
+    const order=us.map((u,i)=>[u[0],i]).sort((a,b)=>(last[b[0]]||0)-(last[a[0]]||0));
+    const o=document.createElement("div");o.className="th-sheet-wrap";
+    o.innerHTML='<section class="th-sheet" role="dialog" aria-modal="true" aria-labelledby="th-pick-t"><header class="th-sheet-head"><h2 id="th-pick-t">What’s it for?</h2><button type="button" class="th-x" aria-label="Close">×</button></header>'+
+      '<p class="th-note" style="margin:0 4px 10px">Pick the '+(nvq?"site job":"topic")+'. You can add photos, video and a write-up next.</p><div class="th-group">'+
+      order.map(([n,i])=>'<button type="button" class="th-row" data-pick="'+i+'"><span class="th-num">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(n)+'</strong>'+(last[n]?'<small>Last added '+new Date(last[n]).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'</small>':"")+'</span>'+GO+'</button>').join("")+
+      '<button type="button" class="th-row" data-pick="sup"><span class="th-ic">'+IC.clip+'</span><span class="th-copy"><strong>Supporting evidence</strong><small>A witness statement, video or file</small></span>'+GO+'</button></div></section>';
+    const close=()=>o.remove();
+    o.onclick=e=>{if(e.target===o)close()};o.querySelector(".th-x").onclick=close;
+    o.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{close();const k=b.dataset.pick;if(k==="sup")window.openSupportingEvidence&&window.openSupportingEvidence();else window.openUnit(+k)});
+    document.body.appendChild(o);
+  }
+
+  /* ---------- Shared: the hours aim ---------- */
   function aimPerWeek(){
     try{const en=D().enrolment&&D().enrolment(),p=D().learner()||{},s=Date.parse((en&&en.start)||p.start||""),e=Date.parse((en&&en.end)||p.end||""),planned=Number(en&&en.plannedOtjHours);
       if(planned>0&&e>s)return Math.round(planned/((e-s)/(7*DAY))*10)/10}catch(_){}
     return 6;
   }
-  /* A dashboard tile, like Samsung Health: a small label with its icon, the number, a line under it. Tapping it
-     opens the detail. */
-  function tile(o){
-    return '<button type="button" class="th-tile'+(o.wide?" th-wide":"")+'"'+(o.id?' id="'+o.id+'"':"")+'><span class="th-tl"><span class="th-tic">'+(IC[o.ic]||"")+'</span>'+esc(o.label)+'</span>'+
-      '<strong class="th-tn">'+o.big+'</strong>'+(o.sub?'<small class="th-ts'+(o.tone?" th-tone-"+o.tone:"")+'">'+esc(o.sub)+'</small>':"")+(o.bar!=null?'<span class="th-bar"><i style="width:'+Math.max(0,Math.min(100,o.bar))+'%"></i></span>':"")+(o.extra||"")+'</button>';
+  /* ---------- Review: the one checklist in the app ----------
+     Everything the assessor needs at the next review, each ticking itself off as the learner works. Nothing else in
+     the app asks them to complete things. */
+  function since(){
+    try{const en=D().enrolment&&D().enrolment(),p=D().learner()||{};
+      const last=[en&&en.lastReview?Date.parse(en.lastReview):0,...(window.eviaGetReviews?window.eviaGetReviews():[]).map(r=>Date.parse(r.date)||0)].reduce((a,b)=>Math.max(a,b),0);
+      return last||Date.parse((en&&en.start)||p.start||"")||Date.now()-84*DAY}catch(_){return Date.now()-84*DAY}
   }
-  function progress(){
-    const t=document.getElementById("page-title");if(t)t.textContent="Progress";
+  function checklist(){
     let St=null;try{St=window.eviaStats.compute()}catch(_){}
-    const A=St&&St.a,aim=aimPerWeek(),wk=St?St.otjWeek||0:0,pct=Math.min(100,Math.round(wk/aim*100));
-    const behind=A&&A.timePct!=null&&A.timePct-A.ksbPct>10;
-    const T=window.eviaTargets,tg=T?T.mine():[],done=tg.filter(x=>x.done).length;
-    const rd=window.eviaReviewDue&&window.eviaReviewDue();
-    const tests=D().list("tests").filter(x=>x&&x.course===course&&x.type==="epa"),best=tests.reduce((m,x)=>Math.max(m,Number(x.pct)||0),-1);
-    const AT=window.eviaAttendance&&window.eviaAttendance.data?window.eviaAttendance.data():null;
-    const conf=St&&St.confidence,nvq=window.eviaNvq&&window.eviaNvq.on();
-    /* Targets, right on the page: each with how far it's got and when it's due. */
-    const tgRows=tg.slice(0,4).map(x=>{let p=0;try{p=T.progress(x,St).pct}catch(_){}const due=x.due?new Date(x.due+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"";
-      return '<span class="th-tg"><span class="th-tg-top"><span>'+esc(x.title)+'</span><b>'+(x.done?"Done":due?"Due "+esc(due):"")+'</b></span><span class="th-bar"><i style="width:'+Math.round((x.done?1:p)*100)+'%"></i></span></span>'}).join("");
-    scr().innerHTML=header("Progress")+
-      '<div class="th-grid">'+
-      tile({id:"th-hours",wide:true,ic:"clock",label:"Learning hours this week",big:esc(hm(wk))+'<small> / '+esc(hm(aim))+'</small>',bar:pct,
-        extra:'<span class="th-btns"><span class="primary th-fake" id="th-log" role="button">Log hours</span><span class="secondary th-fake" id="th-logs" role="button">Learning logs</span></span>'})+
-      tile({id:"th-where",ic:"star",label:nvq?"Criteria":"KSBs",big:(A?A.ksbPct:0)+'<small>%</small>',sub:A&&A.timePct!=null?(behind?"A little behind":"On track"):(A&&A.signoff?"signed off":"with evidence"),tone:behind?"warn":"good",bar:A?A.ksbPct:0})+
-      (AT?tile({id:"th-att",ic:"cal",label:"Attendance",big:(AT.pct==null?"–":AT.pct+'<small>%</small>'),sub:AT.n?AT.here+" of "+AT.n+" sessions":"No registers yet",bar:AT.pct||0}):
-        tile({id:"th-conf",ic:"bars",label:"Confidence",big:conf&&conf.sessions?conf.scores.length+'<small> rated</small>':"–",sub:conf&&conf.sessions?"Last "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not rated yet"}))+
-      tile({id:"th-review",ic:"review",label:"Next review",big:!rd?"–":rd.days<0?"Overdue":rd.days===0?"Today":rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"short"}),sub:!rd?"No date yet":rd.days>0?"In "+rd.days+" day"+(rd.days===1?"":"s"):"Talk to your assessor",tone:rd&&rd.days<0?"warn":""})+
-      tile({id:"th-tests",ic:"test",label:nvq?"Knowledge tests":"EPA practice",big:best>=0?best+'<small>%</small>':"–",sub:best>=0?"Best score":"No tests yet"})+
-      tile({id:"th-targets",wide:true,ic:"target",label:"Targets",big:tg.length?done+'<small> of '+tg.length+' done</small>':'<small>None set yet</small>',extra:tgRows?'<span class="th-tgs">'+tgRows+'</span>':""})+
-      '</div>'+
-      '<div class="th-group th-quiet">'+[
-        window.eviaPrepPack?row({id:"th-prep",ic:"pack",title:"Review prep pack"}):"",
-        AT?row({id:"th-conf",ic:"bars",title:"Confidence",sub:conf&&conf.sessions?"Last rated "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not rated yet"}):"",
-        row({id:"th-quality",ic:"write",title:"Write-ups",sub:St&&St.coverage!=null?"Cover "+St.coverage+"% of the things to mention":"None checked yet"}),
-        live()?row({id:"th-employer",ic:"work",title:"From your employer"}):"",
-        row({id:"th-ach",ic:"medal",title:"Achievements"})].filter(Boolean).join("")+'</div>';
+    const A=St&&St.a,from=since(),fromTxt=new Date(from).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+    const prep=window.eviaReviewPrep?window.eviaReviewPrep():null,area=id=>prep&&prep.all?prep.all.find(x=>x.id===id):null;
+    const gap=A&&A.timePct!=null?A.timePct-A.ksbPct:0,otj=area("otj");
+    const T=window.eviaTargets,tg=T?T.mine():[],tdone=tg.filter(x=>x.done).length;
+    const conf=St&&St.confidence,confNew=!!(conf&&conf.last&&conf.last>=from);
+    const EM=window.eviaEmployer&&window.eviaEmployer.get(),rated=EM&&(EM.ratings||[])[0],emNew=!!(rated&&Date.parse(rated.created_at)>=from);
+    const go=(fn,delay)=>()=>{if(window.chat)window.chat({quiet:true});setTimeout(fn,delay||120)};
+    const items=[
+      {id:"evidence",title:"Evidence on track",ok:gap<=10,sub:A?A.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+(gap>10?": add some evidence":""):"",run:()=>nav("course")},
+      {id:"hours",title:"Learning hours on track",ok:!!(otj&&otj.ok),sub:otj?otj.text:"",run:()=>nav("calendar")},
+      {id:"targets",title:"Targets met",ok:!tg.length||tdone===tg.length,sub:tg.length?tdone+" of "+tg.length+" done":"None set yet",run:()=>window.eviaProgressDeep&&window.eviaProgressDeep("targets")},
+      {id:"conf",title:"Confidence check",ok:confNew,sub:confNew?"Done "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Two minutes: rate your skills",run:()=>window.eviaPractice&&window.eviaPractice.openConfidence?window.eviaPractice.openConfidence():go(()=>window.eviaCoachFlows.confidence())()},
+      live()?{id:"employer",title:"Employer feedback",ok:emNew,sub:emNew?(EM.who||"Your employer")+" rated you "+new Date(rated.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not yet since "+fromTxt+": ask your employer",run:()=>emNew?window.eviaProgressDeep("employer"):window.eviaMessages&&window.eviaMessages.open()}:null,
+      prep&&prep.rd&&(prep.rd.college||live())?{id:"comments",title:"Your comments",ok:!!prep.commentsDone,sub:prep.commentsDone?"Done: your assessor can read them":"How it’s going, any help you need",run:()=>window.eviaChatReview?go(()=>window.eviaChatReview())():window.eviaStartReview()}:null
+    ].filter(Boolean);
+    return {items,done:items.filter(x=>x.ok).length,rd:window.eviaReviewDue&&window.eviaReviewDue()};
+  }
+  window.eviaReviewChecklist=checklist;
+  function review(){
+    const t=document.getElementById("page-title");if(t)t.textContent="Review";
+    const C=checklist(),rd=C.rd,n=C.items.length,pct=n?Math.round(C.done/n*100):0;
+    const en=D().enrolment&&D().enrolment()||{},who=en.assessor||"";
+    const TICK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12.5 4 4 8-9"/></svg>';
+    scr().innerHTML=header("Review")+
+      '<section class="th-hero th-rev"><span class="th-ring" style="--p:'+pct+'"><b>'+C.done+'/'+n+'<small>ready</small></b></span><span class="th-rev-copy"><span class="th-k">Next review</span>'+
+      '<strong class="th-big th-big-s">'+(!rd?"Not booked yet":rd.days<0?"Overdue":rd.days===0?"Today":esc(rd.due.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})))+'</strong>'+
+      '<small class="th-note">'+(!rd?"Your assessor will set it":rd.days>0?"In "+rd.days+" day"+(rd.days===1?"":"s"):"Talk to your assessor")+(who?" · with "+esc(who):"")+'</small></span></section>'+
+      '<h2 class="th-h2">Ready for your review</h2><div class="th-group">'+C.items.map(x=>'<button type="button" class="th-row th-check'+(x.ok?" th-ok":"")+'" data-check="'+x.id+'"><span class="th-tick">'+(x.ok?TICK:"")+'</span>'+
+        '<span class="th-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.sub)+'</small></span>'+GO+'</button>').join("")+'</div>'+
+      '<div class="th-group th-quiet">'+[window.eviaPrepPack?row({id:"th-prep",ic:"send",title:"Share my prep pack",sub:"A PDF for your assessor"}):"",
+        row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>';
     wireHeader();
-    const deep=id=>()=>window.eviaProgressDeep&&window.eviaProgressDeep(id);
-    const logHours=e=>{if(e)e.stopPropagation();if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)};
-    on("th-log",logHours);on("th-hours",logHours);
-    on("th-logs",e=>{e.stopPropagation();window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs()});
-    on("th-where",deep("where"));on("th-att",deep("attendance"));on("th-targets",deep("targets"));on("th-review",deep("review"));on("th-tests",deep("tests"));
-    on("th-conf",deep("conf"));on("th-quality",deep("quality"));on("th-employer",deep("employer"));on("th-ach",deep("ach"));
+    scr().querySelectorAll("[data-check]").forEach(b=>b.onclick=()=>{const x=C.items.find(i=>i.id===b.dataset.check);if(x&&x.run)x.run()});
     on("th-prep",()=>window.eviaPrepPack.open());
+    on("th-past",()=>window.eviaProgressDeep&&window.eviaProgressDeep("review"));
   }
 
-  /* ---------- Plan: what's coming up ---------- */
+  /* ---------- Time: learning hours and college ---------- */
   let full=false;   /* the full calendar, opened from Plan */
   function whatsOn(){
     const N=window.eviaNisia,A=window.eviaAttendance,AT=A&&A.data?A.data():null,by={};
@@ -169,40 +189,39 @@
   }
   function plan(){
     if(full){fullCalendar();return}
-    const t=document.getElementById("page-title");if(t)t.textContent="Plan";
-    const {by,AT}=whatsOn(),today=dkey(new Date()),N=window.eviaNisia,now=N&&N.classNow?N.classNow():null;
-    const todays=by[today]||[],first=todays[0];
+    const t=document.getElementById("page-title");if(t)t.textContent="Time";
+    let St=null;try{St=window.eviaStats.compute()}catch(_){}
+    const aim=aimPerWeek(),wk=St?St.otjWeek||0:0,pct=Math.min(100,Math.round(wk/aim*100));
+    const {by,AT}=whatsOn(),N=window.eviaNisia,now=N&&N.classNow?N.classNow():null;
     const canAway=live()&&N&&N.bookAbsence&&window.eviaTodo&&window.eviaTodo.away;
-    const todayCard='<section class="th-hero th-today"><span class="th-k">Today · '+esc(new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"}))+'</span>'+
-      (first?'<strong class="th-big th-big-s">'+esc(first.title)+(first.at?" at "+esc(time(first.at)):"")+'</strong><small class="th-note">'+esc(first.sub.replace(time(first.at)+" · ","").replace(time(first.at),""))+'</small>'+
-        (todays.length>1?'<small class="th-note">and '+(todays.length-1)+' more today</small>':"")
-       :'<strong class="th-big th-big-s">Nothing booked today</strong><small class="th-note">A good day to add evidence or log your hours</small>')+
-      ((now&&window.eviaCheckIn)||canAway?'<div class="th-btns">'+(now&&window.eviaCheckIn?'<button type="button" class="primary" id="th-checkin">Check in</button>':"")+(canAway?'<button type="button" class="secondary" id="th-away">Can’t make it</button>':"")+'</div>':"")+'</section>';
-    /* The week as a strip of days (a dot where something's on), then just the things that are on. */
     const days=[];for(let i=0;i<7;i++){const d=new Date(Date.now()+i*DAY);days.push([d,dkey(d),by[dkey(d)]||[]])}
     const strip='<div class="th-strip">'+days.map(([d,k,items],i)=>'<span class="th-sd'+(i===0?" th-sd-on":"")+'"><small>'+esc(i===0?"Today":d.toLocaleDateString("en-GB",{weekday:"short"}))+'</small><b>'+d.getDate()+'</b><i class="'+(items[0]?"th-dot-"+items[0].kind:"")+'"></i></span>').join("")+'</div>';
-    const upcoming=days.slice(1).filter(x=>x[2].length);
-    const list=upcoming.length?upcoming.map(([d,k,items])=>items.map(x=>'<div class="th-day"><span class="th-when"><small>'+esc(d.toLocaleDateString("en-GB",{weekday:"short"}))+'</small><b>'+d.getDate()+'</b></span><span class="th-copy"><strong>'+esc(x.title)+'</strong>'+(x.sub?'<small>'+esc(x.sub)+'</small>':"")+'</span></div>').join("")).join("")
-      :'<div class="th-day"><span class="th-copy"><small class="th-none">Nothing else booked this week</small></span></div>';
-    const F=window.eviaFuture&&window.eviaFuture.summary?window.eviaFuture.summary():null;
-    const future=window.eviaFuture?'<button type="button" class="th-tile th-wide" id="th-future"><span class="th-tl"><span class="th-tic">'+IC.road+'</span>My future</span>'+
-      (F?'<strong class="th-tn th-tn-s">'+esc(F.goal)+'</strong><small class="th-ts">'+(F.list&&F.list[0]?"Next: "+esc(F.list[0]):"Every step done")+'</small><span class="th-bar"><i style="width:'+(F.steps?Math.round(F.done/F.steps*100):0)+'%"></i></span><small class="th-ts">'+F.done+' of '+F.steps+' steps</small>'
-        :'<strong class="th-tn th-tn-s">Set a goal</strong><small class="th-ts">What you want to do after your apprenticeship</small>')+'</button>':"";
-    scr().innerHTML=header("Plan")+todayCard+
-      '<div class="th-sec"><h2 class="th-h2">This week</h2><button type="button" class="th-link" id="th-cal">Full calendar</button></div>'+
-      '<div class="th-group">'+strip+list+'</div>'+
-      (future?'<div class="th-grid" style="margin-top:12px">'+future+'</div>':"");
+    /* The next thing at college (or a visit), from today on. */
+    let next=null;for(let i=0;i<60&&!next;i++){const d=new Date(Date.now()+i*DAY),l=by[dkey(d)]||[];const x=l.find(y=>y.kind!=="off");if(x)next=[d,x,i]}
+    const nextRow=next?row({id:"th-next",ic:next[1].kind==="visit"?"pin":"cal",title:(next[2]===0?"Today":next[2]===1?"Tomorrow":next[0].toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))+" · "+next[1].title,sub:next[1].sub}).replace('class="th-row"','class="th-row th-static"').replace(GO,""):
+      row({id:"th-next",ic:"cal",title:"Nothing booked yet",sub:live()?"Your tutor sets your college days":"Set your college days in the calendar"});
+    scr().innerHTML=header("Time")+
+      '<section class="th-hero"><span class="th-k">Learning hours this week</span><strong class="th-big">'+esc(hm(wk))+'<small> / '+esc(hm(aim))+'</small></strong><span class="th-bar"><i style="width:'+pct+'%"></i></span>'+
+      '<div class="th-btns"><button type="button" class="primary" id="th-log">Log hours</button><button type="button" class="secondary" id="th-logs">See logs</button></div></section>'+
+      '<div class="th-sec"><h2 class="th-h2">College</h2><button type="button" class="th-link" id="th-cal">Full calendar</button></div>'+
+      '<div class="th-group">'+strip+nextRow+
+        (now&&window.eviaCheckIn?row({id:"th-checkin",ic:"qr",title:"Check in now",sub:now.class||"Your class is on"}):"")+
+        (AT?row({id:"th-att",ic:"qr",title:"Attendance",sub:AT.pct==null?"No registers yet":AT.pct+"% · "+AT.here+" of "+AT.n+" sessions"}):"")+
+        (canAway?row({id:"th-away",ic:"away",title:"Can’t make college?",sub:"Tell your tutor"}):"")+'</div>';
     wireHeader();
+    on("th-log",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)});
+    on("th-logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs());
     on("th-checkin",()=>window.eviaCheckIn.open());
+    on("th-att",()=>window.eviaProgressDeep&&window.eviaProgressDeep("attendance"));
     on("th-away",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaTodo.away(),120)});
     on("th-cal",()=>{full=true;fullCalendar()});
-    on("th-future",()=>window.eviaFuture.open());
+    if(!next)on("th-next",()=>{full=true;fullCalendar()});
   }
   /* The month calendar, attendance and college days (calendar.js), with a way back to Plan. */
   function fullCalendar(){
     if(window.eviaCalendar&&window.eviaCalendar.page)window.eviaCalendar.page();
     const h=scr().querySelector(".ui-page-head");
-    const back=document.createElement("button");back.type="button";back.className="secondary tg-back th-back";back.textContent="‹ Plan";back.onclick=()=>{full=false;plan()};
+    const back=document.createElement("button");back.type="button";back.className="secondary tg-back th-back";back.textContent="‹ Time";back.onclick=()=>{full=false;plan()};
     if(h){h.querySelector("h1").textContent="Calendar";h.after(back)}else scr().prepend(back);
     scr().querySelectorAll(".cal-me-wrap,.cal-h").forEach(x=>x.remove());
   }
@@ -217,7 +236,7 @@
   /* ---------- Wire into the app ---------- */
   window.courses=function(){topics()};
   window.portfolio=()=>window.courses();
-  window.eviaProgressPage=progress;
+  window.eviaProgressPage=review;
   const prev=window.render;
   window.render=function(){
     if(screen!=="calendar")full=false;
@@ -226,9 +245,9 @@
     else if(screen==="teach")learn();
     return r;
   };
-  /* The bottom bar says Plan. */
-  const label=()=>{const l=document.getElementById("nav-college");if(l)l.textContent="Plan"};
+  /* The bottom bar: Topics · Time · Evia · Review · Learn. */
+  const label=()=>{const l=document.getElementById("nav-college");if(l)l.textContent="Time";const r=document.querySelector('[data-nav="learning"] span:last-child');if(r)r.textContent="Review"};
   label();setTimeout(label,500);
-  if(window.eviaCalendar)window.eviaCalendar.name=()=>"Plan";
-  window.eviaTidy={topics,progress,plan,learn,header};
+  if(window.eviaCalendar)window.eviaCalendar.name=()=>"Time";
+  window.eviaTidy={topics,review,plan,learn,header,checklist};
 })();

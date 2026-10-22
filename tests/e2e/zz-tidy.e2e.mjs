@@ -18,7 +18,7 @@ try {
   await ev.page.goto(site + "/evia/"); await ev.page.waitForTimeout(2500);
   await ev.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); nav("course"); });
   const res = {};
-  for (const [tab, sel] of [["course", "#ui-course-head"], ["learning", "#th-log"], ["calendar", "#th-cal"], ["teach", ".tg-player"]]) {
+  for (const [tab, sel] of [["course", "#ui-course-head"], ["learning", ".th-check"], ["calendar", "#th-log"], ["teach", ".tg-player"]]) {
     await ev.page.evaluate((t) => nav(t), tab); await ev.page.waitForTimeout(1500);
     res[tab] = await ev.page.evaluate((s) => !!document.querySelector(s) && !!document.getElementById("th-me"), sel);
     await ev.page.screenshot({ path: out(tab), fullPage: true });
@@ -26,14 +26,19 @@ try {
   await ev.page.evaluate(() => nav("calendar")); await ev.page.waitForTimeout(800); await ev.page.click("#th-cal"); await ev.page.waitForTimeout(1000);
   res.full = await ev.page.evaluate(() => !!document.getElementById("cal-month") && !!document.querySelector(".th-back"));
   await ev.page.screenshot({ path: out("calendar-full"), fullPage: true });
-  await ev.page.click(".th-back"); await ev.page.waitForTimeout(500); res.back = await ev.page.evaluate(() => !!document.getElementById("th-cal"));
+  await ev.page.click(".th-back"); await ev.page.waitForTimeout(500); res.back = await ev.page.evaluate(() => !!document.getElementById("th-log"));
   await ev.page.evaluate(() => nav("course")); await ev.page.waitForTimeout(800); await ev.page.click("#th-me"); await ev.page.waitForTimeout(800);
   res.profile = await ev.page.evaluate(() => !!document.querySelector(".profile-sheet"));
   await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; }); await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1200);
   res.unit = await ev.page.evaluate(() => !document.getElementById("ui-course-head"));
+  await ev.page.evaluate(() => nav("course")); await ev.page.waitForTimeout(800); await ev.page.click("#th-add"); await ev.page.waitForTimeout(400);
+  res.picker = await ev.page.evaluate(() => document.querySelectorAll(".th-sheet [data-pick]").length > 3);
+  await ev.page.screenshot({ path: out("picker"), fullPage: false });
+  await ev.page.click('.th-sheet [data-pick="1"]'); await ev.page.waitForTimeout(1200); res.picked = await ev.page.evaluate(() => !document.querySelector(".th-sheet") && !document.getElementById("ui-course-head"));
+  await ev.page.evaluate(() => nav("learning")); await ev.page.waitForTimeout(800); res.items = await ev.page.evaluate(() => document.querySelectorAll(".th-check").length);
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));
-  check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Plan", JSON.stringify(res));
+  check("Tidy layout: every tab has the header; Plan opens the full calendar and back; profile and units open", Object.values(res).every(Boolean) && res.label === "Time", JSON.stringify(res));
   check("No script errors", !errors.length, errors.join(" | "));
 } catch (e) { check("ran", false, e.stack); }
 await finish();
