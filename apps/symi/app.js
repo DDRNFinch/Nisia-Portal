@@ -444,12 +444,12 @@
       data[l.id]={...clone(rec),attendedMs:actual,expectedMs:expected,status:actual>0?'attended':'absent'};
       a[l.id]=clone(rec);
     }
-    a._meta={...(a._meta||{}),date:key,completedAt:Date.now(),autoCompleted:auto};
+    const doneAt=Date.now();a._meta={...(a._meta||{}),date:key,completedAt:doneAt,autoCompleted:auto};
     const actualTotal=Object.values(data).reduce((s,r)=>s+(Number(r.attendedMs)||0),0);
     const row={
       id:uid(),sessionKey:attendanceKey(reg.id,key),classId:reg.id,className:reg.name,date:key,dateLabel:prettyDateKey(key),
       total:(reg.learners||[]).length,present:Object.values(data).filter(r=>r.attendedMs>0).length,late:0,absent:Object.values(data).filter(r=>!r.attendedMs).length,
-      scheduledMs:expected,breakMs:breakWindows(reg,key).reduce((s,b)=>s+(b.endMs-b.startMs),0),attendedMs:actualTotal,autoCompleted:auto,data
+      scheduledMs:expected,breakMs:breakWindows(reg,key).reduce((s,b)=>s+(b.endMs-b.startMs),0),attendedMs:actualTotal,autoCompleted:auto,doneAt,data
     };
     state.history.unshift(row);state.history=state.history.slice(0,250);refreshLearnerAttendanceSummaries();save(false);return row;
   }
@@ -574,7 +574,7 @@
     const host=$('#registerWorkspace');if(!host)return;
     if(!reg){host.innerHTML='<section class="staff-card"><div class="empty-state"><strong>No registers yet</strong><p>Create a class or a standalone register.</p></div></section>';return;}
     const key=todayKey(),done=completedSession(reg,key),timing=sessionTimingState(reg,key),canFinish=!done&&['open-early','live','break','ended'].includes(timing.code),breakText=breakWindows(reg,key).map(x=>`${x.start}–${x.end}`).join(' · '),linkedClass=state.teachingClasses.find(c=>c.id===reg.teachingClassId);
-    host.innerHTML=`<section class="staff-card clean-register-card"><div class="clean-register-head"><div><h2>${esc(reg.name)}</h2><small>${esc([recurrenceText(reg),`${reg.start||'09:00'}–${reg.end||'16:00'}`,reg.room].filter(Boolean).join(' · '))}</small></div>${sessionBanner(reg,key)}</div><div class="register-compact-meta"><span>${formatDuration(scheduledMs(reg,key))}</span>${breakText?`<span>Break ${esc(breakText)}</span>`:''}<span>${(reg.learners||[]).length} learners</span></div><div class="attendance-list">${(reg.learners||[]).length?(reg.learners||[]).map(l=>timerRow(reg,l,key)).join(''):'<div class="empty-state compact-empty"><strong>No learners</strong></div>'}</div><div class="register-bottom-actions">${linkedClass?`<button class="soft-button" type="button" data-edit-class="${attr(linkedClass.id)}">Edit class</button>`:'<button class="soft-button" type="button" data-edit-register>Edit</button>'}<button class="soft-button" type="button" data-assign-learners>+ Learner</button>${(reg.learners||[]).length&&canFinish?'<button class="blue-button" type="button" data-finish-register>Finish</button>':''}</div>${done?'<div class="session-complete-note"><strong>Saved</strong></div>':''}</section>`;
+    host.innerHTML=`<section class="staff-card clean-register-card"><div class="clean-register-head"><div><h2>${esc(reg.name)}</h2><small>${esc([recurrenceText(reg),`${reg.start||'09:00'}–${reg.end||'16:00'}`,reg.room].filter(Boolean).join(' · '))}</small></div>${sessionBanner(reg,key)}</div><div class="register-compact-meta"><span>${formatDuration(scheduledMs(reg,key))}</span>${breakText?`<span>Break ${esc(breakText)}</span>`:''}<span>${(reg.learners||[]).length} learners</span></div><div class="attendance-list">${(reg.learners||[]).length?(reg.learners||[]).map(l=>timerRow(reg,l,key)).join(''):'<div class="empty-state compact-empty"><strong>No learners</strong></div>'}</div><div class="register-bottom-actions">${linkedClass?`<button class="soft-button" type="button" data-edit-class="${attr(linkedClass.id)}">Edit class</button>`:'<button class="soft-button" type="button" data-edit-register>Edit</button>'}<button class="soft-button" type="button" data-assign-learners>+ Learner</button>${(reg.learners||[]).length&&canFinish?'<button class="blue-button" type="button" data-finish-register>Finish</button>':''}${canReopen(reg,key)?'<button class="soft-button" type="button" data-reopen-register>Open again</button>':''}</div>${done?'<div class="session-complete-note"><strong>Saved</strong></div>':''}</section>`;
   }
 
   function historyHtml(classId=null){
@@ -1034,6 +1034,24 @@
     finaliseSession(reg,todayKey(),false,Date.now());save();toast('Session finished · attendance saved to learner profiles');
   }
 
+  /* Finished too early: open today's register again (until the session's end) and carry on. The saved register comes
+     off, the timers stay as they were, and finishing again saves it again. nisia-link.js opens it on Evia Portal and
+     the tutor's other devices too (local: a device hearing that from Evia Portal). */
+  function canReopen(reg,key=todayKey()){return Boolean(reg&&key===todayKey()&&completedSession(reg,key)&&Date.now()<sessionBounds(reg,key).end);}
+  function reopenSession(reg,key,local=false){
+    const done=completedSession(reg,key);if(!done)return null;
+    state.history=state.history.filter(h=>!(h.classId===reg.id&&h.date===key));
+    const a=attendance(reg.id,key);a._meta={...(a._meta||{}),date:key,startedAt:a._meta?.startedAt||Date.now()};delete a._meta.completedAt;delete a._meta.autoCompleted;
+    refreshLearnerAttendanceSummaries();save();
+    if(!local)window.SymiNisia?.reopened?.(reg.id,key);
+    return done;
+  }
+  function reopenRegister(){
+    const reg=activeRegister();if(!canReopen(reg))return;
+    if(!confirm('Open this register again? Timers can be started again, and you finish it again at the end.'))return;
+    reopenSession(reg,todayKey());toast('Register open again');
+  }
+
   function manageTicker(){
     const key=todayKey(),current=activeRegister();
     const pending=state.classes.filter(reg=>!reg.archived&&registerDateActive(reg,key)).filter(reg=>{
@@ -1376,6 +1394,7 @@
     if(b.hasAttribute('data-assign-learners'))return openAssignDialog();
     if(b.dataset.toggleTimer)return toggleTimer(b.dataset.toggleTimer);
     if(b.hasAttribute('data-finish-register'))return finishRegister();
+    if(b.hasAttribute('data-reopen-register'))return reopenRegister();
 
     if(b.hasAttribute('data-create-resource'))return openAssistant('resources:create');
     if(b.hasAttribute('data-import-samos'))return openAssistant('resources:import');
@@ -1637,6 +1656,8 @@
     },
     /* The same register on the tutor's other devices (nisia-link.js): who's in and their timers, when it started, and
        finishing it when it was finished elsewhere. */
+    /* Opened again on another device (nisia-link.js): take this device's finish off too. */
+    reopen:(regId,key)=>{const reg=state.classes.find(c=>c.id===regId);if(!reg||!completedSession(reg,key))return false;reopenSession(reg,key,true);return true;},
     applyLive:(regId,key,live)=>{
       const reg=state.classes.find(c=>c.id===regId);if(!reg||completedSession(reg,key))return false;
       const a=attendance(reg.id,key);

@@ -59,5 +59,5 @@ test('0.27 shell calendar update system home polish cache and manifest are align
   assert.match(calendar,/function classEvents\(/);
   assert.match(calendar,/Edit \/ reschedule/);
   assert.equal(manifest.short_name,'Symi');
-  assert.equal(manifest.start_url,'./?v=0.34.28');
+  assert.equal(manifest.start_url,'./?v=0.34.29');
 });
