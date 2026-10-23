@@ -1,4 +1,4 @@
-const VERSION = "2026-10-23-evia7-v274";
+const VERSION = "2026-10-23-evia7-v275";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -13,7 +13,7 @@ const APP_SHELL = [
   "./vendor/fonts/lexend-latin-400-normal.woff2",
   "./vendor/fonts/lexend-latin-600-normal.woff2",
   "./vendor/fonts/inter-latin-wght-normal.woff2",
-  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./journey.js","./vendor/supabase-2.45.4.js",
+  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./helper.js","./vendor/supabase-2.45.4.js",
   "./storage.js",
   "./app.js",
   "./data.js",

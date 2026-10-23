@@ -3158,58 +3158,40 @@ body.evia-dark #chat .es-target{border-color:#2a3140}
 body.evia-dark #chat .es-next{background:#232a20}
 @media (prefers-reduced-motion:reduce){#chat .es-card,#chat .es-target,#chat .es-bar i,#chat .es-stat.hot .es-flame{animation:none}}
 
-/* Evia's path (journey.js): a season of stepping stones, today's step underneath. */
-#chat .jy{display:flex;flex-direction:column;gap:10px;animation:tdIn .45s ease both}
-#chat .jy-top{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px}
-#chat .jy-top strong{font-size:15px;font-weight:800}
-#chat .jy-top span{font-size:13px;color:var(--ui-muted,#667085);font-weight:700}
-#chat .jy-map{position:relative;height:min(46vh,380px);overflow-y:auto;overflow-x:hidden;border-radius:20px;background:linear-gradient(180deg,#eef7ff 0%,#f4fbf2 55%,#fff9e8 100%);scrollbar-width:none;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 28px,#000 calc(100% - 28px),transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 28px,#000 calc(100% - 28px),transparent 100%)}
-#chat .jy-map::-webkit-scrollbar{display:none}
-#chat .jy-track{position:relative;width:100%}
-#chat .jy-path{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-#chat .jy-path path{fill:none;stroke:#dfe3ea;stroke-width:10;stroke-linecap:round;vector-effect:non-scaling-stroke}
-#chat .jy-path path.jy-lit{stroke:var(--yellow,#f5c518);stroke-width:10}
-#chat .jy-stone{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;display:grid;place-items:center;background:#fff;border:3px solid #dfe3ea;color:#98a2b3;box-shadow:0 3px 0 #d0d5dd}
-#chat .jy-stone b{font-size:13px;font-weight:800}
-#chat .jy-stone svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-#chat .jy-stone.big{width:50px;height:50px;margin:-25px 0 0 -25px}
-#chat .jy-stone.big svg{width:24px;height:24px;stroke-width:2.2}
-#chat .jy-stone.last{width:56px;height:56px;margin:-28px 0 0 -28px;color:#e2564b}
-#chat .jy-stone.done{background:var(--yellow,#f5c518);border-color:#fff;color:var(--yellow-ink,#5a4500);box-shadow:0 3px 0 color-mix(in srgb,var(--yellow,#f5c518) 60%,#7a5d00)}
-#chat .jy-stone.now:not(.done){width:62px;height:62px;margin:-31px 0 0 -31px;border:4px solid var(--yellow,#f5c518);background:#fff;box-shadow:0 4px 0 color-mix(in srgb,var(--yellow,#f5c518) 60%,#7a5d00),0 0 0 0 rgba(245,197,24,.5);animation:jyPulse 2s ease-in-out infinite}
-#chat .jy-face{display:flex;gap:6px}
-#chat .jy-face i{display:block;width:8px;height:12px;border-radius:50%;border:2.5px solid var(--yellow-ink,#7a5d00);animation:evBlink 4.2s ease-in-out 1s infinite}
-#chat .jy-evia{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:34px;height:34px;border-radius:50%;background:#fff;border:3px solid var(--yellow,#f5c518);display:grid;place-items:center;box-shadow:0 3px 8px rgba(16,24,40,.15)}
-#chat .jy-evia .jy-face{gap:4px}
-#chat .jy-evia .jy-face i{width:5px;height:8px;border-width:2px}
-#chat .jy-stone.fresh{animation:jyPop .7s cubic-bezier(.3,1.8,.4,1) .3s both}
-#chat .jy-card{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px 16px;border-radius:18px;background:#fff;border:1px solid var(--ui-line,#e4e7ec)}
-#chat .jy-card small{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow-ink,#7a5d00)}
-#chat .jy-card strong{font-size:18px;line-height:1.25;color:var(--ink,#101828)}
-#chat .jy-card span{font-size:13.5px;color:var(--ui-muted,#667085)}
-#chat .jy-card .jy-go{align-self:stretch;margin-top:10px;min-height:48px;border-radius:14px;font-size:16px}
-#chat .jy-doneday small{color:#2f8f57}
-@keyframes jyPulse{0%,100%{box-shadow:0 4px 0 color-mix(in srgb,var(--yellow,#f5c518) 60%,#7a5d00),0 0 0 0 rgba(245,197,24,.45)}50%{box-shadow:0 4px 0 color-mix(in srgb,var(--yellow,#f5c518) 60%,#7a5d00),0 0 0 12px rgba(245,197,24,0)}}
-@keyframes jyPop{0%{transform:scale(.4)}100%{transform:none}}
-body.evia-dark #chat .jy-map{background:linear-gradient(180deg,#182233,#18221c 55%,#221f14)}
-body.evia-dark #chat .jy-stone{background:#1f2533;border-color:#343b4a;box-shadow:0 3px 0 #10141c}
-body.evia-dark #chat .jy-stone.done{background:var(--yellow,#f5c518);border-color:#1f2533}
-body.evia-dark #chat .jy-path path{stroke:#2a3140}
-body.evia-dark #chat .jy-path path.jy-lit{stroke:var(--yellow,#f5c518)}
-body.evia-dark #chat .jy-card{background:#161b26;border-color:#2a3140}
-body.evia-dark #chat .jy-card strong{color:#eef0f3}
 /* Check in: a pop-up when the app opens while the class is on. */
-.jy-pop{position:fixed;inset:0;z-index:9000;display:grid;place-items:end center;padding:16px;background:rgba(16,24,40,.35);animation:jyFade .2s ease both}
-.jy-pop.out{animation:jyFade .2s ease reverse both}
-.jy-pop-card{width:min(420px,100%);display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 18px 18px;border-radius:24px;background:#fff;text-align:center;box-shadow:0 20px 50px rgba(16,24,40,.25);animation:jyUp .35s cubic-bezier(.2,1.2,.4,1) both;margin-bottom:max(8px,env(safe-area-inset-bottom))}
-.jy-pop-ic{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:#3cb371;color:#fff;margin-bottom:4px}
-.jy-pop-ic svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
-.jy-pop-card strong{font-size:19px;color:#101828}
-.jy-pop-card span{font-size:14px;color:#667085;margin-bottom:8px}
-.jy-pop-card button{width:100%;min-height:48px;border-radius:14px;font-size:16px}
-.jy-pop-card [data-in]{background:#3cb371;border-color:#3cb371;color:#fff}
-body.evia-dark .jy-pop-card{background:#161b26}
-body.evia-dark .jy-pop-card strong{color:#eef0f3}
-@keyframes jyFade{from{opacity:0}}
-@keyframes jyUp{from{transform:translateY(40px);opacity:0}}
-@media (prefers-reduced-motion:reduce){#chat .jy,#chat .jy-stone,#chat .jy-face i,.jy-pop,.jy-pop-card{animation:none!important}}
+.hp-pop{position:fixed;inset:0;z-index:9000;display:grid;place-items:end center;padding:16px;background:rgba(16,24,40,.35);animation:hpFade .2s ease both}
+.hp-pop.out{animation:hpFade .2s ease reverse both}
+.hp-pop-card{width:min(420px,100%);display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 18px 18px;border-radius:24px;background:#fff;text-align:center;box-shadow:0 20px 50px rgba(16,24,40,.25);animation:hpUp .35s cubic-bezier(.2,1.2,.4,1) both;margin-bottom:max(8px,env(safe-area-inset-bottom))}
+.hp-pop-ic{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:#3cb371;color:#fff;margin-bottom:4px}
+.hp-pop-ic svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.hp-pop-card strong{font-size:19px;color:#101828}
+.hp-pop-card span{font-size:14px;color:#667085;margin-bottom:8px}
+.hp-pop-card button{width:100%;min-height:48px;border-radius:14px;font-size:16px}
+.hp-pop-card [data-in]{background:#3cb371;border-color:#3cb371;color:#fff}
+body.evia-dark .hp-pop-card{background:#161b26}
+body.evia-dark .hp-pop-card strong{color:#eef0f3}
+@keyframes hpFade{from{opacity:0}}
+@keyframes hpUp{from{transform:translateY(40px);opacity:0}}
+@media (prefers-reduced-motion:reduce){#chat .jy,#chat .hp-stone,#chat .hp-face i,.hp-pop,.hp-pop-card{animation:none!important}}
+
+/* Evia as a helper (helper.js): the one thing that matters, then four big jobs. */
+#chat .hp-detail{color:var(--ui-muted,#667085)}
+#chat .hp-one{align-self:flex-start;min-height:44px;padding:0 20px;border-radius:14px;font-size:15px;animation:tdIn .4s ease .1s both}
+#chat .hp-jobs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+#chat .hp-jobs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:118px;padding:14px;border-radius:20px;border:1px solid var(--ui-line,#e4e7ec);background:#fff;color:var(--ink,#101828);font:inherit;text-align:left;cursor:pointer;
+  animation:tdIn .45s cubic-bezier(.2,1.3,.4,1) both;transition:transform .15s ease}
+#chat .hp-jobs button:nth-child(2){animation-delay:.06s}#chat .hp-jobs button:nth-child(3){animation-delay:.12s}#chat .hp-jobs button:nth-child(4){animation-delay:.18s}
+#chat .hp-jobs button:active{transform:scale(.97)}
+#chat .hp-ic{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:var(--soft,#fff7d6);color:var(--yellow-ink,#7a5d00);margin-bottom:auto}
+#chat .hp-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#chat .hp-jobs strong{font-size:16px;margin-top:10px}
+#chat .hp-jobs small{font-size:12.5px;color:var(--ui-muted,#667085)}
+#chat .hp-topics{display:flex;flex-direction:column;border-radius:16px;border:1px solid var(--ui-line,#e4e7ec);background:#fff;overflow:hidden}
+#chat .hp-topics button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 14px;border:0;border-top:1px solid var(--ui-line,#eef0f3);background:none;font:inherit;font-size:14.5px;font-weight:700;text-align:left;color:var(--ink,#101828);cursor:pointer}
+#chat .hp-topics button:first-child{border-top:0}
+#chat .hp-topics small{font-size:11.5px;font-weight:800;color:#2f8f57}
+#chat .hp-ask{display:flex;gap:8px}
+#chat .hp-ask input{flex:1;min-width:0;font:inherit;font-size:16px;padding:12px 14px;border-radius:14px;border:1px solid var(--ui-line,#d0d5dd);background:#fff;color:var(--ink,#101828)}
+#chat .hp-ask button{flex:0 0 auto;padding:0 18px;border-radius:14px}
+body.evia-dark #chat .hp-jobs button,body.evia-dark #chat .hp-topics,body.evia-dark #chat .hp-ask input{background:#161b26;border-color:#2a3140;color:#eef0f3}
+body.evia-dark #chat .hp-topics button{color:#eef0f3;border-color:#2a3140}
