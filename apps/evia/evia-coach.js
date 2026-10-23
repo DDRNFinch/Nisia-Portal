@@ -484,5 +484,5 @@
   /* EPA mode ends when the chat closes. */
   const mr=document.getElementById("modal-root");
   if(mr)new MutationObserver(()=>{if(!mr.querySelector(".chat-sheet"))epaMode(false)}).observe(mr,{childList:true});
-  window.eviaCoachFlows={hours:logHours,confidence,upskill,task:upskillTask,evidence,evidenceCheck,quickReview,prepare,targets,targetDo,epa,epaMode,openUnitAt};
+  window.eviaCoachFlows={openProgress,hours:logHours,confidence,upskill,task:upskillTask,evidence,evidenceCheck,quickReview,prepare,targets,targetDo,epa,epaMode,openUnitAt};
 })();

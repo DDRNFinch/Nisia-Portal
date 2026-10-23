@@ -2,7 +2,7 @@
    chooses. Everything is worked out from data already on the device; nothing leaves the phone. */
 (function(){
   const PPE_UNIT="Personal protective equipment";
-  const EARNED_KEY="evia7-achievements";
+  const EARNED_KEY="evia7-achievements",DAYS_KEY="evia7-days";
   const DAY=864e5,WEEK=7*DAY;
   const readJson=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v??f}catch(_){return f}};
   const entryTime=e=>{const t=Date.parse(e.savedAt||"");if(!isNaN(t))return t;const m=String(e.d||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?new Date(+m[3],m[2]-1,+m[1]).getTime():0};
@@ -11,6 +11,22 @@
   const photoCount=e=>Array.isArray(e.photoIds)?e.photoIds.length:Number.isFinite(Number(e.photoCount))?Number(e.photoCount):Array.isArray(e.p)?e.p.length:0;
   const testPct=t=>typeof t.pct==="number"?t.pct:(t.total?Math.round((t.score||0)/t.total*100):0);
   const TEST_NAMES={maths:"Maths",english:"English",epa:"EPA mock",discussion:"Professional discussion"};
+
+  /* Days the learner opened Evia (any time spent counts), for the day streak. Weekends never break it. */
+  const dayKey=t=>{const d=new Date(t);return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
+  function markActive(){
+    try{const k=dayKey(Date.now()),days=readJson(DAYS_KEY,[]);if(days[days.length-1]===k)return;days.push(k);localStorage.setItem(DAYS_KEY,JSON.stringify(days.slice(-400)))}catch(_){}
+  }
+  function dayStreak(){
+    const days=new Set(readJson(DAYS_KEY,[]));let n=0;const d=new Date();d.setHours(12,0,0,0);
+    if(!days.has(dayKey(d)))d.setDate(d.getDate()-1);
+    for(let i=0;i<400;i++,d.setDate(d.getDate()-1)){
+      if(days.has(dayKey(d)))n++;else if(d.getDay()!==0&&d.getDay()!==6)break;
+    }
+    return n;
+  }
+  markActive();
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)markActive()});
 
   function compute(){
     const coach=window.eviaCoach,a=coach.analyse(),now=Date.now();
@@ -49,7 +65,7 @@
       lastUpload:a.lastEntry?entryTime(a.lastEntry):null,daysSince:a.daysSince,
       packsThisMonth:entries.filter(e=>entryTime(e)>=monthStart()).length,
       otjWeek:otjSince(weekStart(now)),otjMonth:otjSince(monthStart()),otjTotal:a.otj,
-      streak,longest,activeThisWeek:weeks.has(weekStart(now)),
+      streak,longest,activeThisWeek:weeks.has(weekStart(now)),dayStreak:dayStreak(),
       unitsLeft,weeksLeft,weeksPerUnit:weeksLeft!=null&&unitsLeft?weeksLeft/unitsLeft:null,
       coverage,checks,avgPhotos:unitEntries.length?unitEntries.reduce((n,e)=>n+photoCount(e),0)/unitEntries.length:null,
       tests:Object.values(byType),testCount:tests.length,bestTest:tests.reduce((n,t)=>Math.max(n,testPct(t)),0),
@@ -62,26 +78,29 @@
   }
 
   /* ---------- Achievements ---------- */
+  /* prog: how far along an achievement not yet earned is ([have, need]), for "Next badge" in Evia's chat. */
   const ACHIEVEMENTS=[
-    {id:"ppe",label:"Safety first",desc:"Completed the PPE induction",test:s=>s.ppeDone},
-    {id:"first-pack",label:"First evidence",desc:"Submitted your first evidence pack",test:s=>s.packs>=1},
-    {id:"five-packs",label:"Building up",desc:"Submitted 5 evidence packs",test:s=>s.packs>=5},
-    {id:"ten-packs",label:"Portfolio pro",desc:"Submitted 10 evidence packs",test:s=>s.packs>=10},
-    {id:"ksb-25",label:"Quarter way",desc:"Evidence for 25% of your KSBs",test:s=>s.a.ksbPct>=25},
-    {id:"ksb-50",label:"Halfway",desc:"Evidence for 50% of your KSBs",test:s=>s.a.ksbPct>=50},
-    {id:"ksb-75",label:"Three quarters",desc:"Evidence for 75% of your KSBs",test:s=>s.a.ksbPct>=75},
-    {id:"ksb-100",label:"Every KSB",desc:"Evidence for every KSB",test:s=>s.a.ksbPct>=100},
-    {id:"all-units",label:"All-rounder",desc:"Evidence in every unit",test:s=>s.a.units.length>0&&s.unitsLeft===0},
-    {id:"streak-4",label:"On a roll",desc:"Active 4 weeks in a row",test:s=>s.longest>=4},
-    {id:"streak-12",label:"Steady worker",desc:"Active 12 weeks in a row",test:s=>s.longest>=12},
-    {id:"otj-10",label:"Learning logged",desc:"10 learning hours logged",test:s=>s.otjTotal>=10},
-    {id:"otj-50",label:"Dedicated learner",desc:"50 learning hours logged",test:s=>s.otjTotal>=50},
-    {id:"first-test",label:"Test taker",desc:"Completed your first test",test:s=>s.testCount>=1},
-    {id:"test-80",label:"Top marks",desc:"Scored 80% or more in a test",test:s=>s.bestTest>=80},
-    {id:"confidence",label:"Know yourself",desc:"Completed a confidence check",test:s=>s.confidence.sessions>=1},
-    {id:"writeup",label:"Full marks write-up",desc:"A write-up covering every key point",test:s=>s.checks.some(c=>c.covered.length===c.terms.length)},
-    {id:"medal",label:"First medal",desc:"Won your first medal in Teach me",test:s=>s.teach.medalCount>=1},
-    {id:"gold-5",label:"Gold standard",desc:"Won five gold medals in Teach me",test:s=>s.teach.medals.gold>=5}
+    {id:"ppe",label:"Safety first",desc:"Completed the PPE induction",test:s=>s.ppeDone,prog:s=>[s.ppeDone?1:0,1]},
+    {id:"first-pack",label:"First evidence",desc:"Submitted your first evidence pack",test:s=>s.packs>=1,prog:s=>[s.packs,1]},
+    {id:"five-packs",label:"Building up",desc:"Submitted 5 evidence packs",test:s=>s.packs>=5,prog:s=>[s.packs,5]},
+    {id:"ten-packs",label:"Portfolio pro",desc:"Submitted 10 evidence packs",test:s=>s.packs>=10,prog:s=>[s.packs,10]},
+    {id:"ksb-25",label:"Quarter way",desc:"Evidence for 25% of your KSBs",test:s=>s.a.ksbPct>=25,prog:s=>[s.a.ksbPct,25]},
+    {id:"ksb-50",label:"Halfway",desc:"Evidence for 50% of your KSBs",test:s=>s.a.ksbPct>=50,prog:s=>[s.a.ksbPct,50]},
+    {id:"ksb-75",label:"Three quarters",desc:"Evidence for 75% of your KSBs",test:s=>s.a.ksbPct>=75,prog:s=>[s.a.ksbPct,75]},
+    {id:"ksb-100",label:"Every KSB",desc:"Evidence for every KSB",test:s=>s.a.ksbPct>=100,prog:s=>[s.a.ksbPct,100]},
+    {id:"all-units",label:"All-rounder",desc:"Evidence in every unit",test:s=>s.a.units.length>0&&s.unitsLeft===0,prog:s=>[s.a.units.length-s.unitsLeft,s.a.units.length||1]},
+    {id:"days-7",label:"Week on",desc:"Used Evia 7 days in a row (weekends don’t break it)",test:s=>s.dayStreak>=7,prog:s=>[s.dayStreak,7]},
+    {id:"days-30",label:"Habit formed",desc:"Used Evia 30 days in a row (weekends don’t break it)",test:s=>s.dayStreak>=30,prog:s=>[s.dayStreak,30]},
+    {id:"streak-4",label:"On a roll",desc:"Active 4 weeks in a row",test:s=>s.longest>=4,prog:s=>[s.streak,4]},
+    {id:"streak-12",label:"Steady worker",desc:"Active 12 weeks in a row",test:s=>s.longest>=12,prog:s=>[s.streak,12]},
+    {id:"otj-10",label:"Learning logged",desc:"10 learning hours logged",test:s=>s.otjTotal>=10,prog:s=>[s.otjTotal,10]},
+    {id:"otj-50",label:"Dedicated learner",desc:"50 learning hours logged",test:s=>s.otjTotal>=50,prog:s=>[s.otjTotal,50]},
+    {id:"first-test",label:"Test taker",desc:"Completed your first test",test:s=>s.testCount>=1,prog:s=>[s.testCount,1]},
+    {id:"test-80",label:"Top marks",desc:"Scored 80% or more in a test",test:s=>s.bestTest>=80,prog:s=>[s.bestTest,80]},
+    {id:"confidence",label:"Know yourself",desc:"Completed a confidence check",test:s=>s.confidence.sessions>=1,prog:s=>[s.confidence.sessions,1]},
+    {id:"writeup",label:"Full marks write-up",desc:"A write-up covering every key point",test:s=>s.checks.some(c=>c.covered.length===c.terms.length),prog:s=>{const b=s.checks.reduce((m,c)=>Math.max(m,c.terms.length?c.covered.length/c.terms.length:0),0);return [Math.round(b*100),100]}},
+    {id:"medal",label:"First medal",desc:"Won your first medal in Teach me",test:s=>s.teach.medalCount>=1,prog:s=>[s.teach.medalCount,1]},
+    {id:"gold-5",label:"Gold standard",desc:"Won five gold medals in Teach me",test:s=>s.teach.medals.gold>=5,prog:s=>[s.teach.medals.gold,5]}
   ];
   /* Records when each achievement was first earned; newly earned ones are returned so Evia can celebrate them. */
   function achievements(s){
@@ -95,6 +114,11 @@
     });
     if(changed)localStorage.setItem(EARNED_KEY,JSON.stringify(earned));
     return {list,fresh,count:list.filter(x=>x.earned).length};
+  }
+  /* The badge not yet earned that's nearest: {label, desc, have, need}. */
+  function nextAchievement(s){
+    const left=achievements(s).list.filter(x=>!x.earned&&x.prog).map(x=>{const [h,n]=x.prog(s);return Object.assign({},x,{have:Math.max(0,Math.floor(Number(h)||0)),need:n})});
+    return left.sort((x,y)=>y.have/y.need-x.have/x.need)[0]||null;
   }
   function markSeen(ids){
     const earned=readJson(EARNED_KEY,{});
@@ -249,5 +273,5 @@
     cards.forEach(c=>io.observe(c));
   }
 
-  window.eviaStats={compute,achievements,markSeen,nudges,tilesHtml,badgesHtml,heroHtml,animate,ago};
+  window.eviaStats={compute,achievements,nextAchievement,dayStreak,markSeen,nudges,tilesHtml,badgesHtml,heroHtml,animate,ago};
 })();

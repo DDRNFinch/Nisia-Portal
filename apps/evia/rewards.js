@@ -374,7 +374,7 @@
     const paint=t.legendary&&window.eviaThemePaint?window.eviaThemePaint(l.theme):t.accent;
     return '<span class="rw-evia evia-shape-avatar shape-'+shape+(cls?" "+cls:"")+'" style="--yellow:'+t.accent+';--evia-shape-stroke:'+t.accent+';--accent-fill:'+paint+'"'+(t.legendary?' data-legendary data-colour="'+esc(l.theme)+'"':"")+(w.eyes?' data-eyes="'+esc(w.eyes)+'"':"")+'><span class="evia-face"'+(l.expr?' data-x="'+esc(l.expr)+'"':"")+'><i></i><i></i></span>'+kitHtml(shape,w)+'</span>';
   }
-  window.eviaRewards={claimGrants:()=>{lastGrant=0;return claimGrants()},myLook,lookHtml,carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
+  window.eviaRewards={ACH_TOKENS,TARGET_PAY,claimGrants:()=>{lastGrant=0;return claimGrants()},myLook,lookHtml,carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
   /* Coin gifts from Evia Portal (coin-grants.sql): one learner at a time, each collected once, then added to their coins. */
   let lastGrant=0;
   async function claimGrants(){

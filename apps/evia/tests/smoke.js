@@ -152,8 +152,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
     await page.waitForFunction(()=>{const c=document.getElementById("chat");return c&&!c.querySelector(".evia-thinking")},null,{timeout:15000});
-    await page.waitForSelector("#chat .td-item",{timeout:15000});
-    check("Evia opens with what needs doing: at most three items, most urgent first, and no typing box or menu",await page.evaluate(()=>{const n=document.querySelectorAll("#chat .td-item").length,all=window.eviaTodo.list();return n>=1&&n<=3&&n===Math.min(3,all.length)&&all.every((x,j)=>!j||all[j-1].u>=x.u)&&/thing/.test(document.querySelector("#chat .bubble.evia").textContent)&&!document.querySelector(".chat-sheet input[type=text],.chat-sheet .ui-ask,#chat .mn-tile")}));
+    await page.waitForSelector("#chat .es-card",{timeout:15000});
+    check("Evia opens with how you're doing: four stats, your targets with On track/Ahead/Behind, the next badge with its coins, and no typing box or menu",await page.evaluate(()=>{const c=document.querySelector("#chat .es-card");return c.querySelectorAll(".es-stat").length===4&&c.querySelectorAll(".es-target").length>=1&&c.querySelectorAll(".es-target").length<=3&&[...c.querySelectorAll(".es-t-top em")].every(e=>/On track|Ahead|Behind|Overdue|Done/.test(e.textContent))&&/Next badge/.test(c.textContent)&&/coins/.test(c.textContent)&&document.querySelectorAll("#chat .td-item").length<=2&&!/things? to do/.test(document.querySelector("#chat .bubble.evia").textContent)&&!document.querySelector(".chat-sheet input[type=text],.chat-sheet .ui-ask,#chat .mn-tile")}));
     check("Evia's list never includes games or Rewards, and each item has one way to do it",await page.evaluate(()=>window.eviaTodo.list().every(x=>!/game|reward|coin|shop/i.test(x.title+x.detail+x.label)&&typeof x.run==="function")));
     await page.evaluate(()=>{window.eviaChatKit.userSays("Check my evidence");window.eviaCoachFlows.evidenceCheck()});
     await page.waitForFunction(()=>[...document.querySelectorAll("#chat .ui-replies button")].length>=1,null,{timeout:15000});
@@ -219,20 +219,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("EPA mode ends when the chat closes",await page.evaluate(()=>!document.body.classList.contains("evia-epa")));
     await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies",{timeout:15000});
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
-    // Evia's menu: today's focus is always about evidence first.
-    const caught=await page.evaluate(async()=>{const real=window.eviaTodo.list;window.eviaTodo.list=()=>[];window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));window.eviaTodo.list=real;
-      const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return /all caught up/.test(document.getElementById("chat").innerText)&&pills.length>=3&&pills.includes("EPA practice")&&/More|My review/.test(pills.join("|"))});
-    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return ["My review","My targets","What’s missing","Confidence check"].filter(x=>pills.includes(x)).length>=3||pills.includes("More")});
-    check("Under Evia's list: shortcuts to the review, targets, what's missing and the confidence check",sc);
-    const once=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
-      window.eviaTodo.list=()=>Array.from({length:6},(_,i)=>({u:50-i,ic:"hours",title:"Thing "+(i+1),detail:"d",label:"Go",run:()=>{}}));
-      {const x=document.getElementById("x");if(x){x.click();await w(600)}}window.chat({quiet:true});await w(900);window.eviaTodo.show();const c=document.getElementById("chat");let list=null;for(let n=0;n<40&&!(list&&list.querySelector(".td-all"));n++){await w(200);list=[...c.querySelectorAll(".td-list")].pop()}
-      const all=list&&list.querySelector(".td-all"),seeAll=!!all&&/See all 6/.test(all.textContent);if(all)all.click();await w(200);const six=!!list&&list.querySelectorAll(".td-item").length===6;
-      window.eviaTodo.list=real;const before=c.querySelectorAll(".bubble.user").length;
-      const pill=[...c.querySelectorAll(".ui-replies .chat-pill")].find(p=>p.textContent==="My targets");if(!pill)return {seeAll,six,pill:false};
-      pill.click();await w(1500);const after=c.querySelectorAll(".bubble.user").length;return {seeAll,six,one:after-before===1}});
-    check("Evia's list: See all shows every thing to do, and tapping an option shows it once (not twice)",once.seeAll&&once.six&&once.one,JSON.stringify(once));
-    check("With nothing to do, Evia says you're all caught up and offers three ways to get ahead, then her shortcuts",caught);
+    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return pills.includes("My review")&&pills.includes("Confidence check")&&!pills.includes("My targets")});
+    check("Under Evia's panel: just My review and Confidence check",sc);
+    const others=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
+      window.eviaTodo.list=()=>[{u:100,ic:"assessor",title:"Assessor wants more",detail:"d",label:"Go",run:()=>{}},{u:75,ic:"draft",title:"Finish a draft",detail:"d",label:"Go",run:()=>{}},{u:55,ic:"write",title:"Strengthen x",detail:"d",label:"Go",run:()=>{}},{u:50,ic:"hours",title:"Log hours",detail:"d",label:"Go",run:()=>{}}];
+      window.eviaTodo.show();await w(3500);const c=document.getElementById("chat"),urgent=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");
+      const more=[...c.querySelectorAll(".es-others")].pop(),label=more?more.textContent:"";if(more)more.click();await w(300);
+      const after=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");window.eviaTodo.list=real;
+      return {urgent:/Assessor wants more/.test(urgent)&&!/draft|Strengthen|Log hours/.test(urgent),label:label==="1 other thing",after:/Finish a draft/.test(after)&&!/Strengthen|Log hours/.test(after)}});
+    check("Only what can't wait shows as a row; the rest waits behind “1 other thing”, and weak write-ups and hours aren't listed (they're in the targets and stats)",Object.values(others).every(Boolean),JSON.stringify(others));
+    const streak=await page.evaluate(()=>{const k=t=>{const x=new Date(t);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};const save=localStorage.getItem("evia7-days");
+      const d=new Date();d.setHours(12);const days=[];for(let i=0;i<10;i++){const x=new Date(d);x.setDate(d.getDate()-i);if(x.getDay()!==0&&x.getDay()!==6)days.push(k(x))}
+      localStorage.setItem("evia7-days",JSON.stringify(days.reverse()));const n=window.eviaStats.dayStreak();localStorage.setItem("evia7-days",save);return {n,want:days.length}});
+    check("The day streak counts days using Evia, and weekends don't break it",streak.n===streak.want,JSON.stringify(streak));
     // Ask Evia: her calculators, glossary and lessons, worked out on the phone.
     const calcs=await page.evaluate(()=>{const B=window.eviaBrain,C=B.calc;return {bricks:C.bricks({length:4,height:1.2}).big,cavity:C.bricks({length:4,height:1.2,type:"cavity"}).big,stairs:C.stairs({rise:2600}).big,
       fall:C.fall({length:6,ratio:40}).big,sq:C.square({a:3,b:4}).big,sum:C.sum("4.5 x 3.2").big,mortar:C.mortar({bricks:500,ratio:4}).big,
