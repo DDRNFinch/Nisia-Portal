@@ -70,7 +70,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
        own, Evia reminds them (tested further down). Connected, for these review checks. */
     await page.evaluate(()=>{window.__joined=window.eviaNisia.joined;window.eviaNisia.joined=()=>({college:"Brookfield College"})});
     const rvBefore=await page.evaluate(()=>window.eviaGetReviews().length);
-    await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true});setTimeout(()=>window.eviaChatReview(),50)});
+    await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true});setTimeout(()=>window.eviaChatReviewFull(),50)});
     const reviewDone=await page.evaluate(async()=>{
       const wait=ms=>new Promise(r=>setTimeout(r,ms));
       for(let n=0;n<40;n++){
@@ -1364,8 +1364,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaPrepPack.open()});await p9.waitForSelector(".rp-sheet");
         const rp=await p9.evaluate(async()=>{const t=document.querySelector(".rp-sheet").textContent,b=await window.eviaPrepPack.pdf();return {t,ring:document.querySelector(".rp-ring").textContent,pdf:b&&b.type==="application/pdf"&&b.size>1500,share:!!document.getElementById("rp-share")}});
         if(d9)await p9.screenshot({path:d9+"/review-prep.png"}).catch(()=>{});
-        check("Review prep pack: a ready percentage and the checklist, then everything since the last review (evidence, KSBs, hours, attendance, targets, time learning in Evia, their future goal), and a PDF to share from their own phone",
-          /^\d+%$/.test(rp.ring)&&/Your comments/.test(rp.t)&&/Evidence added/.test(rp.t)&&/Attendance/.test(rp.t)&&/Time learning in Evia/.test(rp.t)&&/Run my own business/.test(rp.t)&&/Milos/.test(rp.t)&&rp.pdf&&rp.share,JSON.stringify(rp).slice(0,700));
+        check("Review prep: a ready percentage and one checklist of everything since the last review (evidence, KSBs, hours, attendance, targets, their future goal, the quick questions), each with Do it now, and a PDF to share from their own phone",
+          /^\d+%$/.test(rp.ring)&&/A few quick questions/.test(rp.t)&&/Evidence added/.test(rp.t)&&/attendance/.test(rp.t)&&/Do it now|Change/.test(rp.t)&&/Run my own business/.test(rp.t)&&/Milos/.test(rp.t)&&rp.pdf&&rp.share,JSON.stringify(rp).slice(0,700));
         check("…no script errors with My future and the prep pack",!e9.length,e9.join(" | "));
       }
       await c9.close();

@@ -308,5 +308,5 @@
   window.eviaOpenLegacyReview=openSavedReview;
   window.eviaTestMe=eviaTestMe;
   window.eviaDownloadReviewPdf=downloadReviewPdf;
-  window.eviaGetReviews=()=>D().list("reviews",{course}).map(r=>r.detail).reverse();
+  window.eviaGetReviews=()=>D().list("reviews",{course}).map(r=>r.detail).filter(r=>r&&r.kind!=="prep").reverse();
 })();

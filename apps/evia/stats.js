@@ -134,7 +134,7 @@
     /* Targets and reviews */
     const T=window.eviaTargets,targets=T?T.mine():[],overdue=targets.filter(t=>!t.done&&new Date(t.due+"T23:59:59").getTime()<s.now);
     if(overdue.length)list.push({id:"target-overdue",text:"Your target “"+overdue[0].title+"” is past its date. Want to take a look?",action:{label:"My targets",kind:"targets"}});
-    const reviews=window.eviaData.list("reviews",{course}).map(r=>r.detail),lastReview=reviews.length?Date.parse(reviews[reviews.length-1].date):null;
+    const reviews=window.eviaData.list("reviews",{course}).map(r=>r.detail).filter(r=>r&&r.kind!=="prep"),lastReview=reviews.length?Date.parse(reviews[reviews.length-1].date):null;
     const rd=window.eviaReviewDue?window.eviaReviewDue():null,dueTxt=rd?rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"";
     if(rd&&rd.college){
       /* From 14 days before the review: getting ready, first thing Evia says each day, until it's all done

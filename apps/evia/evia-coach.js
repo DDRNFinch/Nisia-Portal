@@ -274,7 +274,7 @@
        college has set them, otherwise 6 hours a week. */
     {
       const DAY=864e5,now=Date.now(),en=window.eviaData.enrolment&&window.eviaData.enrolment(),p=window.eviaData.learner()||{};
-      const lastRev=[en&&en.lastReview?Date.parse(en.lastReview):0,...(window.eviaGetReviews?window.eviaGetReviews():[]).map(r=>Date.parse(r.date)||0)].reduce((a,b)=>Math.max(a,b),0);
+      const lastRev=Math.max(en&&en.lastReview?Date.parse(en.lastReview)||0:0,...(window.eviaGetReviews?window.eviaGetReviews():[]).map(r=>Date.parse(r.date)||0),(window.eviaTargets&&window.eviaTargets.lastReviewAt?window.eviaTargets.lastReviewAt():0)||0);
       const startP=Date.parse((en&&en.start)||p.start||"")||0,endP=Date.parse((en&&en.end)||p.end||"")||0;
       const from=Math.max(lastRev||startP||now-28*DAY,now-84*DAY,startP||0),weeks=Math.max(1,(now-from)/(7*DAY));
       const inPeriod=hours.filter(x=>Number(x.on||x.createdAt)>=from).reduce((n,x)=>n+Number(x.n||0),0),avg=inPeriod/weeks;
@@ -331,7 +331,8 @@
     const list=areas().filter(x=>!x.ok&&DOIT[x.id]).sort((a,b)=>ORDER.indexOf(a.id)-ORDER.indexOf(b.id));
     const todo=list.filter(x=>!skipped.includes(x.id)).concat(list.filter(x=>skipped.includes(x.id)));
     /* Comments for the assessor are only asked for when connected to a college (the assessor reads them in Milos). */
-    const commentsDone=rd?(rd.college||(window.eviaNisia&&window.eviaNisia.joined())?!!rd.commentsDone:true):false;
+    /* The learner's quick answers (review-prep.js), connected or not: Milos reads them, or they go on the PDF. */
+    const commentsDone=window.eviaPrepPack&&window.eviaPrepPack.answered?window.eviaPrepPack.answered():!!(rd&&rd.commentsDone);
     return {rd,key,todo,commentsDone,all:areas()};
   }
   /* Nothing to get ready while the review is more than 4 weeks off. */
@@ -351,7 +352,7 @@
     if(window.eviaMood)window.eviaMood(left?"think":"happy");
     k.say((when?when+" ":"")+(left?"Let’s get you ready. "+(p.todo.length?"There "+(p.todo.length===1?"is <strong>1 thing</strong>":"are <strong>"+p.todo.length+" things</strong>")+" to look at"+(p.commentsDone?"":", then your comments for your assessor")+". One at a time.":"Just your comments for your assessor to do."):"You’re all ready. Everything looks good and your comments are in. Brilliant."));
     k.widget('<div class="qr prep">'+p.all.filter(x=>x.id!=="review").map(x=>'<div class="qr-row '+(x.ok?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(x.ok?"✓":"!")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span></div>').join("")+
-      '<div class="qr-row '+(p.commentsDone?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(p.commentsDone?"✓":"!")+'</span><span><strong>Your comments</strong><small>'+(p.commentsDone?"Done: your assessor can read them":"How it’s going, how things are at work, any help you need")+'</small></span></div></div>');
+      '<div class="qr-row '+(p.commentsDone?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(p.commentsDone?"✓":"!")+'</span><span><strong>A few quick questions</strong><small>'+(p.commentsDone?"Done":"Five quick taps for your assessor")+'</small></span></div></div>');
     const packBtn={label:"See my prep pack",run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.open(),120)}};
     if(!left)return k.replies([Object.assign({primary:true},packBtn),{label:"Something else",run:k.somethingElse}]);
     passed=new Set();nextPrep();
@@ -361,8 +362,8 @@
     const k=K(),p=prepTasks(),t=p.todo.find(x=>!passed.has(x.id));
     if(!t){
       if(p.commentsDone){k.say("That’s everything. You’re ready for your review.");return k.replies([{label:"See my prep pack",primary:true,run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.open(),120)}},{label:"Something else",run:k.somethingElse}])}
-      k.say("Last one: your comments. Your assessor reads them before the review, and they fill in part of it, so it’s quicker on the day.");
-      return k.replies([{label:"Add my comments",primary:true,run:()=>{window.eviaChatReview?window.eviaChatReview():(k.closeChat(),setTimeout(window.eviaStartReview,80))}},{label:"Later",run:k.somethingElse}]);
+      k.say("Last one: a few quick questions. Just taps, and your assessor reads them before the review.");
+      return k.replies([{label:"Answer now",primary:true,run:()=>{k.closeChat();setTimeout(()=>window.eviaPrepPack&&window.eviaPrepPack.answers(()=>window.eviaPrepPack.open()),120)}},{label:"Later",run:k.somethingElse}]);
     }
     const d=DOIT[t.id];
     k.say("<strong>"+esc(t.title)+"</strong>: "+esc(t.text)+". "+esc(d.why));

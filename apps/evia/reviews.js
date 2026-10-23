@@ -7,7 +7,9 @@
   const escHtml=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
   const readJson=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v??f}catch(_){return f}};
   /* Reviews and targets are read and written through eviaData (data.js); "detail" is the stored review or target. */
-  const reviewsNow=()=>window.eviaData.list("reviews",{course}).map(r=>r.detail);
+  const reviewsAll=()=>window.eviaData.list("reviews",{course}).map(r=>r.detail);
+  /* The learner's answers before a review (review-prep.js) are kept with the reviews, so Milos reads them; they aren't reviews. */
+  const reviewsNow=()=>reviewsAll().filter(r=>r&&r.kind!=="prep");
   const ukDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
   const clamp=v=>Math.max(0,Math.min(1,v));
@@ -80,12 +82,22 @@
 
   /* ---------- Stored targets ---------- */
   const all=()=>window.eviaData.list("targets",{store:"review-targets"}).map(t=>t.detail);
-  /* Only the targets from the latest review: older ones (kept from a backup, a restore or a sync) drop away. */
+  /* When the last review was held: the college's record (connected), else the latest review here or the day the
+     learner said they'd had one. 0 when there hasn't been one. */
+  const lastReviewAt=()=>{
+    try{const en=window.eviaData.enrolment&&window.eviaData.enrolment();if(en&&en.live)return Date.parse(en.lastReview||"")||0}catch(_){}
+    return Math.max(0,...reviewsNow().map(r=>Date.parse(r.date)||0),...heldDates());
+  };
+  const setAt=t=>Number(t.createdAt)||Date.parse(t.reviewDate)||0;
+  /* Only the targets set at the last review. If it set none (or there hasn't been one), Evia's own targets made since,
+     to keep the learner on track until the next one. Older targets drop away. */
   const mine=()=>{
-    const list=all().filter(t=>t.course===course),fromReviews=list.filter(t=>t.reviewId);
-    if(!fromReviews.length)return list;
-    const last=fromReviews.reduce((a,b)=>(Number(b.createdAt)||Date.parse(b.reviewDate)||0)>(Number(a.createdAt)||Date.parse(a.reviewDate)||0)?b:a).reviewId;
-    return list.filter(t=>t.reviewId===last);
+    const list=all().filter(t=>t.course===course),at=lastReviewAt(),fromReviews=list.filter(t=>t.reviewId);
+    if(fromReviews.length){
+      const latest=fromReviews.reduce((a,b)=>setAt(b)>setAt(a)?b:a);
+      if(!at||setAt(latest)>=at-2*DAY)return list.filter(t=>t.reviewId===latest.reviewId);
+    }
+    return list.filter(t=>!t.reviewId&&setAt(t)>=at-DAY);
   };
   /* All target and review writes go through eviaData (data.js). */
   function setTargets(list){window.eviaData.replace("targets",{course},list)}
@@ -93,7 +105,11 @@
     let list=mine();
     if(list.length)return {list,created:false};
     const S=stats();if(!S)return {list:[],created:false};
-    list=suggest(S);setTargets(list);return {list,created:true};
+    /* Due before the next review, so they're done by the time it comes round. */
+    list=suggest(S);const rd=window.eviaReviewDue&&window.eviaReviewDue();
+    if(rd&&rd.days>7){const by=new Date(rd.due.getTime()-3*DAY).toISOString().slice(0,10);list.forEach(t=>{if(t.due>by)t.due=by})}
+    /* Earlier targets stay stored (the review they came from still shows them); only these show now. */
+    setTargets(all().filter(t=>t.course===course).concat(list));return {list,created:true};
   }
   /* Marks targets done as they're reached, and celebrates each one once. */
   function check(celebrate){
@@ -103,7 +119,7 @@
       if(t.done||!KINDS[t.kind])return;
       if(progress(t,S).pct>=1){t.done=true;t.doneAt=Date.now();changed=true;fresh.push(t)}
     });
-    if(changed)setTargets(list);
+    if(changed){const ids=new Set(list.map(t=>t.id));setTargets(all().filter(t=>t.course===course&&!ids.has(t.id)).concat(list))}
     if(celebrate&&fresh.length){
       if(typeof showEvidenceToast==="function")showEvidenceToast("Target complete: "+fresh[0].title);
       if(window.eviaMood)window.eviaMood("happy");
@@ -441,11 +457,15 @@
     if(r.format===2)openReview(r,true);else if(window.eviaOpenLegacyReview)window.eviaOpenLegacyReview(r);
   }
 
-  window.eviaTargets={ensure:ensureTargets,mine,progress,cardHtml,bind,check,stats};
+  window.eviaTargets={ensure:ensureTargets,mine,progress,cardHtml,bind,check,stats,lastReviewAt:()=>lastReviewAt()};
+  /* Not connected: the learner says when their last review was (review-prep.js). */
+  window.eviaSetLastReview=iso=>{const a=(readJson(HELD,[])||[]).filter(x=>x&&x.course!==course);a.push({course,date:iso});localStorage.setItem(HELD,JSON.stringify(a))};
   window.eviaStartReview=()=>startReview();
   window.eviaReviewReminder=reminder;
-  window.eviaChatReview=chatReview;
+  /* The learner's side of the review is now the few quick questions in the review prep (review-prep.js). */
+  window.eviaChatReview=()=>{if(window.eviaPrepPack&&window.eviaPrepPack.answers){const k=window.eviaChatKit;if(k&&k.closeChat)k.closeChat();setTimeout(()=>window.eviaPrepPack.answers(()=>window.eviaPrepPack.open()),120)}else chatReview()};
   window.eviaResumeReview=resumeReview;
+  window.eviaChatReviewFull=chatReview;   /* the older click-through, kept for its tests */
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
   window.eviaReviewDue=()=>{
     const all=reviewsNow(),last=all[all.length-1],p=window.eviaData.learner();
@@ -455,7 +475,7 @@
     if(nd&&!isNaN(nd)){
       const from=Math.max(nd-7*864e5,en.lastReview?Date.parse(en.lastReview):0);
       const said=r=>r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim());
-      const commentsDone=all.some(r=>Date.parse(r.date)>=from&&said(r));
+      const commentsDone=reviewsAll().some(r=>Date.parse(r.date)>=from&&said(r));
       return {due:nd,days:Math.ceil((nd-Date.now())/864e5),first:!en.lastReview,college:true,commentsDone};
     }
     const since=[last?Date.parse(last.date):0].concat(heldDates()).filter(Boolean);
