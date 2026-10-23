@@ -286,7 +286,7 @@ try {
   }
   const all = texts.join(" ");
   check("Evia's facts are filled in through the review", /Log 10 learning hours/.test(all) && /\d+ of 59/.test(all) && /Cavity walling: 3 of 12/.test(all) && /expected by now/i.test(all) && /Enjoying the cavity work/.test(all) && /Best 70%/.test(all), all.slice(0, 300));
-  check("Targets are suggested from the gaps Evia found", /Evidence for Cavity walling/.test(targetTitles) && /Build confidence: Reading drawings/.test(targetTitles) && /Maths: 70% in a test/.test(targetTitles) && /Catch up on off-the-job/.test(targetTitles), targetTitles);
+  check("SMART targets paced to the course (KSBs and hours shared over the time left, due by the next review), never evidence for one particular job", /Evidence for \d+ more KSBs by /.test(targetTitles) && /Log \d+ off-the-job hours by /.test(targetTitles) && /Confident in Reading drawings/.test(targetTitles) && /Maths: 70% in a test/.test(targetTitles) && !/Cavity/.test(targetTitles), targetTitles);
   let downloaded = false; page.on("download", () => { downloaded = true; });
   await next(); await page.waitForTimeout(600);
   const rev = posted.find((x) => x.table === "reviews"), sig = posted.find((x) => x.table === "review_signoffs"), tg = posted.find((x) => x.table === "targets");

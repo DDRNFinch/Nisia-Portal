@@ -19,7 +19,12 @@ try {
     /* Old targets from a review before that one don't show. */
     window.eviaData.replace("targets", { course }, [{ id: "old1", course, kind: "otj", title: "Old target", target: 5, baseline: 0, due: "2026-01-01", createdAt: Date.now() - 300 * 864e5, reviewId: "r-old", reviewDate: "2026-01-01" }]);
     const before = T.mine().length, made = T.ensure(), rd = window.eviaReviewDue(), by = new Date(rd.due.getTime() - 3 * 864e5).toISOString().slice(0, 10);
-    return { before, made: made.created && made.list.length > 0 && made.list.every((t) => !t.reviewId && t.due <= by), shown: T.mine().every((t) => t.id !== "old1"), kept: window.eviaData.list("targets", { store: "review-targets" }).some((t) => t.id === "old1") };
+    /* SMART and paced: KSBs and topics left shared over the months left, all due by the next review, none naming a topic. */
+    const S = window.eviaStats.compute(), units = S.a.units.map((u) => u.name), k = made.list.find((t) => t.kind === "ksb"), u = made.list.find((t) => t.kind === "units");
+    const monthsLeft = 400 / 30.44, share = Math.min(1, ((rd.due.getTime() - 3 * 864e5) - Date.now()) / (30.44 * 864e5) / monthsLeft);
+    const paced = !!k && k.target === Math.max(1, Math.ceil((S.a.total - S.a.met) * share)) && !!u && u.target === Math.max(1, Math.ceil(S.unitsLeft * share)) && /finish by/.test(k.why);
+    const generic = made.list.every((t) => / by \d+ \w+$/.test(t.title) && !units.some((n) => t.title.includes(n)));
+    return { before, made: made.created && made.list.length > 0 && made.list.every((t) => !t.reviewId && t.due <= by), shown: T.mine().every((t) => t.id !== "old1"), kept: window.eviaData.list("targets", { store: "review-targets" }).some((t) => t.id === "old1"), paced, generic, titles: made.list.map((t) => t.title + " (" + t.why + ")") };
   });
   await ev.page.evaluate(() => window.eviaPrepPack.open()); await ev.page.waitForTimeout(500);
   res.page = await ev.page.evaluate(() => ({ rows: document.querySelectorAll(".rp-list li").length, todo: document.querySelectorAll(".rp-list li.todo .rp-do").length, info: [...document.querySelectorAll(".rp-list li.info")].map((x) => x.textContent), last: !!document.getElementById("rp-last") }));
@@ -44,7 +49,7 @@ try {
     const none = T.mine().length, made = T.ensure();
     return { fromMilos: a === "From Milos", noneAfterNewReview: none === 0, ownMade: made.created && T.mine().length > 0 && T.mine().every((t) => !t.reviewId) };
   });
-  check("Targets: only the last review's; Evia's own (due before the next review) when it set none; older ones kept but hidden", res.standalone.before === 0 && res.standalone.made && res.standalone.shown && res.standalone.kept && Object.values(res.connected).every(Boolean), JSON.stringify(res));
+  check("Targets: SMART and paced to finish the course on time, never one particular job; only the last review's; Evia's own (due before the next review) when it set none; older ones kept but hidden", res.standalone.before === 0 && res.standalone.made && res.standalone.shown && res.standalone.kept && res.standalone.paced && res.standalone.generic && Object.values(res.connected).every(Boolean), JSON.stringify(res));
   check("Review prep: one checklist with Do it now, college and employer parts left to them, a few quick taps that aren't a review, and a PDF",
     res.page.rows >= 9 && res.page.todo >= 1 && res.page.info.length >= 2 && res.page.last && res.answered.a && res.answered.back && res.answered.notReview && res.pdf, JSON.stringify(res));
   check("No script errors", !errors.length, errors.join(" | "));

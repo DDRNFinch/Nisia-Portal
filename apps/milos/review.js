@@ -84,6 +84,9 @@ export function facts(L, now = Date.now()) {
     employer: en.employer_name || "", employerContact: en.employer_contact_name || "", start: en.start_date, end: en.end_date, status: en.status,
     reviewNo: L.reviews.length + 1, periodStart: isoDay(periodStart), periodEnd: isoDay(now), lastReview: last ? isoDay(last.reviewed_at) : null,
     timePct, ksb: { met: ksb.met || 0, total: ksb.total || course.ksbs.length, pct: ksb.pct || 0, waiting: ksb.waiting || 0 }, missingUnits,
+    /* What Evia counts (its targets measure from these): KSBs with evidence, and topics started. */
+    eviaKsb: { met: (snap.ksb || {}).met ?? ksb.met ?? 0, total: (snap.ksb || {}).total || ksb.total || course.ksbs.length },
+    units: { total: (snap.units || []).length, started: (snap.units || []).filter((u) => u.started).length },
     evidenceTotal: L.evidence.length, evidencePeriod: L.evidence.filter((x) => Date.parse(x.created_at) >= periodStart).length,
     writeupCoverage: snap.writeupCoverage ?? null, lastActive: snap.lastUpload || (L.evidence[0] && L.evidence[0].created_at) || null,
     otj: { planned, expected: otjExpected, total: otjTotal, period: otjPeriod, onTrack: otjExpected == null ? null : otjTotal >= otjExpected * 0.9 },
@@ -99,26 +102,41 @@ export function facts(L, now = Date.now()) {
   };
 }
 
-/* Targets from Evia's data, each with what Evia measures (measure), so Evia tracks them for the learner after the
-   review and the next review knows whether they were met. */
-export function suggestTargets(F) {
-  const due = isoDay(Date.now() + 6 * 7 * DAY), out = [], word = F.nvq ? "criteria" : "KSBs";
-  const gap = F.missingUnits.slice().sort((a, b) => b.missing - a.missing)[0];
-  if (gap) { const n = Math.min(gap.missing, 6);
-    out.push({ title: "Evidence for " + gap.name, how: "A pack in Evia with at least 10 photos from start to finish and a guided write-up, covering " + (gap.codes && gap.codes.length ? gap.codes.join(", ") : "the " + word + " still missing") + ". Evia counts it when " + n + " more " + word + " are evidenced.", due, support: "Employer to give the chance to do this work",
-      measure: { kind: "ksb", target: n, baseline: F.snap.ksbMet } }); }
-  if (F.otj.onTrack === false) { const perWeek = Math.max(6, Math.ceil((F.otj.expected - F.otj.total) / 6)), goal = perWeek * 6;
-    out.push({ title: "Catch up on off-the-job training", how: "Log " + perWeek + " hours a week in Evia (" + goal + " hours in 6 weeks) until back on plan: " + F.otj.expected + " h expected by now, " + F.otj.total + " h logged.", due, support: "Employer to protect training time",
-      measure: { kind: "otj", target: goal, baseline: F.snap.otjTotal } }); }
-  else if (F.otj.expected != null) out.push({ title: "Keep off-the-job training on plan", how: "Log at least 36 hours in the next 6 weeks in Evia.", due, support: "", measure: { kind: "otj", target: 36, baseline: F.snap.otjTotal } });
-  if (F.snap.coverage != null && F.snap.coverage < 70) out.push({ title: "Fuller write-ups", how: "Write-ups covering 70% of each unit's things to mention (" + F.snap.coverage + "% now)" + (F.snap.strengthWeak.length ? ", starting with " + F.snap.strengthWeak.slice(0, 2).join(" and ") : "") + ". Use Evia's guided mode.", due, support: "", measure: { kind: "quality", target: 70, baseline: 0 } });
-  if (F.maths.on && !(F.maths.test && F.maths.test.best >= 70)) out.push({ title: "Maths: 70% in a test", how: "Work through the next maths areas in Teach me, then score 70% or more in an Evia maths test" + (F.maths.test ? " (best so far " + F.maths.test.best + "%)" : "") + ".", due, support: "", measure: { kind: "maths", target: 70, baseline: 0 } });
-  if (F.english.on && !(F.english.test && F.english.test.best >= 70)) out.push({ title: "English: 70% in a test", how: "Work through the next English areas in Teach me, then score 70% or more in an Evia English test" + (F.english.test ? " (best so far " + F.english.test.best + "%)" : "") + ".", due, support: "", measure: { kind: "english", target: 70, baseline: 0 } });
-  const low = F.confidence && (F.confidence.scores || []).filter((x) => x.score <= 2).sort((a, b) => a.score - b.score)[0];
-  if (low) out.push({ title: "Build confidence: " + low.area, how: "Practise " + low.area + " at work with support, then re-rate it as Confident in Evia.", due, support: "Supervisor to demonstrate and observe", measure: { kind: "skill", target: 3, baseline: low.score, param: low.area } });
-  if (!F.nvq && F.timePct != null && F.timePct >= 60 && !(F.mock && F.mock.best >= 70)) out.push({ title: "Score 70% on a full EPA mock", how: "Take a full mock end-point test in Evia" + (F.mock ? " (best so far " + F.mock.best + "%)" : "") + ".", due, support: "", measure: { kind: "epa", target: 70, baseline: 0 } });
+/* SMART targets from Evia's data, each with what Evia measures (measure), so Evia tracks them for the learner after the
+   review and the next review knows whether they were met. Paced to the course: what's left of the KSBs, topics and
+   off-the-job hours, shared over the time left, so doing each review period's share finishes on time. Never evidence
+   for one particular job (nobody can promise when cavity walls come up at work): any evidence counts. */
+export function suggestTargets(F, nextReview) {
+  const now = Date.now(), MONTH = 30.44 * DAY, end = Date.parse(F.end) || 0;
+  let by = Date.parse(nextReview || "") || now + RULES.intervalWeeks * 7 * DAY;
+  if (by - now > 21 * DAY) by -= 3 * DAY;
+  if (end && end > now + 14 * DAY && by > end) by = end;
+  const monthsLeft = end > now ? Math.max(0.5, (end - now) / MONTH) : null, months = Math.max(0.25, (by - now) / MONTH), part = monthsLeft ? Math.min(1, months / monthsLeft) : 0.25;
+  const due = isoDay(by), byText = ukDate(due), endText = end ? ukDate(isoDay(end)) : "";
+  const share = (left) => Math.max(1, Math.min(left, Math.ceil(left * part)));
+  const perMonth = (n, w, one) => { if (!monthsLeft) return ""; const r = n / monthsLeft; return r >= 1 ? "about " + Math.round(r * 10) / 10 + " " + w + " a month" : "about 1 " + (one || w) + " every " + Math.max(2, Math.round(4.33 / r)) + " weeks"; };
+  const pace = endText ? ", the pace to finish by " + endText : "";
+  const out = [], word = F.nvq ? "criteria" : "KSBs";
+  const ksbLeft = Math.max(0, (F.eviaKsb.total || 0) - (F.eviaKsb.met || 0));
+  if (ksbLeft) { const n = share(ksbLeft);
+    out.push({ title: "Evidence for " + n + " more " + (n === 1 ? (F.nvq ? "criterion" : "KSB") : word) + " by " + byText, how: ksbLeft + " still to evidence: " + perMonth(ksbLeft, word, F.nvq ? "criterion" : "KSB") + pace + ". Any evidence from any topic counts; Evia counts them as they're added.", due, support: "Employer to give the chance to do a range of work",
+      measure: { kind: "ksb", target: n, baseline: F.eviaKsb.met || 0 } }); }
+  const unitsLeft = Math.max(0, F.units.total - F.units.started);
+  if (unitsLeft) { const n = share(unitsLeft);
+    out.push({ title: "Start " + n + " more " + (n === 1 ? "topic" : "topics") + " by " + byText, how: "Evidence in " + F.units.started + " of " + F.units.total + " topics: " + perMonth(unitsLeft, "topics", "topic") + pace + ". Whichever come up at work first.", due, support: "",
+      measure: { kind: "units", target: n, baseline: F.units.started } }); }
+  { const planned = F.otj.planned, left = planned != null ? Math.max(0, planned - F.otj.total) : null;
+    const n = left != null ? (left ? Math.max(1, Math.ceil(left * part)) : 0) : Math.ceil(months * 4.33 * 6);
+    if (n) out.push({ title: "Log " + n + " off-the-job hours by " + byText, how: left != null ? round1(left) + " of " + planned + " hours left: " + perMonth(left, "hours", "hour") + pace + ". Logged in Evia." : "About 6 hours a week, logged in Evia.", due, support: F.otj.onTrack === false ? "Employer to protect off-the-job time each week" : "",
+      measure: { kind: "otj", target: n, baseline: F.snap.otjTotal } }); }
+  if (!F.nvq && F.timePct != null && F.timePct >= 60 && !(F.mock && F.mock.best >= 70)) out.push({ title: "70% or more on a full EPA mock by " + byText, how: "A full mock end-point test in Evia" + (F.mock ? " (best so far " + F.mock.best + "%)" : "") + ".", due, support: "", measure: { kind: "epa", target: 70, baseline: 0 } });
+  if (F.maths.on && !(F.maths.test && F.maths.test.best >= 70)) out.push({ title: "Maths: 70% in a test by " + byText, how: "Practise the next maths areas in Evia, then a test" + (F.maths.test ? " (best so far " + F.maths.test.best + "%)" : "") + ".", due, support: "", measure: { kind: "maths", target: 70, baseline: 0 } });
+  if (F.english.on && !(F.english.test && F.english.test.best >= 70)) out.push({ title: "English: 70% in a test by " + byText, how: "Practise the next English areas in Evia, then a test" + (F.english.test ? " (best so far " + F.english.test.best + "%)" : "") + ".", due, support: "", measure: { kind: "english", target: 70, baseline: 0 } });
   const edi = F.snap.edi, eTotal = edi ? (edi.total || (Array.isArray(edi.areas) ? edi.areas.length : 0)) : 0, eDone = edi ? (edi.done ?? edi.areasDone ?? 0) : 0;
-  if (edi && edi.total && eDone < eTotal) out.push({ title: "Finish the EDI and safeguarding lessons", how: "The short Teach me lessons on staying safe, Prevent, British values and equality.", due, support: "", measure: { kind: "lessons", target: edi.total, baseline: 0, param: "edi" } });
+  if (edi && edi.total && eDone < eTotal) out.push({ title: "Finish the safeguarding and British values lessons by " + byText, how: "The short Teach me lessons on staying safe, Prevent, British values and equality.", due, support: "", measure: { kind: "lessons", target: edi.total, baseline: eDone, param: "edi" } });
+  if (F.snap.coverage != null && F.snap.coverage < 70) out.push({ title: "Write-ups covering 70% of the key points by " + byText, how: F.snap.coverage + "% now; each topic's “Things to mention” list shows what to include.", due, support: "", measure: { kind: "quality", target: 70, baseline: F.snap.coverage } });
+  const low = F.confidence && (F.confidence.scores || []).filter((x) => x.score <= 2).sort((a, b) => a.score - b.score)[0];
+  if (low) out.push({ title: "Confident in " + low.area + " by " + byText, how: "Practise " + low.area + " at work with support, then rate it as Confident in Evia.", due, support: "Supervisor to demonstrate and observe", measure: { kind: "skill", target: 3, baseline: low.score, param: low.area } });
   return out.slice(0, 5);
 }
 
