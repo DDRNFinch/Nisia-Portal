@@ -37,6 +37,60 @@
   const FOR={qualified:["topics","mock","fs","cscs","ask"],level3:["topics","mock","fs","l3","ask"],supervisor:["topics","mock","cscs","lead","sssts"],
     business:["topics","cscs","price","tools","drive","money"],specialist:["topics","mock","spec","ask"],teach:["topics","mock","fs","shadow","a1"],own:["topics","mock","ask"]};
 
+  /* A short guide for each of Evia's steps: what it is, how to do it, roughly what it costs and how long it takes, and
+     where to find out more. Links go to the main pages of long-standing official sites, so they keep working. */
+  const L={cscs:["CSCS cards","https://www.cscs.uk.com/"],citb:["CITB (the construction industry’s training board)","https://www.citb.co.uk/"],
+    ncs:["National Careers Service","https://nationalcareers.service.gov.uk/"],fe:["Further education courses (GOV.UK)","https://www.gov.uk/further-education-courses"],
+    appr:["Find an apprenticeship (GOV.UK)","https://www.findapprenticeship.service.gov.uk/"],drive:["Apply for a provisional licence (GOV.UK)","https://www.gov.uk/apply-first-provisional-driving-licence"],
+    sole:["Set up as a sole trader (GOV.UK)","https://www.gov.uk/set-up-sole-trader"],self:["Working for yourself (GOV.UK)","https://www.gov.uk/working-for-yourself"],
+    teach:["Teach in further education (GOV.UK)","https://www.teach-in-further-education.campaign.gov.uk/"],spab:["Old building repair skills (SPAB)","https://www.spab.org.uk/"]};
+  const GUIDE={
+    topics:{what:"Your assessor needs evidence for every topic before you can go to your end-point assessment.",how:["Open Topics and look for the ones with no evidence yet","Take photos next time you do that job at work","Add a few words about what you did and how"],time:"A little each week",auto:"Evia ticks this for you when every topic has evidence."},
+    mock:{what:"A practice end-point test shows you’re ready for the real one, and where to brush up first.",how:["Open Learn and choose a practice test","Read the questions you got wrong and the answers","Try again a few days later"],time:"About 30 minutes a go",auto:"Evia ticks this when you score 80% or more."},
+    fs:{what:"Most apprentices need Level 2 maths and English (or a GCSE grade 4) to finish. If you already have them, you can tick this now.",how:["Ask your tutor whether you need them","If you do, practise in Learn › Maths and English","Your college books the tests when you’re ready"],cost:"Free on your apprenticeship",time:"A few weeks of practice",links:["ncs"]},
+    cscs:{what:"A CSCS card shows you’re trained and safe to work on site. Most sites ask for one at the gate.",how:["Ask your employer which card you need (apprentices can get the Apprentice card)","Pass the Health, Safety and Environment test (book it through CITB)","Apply for the card on the CSCS website"],cost:"Often paid by your employer: ask first",time:"A couple of weeks",links:["cscs","citb"]},
+    ask:{what:"Your assessor knows what people from your course go on to do, and what your college offers next.",how:["Ask at your next progress review, or send a message","Ask what Level 3 or other courses would suit you","Write down what they suggest as new steps here"],time:"5 minutes",msg:true},
+    l3:{what:"A Level 3 (advanced) course builds on what you’re learning now, and can lead to supervising, setting out and more complex work.",how:["Ask your tutor which Level 3 courses your college runs","Look out for open evenings in Coming up at college","Talk to your employer about carrying on"],cost:"Often funded for apprentices: ask your college",links:["fe","appr"],msg:true},
+    lead:{what:"Leading a small job or showing a new starter the ropes is the first step to running a team.",how:["Tell your supervisor you’d like to try","Start with something small you’re confident in","Ask afterwards how it went"],time:"Next time the chance comes up"},
+    sssts:{what:"SSSTS is the short safety course most site supervisors are expected to have.",how:["Ask your employer if they’ll put you on it","Find a course near you (search “SSSTS” on the CITB site)","Pass the course and keep your certificate safe"],cost:"Usually a few hundred pounds; employers often pay",time:"2 days",links:["citb"]},
+    price:{what:"Working out a price is how you win work and make a profit when you’re on your own.",how:["Ask your boss how they price a job","Try pricing a small job: materials, time, travel, waste","Compare your price with what was charged"],time:"An hour or two to start"},
+    tools:{what:"Having your own good tools makes you ready to work for yourself or move on.",how:["List what you use every day","Buy a little at a time; good second-hand tools are fine","Keep them clean, sharp and marked as yours"],cost:"Spread it out over time"},
+    drive:{what:"A licence lets you get to different sites and carry your tools and materials.",how:["Apply for a provisional licence on GOV.UK","Pass the theory test","Take lessons and pass the practical test"],cost:"The provisional licence is about £34 online; lessons cost more",links:["drive"]},
+    money:{what:"Working for yourself means sorting your own tax, insurance and records.",how:["Read how to set up as a sole trader on GOV.UK","Find out about public liability insurance","Keep receipts and a simple record of what you earn"],links:["sole","self"]},
+    spec:{what:"Specialist skills like heritage and restoration work are in demand and can pay well.",how:["Tell your tutor which area interests you","Ask about short courses or a Level 3","Look for chances to help on that kind of job at work"],links:["spab","ncs"],msg:true},
+    shadow:{what:"Helping someone newer learn a skill is great practice for teaching, and looks good to employers.",how:["Ask your tutor if you can help with a new group","Show one skill you’re confident in","Ask your tutor for feedback"],time:"One session"},
+    a1:{what:"To assess or teach your trade, you’ll need experience, then an assessor or teaching qualification.",how:["Ask your assessor how they started","Find out about assessor (TAQA) and teaching courses","Look at teaching in further education on GOV.UK"],links:["teach","ncs"],msg:true}};
+  /* A few useful places for each goal. */
+  const LINKS={qualified:["cscs","ncs"],level3:["fe","appr","ncs"],supervisor:["citb","cscs","ncs"],business:["sole","self","drive"],specialist:["spab","citb","ncs"],teach:["teach","ncs"],own:["ncs"]};
+
+  /* ---------- Careers sessions from the college (Evia Portal: Careers) ----------
+     Kept on the phone so My future and the calendar show them without signal. */
+  const CK="evia7-careers";
+  const careersKept=()=>{try{const v=JSON.parse(localStorage.getItem(CK)||"null");return v&&Array.isArray(v.list)?v.list:[]}catch(_){return []}};
+  const liveCollege=()=>{try{const e=window.eviaNisia&&window.eviaNisia.joined();return !!(e&&e.live)}catch(_){return false}};
+  let loading=null;
+  function loadCareers(){
+    if(!liveCollege()||!navigator.onLine)return Promise.resolve(careersKept());
+    return loading=loading||window.eviaNisia.call("evia_careers",{}).then(list=>{list=Array.isArray(list)?list:[];
+      const before=localStorage.getItem(CK),now=JSON.stringify({at:new Date().toISOString(),list});
+      try{localStorage.setItem(CK,now)}catch(_){}
+      if(before==null||JSON.parse(before).list&&JSON.stringify(JSON.parse(before).list)!==JSON.stringify(list))window.dispatchEvent(new Event("evia-careers"));
+      return list}).catch(()=>careersKept()).finally(()=>{loading=null});
+  }
+  async function interest(id,on){
+    await window.eviaNisia.call("evia_careers_interest",{p_id:id,p_on:on});
+    try{const v=JSON.parse(localStorage.getItem(CK)||"null");if(v&&v.list){v.list.forEach(x=>{if(x.id===id)x.interested=on});localStorage.setItem(CK,JSON.stringify(v))}}catch(_){}
+    window.dispatchEvent(new Event("evia-careers"));
+  }
+  /* Coming up, the ones for this goal first. */
+  function careersFor(key){
+    const now=Date.now(),list=careersKept().filter(x=>Date.parse(x.starts_at)+(x.minutes||60)*6e4>now);
+    const fits=x=>!x.goals||!x.goals.length||x.goals.includes(key);
+    return list.filter(fits).concat(list.filter(x=>!fits(x))).map(x=>Object.assign({},x,{fits:fits(x)}));
+  }
+  const when=x=>new Date(x.starts_at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).replace(",","");
+  window.eviaCareers={load:loadCareers,list:careersKept,interest};
+
   const get=()=>{try{return (window.eviaData.learner()||{}).future||null}catch(_){return null}};
   const save=f=>{f.updatedAt=new Date().toISOString();window.eviaData.put("learner",{future:f})};
   /* Each step, with whether it's done (ticked, or Evia can see it). */
@@ -70,6 +124,19 @@
 .fu-row{display:flex;gap:8px;margin-top:10px}.fu-row .fu-in{flex:1}
 .fu-btn{border:0;border-radius:14px;padding:13px 16px;font-weight:700;font-size:15px;cursor:pointer;background:#f2f4f7;color:#172033}
 .fu-btn.primary{background:var(--yellow,#e7b900);color:var(--ui-on-accent,#172033)}
+.fu-step-t{flex:1;border:0;background:none;padding:0;text-align:left;font:inherit;font-size:15px;line-height:1.35;color:inherit;cursor:pointer}
+.fu-step-t em{display:block;font-style:normal;font-size:12.5px;font-weight:700;color:var(--yellow-ink,#6e5c00);margin-top:2px}
+.fu-steps li.done .fu-step-t{color:var(--ui-muted,#667085)}.fu-steps li.done .fu-step-t b{text-decoration:line-through;font-weight:400}.fu-step-t b{font-weight:400}
+.fu-sess{display:flex;gap:12px;align-items:center;width:100%;border:1px solid var(--ui-line,#eaecf0);background:#fff;border-radius:16px;padding:12px;margin:0 0 8px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.fu-date{flex:none;width:48px;text-align:center;border-radius:12px;background:var(--soft,#fff7d6);padding:6px 0;line-height:1.1}
+.fu-date b{display:block;font-size:19px}.fu-date small{display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--yellow-ink,#6e5c00)}
+.fu-sess>span:not(.fu-date){flex:1;min-width:0}.fu-go{flex:none;font-style:normal;color:var(--ui-muted,#98a2b3);font-size:20px}.fu-sess strong{display:block;font-size:15px}.fu-sess small{display:block;color:var(--ui-muted,#667085);font-size:13px;margin-top:2px}
+.fu-tag{display:inline-block;font-style:normal;font-size:11.5px;font-weight:800;border-radius:999px;padding:2px 8px;background:#ecfdf3;color:#067647;margin-top:4px}
+.fu-links{list-style:none;margin:0;padding:0}.fu-links a{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--ui-line,#eef0f3);color:inherit;text-decoration:none;font-size:15px}
+.fu-links li:first-child a{border-top:0}.fu-links a::after{content:"↗";color:var(--ui-muted,#98a2b3)}
+.fu-how{margin:6px 0 4px;padding-left:22px;line-height:1.5}.fu-how li{margin:4px 0}
+.fu-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.fu-chips span{font-size:13px;border-radius:999px;background:#f2f4f7;padding:5px 10px}
+.fu-empty{color:var(--ui-muted,#667085);font-size:14px;margin:0 0 4px}
 .fu-h{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#667085);font-weight:800;margin:16px 0 6px}`;
   function shell(title,body){
     if(!document.getElementById("fu-style")){const s=document.createElement("style");s.id="fu-style";s.textContent=STYLE;document.head.appendChild(s)}
@@ -107,20 +174,60 @@
   }
   function open(){
     const f=get();if(!f||!f.goal)return pick();
-    const st=steps(f),done=st.filter(x=>x.doneNow).length,pct=st.length?Math.round(done/st.length*100):0;
+    const st=steps(f),done=st.filter(x=>x.doneNow).length,pct=st.length?Math.round(done/st.length*100):0,key=f.key||"own";
+    const sess=careersFor(key).slice(0,3),links=(LINKS[key]||LINKS.own).map(k=>L[k]);
     const el=shell("My future",'<div class="fu-goal"><span>My goal</span><strong>'+esc(f.goal)+'</strong>'+(f.when?'<small>'+esc(f.when)+'</small>':"")+
         '<div class="fu-bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div><small>'+done+' of '+st.length+' steps done</small></div>'+
-      '<div class="fu-h">Steps on the way</div><ul class="fu-steps">'+st.map(x=>'<li class="'+(x.doneNow?"done":"")+'" data-id="'+esc(x.id)+'"><button type="button" class="fu-tick'+(x.doneNow?" on":"")+'" aria-pressed="'+x.doneNow+'" aria-label="'+esc((x.doneNow?"Done: ":"Not done: ")+x.text)+'"'+(x.auto?" disabled":"")+'>'+(x.doneNow?"✓":"")+'</button><span>'+esc(x.text)+(x.auto?'<small>Evia can see you’ve done this</small>':"")+'</span>'+(x.auto?"":'<button type="button" class="fu-x" aria-label="Remove this step">×</button>')+'</li>').join("")+'</ul>'+
+      (liveCollege()?'<div class="fu-h">Coming up at college</div>'+(sess.length?sess.map(x=>{const d=new Date(x.starts_at);
+          return '<button type="button" class="fu-sess" data-sess="'+esc(x.id)+'"><span class="fu-date"><small>'+esc(d.toLocaleDateString("en-GB",{month:"short"}))+'</small><b>'+d.getDate()+'</b></span><span><strong>'+esc(x.title)+'</strong><small>'+esc(when(x)+(x.place?" · "+x.place:""))+'</small>'+
+            (x.interested?'<em class="fu-tag">You’re interested</em>':x.fits&&x.goals&&x.goals.length?'<em class="fu-tag" style="background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00)">For your goal</em>':"")+'</span><i class="fu-go" aria-hidden="true">›</i></button>'}).join("")
+          :'<p class="fu-empty">Nothing booked yet. When your college adds careers sessions, open evenings or courses, they’ll show here.</p>'):"")+
+      '<div class="fu-h">Steps on the way</div><ul class="fu-steps">'+st.map(x=>'<li class="'+(x.doneNow?"done":"")+'" data-id="'+esc(x.id)+'"><button type="button" class="fu-tick'+(x.doneNow?" on":"")+'" aria-pressed="'+x.doneNow+'" aria-label="'+esc((x.doneNow?"Done: ":"Not done: ")+x.text)+'"'+(x.auto?" disabled":"")+'>'+(x.doneNow?"✓":"")+'</button>'+
+        '<button type="button" class="fu-step-t" data-guide="'+esc(x.id)+'"><b>'+esc(x.text)+'</b>'+(x.auto?'<small>Evia can see you’ve done this</small>':GUIDE[x.key]?'<em>How to do it ›</em>':"")+'</button>'+(x.auto?"":'<button type="button" class="fu-x" aria-label="Remove this step">×</button>')+'</li>').join("")+'</ul>'+
       '<div class="fu-row"><input class="fu-in" id="fu-new" maxlength="140" placeholder="Add a step of my own"><button type="button" class="fu-btn" id="fu-add">Add</button></div>'+
+      '<div class="fu-h">Useful links</div><ul class="fu-links">'+links.map(([t,u])=>'<li><a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(t)+'</a></li>').join("")+'</ul>'+
       '<p class="pv-note"><span aria-hidden="true">💡</span><span>Your assessor and employer see your goal at your progress review, so you can talk about how to get there.</span></p>'+
       '<div class="fu-row"><button type="button" class="fu-btn" id="fu-change" style="flex:1">Change my goal</button></div>');
     const upd=fn=>{const g=get();fn(g);save(g);open()};
     el.querySelectorAll(".fu-steps li").forEach(li=>{const id=li.dataset.id;
       const t=li.querySelector(".fu-tick");if(t&&!t.disabled)t.onclick=()=>upd(g=>{const s=g.steps.find(x=>x.id===id);if(s){s.done=!s.done;s.doneAt=s.done?new Date().toISOString():null}});
       const x=li.querySelector(".fu-x");if(x)x.onclick=()=>upd(g=>{g.steps=g.steps.filter(s=>s.id!==id)})});
+    el.querySelectorAll("[data-guide]").forEach(b=>b.onclick=()=>{const x=st.find(y=>y.id===b.dataset.guide);if(x&&GUIDE[x.key])guide(x)});
+    el.querySelectorAll("[data-sess]").forEach(b=>b.onclick=()=>session(b.dataset.sess));
     const inp=el.querySelector("#fu-new"),add=()=>{const v=inp.value.trim();if(!v)return;upd(g=>{g.steps=(g.steps||[]).concat({id:"s"+Date.now().toString(36),text:v})})};
     el.querySelector("#fu-add").onclick=add;inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add()}};
     el.querySelector("#fu-change").onclick=pick;
+    /* The college's newest sessions: drawn again if anything changed (once). */
+    if(!open.fetched){open.fetched=true;loadCareers().then(()=>{open.fetched=false})}
   }
-  window.eviaFuture={open,get,summary};
+  window.addEventListener("evia-careers",()=>{if(document.querySelector(".fu-sheet .fu-goal"))open()});
+  const back='<div class="fu-row"><button type="button" class="fu-btn" id="fu-back" style="flex:1">Back to My future</button></div>';
+  /* One step's guide. */
+  function guide(x){
+    const g=GUIDE[x.key];
+    const el=shell(x.text,'<p style="margin:0 0 6px;line-height:1.5">'+esc(g.what)+'</p>'+
+      '<div class="fu-h">How</div><ol class="fu-how">'+g.how.map(h=>'<li>'+esc(h)+'</li>').join("")+'</ol>'+
+      (g.cost||g.time?'<div class="fu-chips">'+(g.cost?'<span>💷 '+esc(g.cost)+'</span>':"")+(g.time?'<span>⏱ '+esc(g.time)+'</span>':"")+'</div>':"")+
+      (g.links&&g.links.length?'<div class="fu-h">Find out more</div><ul class="fu-links">'+g.links.map(k=>'<li><a href="'+esc(L[k][1])+'" target="_blank" rel="noopener">'+esc(L[k][0])+'</a></li>').join("")+'</ul>':"")+
+      (g.auto?'<p class="pv-note"><span aria-hidden="true">✓</span><span>'+esc(g.auto)+'</span></p>':"")+
+      '<div class="fu-row">'+(g.msg&&liveCollege()&&window.eviaMessages?'<button type="button" class="fu-btn" id="fu-msg" style="flex:1">Message my tutor</button>':"")+
+        (x.auto?"":'<button type="button" class="fu-btn primary" id="fu-done" style="flex:1">'+(x.doneNow?"Not done yet":"I’ve done this")+'</button>')+'</div>'+back);
+    el.querySelector("#fu-back").onclick=open;
+    const d=el.querySelector("#fu-done");if(d)d.onclick=()=>{const f=get(),s=(f.steps||[]).find(y=>y.id===x.id);if(s){s.done=!s.done;s.doneAt=s.done?new Date().toISOString():null;save(f)}open()};
+    const m=el.querySelector("#fu-msg");if(m)m.onclick=()=>{close();window.eviaMessages.open()};
+  }
+  /* One careers session from the college. */
+  function session(id){
+    const x=careersKept().find(y=>y.id===id);if(!x)return open();
+    const end=new Date(Date.parse(x.starts_at)+(x.minutes||60)*6e4).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+    const el=shell(x.title,'<div class="fu-chips"><span>📅 '+esc(when(x))+'–'+esc(end)+'</span>'+(x.place?'<span>📍 '+esc(x.place)+'</span>':"")+'</div>'+
+      (x.details?'<p style="margin:12px 0 0;line-height:1.5;white-space:pre-line">'+esc(x.details)+'</p>':"")+
+      (x.link?'<ul class="fu-links" style="margin-top:8px"><li><a href="'+esc(x.link)+'" target="_blank" rel="noopener">More about it</a></li></ul>':"")+
+      '<p class="fu-empty" style="margin-top:12px">It’s on your calendar. Tap “I’m interested” and your college will know you’d like to go.</p>'+
+      '<p class="small" id="fu-err" role="alert" style="color:#b42318"></p>'+
+      '<div class="fu-row"><button type="button" class="fu-btn'+(x.interested?"":" primary")+'" id="fu-int" style="flex:1" aria-pressed="'+!!x.interested+'">'+(x.interested?"✓ You’re interested · Undo":"I’m interested")+'</button></div>'+back);
+    el.querySelector("#fu-back").onclick=open;
+    const b=el.querySelector("#fu-int");b.onclick=async()=>{b.disabled=true;try{await interest(x.id,!x.interested);if(window.eviaUsage&&window.eviaUsage.hit)window.eviaUsage.hit("future.interest");session(id)}catch(e){el.querySelector("#fu-err").textContent=e.message;b.disabled=false}};
+  }
+  window.eviaFuture={open,get,summary,session};
 })();

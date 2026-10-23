@@ -30,21 +30,23 @@
   const myDays=()=>{try{const d=JSON.parse(localStorage.getItem(CD_KEY)||"[]");return Array.isArray(d)?d.filter(n=>n>=0&&n<=6):[]}catch(_){return []}};
   const setDays=d=>{try{localStorage.setItem(CD_KEY,JSON.stringify(d))}catch(_){}};
   const PICK=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"],[6,"Sat"],[0,"Sun"]];
-  let cur=null,editDays=false,picked=null;
+  let editDays=false,picked=null;
   const RI={class:'<svg viewBox="0 0 24 24"><path d="M3 9.5 12 5l9 4.5-9 4.5z"/><path d="M7 11.5V16c1.5 1.3 3.2 2 5 2s3.5-.7 5-2v-4.5"/></svg>',
     hours:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
     visit:'<svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>',
+    career:'<svg viewBox="0 0 24 24"><path d="M12 3.5l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.6-5 2.6.9-5.6-4-4 5.6-.8z"/></svg>',
     off:'<svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8 3.5v4M16 3.5v4M9.5 13.5l5 5M14.5 13.5l-5 5"/></svg>'};
   /* The tab is "College" for a learner connected to their college, "Me" on their own. At the top: their profile
      (where the profile button used to be) and their messages, then the calendar. */
   const live=()=>{try{const N=window.eviaNisia,e=N&&N.joined&&N.joined();return !!(e&&e.live)}catch(_){return false}};
   function tabName(){return "Time"}
   function label(){const l=document.getElementById("nav-college");if(l&&l.textContent!==tabName())l.textContent=tabName()}
+  /* Profile and messages: one card, two rows. */
   function meCards(){
     const D=window.eviaData,p=(D&&D.learner&&D.learner())||{},photo=D&&D.files&&D.files.photo?D.files.photo():"",e=(D&&D.enrolment&&D.enrolment())||{};
     const name=String(p.name||"").trim()||"Your profile",n=live()&&window.eviaMessages?window.eviaMessages.unread():0;
     const initials=name.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
-    return '<div class="cal-me-wrap"><button type="button" class="cal-me" id="cal-me" aria-label="Your profile"><span class="cal-me-av">'+(photo?'<img src="'+photo+'" alt="">':esc(initials||"·"))+'</span>'+
+    return '<div class="cal-me-wrap cw-group"><button type="button" class="cal-me" id="cal-me" aria-label="Your profile"><span class="cal-me-av">'+(photo?'<img src="'+photo+'" alt="">':esc(initials||"·"))+'</span>'+
       '<span class="cal-me-copy"><strong>'+esc(name)+'</strong><small>'+esc([courseName(),live()?e.college:""].filter(Boolean).join(" · ")||"Your details, signature and backups")+'</small></span><span class="cal-go" aria-hidden="true">›</span></button>'+
       (live()&&window.eviaMessages?'<button type="button" class="cal-me cal-msgs" id="cal-msgs"><span class="cal-me-av cal-msgs-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12.2c0 4-3.6 7.1-8 7.1-1.1 0-2.2-.2-3.1-.6L4 20l1.3-3.7A6.6 6.6 0 0 1 4 12.2C4 8.3 7.6 5 12 5s8 3.3 8 7.2Z"/><path d="M8.5 11.5h7M8.5 14.3h4.5"/></svg></span>'+
         '<span class="cal-me-copy"><strong>Messages</strong><small>'+(n?(n===1?"1 new message":n+" new messages"):"Your tutor, assessor and employer")+'</small></span>'+(n?'<span class="cal-msgs-n">'+(n>99?"99+":n)+'</span>':"")+'<span class="cal-go" aria-hidden="true">›</span></button>':"")+'</div>';
@@ -57,87 +59,94 @@
   };
   const on2=()=>{const r=document.getElementById("cal-msgs");if(r)r.onclick=()=>window.eviaMessages&&window.eviaMessages.open()};
   setTimeout(label,0);if(window.eviaNisia&&window.eviaNisia.onStatus)window.eviaNisia.onStatus(label);
+  /* The page: profile and messages, then the week (a day at a time underneath), then learning hours. The whole month
+     is in Progress › Attendance. */
+  let wkStart=null;
+  const monday=d=>{const m=new Date(d);m.setHours(12,0,0,0);m.setDate(m.getDate()-(m.getDay()+6)%7);return m};
   function page(){
     label();
     const A=window.eviaAttendance,AT=A&&A.data?A.data():null,KEY=A?A.KEY:[],LABEL=Object.fromEntries(KEY),DETAIL=(A&&A.DETAIL)||{},by=hoursByDay(),today=dkey(new Date());
-    const N=window.eviaNisia,now=N&&N.classNow?N.classNow():null,V=N&&N.visits?N.visits():[];
-    const VKIND={visit:"Assessor visit",observation:"Assessor observation",review:"Progress review"},vt=v=>new Date(v.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
-    const nextV=V.filter(v=>Date.parse(v.starts_at)+(v.minutes||60)*6e4>Date.now()).sort((a,b)=>String(a.starts_at).localeCompare(b.starts_at))[0];
-    /* Not connected: the learner's own college days, from today to two months ahead. */
+    const N=window.eviaNisia,now=N&&N.classNow?N.classNow():null,V=N&&N.visits?N.visits():[],CR=window.eviaCareers?window.eviaCareers.list():[];
+    const VKIND={visit:"Assessor visit",observation:"Assessor observation",review:"Progress review"},clock=t=>new Date(t).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+    /* Not connected: the learner's own college days, for a year. */
     const own=!AT?myDays():[],ownComing=[];
     if(own.length){const e=new Date();e.setFullYear(e.getFullYear()+1);for(let d=new Date();d<=e;d.setDate(d.getDate()+1))if(own.includes(d.getDay()))ownComing.push({session_date:dkey(d),class:"College"})}
     const coming=AT?AT.coming:ownComing;
-    const next=coming.slice().sort((a,b)=>String(a.session_date+(a.starts_at||"")).localeCompare(b.session_date+(b.starts_at||"")))[0];
     const wk=weekHours(by),pct=Math.min(100,Math.round(wk/WEEK_GOAL*100));
-    const time=s=>s&&s.starts_at?new Date(s.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"";
-    /* This week: the next class (check in when it's on) and learning hours against the week's goal. */
+    const time=s=>s&&s.starts_at?clock(s.starts_at):"";
+    const byDay={},at=k=>byDay[k]=byDay[k]||{marks:[]};
+    if(AT){AT.marks.forEach(x=>at(x.date).marks.push(x));
+      AT.booked.forEach(a=>{for(let d=new Date(a.starts_on+"T12:00:00");dkey(d)<=a.ends_on;d.setDate(d.getDate()+1))at(dkey(d)).booked=a})}
+    coming.forEach(x=>{at(x.session_date).coming=x});
+    V.forEach(v=>{const o=at(dkey(new Date(v.starts_at)));(o.visits=o.visits||[]).push(v)});
+    CR.forEach(c=>{const o=at(dkey(new Date(c.starts_at)));(o.careers=o.careers||[]).push(c)});
+    /* What's next: the next class, visit or careers session. */
+    const nowMs=Date.now(),ups=[].concat(
+      coming.map(x=>({k:x.session_date,t:x.starts_at?Date.parse(x.starts_at):Date.parse(x.session_date+"T09:00:00"),what:x.class||"College",kind:"class"})),
+      V.map(v=>({k:dkey(new Date(v.starts_at)),t:Date.parse(v.starts_at),what:VKIND[v.kind]||"Assessor visit",kind:"visit"})),
+      CR.map(c=>({k:dkey(new Date(c.starts_at)),t:Date.parse(c.starts_at),what:c.title,kind:"career"}))).filter(x=>x.t+3*36e5>nowMs).sort((a,b)=>a.t-b.t);
+    const next=ups[0];
+    if(!wkStart)wkStart=monday(new Date());
     const editing=!AT&&(editDays||!own.length);
-    const classCard=editing?'<section class="cal-card cal-wide"><span class="cal-label">Your college days</span><small>Tap the days you’re at college</small><span class="cal-days">'+
+    const daysCard='<section class="cal-card cal-wide cw-pick"><span class="cal-label">Your college days</span><small>Tap the days you’re at college</small><span class="cal-days">'+
       PICK.map(([n,t])=>'<button type="button" class="cal-day'+(own.includes(n)?" on":"")+'" data-cd="'+n+'" aria-pressed="'+own.includes(n)+'">'+t+'</button>').join("")+'</span>'+
-      (own.length?'<button type="button" class="cal-btn primary" id="cal-days-done">Done</button>':"")+'</section>':
-      '<section class="cal-card"><span class="cal-label">Next class</span>'+
-      (next?'<strong>'+(next.session_date===today?"Today":esc(shortDay(next.session_date)))+(time(next)?" · "+esc(time(next)):"")+'</strong><small>'+esc(next.class||"")+'</small>':'<strong>None booked</strong><small>Your tutor sets your college days</small>')+
-      (now&&window.eviaCheckIn?'<button type="button" class="cal-btn primary" id="cal-checkin">Check in</button>':"")+(AT?"":'<button type="button" class="cal-link cal-change" id="cal-days-edit">Change days</button>')+
-      (AT&&N&&N.bookAbsence&&window.eviaTodo&&window.eviaTodo.away?'<button type="button" class="cal-mini" id="cal-away">Can’t make college?</button>':"")+'</section>';
-    const hoursCard='<section class="cal-card'+(!AT&&(editDays||!myDays().length)?" cal-wide":"")+'"><span class="cal-label">Learning hours this week</span><strong>'+esc(hm(wk))+'<small> of '+WEEK_GOAL+' h</small></strong>'+
-      '<span class="cal-bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><button type="button" class="cal-btn primary" id="cal-log">Log hours</button><button type="button" class="cal-mini" id="cal-logs">See logs</button></section>';
-    const start=(()=>{try{const s=window.eviaData.enrolment&&window.eviaData.enrolment().start;return s?new Date(s+"T12:00:00"):null}catch(_){return null}})()||new Date(Date.now()-365*864e5);
-    /* From the course start to its end (or the last class booked), and at least a year ahead. */
-    const endOf=(()=>{try{const D=window.eviaData,e=D.enrolment()||{},l=D.learner()||{};return e.end||l.end||""}catch(_){return ""}})();
-    const lastClass=(coming||[]).reduce((m,x)=>x.session_date>m?x.session_date:m,"");
-    const mOf=k=>{const d=new Date(k+"T12:00:00");return isNaN(d)?0:d.getFullYear()*12+d.getMonth()};
-    const n0=new Date(),minM=start.getFullYear()*12+start.getMonth(),maxM=Math.min(n0.getFullYear()*12+n0.getMonth()+36,Math.max(n0.getFullYear()*12+n0.getMonth()+12,endOf?mOf(endOf):0,lastClass?mOf(lastClass):0));
-    if(cur==null||cur<minM||cur>maxM)cur=n0.getFullYear()*12+n0.getMonth();
-    scr().innerHTML='<header class="ui-page-head"><h1>'+esc(tabName())+'</h1><span>'+esc(courseName())+'</span></header>'+meCards()+
-      '<h2 class="cal-h">Calendar</h2><div class="cal-top">'+classCard+hoursCard+'</div>'+
-      (nextV?'<button type="button" class="cal-visit" id="cal-visit"><span class="cal-visit-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span><span><small>'+esc(VKIND[nextV.kind]||"Assessor visit")+'</small><strong>'+esc((dkey(new Date(nextV.starts_at))===today?"Today":shortDay(dkey(new Date(nextV.starts_at))))+" at "+vt(nextV))+'</strong>'+(nextV.place?'<em>'+esc(nextV.place)+'</em>':"")+'</span></button>':"")+
-      '<div class="pv-acal cal-month" id="cal-month"></div>'+
-      '<div class="pv-acal-key cal-key">'+(AT?KEY.map(([k,t])=>'<span><i class="pv-a-'+k+'"></i>'+esc(t)+'</span>').join(""):"")+(!AT&&own.length?'<span><i class="pv-a-coming"></i>College day</span>':"")+(V.length?'<span><i class="cal-key-v"></i>Visit</span>':"")+'<span><i class="cal-key-h"></i>Learning</span></div>'+
-      '<section class="cal-dcard" id="cal-day" aria-live="polite"></section>';
-    const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],byDay={};
-    if(AT){
-      AT.marks.forEach(x=>{(byDay[x.date]=byDay[x.date]||{marks:[]}).marks.push(x)});
-      AT.booked.forEach(a=>{for(let d=new Date(a.starts_on+"T12:00:00");dkey(d)<=a.ends_on;d.setDate(d.getDate()+1)){const k=dkey(d);(byDay[k]=byDay[k]||{marks:[]}).booked=a}});
+      (own.length?'<button type="button" class="cal-btn primary" id="cal-days-done">Done</button>':"")+'</section>';
+    const nextLine=next?'<button type="button" class="cw-next" id="'+(next.kind==="visit"?"cal-visit":"cw-next")+'" data-go="'+next.k+'"><span class="cw-next-k">Next</span><span class="cw-next-t"><strong>'+esc(next.what)+'</strong><small>'+esc((next.k===today?"Today":shortDay(next.k))+(next.kind!=="class"||coming.find(x=>x.session_date===next.k&&x.starts_at)?" · "+clock(next.t):""))+'</small></span><span aria-hidden="true">›</span></button>'
+      :(AT?'<p class="cw-none">No classes booked yet. Your tutor sets your college days.</p>':"");
+    scr().innerHTML='<header class="ui-page-head"><h1>'+esc(tabName())+'</h1><span>'+esc(courseName())+'</span></header>'+
+      (now&&window.eviaCheckIn?'<button type="button" class="cw-checkin" id="cal-checkin"><strong>Class is on now</strong><span>Check in</span></button>':"")+
+      meCards()+(editing?daysCard:"")+
+      '<div class="cw-head"><h2 class="cal-h">Your week</h2><span class="cw-nav"><button type="button" class="cw-arrow" data-w="-1" aria-label="Last week">‹</button><span id="cw-range"></span><button type="button" class="cw-arrow" data-w="1" aria-label="Next week">›</button></span></div>'+
+      '<section class="cw-card" id="cal-month">'+nextLine+'<div class="cw-strip" id="cw-strip" role="group" aria-label="Days this week"></div><div class="cal-dcard" id="cal-day" aria-live="polite"></div></section>'+
+      '<section class="cal-card cw-hours"><div class="cw-hours-top"><span><span class="cal-label">Learning hours this week</span><strong>'+esc(hm(wk))+'<small> of '+WEEK_GOAL+' h</small></strong></span><button type="button" class="cal-btn primary" id="cal-log">Log hours</button></div>'+
+        '<span class="cal-bar" aria-hidden="true"><i style="width:'+pct+'%"></i></span><button type="button" class="cal-mini" id="cal-logs">See my learning logs</button></section>'+
+      '<div class="cw-links">'+(AT&&window.eviaProgressDeep?'<button type="button" class="cal-mini" id="cw-month">See the whole month</button>':"")+
+        (AT&&N&&N.bookAbsence&&window.eviaTodo&&window.eviaTodo.away?'<button type="button" class="cal-mini" id="cal-away">Can’t make college?</button>':"")+
+        (!AT&&!editing?'<button type="button" class="cal-mini cal-change" id="cal-days-edit">Change my college days</button>':"")+'</div>';
+    const row=(ic,title,sub,chip,cls,attr)=>'<li class="cal-row'+(attr?" cw-tap":"")+'"'+(attr||"")+'><span class="cal-ri ri-'+ic+'" aria-hidden="true">'+(RI[ic]||"")+'</span><span class="cal-rt"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':"")+'</span>'+(chip?'<em class="cal-chip'+(cls?" "+cls:"")+'">'+chip+'</em>':"")+'</li>';
+    const mins=n=>n?(n>=60?Math.floor(n/60)+"h"+(n%60?" "+(n%60)+"m":""):n+"m"):"";
+    function showDay(k){
+      picked=k;
+      document.querySelectorAll("#cw-strip [data-day]").forEach(b=>{const on=b.dataset.day===k;b.classList.toggle("pv-picked",on);b.setAttribute("aria-pressed",on)});
+      const o=byDay[k],h=by[k]||[],rows=[];
+      const lessonOf=x=>{const c=h.find(y=>y.college&&y.college.class===x.class);return c&&c.college.lesson?c.college.lesson:""};
+      ((o&&o.marks)||[]).forEach(x=>{const here=x.k==="here"||x.k==="late",why=x.reason&&!String(DETAIL[x.k]).toLowerCase().includes(x.reason.toLowerCase())?x.reason:"";
+        rows.push(row("class",esc(x.class||"Class"),[A.taught&&A.taught(x)||(here?lessonOf(x):""),why].filter(Boolean).map(esc).join("<br>"),esc(DETAIL[x.k]||LABEL[x.g]||"")+(here&&x.minutes?" · "+mins(x.minutes):""),"pv-a-"+x.g))});
+      if(o&&o.booked&&!o.marks.length)rows.push(row("off","Booked off",esc(o.booked.reason||""),"",""));
+      if(o&&o.coming&&!o.marks.length)rows.push(row("class",esc(o.coming.class||"College"),[time(o.coming)?"Starts at "+esc(time(o.coming)):"",o.coming.lesson&&A&&A.clip?"Planned: "+esc(A.clip(o.coming.lesson,160)):""].filter(Boolean).join("<br>"),"Coming up","pv-a-coming"));
+      if(o&&o.marks.some(x=>A.missed&&A.missed(x)))rows.push('<li class="cal-row cal-catch"><span class="cal-rt"><small>Catch up on what you missed in Teach me, or ask your tutor for the notes.</small></span></li>');
+      ((o&&o.visits)||[]).forEach(v=>rows.push(row("visit",esc(VKIND[v.kind]||"Assessor visit"),[esc(clock(v.starts_at)),v.place?esc(v.place):"",v.booked_by?"with "+esc(v.booked_by):""].filter(Boolean).join(" · ")+(v.note?"<br><em>"+esc(v.note)+"</em>":""),"","")));
+      ((o&&o.careers)||[]).forEach(c=>rows.push(row("career",esc(c.title),[esc(clock(c.starts_at)),c.place?esc(c.place):""].filter(Boolean).join(" · "),c.interested?"Interested":"Careers","cw-chip-c",' data-career="'+esc(c.id)+'" role="button" tabindex="0"')));
+      h.filter(x=>!(x.college&&o&&o.marks.length)).forEach(x=>{const d=String(x.description||"").replace(/^([^:.]+):\s*\1\b[.:]?\s*/,"$1. ").trim(),m=d.match(/^([^.:]{2,60})[.:]\s*(.*)$/);
+        const title=m?m[1]:d||"Learning",sub=x.learned||(m?m[2].replace(/^What I learned:\s*/i,""):"");
+        rows.push(row("hours",esc(title),esc(sub.length>140?sub.slice(0,140).replace(/\s+\S*$/,"")+"…":sub),esc(hm(Number(x.n)||0)),"cal-chip-h"))});
+      const box=document.getElementById("cal-day");
+      box.innerHTML='<h3>'+esc(longDay(k))+(k===today?' <small>Today</small>':"")+'</h3>'+(rows.length?'<ul class="cal-rows">'+rows.join("")+'</ul>':'<p class="cal-empty">Nothing on this day.</p>');
+      box.querySelectorAll("[data-career]").forEach(r=>{const go=()=>window.eviaFuture&&window.eviaFuture.session&&window.eviaFuture.session(r.dataset.career);r.onclick=go;r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}});
     }
-    coming.forEach(x=>{(byDay[x.session_date]=byDay[x.session_date]||{marks:[]}).coming=x});
-    V.forEach(v=>{const k=dkey(new Date(v.starts_at)),o=byDay[k]=byDay[k]||{marks:[]};(o.visits=o.visits||[]).push(v)});
-    const draw=()=>{
-      const y=Math.floor(cur/12),m=cur%12,first=new Date(y,m,1),days=new Date(y,m+1,0).getDate(),lead=(first.getDay()+6)%7;
-      let cells="";for(let i=0;i<lead;i++)cells+='<span class="pv-acal-blank"></span>';
-      for(let d=1;d<=days;d++){
-        const k=dkey(new Date(y,m,d)),o=byDay[k],h=by[k],c=o?(o.marks.length?(o.marks.find(x=>x.k==="none")||o.marks[0]).g:o.booked?"booked":o.coming?"coming":""):"";
-        cells+='<button type="button" class="pv-acal-d'+(c?" pv-a-"+c:"")+(h?" cal-h":"")+(o&&o.visits?" cal-v":"")+(k===today?" pv-today":"")+'" data-day="'+k+'" aria-label="'+esc(longDay(k)+(c?": "+LABEL[c]:"")+(h?", learning hours logged":"")+(o&&o.visits?", assessor visit":""))+'">'+d+'</button>';
+    const DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    function drawWeek(){
+      const d=new Date(wkStart),cells=[];
+      for(let i=0;i<7;i++){
+        const k=dkey(d),o=byDay[k],h=by[k],g=o?(o.marks.length?(o.marks.find(x=>x.k==="none")||o.marks[0]).g:o.booked?"booked":o.coming?"coming":""):"";
+        const dots=[g&&'<i class="cw-dot pv-a-'+g+'"></i>',o&&o.visits&&'<i class="cw-dot cw-dv"></i>',o&&o.careers&&'<i class="cw-dot cw-dc"></i>',h&&'<i class="cw-dot cw-dh"></i>'].filter(Boolean).join("");
+        cells.push('<button type="button" class="cw-d'+(g?" cw-"+g:"")+(o&&o.visits?" cal-v":"")+(k===today?" pv-today":"")+'" data-day="'+k+'" aria-label="'+esc(longDay(k)+(g?": "+(LABEL[g]||g):"")+(o&&o.visits?", assessor visit":"")+(o&&o.careers?", careers session":"")+(h?", learning hours logged":""))+'"><small>'+DOW[i]+'</small><b>'+d.getDate()+'</b><span class="cw-dots">'+dots+'</span></button>');
+        d.setDate(d.getDate()+1);
       }
-      const box=document.getElementById("cal-month");
-      box.innerHTML='<div class="pv-acal-head"><button type="button" class="pv-acal-nav" data-m="-1" aria-label="Previous month"'+(cur<=minM?" disabled":"")+'>‹</button><strong>'+first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})+'</strong><button type="button" class="pv-acal-nav" data-m="1" aria-label="Next month"'+(cur>=maxM?" disabled":"")+'>›</button></div>'+
-        '<div class="pv-acal-grid">'+DAYS.map(x=>'<span class="pv-acal-dow">'+x+'</span>').join("")+cells+'</div>';
-      box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{cur+=+b.dataset.m;draw()});
-      box.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{
-        box.querySelectorAll(".pv-picked").forEach(x=>x.classList.remove("pv-picked"));b.classList.add("pv-picked");
-        const k=b.dataset.day,o=byDay[k],h=by[k]||[];picked=k;
-        const row=(ic,title,sub,chip,cls)=>'<li class="cal-row"><span class="cal-ri ri-'+ic+'" aria-hidden="true">'+(RI[ic]||"")+'</span><span class="cal-rt"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':"")+'</span>'+(chip?'<em class="cal-chip'+(cls?" "+cls:"")+'">'+chip+'</em>':"")+'</li>';
-        const mins=n=>n?(n>=60?Math.floor(n/60)+"h"+(n%60?" "+(n%60)+"m":""):n+"m"):"";
-        const lessonOf=x=>{const c=h.find(y=>y.college&&y.college.class===x.class);return c&&c.college.lesson?c.college.lesson:""};
-        const rows=[];
-        ((o&&o.marks)||[]).forEach(x=>{const here=x.k==="here"||x.k==="late",why=x.reason&&!String(DETAIL[x.k]).toLowerCase().includes(x.reason.toLowerCase())?x.reason:"";
-          rows.push(row("class",esc(x.class||"Class"),[A.taught&&A.taught(x)||(here?lessonOf(x):""),why].filter(Boolean).map(esc).join("<br>"),esc(DETAIL[x.k]||LABEL[x.g]||"")+(here&&x.minutes?" · "+mins(x.minutes):""),"pv-a-"+x.g))});
-        if(o&&o.booked&&!o.marks.length)rows.push(row("off","Booked off",esc(o.booked.reason||""),"",""));
-        if(o&&o.coming&&!o.marks.length)rows.push(row("class",esc(o.coming.class||"College"),[time(o.coming)?"Starts at "+esc(time(o.coming)):"",o.coming.lesson&&A.clip?"Planned: "+esc(A.clip(o.coming.lesson,160)):""].filter(Boolean).join("<br>"),"Coming up","pv-a-coming"));
-        if(o&&o.marks.some(x=>A.missed&&A.missed(x)))rows.push('<li class="cal-row cal-catch"><span class="cal-rt"><small>Catch up on what you missed in Teach me, or ask your tutor for the notes.</small></span></li>');
-        ((o&&o.visits)||[]).forEach(v=>rows.push(row("visit",esc(VKIND[v.kind]||"Assessor visit"),[esc(vt(v)),v.place?esc(v.place):"",v.booked_by?"with "+esc(v.booked_by):""].filter(Boolean).join(" · ")+(v.note?"<br><em>"+esc(v.note)+"</em>":""),"","")));
-        /* Learning hours (a college session already shows as its class, so it isn't listed twice). */
-        h.filter(x=>!(x.college&&o&&o.marks.length)).forEach(x=>{const d=String(x.description||"").replace(/^([^:.]+):\s*\1\b[.:]?\s*/,"$1. ").trim(),m=d.match(/^([^.:]{2,60})[.:]\s*(.*)$/);
-          const title=m?m[1]:d||"Learning",sub=x.learned||(m?m[2].replace(/^What I learned:\s*/i,""):"");
-          rows.push(row("hours",esc(title),esc(sub.length>140?sub.slice(0,140).replace(/\s+\S*$/,"")+"…":sub),esc(hm(Number(x.n)||0)),"cal-chip-h"))});
-        document.getElementById("cal-day").innerHTML='<h3>'+esc(longDay(k))+(k===today?' <small>Today</small>':"")+'</h3>'+(rows.length?'<ul class="cal-rows">'+rows.join("")+'</ul>':'<p class="cal-empty">'+(AT?"No class and no learning hours that day.":"No learning hours that day.")+'</p>');
-      });
-    };
-    draw();
-    /* Redrawn (new hours, a synced register): the day that was open stays open. */
-    {const b=document.querySelector('#cal-month [data-day="'+(picked||today)+'"]');if(b)b.click()}
+      document.getElementById("cw-strip").innerHTML=cells.join("");
+      const end=new Date(wkStart);end.setDate(end.getDate()+6);
+      const same=wkStart.getMonth()===end.getMonth(),r=document.getElementById("cw-range");
+      r.textContent=dkey(wkStart)===dkey(monday(new Date()))?"This week":wkStart.getDate()+(same?"":" "+wkStart.toLocaleDateString("en-GB",{month:"short"}))+"–"+end.getDate()+" "+end.toLocaleDateString("en-GB",{month:"short"});
+      document.querySelectorAll("#cw-strip [data-day]").forEach(b=>b.onclick=()=>showDay(b.dataset.day));
+      const keys=[...document.querySelectorAll("#cw-strip [data-day]")].map(b=>b.dataset.day);
+      showDay(keys.includes(picked)?picked:keys.includes(today)?today:keys[0]);
+    }
+    const goTo=k=>{wkStart=monday(new Date(k+"T12:00:00"));picked=k;drawWeek()};
+    drawWeek();
+    document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{wkStart.setDate(wkStart.getDate()+7*b.dataset.w);picked=null;drawWeek()});
+    document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goTo(b.dataset.go));
     const on=(id,fn)=>{const b=document.getElementById(id);if(b)b.onclick=fn};
     on("cal-log",logHours);
-    on("cal-visit",()=>{const k=dkey(new Date(nextV.starts_at)),m=new Date(k+"T12:00:00");cur=m.getFullYear()*12+m.getMonth();draw();const b=document.querySelector('#cal-month [data-day="'+k+'"]');if(b){b.click();b.scrollIntoView({block:"center",behavior:"smooth"})}});
     scr().querySelectorAll("[data-cd]").forEach(b=>b.onclick=()=>{const n=+b.dataset.cd,d=myDays();setDays(d.includes(n)?d.filter(x=>x!==n):d.concat(n));editDays=true;page()});
     on("cal-days-done",()=>{editDays=false;page()});
     on("cal-days-edit",()=>{editDays=true;page()});
@@ -146,7 +155,10 @@
     on("cal-msgs",()=>window.eviaMessages&&window.eviaMessages.open());
     on("cal-away",()=>inChat(()=>window.eviaTodo.away()));
     on("cal-logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs());
+    on("cw-month",()=>window.eviaProgressDeep("attendance"));
+    if(window.eviaCareers&&!page.asked){page.asked=true;window.eviaCareers.load().finally(()=>{setTimeout(()=>{page.asked=false},30000)})}
   }
+  window.addEventListener("evia-careers",()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))page()});
   window.eviaCalendar={page,name:tabName};
 
   const prev=window.render;

@@ -29,7 +29,8 @@ const App = () => window.SamosApp;
 const read = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v ?? d; } catch (_) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
 const K = { who: "symi.nisia.who.v1", sessions: "symi.nisia.sessions.v1", sent: "symi.nisia.sent.v1", checked: "symi.nisia.checked.v1",
-  marks: "symi.nisia.marks.v1", failed: "symi.nisia.failed.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1" };
+  marks: "symi.nisia.marks.v1", failed: "symi.nisia.failed.v1", keys: "symi.nisia.keys.v1", absences: "symi.nisia.absences.v1", outbox: "symi.nisia.outbox.v1", ready: "symi.nisia.ready.v1",
+  reopen: "symi.nisia.reopen.v1" };
 const REASONS = [["ill", "Sickness"], ["holiday", "Holiday"], ["appointment", "Appointment"], ["work", "At work"], ["other", "Other"]];
 const LEFT_REASONS = [["family", "Family"], ["appointment", "Appointment"], ["ill", "Sickness"], ["work", "Work"], ["other", "Other"]];
 const LIVE = ["open-early", "live", "break"];
@@ -155,8 +156,15 @@ async function pullClasses() {
       /* Breaks set in Evia Portal don't count towards the learners' hours. */
       if (Array.isArray(s.breaks)) fromNisia.breaks = s.breaks.filter((x) => x && x.start && x.end).map((x, i) => ({ id: "nb" + i + "-" + x.start, label: "Break " + (i + 1), start: x.start, end: x.end }));
       const reg = st.classes.find((x) => x.id === c.client_ref);
-      if (!reg) { st.classes.push(Object.assign({ id: c.client_ref, breaks: [] }, fromNisia)); made++; }
-      else if (!reg.nisiaUpdatedAt || String(c.updated_at) > String(reg.nisiaUpdatedAt)) Object.assign(reg, fromNisia);
+      if (!reg) { st.classes.push(Object.assign({ id: c.client_ref, breaks: [] }, fromNisia)); made++; continue; }
+      /* The tutor's own learners (not from Evia Portal) stay on the register: the ones already on it, and the ones on
+         its class in Symi (which puts back any an older Symi took off). */
+      const own = (id) => { const l = st.learners.find((y) => y.id === id); return l && !l.nisia ? l : null; };
+      const tc = reg.teachingClassId && (st.teachingClasses || []).find((t) => t.id === reg.teachingClassId);
+      const keep = [...(reg.learners || []).map((x) => own(x.id)), ...(tc && tc.learnerIds || []).map(own)].filter(Boolean);
+      if (!reg.nisiaUpdatedAt || String(c.updated_at) > String(reg.nisiaUpdatedAt)) Object.assign(reg, fromNisia);
+      reg.learners = reg.learners || [];
+      for (const l of keep) if (!reg.learners.some((x) => x.id === l.id)) reg.learners.push({ id: l.id, name: l.name });
     }
     for (const reg of st.classes) if (reg.managed && !reg.archived && !mine.has(reg.id)) reg.archived = true;
     /* Ended in Evia Portal: put away here too, even a register the tutor made in Symi (its history is kept). */
@@ -662,7 +670,27 @@ function liveLocal(st, reg, key) {
   const a = (st.attendance || {})[reg.id + ":" + key] || {}, mk = marks()[reg.id + ":" + key] || {}, timers = {}, mks = {};
   for (const p of regLearners(st, reg)) { timers[p.nisia.enrolmentId] = timerOf(a[p.id]); mks[p.nisia.enrolmentId] = markPart(mk[p.id]); }
   const done = (st.history || []).find((h) => h.classId === reg.id && h.date === key);
-  return { startedAt: (a._meta && Number(a._meta.startedAt)) || null, finished: done ? { endAt: Date.now(), auto: !!done.autoCompleted } : null, timers, marks: mks };
+  return { startedAt: (a._meta && Number(a._meta.startedAt)) || null, finished: done ? { endAt: Date.now(), auto: !!done.autoCompleted, doneAt: Number(done.doneAt) || 0 } : null, timers, marks: mks };
+}
+/* Opened again after it was finished (app.js): Evia Portal takes the finish off (and the tutor's other devices open it
+   too). Kept on the device till Evia Portal has heard; till then this device doesn't take the old finish back. */
+function reopened(regId, key) {
+  const k = regId + ":" + key, sent = read(K.sent, {}), fails = read(K.failed, {}), want = read(K.reopen, {});
+  delete sent[k]; write(K.sent, sent); delete fails[k]; write(K.failed, fails);
+  want[k] = Date.now(); write(K.reopen, want);
+  sendReopen().then(syncLiveSoon);
+}
+async function sendReopen() {
+  if (!signedIn || !online()) return;
+  const want = read(K.reopen, {});
+  for (const k of Object.keys(want)) {
+    if (Date.now() - want[k] > 2 * 864e5) { delete want[k]; continue; }
+    const at = k.lastIndexOf(":"), s = read(K.sessions, {})[k] || await ensureSession(k.slice(0, at), k.slice(at + 1)).catch(() => null);
+    if (!s || !s.id) continue;
+    try { await rpc("symi_reopen_register", { p_session: s.id }); delete want[k]; const known = read(LIVE_KEY, {}); if (known[s.id]) { known[s.id].finished = false; write(LIVE_KEY, known); } }
+    catch (e) { console.warn("Symi: opening the register again in Evia Portal", e.message); }
+  }
+  write(K.reopen, want);
 }
 let liveBusy = false, liveAgain = false;
 const liveTried = {};
@@ -671,9 +699,10 @@ async function syncLive() {
   if (liveBusy) { liveAgain = true; return; }
   liveBusy = true;
   try {
-    const st = App().getState(), key = App().today(), sessions = read(K.sessions, {}), known = read(LIVE_KEY, {}), items = [], regs = [];
+    await sendReopen();
+    const st = App().getState(), key = App().today(), sessions = read(K.sessions, {}), known = read(LIVE_KEY, {}), items = [], regs = [], waiting = read(K.reopen, {});
     for (const reg of st.classes || []) {
-      if (reg.archived || !App().occursOn(reg.id, key)) continue;
+      if (reg.archived || !App().occursOn(reg.id, key) || waiting[reg.id + ":" + key]) continue;
       if (!regLearners(st, reg).length) continue;
       /* Today's session in Evia Portal (made ahead, or now): the same one on every device. */
       let s = sessions[reg.id + ":" + key];
@@ -697,6 +726,11 @@ async function syncLive() {
       for (const [e, v] of Object.entries(sv.timers || {})) { const t = timerOf(v); k.timers[e] = sig(t); if (idOf[e] && sig(t) !== sig(x.loc.timers[e] || timerOf(null))) timers[idOf[e]] = t; }
       for (const [e, v] of Object.entries(sv.marks || {})) { const m = markPart(v.mark); k.marks[e] = sig(m); if (idOf[e] && sig(m) !== sig(x.loc.marks[e] || markPart(null))) { setMark(x.reg.id, key, idOf[e], m.mark); marked = true; } }
       next[r.session] = k;
+      /* Opened again on another device: this device's finish (made before then) comes off too. */
+      if (!k.finished && sv.reopenedAt && x.loc.finished && x.loc.finished.doneAt <= Number(sv.reopenedAt)) {
+        const sent = read(K.sent, {}); delete sent[x.reg.id + ":" + key]; write(K.sent, sent);
+        App().reopen(x.reg.id, key); continue;
+      }
       const started = k.startedAt && k.startedAt !== x.loc.startedAt, finished = k.finished && !x.loc.finished;
       if (Object.keys(timers).length || started || finished) App().applyLive(x.reg.id, key, { startedAt: k.startedAt, timers, finished: finished ? sv.finished : null });
       else if (marked) decorate();
@@ -798,6 +832,7 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
    neither, the quiz is the hands-up kind. */
 window.SymiNisia = {
   live: () => signedIn && online(),
+  reopened,
   /* Symi's past registers (app.js): each learner's mark, and changing it. */
   markInfo: (regId, key, id) => {
     const m = markOf(regId, key, id);

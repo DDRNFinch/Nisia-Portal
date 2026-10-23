@@ -104,7 +104,7 @@ function mine(org) { return (who.memberships || []).find((m) => m.organisation_i
 function navFor() {
   if (!S.org) return [["colleges", "Colleges", "home"], ["standards", "Standards", "courses"], ["usage", "Usage", "chart"]];
   const m = mine(S.org), admin = m.roles.includes("admin") || who.platform_admin, quality = m.roles.includes("quality");
-  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["messages", "Messages", "message"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["reviews", "Reviews", "review"], ["registers", "Registers", "register"], ["attendance", "Attendance", "clock"]]
+  return [["overview", "Overview", "home"], ["today", "Today", "live"], ["learners", "Learners", "learners"], ["messages", "Messages", "message"], ["classes", "Classes", "cal"], ["resources", "Resources", "courses"], ["careers", "Careers", "spark"], ["reviews", "Reviews", "review"], ["registers", "Registers", "register"], ["attendance", "Attendance", "clock"]]
     .concat(admin || quality ? [["impact", "Impact", "chart"], ["packs", "Packs", "courses"], ["assistants", "Assistants", "spark"]] : [])
     .concat(admin ? [["staff", "Staff", "staff"], ["licence", "College", "courses"]] : quality ? [["licence", "College", "courses"]] : []);
 }
@@ -180,7 +180,7 @@ async function render() {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
-  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage, messages: messagesPage,
+  ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, careers: careersPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage, messages: messagesPage,
     assistants: () => assistantsPage({ shell, esc, modal, closeModal, toast, hit, ukDate, summary: () => S.data.summary }),
     packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
@@ -1166,6 +1166,57 @@ async function resourcesPage() {
   };
   root.querySelectorAll("[data-down]").forEach((b) => b.onclick = () => { if (!confirm("Take this down? Tutors won’t see it any more.")) return;
     busy(b, "…", async () => { try { await rpc("nisia_unshare_resource", { p_id: b.dataset.down }); toast("Taken down"); resourcesPage(); } catch (x) { toast(x.message); } }); });
+}
+
+/* ---------- Careers: sessions that help apprentices with their next steps ----------
+   A Level 3 open evening, an SSSTS course, a careers fair, an employer visit. Staff pick which goals each one suits;
+   learners see them in Evia's My future (the ones for their goal first) and on their calendar, and tap "I'm interested". */
+const CAREER_GOALS = [["qualified", "Finish and qualify"], ["level3", "Level 3 or advanced"], ["supervisor", "Run a team"], ["business", "Own business"], ["specialist", "Specialise"], ["teach", "Teach or assess"]];
+async function careersPage() {
+  const D = S.data;
+  shell('<p class="loading">Loading careers sessions…</p>');
+  let rows;
+  try { rows = await rpc("nisia_careers", { p_org: S.org }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const now = Date.now(), coming = rows.filter((r) => Date.parse(r.starts_at) > now - 3 * 36e5), past = rows.filter((r) => Date.parse(r.starts_at) <= now - 3 * 36e5).reverse();
+  const when = (r) => new Date(r.starts_at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const goalNames = (g) => (g && g.length ? g.map((k) => (CAREER_GOALS.find((x) => x[0] === k) || [k, k])[1]).join(", ") : "Everyone");
+  const row = (r) => '<tr class="static"><td><b>' + esc(r.title) + '</b>' + (r.place ? '<br><span class="small muted">' + esc(r.place) + '</span>' : "") + (r.link ? '<br><a class="small" href="' + esc(r.link) + '" target="_blank" rel="noopener">Link</a>' : "") + '</td>' +
+    '<td class="small">' + esc(when(r)) + '</td><td class="small">' + esc(goalNames(r.goals)) + '</td>' +
+    '<td class="small">' + (r.interested.length ? '<b>' + r.interested.length + '</b> · ' + esc(r.interested.slice(0, 6).join(", ")) + (r.interested.length > 6 ? "…" : "") : '<span class="muted">No one yet</span>') + '</td>' +
+    '<td style="white-space:nowrap"><button class="btn small" type="button" data-edit="' + esc(r.id) + '">Change</button> <button class="btn small" type="button" data-down="' + esc(r.id) + '">Take down</button></td></tr>';
+  const table = (list, empty) => '<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Session</th><th>When</th><th>For</th><th>Interested</th><th></th></tr></thead><tbody>' +
+    (list.length ? list.map(row).join("") : '<tr class="static"><td colspan="5" class="empty">' + empty + '</td></tr>') + '</tbody></table></div>';
+  shell('<div class="topbar"><div><div class="label">' + esc(D.summary ? D.summary.name : mine(S.org).organisation) + '</div><h1>Careers</h1></div><div class="actions"><button class="btn primary" type="button" id="addCar">' + ICON.plus + 'Add a session</button></div></div>' +
+    '<p class="hint">Sessions that help apprentices with their next steps: open evenings, short courses, careers fairs, employer visits. Learners see them in Evia’s My future and on their calendar (the ones for their goal first), and can say they’re interested.</p>' +
+    '<h2 style="margin:18px 0 0;font-size:17px">Coming up</h2>' + table(coming, "Nothing coming up. Add a session for your apprentices.") +
+    (past.length ? '<h2 style="margin:22px 0 0;font-size:17px">Recent</h2>' + table(past, "") : ""));
+  const form = (r) => {
+    r = r || {}; const dt = r.starts_at ? new Date(r.starts_at) : null, pad = (n) => String(n).padStart(2, "0");
+    const day = dt ? dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()) : "", time = dt ? pad(dt.getHours()) + ":" + pad(dt.getMinutes()) : "17:00";
+    const m = modal(r.id ? "Change the session" : "Add a careers session", '<form class="form-grid" id="cf" novalidate>' +
+      '<label class="field full">What is it?<input name="title" required maxlength="160" value="' + esc(r.title || "") + '" placeholder="e.g. Level 3 open evening"></label>' +
+      '<label class="field">Day<input name="day" type="date" required value="' + day + '"></label><label class="field">Time<input name="time" type="time" required value="' + time + '"></label>' +
+      '<label class="field">How long<select name="minutes">' + [[30, "30 minutes"], [60, "1 hour"], [90, "1½ hours"], [120, "2 hours"], [180, "3 hours"], [240, "Half a day"], [420, "A full day"]].map(([v, t]) => '<option value="' + v + '"' + (Number(r.minutes || 60) === v ? " selected" : "") + '>' + t + '</option>').join("") + '</select></label>' +
+      '<label class="field">Where <small>(optional)</small><input name="place" maxlength="200" value="' + esc(r.place || "") + '" placeholder="e.g. Room B12"></label>' +
+      '<label class="field full">What happens <small>(optional)</small><textarea name="details" maxlength="1500" rows="3">' + esc(r.details || "") + '</textarea></label>' +
+      '<label class="field full">Link <small>(optional, e.g. to book)</small><input name="link" type="url" maxlength="2000" value="' + esc(r.link || "") + '" placeholder="https://"></label>' +
+      '<fieldset class="field full" style="border:0;padding:0;margin:0"><legend>Who is it for? <small>(none ticked: everyone)</small></legend><div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:6px">' +
+      CAREER_GOALS.map(([k, t]) => '<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="g" value="' + k + '"' + ((r.goals || []).includes(k) ? " checked" : "") + '>' + t + '</label>').join("") + '</div></fieldset>' +
+      '<p class="err full"></p><button class="btn primary wide full" type="submit">' + (r.id ? "Save" : "Add the session") + '</button></form>');
+    const f = m.querySelector("#cf"), err = f.querySelector(".err");
+    f.onsubmit = (e) => { e.preventDefault(); busy(f.querySelector("button[type=submit]"), "Saving…", async () => {
+      err.textContent = ""; const v = formData(f), goals = [...f.querySelectorAll('input[name="g"]:checked')].map((x) => x.value);
+      if (!v.day || !v.time) { err.textContent = "Choose a day and time."; return; }
+      try { await rpc("nisia_careers_save", { p_org: S.org, p_title: v.title, p_starts_at: new Date(v.day + "T" + v.time).toISOString(), p_minutes: Number(v.minutes) || 60,
+        p_place: v.place || null, p_details: v.details || null, p_link: (v.link || "").trim() || null, p_goals: goals, p_id: r.id || null });
+        hit("careers.save"); closeModal(); toast(r.id ? "Saved" : "Added. Learners see it in Evia."); careersPage(); }
+      catch (x) { err.textContent = x.message; }
+    }); };
+  };
+  root.querySelector("#addCar").onclick = () => form();
+  root.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => form(rows.find((r) => r.id === b.dataset.edit)));
+  root.querySelectorAll("[data-down]").forEach((b) => b.onclick = () => { if (!confirm("Take this session down? Learners won’t see it any more.")) return;
+    busy(b, "…", async () => { try { await rpc("nisia_careers_cancel", { p_id: b.dataset.down }); toast("Taken down"); careersPage(); } catch (x) { toast(x.message); } }); });
 }
 
 /* ---------- Classes: set up once here, they're the tutor's registers in Symi and the learners' college days in Evia ---------- */

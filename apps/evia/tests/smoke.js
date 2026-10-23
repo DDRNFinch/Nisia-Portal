@@ -70,7 +70,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
        own, Evia reminds them (tested further down). Connected, for these review checks. */
     await page.evaluate(()=>{window.__joined=window.eviaNisia.joined;window.eviaNisia.joined=()=>({college:"Brookfield College"})});
     const rvBefore=await page.evaluate(()=>window.eviaGetReviews().length);
-    await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true});setTimeout(()=>window.eviaChatReview(),50)});
+    await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true});setTimeout(()=>window.eviaChatReviewFull(),50)});
     const reviewDone=await page.evaluate(async()=>{
       const wait=ms=>new Promise(r=>setTimeout(r,ms));
       for(let n=0;n<40;n++){
@@ -152,8 +152,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
     await page.waitForFunction(()=>{const c=document.getElementById("chat");return c&&!c.querySelector(".evia-thinking")},null,{timeout:15000});
-    await page.waitForSelector("#chat .td-item",{timeout:15000});
-    check("Evia opens with what needs doing: at most three items, most urgent first, and no typing box or menu",await page.evaluate(()=>{const n=document.querySelectorAll("#chat .td-item").length,all=window.eviaTodo.list();return n>=1&&n<=3&&n===Math.min(3,all.length)&&all.every((x,j)=>!j||all[j-1].u>=x.u)&&/thing/.test(document.querySelector("#chat .bubble.evia").textContent)&&!document.querySelector(".chat-sheet input[type=text],.chat-sheet .ui-ask,#chat .mn-tile")}));
+    await page.waitForSelector("#chat .es-card",{timeout:15000});
+    check("Evia opens with how you're doing: four stats, your targets with On track/Ahead/Behind, the next badge with its coins, and no typing box or menu",await page.evaluate(()=>{const c=document.querySelector("#chat .es-card");return c.querySelectorAll(".es-stat").length===4&&c.querySelectorAll(".es-target").length>=1&&c.querySelectorAll(".es-target").length<=3&&[...c.querySelectorAll(".es-t-top em")].every(e=>/On track|Ahead|Behind|Overdue|Done/.test(e.textContent))&&/Next badge/.test(c.textContent)&&/coins/.test(c.textContent)&&document.querySelectorAll("#chat .td-item").length<=2&&!/things? to do/.test(document.querySelector("#chat .bubble.evia").textContent)&&!document.querySelector(".chat-sheet input[type=text],.chat-sheet .ui-ask,#chat .mn-tile")}));
     check("Evia's list never includes games or Rewards, and each item has one way to do it",await page.evaluate(()=>window.eviaTodo.list().every(x=>!/game|reward|coin|shop/i.test(x.title+x.detail+x.label)&&typeof x.run==="function")));
     await page.evaluate(()=>{window.eviaChatKit.userSays("Check my evidence");window.eviaCoachFlows.evidenceCheck()});
     await page.waitForFunction(()=>[...document.querySelectorAll("#chat .ui-replies button")].length>=1,null,{timeout:15000});
@@ -219,20 +219,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("EPA mode ends when the chat closes",await page.evaluate(()=>!document.body.classList.contains("evia-epa")));
     await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies",{timeout:15000});
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
-    // Evia's menu: today's focus is always about evidence first.
-    const caught=await page.evaluate(async()=>{const real=window.eviaTodo.list;window.eviaTodo.list=()=>[];window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));window.eviaTodo.list=real;
-      const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return /all caught up/.test(document.getElementById("chat").innerText)&&pills.length>=3&&pills.includes("EPA practice")&&/More|My review/.test(pills.join("|"))});
-    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return ["My review","My targets","What’s missing","Confidence check"].filter(x=>pills.includes(x)).length>=3||pills.includes("More")});
-    check("Under Evia's list: shortcuts to the review, targets, what's missing and the confidence check",sc);
-    const once=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
-      window.eviaTodo.list=()=>Array.from({length:6},(_,i)=>({u:50-i,ic:"hours",title:"Thing "+(i+1),detail:"d",label:"Go",run:()=>{}}));
-      {const x=document.getElementById("x");if(x){x.click();await w(600)}}window.chat({quiet:true});await w(900);window.eviaTodo.show();const c=document.getElementById("chat");let list=null;for(let n=0;n<40&&!(list&&list.querySelector(".td-all"));n++){await w(200);list=[...c.querySelectorAll(".td-list")].pop()}
-      const all=list&&list.querySelector(".td-all"),seeAll=!!all&&/See all 6/.test(all.textContent);if(all)all.click();await w(200);const six=!!list&&list.querySelectorAll(".td-item").length===6;
-      window.eviaTodo.list=real;const before=c.querySelectorAll(".bubble.user").length;
-      const pill=[...c.querySelectorAll(".ui-replies .chat-pill")].find(p=>p.textContent==="My targets");if(!pill)return {seeAll,six,pill:false};
-      pill.click();await w(1500);const after=c.querySelectorAll(".bubble.user").length;return {seeAll,six,one:after-before===1}});
-    check("Evia's list: See all shows every thing to do, and tapping an option shows it once (not twice)",once.seeAll&&once.six&&once.one,JSON.stringify(once));
-    check("With nothing to do, Evia says you're all caught up and offers three ways to get ahead, then her shortcuts",caught);
+    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return pills.includes("My review")&&pills.includes("Confidence check")&&!pills.includes("My targets")});
+    check("Under Evia's panel: just My review and Confidence check",sc);
+    const others=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
+      window.eviaTodo.list=()=>[{u:100,ic:"assessor",title:"Assessor wants more",detail:"d",label:"Go",run:()=>{}},{u:75,ic:"draft",title:"Finish a draft",detail:"d",label:"Go",run:()=>{}},{u:55,ic:"write",title:"Strengthen x",detail:"d",label:"Go",run:()=>{}},{u:50,ic:"hours",title:"Log hours",detail:"d",label:"Go",run:()=>{}}];
+      window.eviaTodo.show();await w(3500);const c=document.getElementById("chat"),urgent=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");
+      const more=[...c.querySelectorAll(".es-others")].pop(),label=more?more.textContent:"";if(more)more.click();await w(300);
+      const after=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");window.eviaTodo.list=real;
+      return {urgent:/Assessor wants more/.test(urgent)&&!/draft|Strengthen|Log hours/.test(urgent),label:label==="1 other thing",after:/Finish a draft/.test(after)&&!/Strengthen|Log hours/.test(after)}});
+    check("Only what can't wait shows as a row; the rest waits behind “1 other thing”, and weak write-ups and hours aren't listed (they're in the targets and stats)",Object.values(others).every(Boolean),JSON.stringify(others));
+    const streak=await page.evaluate(()=>{const k=t=>{const x=new Date(t);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};const save=localStorage.getItem("evia7-days");
+      const d=new Date();d.setHours(12);const days=[];for(let i=0;i<10;i++){const x=new Date(d);x.setDate(d.getDate()-i);if(x.getDay()!==0&&x.getDay()!==6)days.push(k(x))}
+      localStorage.setItem("evia7-days",JSON.stringify(days.reverse()));const n=window.eviaStats.dayStreak();localStorage.setItem("evia7-days",save);return {n,want:days.length}});
+    check("The day streak counts days using Evia, and weekends don't break it",streak.n===streak.want,JSON.stringify(streak));
     // Ask Evia: her calculators, glossary and lessons, worked out on the phone.
     const calcs=await page.evaluate(()=>{const B=window.eviaBrain,C=B.calc;return {bricks:C.bricks({length:4,height:1.2}).big,cavity:C.bricks({length:4,height:1.2,type:"cavity"}).big,stairs:C.stairs({rise:2600}).big,
       fall:C.fall({length:6,ratio:40}).big,sq:C.square({a:3,b:4}).big,sum:C.sum("4.5 x 3.2").big,mortar:C.mortar({bricks:500,ratio:4}).big,
@@ -315,7 +314,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("College tab: the profile is at the top and opens the profile, above the calendar",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
       const me=document.getElementById("cal-me"),first=me&&me.compareDocumentPosition(document.getElementById("cal-month"))&Node.DOCUMENT_POSITION_FOLLOWING;if(!me)return false;me.click();await w(400);
       const opened=!!document.querySelector(".profile-sheet");document.getElementById("modal-root").innerHTML="";await w(100);return !!first&&opened}));
-    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month .pv-acal-d").length>=28&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
+    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month #cw-strip .cw-d").length===7&&!!document.getElementById("cw-month")===!!window.eviaAttendance.data()&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
       nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
       const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
@@ -323,19 +322,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       localStorage.setItem("evia7-nisia-timetable",JSON.stringify([{class:"L2 Bricklaying",room:"W2",schedule:{day:"Tuesday",start:"09:00",end:"16:00",recurrence:{type:"weekly",interval:1,weekdays:["Tuesday"],startDate:"2026-10-05",endDate:"2026-12-22",anchorDate:"2026-10-05"}}},{class:"Maths",schedule:{day:"Monday",start:"10:00",recurrence:{type:"weekly",interval:2,weekdays:["Monday"],startDate:"2026-10-05",endDate:"2026-11-30",anchorDate:"2026-10-05"}}}]));
       const d=N.timetableDays("2026-10-01","2027-06-30"),tue=d.filter(x=>x.class==="L2 Bricklaying").map(x=>x.session_date),mon=d.filter(x=>x.class==="Maths").map(x=>x.session_date);
       localStorage.removeItem("evia7-nisia-timetable");
-      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<14;i++){const b=document.querySelector('#cal-month [data-m="1"]');if(!b||b.disabled)break;b.click();n++;await new Promise(r=>setTimeout(r,30))}
-      return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=12}));
-    check("Calendar: a visit the assessor booked in Milos shows at the top, on its day, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
+      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<53;i++){const b=document.querySelector('[data-w="1"]');if(!b)break;b.click();n++;await new Promise(r=>setTimeout(r,10))}
+      return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=52}));
+    check("Calendar: a visit the assessor booked in Milos shows as Next, on its day in the week, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
       const t=new Date(Date.now()+2*864e5);t.setHours(11,30,0,0);localStorage.setItem("evia7-nisia-visits",JSON.stringify([{id:"V1",starts_at:t.toISOString(),minutes:90,kind:"observation",place:"Kings Road site",note:"Bring your PPE",booked_by:"Mark Ellis"}]));
       nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
       top.click();await w(300);const k=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
-      const ok=!!document.querySelector('#cal-month .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
+      const ok=!!document.querySelector('#cw-strip .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
       const card=!!document.querySelector("#cal-day.cal-dcard .cal-row .ri-visit")&&!!document.querySelector(".cal-card #cal-logs")&&!document.querySelector(".cal-links");
       localStorage.removeItem("evia7-nisia-visits");return ok&&card}));
     check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
       const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
-      const tue=[...document.querySelectorAll("#cal-month .pv-acal-d.pv-a-coming")].every(b=>new Date(b.dataset.day+"T12:00:00").getDay()===2);
-      const next=/Tue|Today/.test(document.querySelector(".cal-card strong").textContent)&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
+      const cs=[...document.querySelectorAll("#cw-strip .cw-d.cw-coming")],tue=cs.length===1&&new Date(cs[0].dataset.day+"T12:00:00").getDay()===2||(cs.length===0&&new Date().getDay()>2);
+      const next=/Tue|Today/.test((document.querySelector(".cw-next")||{}).textContent||"")&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
     await page.evaluate(()=>{document.body.classList.remove("evia-onboarding");nav("home")});await page.waitForTimeout(450);
 
     await page.evaluate(()=>{window.__joined=window.eviaNisia.joined;window.eviaNisia.joined=()=>({college:"Brookfield College"});window.eviaStartReview()});await page.waitForTimeout(400);
@@ -1364,8 +1363,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaPrepPack.open()});await p9.waitForSelector(".rp-sheet");
         const rp=await p9.evaluate(async()=>{const t=document.querySelector(".rp-sheet").textContent,b=await window.eviaPrepPack.pdf();return {t,ring:document.querySelector(".rp-ring").textContent,pdf:b&&b.type==="application/pdf"&&b.size>1500,share:!!document.getElementById("rp-share")}});
         if(d9)await p9.screenshot({path:d9+"/review-prep.png"}).catch(()=>{});
-        check("Review prep pack: a ready percentage and the checklist, then everything since the last review (evidence, KSBs, hours, attendance, targets, time learning in Evia, their future goal), and a PDF to share from their own phone",
-          /^\d+%$/.test(rp.ring)&&/Your comments/.test(rp.t)&&/Evidence added/.test(rp.t)&&/Attendance/.test(rp.t)&&/Time learning in Evia/.test(rp.t)&&/Run my own business/.test(rp.t)&&/Milos/.test(rp.t)&&rp.pdf&&rp.share,JSON.stringify(rp).slice(0,700));
+        check("Review prep: a ready percentage and one checklist of everything since the last review (evidence, KSBs, hours, attendance, targets, their future goal, the quick questions), each with Do it now, and a PDF to share from their own phone",
+          /^\d+%$/.test(rp.ring)&&/A few quick questions/.test(rp.t)&&/Evidence added/.test(rp.t)&&/attendance/.test(rp.t)&&/Do it now|Change/.test(rp.t)&&/Run my own business/.test(rp.t)&&/Milos/.test(rp.t)&&rp.pdf&&rp.share,JSON.stringify(rp).slice(0,700));
         check("…no script errors with My future and the prep pack",!e9.length,e9.join(" | "));
       }
       await c9.close();

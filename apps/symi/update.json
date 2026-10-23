@@ -1,10 +1,8 @@
 {
-  "version": "0.34.28",
-  "title": "Group messages",
+  "version": "0.34.29",
+  "title": "Registers keep your own learners",
   "details": [
-    "Send one message to several people at once: tap the message icon, then Group message",
-    "Pick people one by one, or all your learners in one tap",
-    "Each person gets it on their own, and replies come back to you privately",
-    "Fixed: the message box no longer closes while you type"
+    "Learners you added yourself stay on a register when it's linked to Evia Portal",
+    "Finished a register too early? Tap Open again to carry on (until the end of the session)"
   ]
 }

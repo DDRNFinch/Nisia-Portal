@@ -86,7 +86,7 @@
       y+=1;
       /* The write-up, then what was said in any recordings (the files themselves stay in Evia and Evia Portal). */
       const recs=(e.media||[]),recNote=recs.length?recs.map(m=>(m.kind==="video"?"Video":"Voice note")+(m.secs?" "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")).join(", "):"";
-      const blocks=[e.w?["Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
+      const blocks=[e.w?[e.wTitle||"Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
       for(const [title,body] of blocks){
         /* The write-up sits in a tile with a light grey outline; a long one carries on in a new tile on the next page. */
         need(14);label(title,M,y+3);y+=5.5;
@@ -640,6 +640,7 @@
     const sb=document.getElementById("rvp-share");if(sb)sb.onclick=()=>shareFiles([file]);
     document.getElementById("rvp-save").onclick=()=>saveFile(file);
   }
+  window.eviaBuildUnitPdf=buildUnitPdf;
   window.eviaBuildReviewPdf=buildReviewPdf;
   window.eviaLoadJsPdf=loadJsPdf;
   window.eviaPdfText=pdfText;

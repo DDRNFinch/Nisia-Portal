@@ -67,7 +67,7 @@
     supporting(){
       const list=typeof supportingMeta==="function"?supportingMeta():readJson("evia7-supporting-evidence",[]);
       return (list||[]).filter(Boolean).map(x=>base(x.id,{course:x.course||"",title:x.title||x.filename||"",type:x.witness&&x.witness.name?"witness":x.type||"file",
-        fileId:x.id,mime:x.mime||"",size:x.size||0,filename:x.filename||"",witness:x.witness&&x.witness.name?{name:x.witness.name,role:x.witness.role||""}:null,
+        fileId:x.id,mime:x.mime||"",size:x.size||0,filename:x.filename||"",text:x.text||"",photos:x.photos||0,witness:x.witness&&x.witness.name?{name:x.witness.name,role:x.witness.role||""}:null,
         nvqUnit:x.nvqUnit||null,criteria:(x.ksbs||x.criteria||[]).slice(),induction:!!x.induction,observation:x.observation||null,employer:x.employer||null,createdAt:iso(x.addedAt),updatedAt:iso(x.updatedAt||x.addedAt),deletedAt:null,submission:submission("sup:"+x.id)}));
     },
     nvqAnswers(){
@@ -198,7 +198,7 @@
       put(r){
         const list=readJson("evia7-supporting-evidence",[])||[],x=list.find(v=>v&&v.id===String(r.id));
         const rec=x||{id:String(r.id||("supporting-"+Date.now()+"-"+Math.random().toString(36).slice(2,8))),course:r.course||courseNow(),addedAt:new Date().toISOString()};
-        ["title","type","mime","filename","size"].forEach(k=>{if(r[k]!=null)rec[k]=r[k]});
+        ["title","type","mime","filename","size","text","photos"].forEach(k=>{if(r[k]!=null)rec[k]=r[k]});
         if(r.witness!==undefined){if(r.witness&&r.witness.name)rec.witness={name:r.witness.name,role:r.witness.role||""};else delete rec.witness}
         if(r.nvqUnit!==undefined){if(r.nvqUnit){rec.nvqUnit=r.nvqUnit;rec.ksbs=(r.criteria||[]).slice()}else{delete rec.nvqUnit;rec.ksbs=[]}}
         /* The one-time PPE induction (onboarding.js) is linked to its KSBs on any course, and ticks them off. */

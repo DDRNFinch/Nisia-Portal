@@ -7,7 +7,9 @@
   const escHtml=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
   const readJson=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v??f}catch(_){return f}};
   /* Reviews and targets are read and written through eviaData (data.js); "detail" is the stored review or target. */
-  const reviewsNow=()=>window.eviaData.list("reviews",{course}).map(r=>r.detail);
+  const reviewsAll=()=>window.eviaData.list("reviews",{course}).map(r=>r.detail);
+  /* The learner's answers before a review (review-prep.js) are kept with the reviews, so Milos reads them; they aren't reviews. */
+  const reviewsNow=()=>reviewsAll().filter(r=>r&&r.kind!=="prep");
   const ukDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
   const clamp=v=>Math.max(0,Math.min(1,v));
@@ -48,44 +50,70 @@
     return {pct,value:v,text};
   }
 
-  /* ---------- Choosing targets from Evia's stats ---------- */
+  /* ---------- Choosing targets from Evia's stats ----------
+     SMART, and paced to the course: what's left (KSBs, topics, learning hours) shared over the months left, so doing
+     this period's share each time finishes the course on time. Never "evidence for cavity walls": nobody can promise
+     when a particular job comes up at work, so targets are about overall progress, which any evidence counts towards.
+     Each one is due by the next review. */
+  function pace(){
+    const D=window.eviaData,en=(D.enrolment&&D.enrolment())||{},p=D.learner()||{},now=Date.now(),MONTH=30.44*DAY;
+    const end=Date.parse(en.end||p.end||"")||0,rd=window.eviaReviewDue&&window.eviaReviewDue();
+    let by=rd&&rd.due&&rd.due.getTime()-now>21*DAY?rd.due.getTime()-3*DAY:now+12*7*DAY;
+    if(end&&end>now+14*DAY&&by>end)by=end;
+    const monthsLeft=end>now?Math.max(.5,(end-now)/MONTH):null,months=Math.max(.25,(by-now)/MONTH);
+    return {by,due:new Date(by).toISOString().slice(0,10),byText:new Date(by).toLocaleDateString("en-GB",{day:"numeric",month:"long"}),
+      end,endText:end?new Date(end).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}):"",monthsLeft,months,share:monthsLeft?Math.min(1,months/monthsLeft):.25};
+  }
   function suggest(S){
-    const out=[],now=Date.now(),due=w=>new Date(now+w*7*DAY).toISOString().slice(0,10);
-    const add=(kind,title,why,target,baseline,weeks,param)=>out.push({id:"t-"+now+"-"+out.length,course,kind,title,why,target,baseline:baseline||0,param:param||null,due:due(weeks),createdAt:now,done:false});
-    const a=S.a,gap=a.timePct==null?0:a.timePct-a.ksbPct;
-    if(S.unitsLeft>0){
-      const n=gap>10&&S.unitsLeft>1?2:1,next=a.quickest;
-      add("units","Capture evidence for "+plural(n,"new unit"),(gap>10?"You’re a little behind on evidence. ":"")+(next?"Start with "+next.name+": it covers "+plural(next.missing.length,"KSB")+" you still need.":"Pick a unit you haven’t started yet."),n,startedUnits(S),n===2?6:4);
-    }else if(a.ksbPct<100){
-      const n=Math.min(6,a.total-a.met);add("ksb","Get evidence for "+plural(n,"more KSB"),"Every unit has evidence; now fill the KSB gaps. Ask Evia “Which KSBs am I missing?”",n,a.met,6);
-    }
-    if(S.otjMonth<8)add("otj","Log 10 learning hours","You’ve logged "+(Math.round(S.otjMonth*10)/10)+" hours this month. Training, toolbox talks and research all count.",10,S.otjTotal,6);
+    const out=[],now=Date.now(),P=pace(),a=S.a,nvq=!!(window.eviaNvq&&window.eviaNvq.on()),word=nvq?"criteria":"KSBs";
+    const add=(kind,title,why,target,baseline,param)=>out.push({id:"t-"+now+"-"+out.length,course,kind,title,why,target,baseline:baseline||0,param:param||null,due:P.due,createdAt:now,done:false,smart:true});
+    /* "4.5 KSBs a month", or for less than one a month "1 topic every 5 weeks". */
+    const perMonth=(n,w,one)=>{if(!P.monthsLeft)return "";const r=n/P.monthsLeft;return r>=1?(Math.round(r*10)/10)+" "+w+" a month":"1 "+(one||w)+" every "+Math.max(2,Math.round(4.33/r))+" weeks"};
+    const finish=P.endText?" keeps you on pace to finish by "+P.endText:" keeps you on track";
+    const share=left=>Math.max(1,Math.min(left,Math.ceil(left*P.share)));
+    /* KSBs (criteria on an NVQ): this period's share of those still without evidence. */
+    const ksbLeft=Math.max(0,a.total-a.met);
+    if(ksbLeft){const n=share(ksbLeft);add("ksb","Get evidence for "+n+" more "+(n===1?(nvq?"criterion":"KSB"):word)+" by "+P.byText,
+      "You have "+ksbLeft+" of "+a.total+" left. About "+perMonth(ksbLeft,word,nvq?"criterion":"KSB")+finish+". Any evidence counts, from any topic: Evia counts them as you add it.",n,a.met)}
+    /* Topics with no evidence yet. */
+    if(S.unitsLeft>0){const n=share(S.unitsLeft),started=a.units.filter(u=>u.started).length;add("units","Start "+n+" more "+(n===1?"topic":"topics")+" by "+P.byText,
+      "You have evidence in "+started+" of "+a.units.length+" topics. About "+perMonth(S.unitsLeft,"topics","topic")+finish+". Whichever ones come up at work first.",n,started)}
+    /* Learning hours: what's left of the planned hours, or 6 hours a week when the college hasn't set them. */
+    {const en=(window.eviaData.enrolment&&window.eviaData.enrolment())||{},planned=Number(en.plannedOtjHours)||0,left=planned?Math.max(0,planned-S.otjTotal):0;
+      const n=planned?(left?Math.max(1,Math.ceil(left*P.share)):0):Math.ceil(P.months*4.33*6);
+      if(n)add("otj","Log "+n+" learning hours by "+P.byText,planned?"You have "+Math.round(left)+" of "+planned+" hours left. About "+perMonth(left,"hours","hour")+finish+". Training, toolbox talks and research all count.":"About 6 hours a week. Training, toolbox talks and research all count.",n,S.otjTotal)}
+    /* Near the end: a full mock end-point test. */
     const epaBest=bestTestSince(["epa"],0,true);
-    if((window.eviaNvq&&window.eviaNvq.on())){} /* NVQs have no end-point assessment */
-    else if(a.timePct!=null&&a.timePct>=60)add("epa","Score 70% or more on a full EPA mock",epaBest>=0?"Your best full mock so far is "+epaBest+"%.":"You haven’t tried a full EPA mock yet, and your end-point assessment is getting closer.",70,0,4);
-    else if(!S.tests.some(t=>t.type==="epa"))add("quiz","Try an EPA quick quiz","It only takes a few minutes and shows what the end-point test is like.",1,0,4);
-    const skills=S.confidence.scores.filter(x=>x.score<=2).sort((x,y)=>x.score-y.score);
-    if(skills.length){
-      const sk=skills[0],task=window.eviaPractice&&window.eviaPractice.suggestTasks(1)[0];
-      add("skill","Move "+sk.area+" up to Confident","You rated it “"+["Need more training","Know the basics"][sk.score-1]+"”."+(task?" The college task “"+task.task.title+"” practises it.":" Ask to get involved when the job comes up."),3,sk.score,8,sk.area);
-    }else if(!S.confidence.sessions)add("rate","Rate your practical skills","A confidence check shows you and your tutor what to practise.",1,0,2);
-    if(S.maths){const m=bestTestSince(["maths"],0);if(m<70)add("maths","Score 70% or more in a maths test",m>=0?"Your best so far is "+m+"%.":"No maths test taken yet.",70,0,6)}
-    if(S.english){const e=bestTestSince(["english"],0);if(e<70)add("english","Score 70% or more in an English test",e>=0?"Your best so far is "+e+"%.":"No English test taken yet.",70,0,6)}
-    if(S.coverage!=null&&S.coverage<70)add("quality","Get your write-ups covering 70% of key points","They cover "+S.coverage+"% now. Use the “Things to mention” list on each unit.",70,0,6);
+    if(!nvq&&a.timePct!=null&&a.timePct>=60&&epaBest<70)add("epa","Score 70% or more on a full EPA mock by "+P.byText,(epaBest>=0?"Your best so far is "+epaBest+"%. ":"")+"Your end-point assessment is getting closer; a full mock shows you’re ready.",70,0);
+    if(S.maths){const m=bestTestSince(["maths"],0);if(m<70)add("maths","Score 70% or more in a maths test by "+P.byText,(m>=0?"Your best so far is "+m+"%. ":"")+"Practise in Learn, then take a test.",70,0)}
+    if(S.english){const e=bestTestSince(["english"],0);if(e<70)add("english","Score 70% or more in an English test by "+P.byText,(e>=0?"Your best so far is "+e+"%. ":"")+"Practise in Learn, then take a test.",70,0)}
     const R=window.eviaTeach&&window.eviaTeach.report&&window.eviaTeach.report(),edi=R&&R.subjects.find(x=>x.id==="edi");
-    if(edi&&edi.done<edi.total)add("lessons","Finish the EDI and safeguarding lessons","Short lessons on staying safe, Prevent, British values and equality, in Teach me.",edi.total,edi.done,4,"edi");
-    if(S.streak<4)add("streak","Stay active 4 weeks in a row","Add evidence or log learning each week. You’re on "+plural(S.streak,"week")+".",4,0,5);
+    if(edi&&edi.done<edi.total)add("lessons","Finish the "+(edi.total-edi.done)+" safeguarding and British values lessons by "+P.byText,"Short lessons in Teach me on staying safe, Prevent, British values and equality.",edi.total,edi.done,"edi");
+    if(S.coverage!=null&&S.coverage<70)add("quality","Write-ups covering 70% of the key points by "+P.byText,"They cover "+S.coverage+"% now. Each topic’s “Things to mention” list shows what to include.",70,0);
+    const skills=S.confidence.scores.filter(x=>x.score<=2).sort((x,y)=>x.score-y.score);
+    if(skills.length)add("skill","Rate "+skills[0].area+" as Confident by "+P.byText,"You rated it “"+["Need more training","Know the basics"][skills[0].score-1]+"”. Ask to help when it comes up at work, then rate it again.",3,skills[0].score,skills[0].area);
+    else if(!S.confidence.sessions)add("rate","Rate your practical skills by "+P.byText,"A quick confidence check shows you and your assessor what to practise.",1,0);
     return out.slice(0,5);
   }
 
   /* ---------- Stored targets ---------- */
   const all=()=>window.eviaData.list("targets",{store:"review-targets"}).map(t=>t.detail);
-  /* Only the targets from the latest review: older ones (kept from a backup, a restore or a sync) drop away. */
+  /* When the last review was held: the college's record (connected), else the latest review here or the day the
+     learner said they'd had one. 0 when there hasn't been one. */
+  const lastReviewAt=()=>{
+    try{const en=window.eviaData.enrolment&&window.eviaData.enrolment();if(en&&en.live)return Date.parse(en.lastReview||"")||0}catch(_){}
+    return Math.max(0,...reviewsNow().map(r=>Date.parse(r.date)||0),...heldDates());
+  };
+  const setAt=t=>Number(t.createdAt)||Date.parse(t.reviewDate)||0;
+  /* Only the targets set at the last review. If it set none (or there hasn't been one), Evia's own targets made since,
+     to keep the learner on track until the next one. Older targets drop away. */
   const mine=()=>{
-    const list=all().filter(t=>t.course===course),fromReviews=list.filter(t=>t.reviewId);
-    if(!fromReviews.length)return list;
-    const last=fromReviews.reduce((a,b)=>(Number(b.createdAt)||Date.parse(b.reviewDate)||0)>(Number(a.createdAt)||Date.parse(a.reviewDate)||0)?b:a).reviewId;
-    return list.filter(t=>t.reviewId===last);
+    const list=all().filter(t=>t.course===course),at=lastReviewAt(),fromReviews=list.filter(t=>t.reviewId);
+    if(fromReviews.length){
+      const latest=fromReviews.reduce((a,b)=>setAt(b)>setAt(a)?b:a);
+      if(!at||setAt(latest)>=at-2*DAY)return list.filter(t=>t.reviewId===latest.reviewId);
+    }
+    return list.filter(t=>!t.reviewId&&setAt(t)>=at-DAY);
   };
   /* All target and review writes go through eviaData (data.js). */
   function setTargets(list){window.eviaData.replace("targets",{course},list)}
@@ -93,7 +121,10 @@
     let list=mine();
     if(list.length)return {list,created:false};
     const S=stats();if(!S)return {list:[],created:false};
-    list=suggest(S);setTargets(list);return {list,created:true};
+    /* Due before the next review, so they're done by the time it comes round. */
+    list=suggest(S);
+    /* Earlier targets stay stored (the review they came from still shows them); only these show now. */
+    setTargets(all().filter(t=>t.course===course).concat(list));return {list,created:true};
   }
   /* Marks targets done as they're reached, and celebrates each one once. */
   function check(celebrate){
@@ -103,7 +134,7 @@
       if(t.done||!KINDS[t.kind])return;
       if(progress(t,S).pct>=1){t.done=true;t.doneAt=Date.now();changed=true;fresh.push(t)}
     });
-    if(changed)setTargets(list);
+    if(changed){const ids=new Set(list.map(t=>t.id));setTargets(all().filter(t=>t.course===course&&!ids.has(t.id)).concat(list))}
     if(celebrate&&fresh.length){
       if(typeof showEvidenceToast==="function")showEvidenceToast("Target complete: "+fresh[0].title);
       if(window.eviaMood)window.eviaMood("happy");
@@ -441,16 +472,15 @@
     if(r.format===2)openReview(r,true);else if(window.eviaOpenLegacyReview)window.eviaOpenLegacyReview(r);
   }
 
-  window.eviaTargets={ensure:ensureTargets,mine,progress,cardHtml,bind,check,stats};
+  window.eviaTargets={ensure:ensureTargets,mine,progress,cardHtml,bind,check,stats,lastReviewAt:()=>lastReviewAt()};
+  /* Not connected: the learner says when their last review was (review-prep.js). */
+  window.eviaSetLastReview=iso=>{const a=(readJson(HELD,[])||[]).filter(x=>x&&x.course!==course);a.push({course,date:iso});localStorage.setItem(HELD,JSON.stringify(a))};
   window.eviaStartReview=()=>startReview();
   window.eviaReviewReminder=reminder;
-  window.eviaChatReview=chatReview;
-  /* The learner's comments for the assessor, on one page (ui-tidy.js): the latest ones, and saving new ones. */
-  window.eviaComments={
-    latest:()=>{const all=reviewsNow();for(let i=all.length-1;i>=0;i--){const r=all[i];if(r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim()))return r}return null},
-    save:reflection=>{const r=newReview();if(!r)return false;r.reflection=reflection;save(r);return true}
-  };
+  /* The learner's side of the review is now the few quick questions in the review prep (review-prep.js). */
+  window.eviaChatReview=()=>{if(window.eviaPrepPack&&window.eviaPrepPack.answers){const k=window.eviaChatKit;if(k&&k.closeChat)k.closeChat();setTimeout(()=>window.eviaPrepPack.answers(()=>window.eviaPrepPack.open()),120)}else chatReview()};
   window.eviaResumeReview=resumeReview;
+  window.eviaChatReviewFull=chatReview;   /* the older click-through, kept for its tests */
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
   window.eviaReviewDue=()=>{
     const all=reviewsNow(),last=all[all.length-1],p=window.eviaData.learner();
@@ -458,9 +488,9 @@
        before, the learner's comments are wanted: done once they've finished a review here with something written. */
     const en=window.eviaData.enrolment&&window.eviaData.enrolment(),nd=en&&en.reviewDue?new Date(en.reviewDue+"T12:00:00"):null;
     if(nd&&!isNaN(nd)){
-      const from=Math.max(nd-28*864e5,en.lastReview?Date.parse(en.lastReview):0);
+      const from=Math.max(nd-7*864e5,en.lastReview?Date.parse(en.lastReview):0);
       const said=r=>r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim());
-      const commentsDone=all.some(r=>Date.parse(r.date)>=from&&said(r));
+      const commentsDone=reviewsAll().some(r=>Date.parse(r.date)>=from&&said(r));
       return {due:nd,days:Math.ceil((nd-Date.now())/864e5),first:!en.lastReview,college:true,commentsDone};
     }
     const since=[last?Date.parse(last.date):0].concat(heldDates()).filter(Boolean);

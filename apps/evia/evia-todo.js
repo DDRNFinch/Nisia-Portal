@@ -1,12 +1,12 @@
-/* Evia7 to-do: Evia keeps the learner on track. When the chat opens she lists what actually needs doing, the three
-   most urgent first, each one tap from the place in the app to do it. Nothing to do: "You're all caught up", and three
-   ways to get ahead. The work itself happens in the rest of the app.
-   What counts, most urgent first: checking in to the class that's on now (and a check-in that didn't go through),
-   what the assessor asked for, the first piece of evidence, overdue targets, a review
-   that's close, evidence drafts, targets due in the next 2 weeks, weak evidence (only very weak when on track),
-   learning hours, the confidence check (once), a backup, and course notifications.
-   Connected to a college with classes, "Can't make college?" sits quietly under the list: the days and why, and
-   everyone with the learner is told.
+/* Evia7: how the learner is doing. When the chat opens Evia shows, in this order and kept short:
+   - only what can't wait (checking in to the class that's on now, a check-in that didn't go through, an assessor
+     visit or a message, what the assessor asked for, the very first evidence);
+   - four stats: learning hours this week, KSBs, topics, and the day streak (days using Evia; weekends don't break it);
+   - their targets (from the last review, or the ones Evia sets to finish the course on time), each with a bar,
+     On track / Ahead / Behind, and one tap to the thing that moves it on;
+   - the next badge they're closest to, and the coins it pays.
+   Anything else Evia would have listed sits behind "N other things". Connected to a college with classes,
+   "Can't make college?" sits quietly underneath: the days and why, and everyone with the learner is told.
    window.eviaTodo: list(), show(opts), away(). */
 (function(){
   const K=()=>window.eviaChatKit,C=()=>window.eviaCoachFlows||{};
@@ -151,45 +151,86 @@
       (reduced()?"":'<span class="td-confetti" aria-hidden="true">'+Array.from({length:18},(_,i)=>{const ang=i/18*Math.PI*2+Math.random()*.3,d=60+Math.random()*50;
         return '<i style="--x:'+Math.round(Math.cos(ang)*d)+'px;--y:'+Math.round(Math.sin(ang)*d-20)+'px;--r:'+Math.round(Math.random()*540-270)+'deg;--d:'+(Math.random()*.15).toFixed(2)+'s;background:'+colours[i%colours.length]+'"></i>'}).join("")+'</span>')+'</div>');
   }
-  /* Quick ways in to the important parts, always under Evia's list: the review, targets, what's missing, confidence. */
+  /* Two ways in, under the panel: the review and the confidence check (targets are on the panel already). */
   function shortcuts(){
     const k=K(),c=C()||{};
     return [k.reviewFromMenu&&{label:"My review",run:()=>k.reviewFromMenu()},
-      c.targets&&{label:"My targets",run:()=>c.targets()},
-      c.evidence&&{label:"What’s missing",run:()=>c.evidence()},
       c.confidence&&{label:"Confidence check",run:()=>c.confidence()}].filter(Boolean);
+  }
+  /* Only these go above the stats: things that can't wait. Targets have their own card; hours are in the stats. */
+  const URGENT=new Set(["checkin","assessor","message","evidence"]);
+  const isUrgent=x=>URGENT.has(x.ic)&&x.u>=95;
+  const hidden=x=>x.ic==="target"||x.ic==="hours"||x.ic==="write"||x.ic==="photo";
+  /* Where a target stands: against how much of its time has gone. */
+  function standing(t,p){
+    if(t.done||p.pct>=1)return ["done","Done"];
+    const due=Date.parse(t.due+"T23:59:59"),from=Number(t.createdAt)||Date.parse(t.reviewDate)||due-60*DAY;
+    if(Date.now()>due)return ["behind","Overdue"];
+    const gone=Math.max(0,Math.min(1,(Date.now()-from)/Math.max(DAY,due-from)));
+    return p.pct>=gone+.15?["ahead","Ahead"]:p.pct>=gone-.1?["ok","On track"]:["behind","Behind"];
+  }
+  const shortTitle=t=>String(t.title||"").replace(/\s+by\s+\d{1,2}\s+\w+(\s+\d{4})?\s*$/i,"");
+  const valueText=(t,p)=>t.kind==="skill"?"":["epa","maths","english","quality"].includes(t.kind)?(p.value>=0?p.value+"%":"–")+" / "+t.target+"%":Math.max(0,Math.round(p.value*10)/10)+" / "+t.target;
+  const FLAME=SVG('<path d="M12 21c-3.6 0-6-2.4-6-5.6 0-3.1 2.2-4.6 3.4-7 .5 1.6 1.3 2.4 2.3 2.9C11.6 8 12.6 5 15 3c-.2 3 3 5.4 3 9.6C18 18.4 15.6 21 12 21Z"/>');
+  const BADGE=SVG('<circle cx="12" cy="9" r="5.5"/><path d="m8.6 13.4-1.6 7 5-2.6 5 2.6-1.6-7"/>');
+
+  function statsHtml(S){
+    const nvq=window.eviaNvq&&window.eviaNvq.on(),a=S.a,aim=aimPerWeek(),units=a.units.length,started=units-S.unitsLeft;
+    const tile=(big,small,cls,ic)=>'<div class="es-stat'+(cls?" "+cls:"")+'"><b>'+big+(ic||"")+'</b><small>'+small+'</small></div>';
+    return '<div class="es-stats" role="group" aria-label="Your stats">'+
+      tile(esc(hm(S.otjWeek||0))+'<i>/'+esc(hm(aim))+'</i>',"this week",S.otjWeek>=aim?"good":"")+
+      tile(a.met+'<i>/'+a.total+'</i>',nvq?"criteria":"KSBs")+
+      tile(started+'<i>/'+units+'</i>',"topics")+
+      tile(String(S.dayStreak||0),"day streak","streak"+(S.dayStreak>=3?" hot":""),'<span class="es-flame">'+FLAME+'</span>')+
+    '</div>';
   }
   function show(opts){
     document.body.classList.remove("evia-epa");
-    const k=K(),items=window.eviaTodo.list(),top=items.slice(0,3),name=k.firstName?k.firstName():"",again=!!(opts&&opts.again);
+    const k=K(),items=window.eviaTodo.list(),name=k.firstName?k.firstName():"",again=!!(opts&&opts.again);
+    let S=null;try{S=window.eviaStats.compute()}catch(_){}
+    const T=window.eviaTargets;
+    if(T){try{T.ensure();T.check(false)}catch(_){}}
+    const targets=T?T.mine():[],rows=targets.map(t=>{const p=T.progress(t,S);return {t,p,st:standing(t,p)}});
+    const urgent=items.filter(isUrgent).slice(0,2),others=items.filter(x=>!isUrgent(x)&&!hidden(x)&&!urgent.includes(x));
+    const behind=rows.filter(r=>r.st[0]==="behind").length,allDone=rows.length&&rows.every(r=>r.st[0]==="done");
     const hello=again?"":["Morning","Afternoon","Evening"][new Date().getHours()<12?0:new Date().getHours()<18?1:2]+(name?" "+esc(name):"")+". ";
     if(window.eviaLook)window.eviaLook(0,-30,1800);
-    if(!items.length){
-      if(window.eviaMood)window.eviaMood("happy");
-      k.say(hello+"You’re all caught up. Nice work.");
-      celebrate();
-      k.say("Want to get ahead?");
-      let a=null;try{a=window.eviaStats.compute().a}catch(_){}
-      const q=a&&a.quickest;
-      k.replies([{label:"Go to Topics",primary:true,run:leave(()=>nav("course"))},
-        {label:"A Teach me lesson",run:leave(()=>nav("teach"))},
-        {label:(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA practice",run:()=>C().epa&&C().epa()}].concat(shortcuts()));
-      awayLink();
-      return;
-    }
-    if(window.eviaMood)window.eviaMood(items.some(x=>x.u>=85)?"think":"happy");
-    const n='<span class="td-count">'+items.length+'</span>';
-    k.say(again?(items.length===1?"Here’s what’s left.":"Here’s what’s left, most urgent first."):hello+(items.length===1?"You’ve got <span class=\"td-count\">one</span> thing to do.":items.length<=3?"You’ve got "+n+" things to do.":"You’ve got "+n+" things to do. Here are the 3 most urgent."));
-    /* The 3 most urgent, and "See all" for the rest (most urgent first). */
+    if(window.eviaMood)window.eviaMood(urgent.length||behind?"think":"happy");
+    k.say(hello+(allDone?"Every target done. Nice work.":urgent.length?"Here’s how you’re doing, and what can’t wait.":behind?"Here’s how you’re doing. "+(behind===1?"One target needs":"A couple of targets need")+" a push.":rows.length?"You’re on track. Here’s how you’re doing.":"Here’s how you’re doing."));
+    if(allDone&&!urgent.length)celebrate();
+
     const row=(x,i)=>'<button type="button" class="td-item td-k-'+x.ic+(x.u>=85?" urgent":"")+'" data-i="'+i+'" style="--i:'+(i%3)+'" aria-label="'+esc(x.title+". "+x.detail+". "+x.label)+'">'+
       '<span class="td-ic">'+SVG(ICON[x.ic]||ICON.unit)+'</span><span class="td-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.detail)+'</small></span><span class="td-go">'+GO+'</span></button>';
-    k.widget('<div class="td-list">'+top.map(row).join("")+(items.length>3?'<button type="button" class="td-all">See all '+items.length+' things to do</button>':"")+'</div>',el=>{
-      const bind=()=>el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{
-        el.querySelectorAll("button").forEach(x=>x.disabled=true);el.classList.add("td-used");b.classList.add("td-picked");
-        setTimeout(()=>items[+b.dataset.i].run(),reduced()?0:260);
+    const pick=(el,b,run)=>{el.querySelectorAll("button").forEach(x=>x.disabled=true);el.classList.add("td-used");b.classList.add("td-picked");setTimeout(run,reduced()?0:260)};
+
+    /* What can't wait. */
+    if(urgent.length)k.widget('<div class="td-list">'+urgent.map(row).join("")+'</div>',el=>el.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>pick(el,b,()=>urgent[+b.dataset.i].run())));
+
+    /* Stats, targets and the next badge, in one card. */
+    if(S){
+      const shown=rows.filter(r=>r.st[0]!=="done").concat(rows.filter(r=>r.st[0]==="done")).slice(0,3);
+      const due=rows.find(r=>r.t.due),byText=due?shortDay(due.t.due+"T12:00:00"):"";
+      const next=window.eviaStats.nextAchievement?window.eviaStats.nextAchievement(S):null,coins=(window.eviaRewards&&window.eviaRewards.ACH_TOKENS)||25;
+      const tRow=(r,i)=>'<button type="button" class="es-target es-'+r.st[0]+'" data-t="'+i+'" style="--i:'+i+'"><span class="es-t-top"><strong>'+esc(shortTitle(r.t))+'</strong><em>'+esc(r.st[1])+'</em></span>'+
+        '<span class="es-t-bar"><span class="es-bar"><i style="--to:'+Math.round(r.p.pct*100)+'%"></i></span>'+(r.st[0]==="done"?"":'<small>'+esc(valueText(r.t,r.p))+'</small>')+'</span></button>';
+      k.widget('<div class="es-card">'+statsHtml(S)+
+        (rows.length?'<div class="es-head"><span>Your targets</span>'+(byText?'<small>by '+esc(byText)+'</small>':'')+'</div><div class="es-targets">'+shown.map(tRow).join("")+'</div>'+
+          (rows.length>3?'<button type="button" class="es-more" data-all>See all '+rows.length+' targets</button>':''):'')+
+        (next?'<button type="button" class="es-next" data-ach><span class="es-badge">'+BADGE+'</span><span class="es-next-copy"><strong>Next badge: '+esc(next.label)+'</strong><small>'+esc(Math.min(next.have,next.need)+" of "+next.need+" · +"+coins+" coins")+'</small><span class="es-bar"><i style="--to:'+Math.round(Math.min(1,next.have/next.need)*100)+'%"></i></span></span></button>':'')+
+      '</div>',el=>{
+        el.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{const r=shown[+b.dataset.t];if(r.st[0]==="done")return;const go=C().targetDo?C().targetDo(r.t):null;if(go)pick(el,b,go)});
+        const all=el.querySelector("[data-all]");if(all)all.onclick=()=>C().targets?C().targets():null;
+        const ach=el.querySelector("[data-ach]");if(ach)ach.onclick=()=>pick(el,ach,()=>C().openProgress("ach"));
       });
-      bind();
-      const all=el.querySelector(".td-all");if(all)all.onclick=()=>{all.remove();el.querySelector(".td-list").insertAdjacentHTML("beforeend",items.slice(3).map((x,i)=>row(x,i+3)).join(""));bind();K().scrollChat&&K().scrollChat()};
+    }
+
+    /* Anything else, out of the way. */
+    if(others.length)k.widget('<div class="td-list"><button type="button" class="es-more es-others">'+(others.length===1?"1 other thing":others.length+" other things")+'</button></div>',el=>{
+      const b=el.querySelector(".es-others");b.onclick=()=>{
+        el.querySelector(".td-list").innerHTML=others.map(row).join("");
+        el.querySelectorAll("[data-i]").forEach(x=>x.onclick=()=>pick(el,x,()=>others[+x.dataset.i].run()));
+        K().scrollChat&&K().scrollChat();
+      };
     });
     k.replies(shortcuts());
     awayLink();

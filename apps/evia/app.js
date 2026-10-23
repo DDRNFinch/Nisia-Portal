@@ -196,8 +196,14 @@ function showEvidenceToast(message,isError){
    setTimeout(()=>toast.remove(),320);
  },isError?3600:2200);
 }
+/* Supporting photos as one PDF, laid out just like a topic's evidence pack (eportfolio.js): the details, the photos
+   as square tiles four to a row, then the comment. */
+async function supportingPhotosPdf(files,note,when){
+ const urls=files.map(f=>f.url||URL.createObjectURL(f));
+ return window.eviaBuildUnitPdf("Supporting evidence",[{w:note||"",wTitle:"Comments",savedAt:when.toISOString(),k:[]}],[urls]);
+}
 function supportingPrepare(base,type){
- const label={photo:"Photo",video:"Video",audio:"Audio",document:"File"}[type]||"File";
+ const label={photo:"Photos",video:"Video",audio:"Audio",document:"File"}[type]||"File";
  const now=()=>new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}).replace(/[/:]/g,"-").replace(", ","_");
  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet supporting-sheet"><div class="sheet-head"><div><div class="chat-kicker">PORTFOLIO</div><h2>'+label+'</h2></div><button class="close" id="supporting-close" aria-label="Close">×</button></div><div id="supporting-capture-area"></div></section></div>';
  const area=$("#supporting-capture-area");
@@ -223,30 +229,40 @@ function supportingPrepare(base,type){
    return;
  }
  if(type==="photo"){
-   area.innerHTML='<div class="evidence-capture-tile"><div class="section-title">CAPTURE PHOTO</div><div class="evidence-photo-actions"><button type="button" class="primary" id="supporting-take-photo">Camera</button><button type="button" class="secondary" id="supporting-choose-photo">Gallery</button><input id="supporting-camera" type="file" accept="image/*" capture="environment" hidden><input id="supporting-gallery" type="file" accept="image/*" hidden></div><div id="supporting-photo-preview" class="photo-grid"></div><button type="button" class="primary" id="supporting-save-photo" disabled>Save photo</button></div>';
-   const camera=$("#supporting-camera"),gallery=$("#supporting-gallery"),preview=$("#supporting-photo-preview"),saveBtn=$("#supporting-save-photo");
-   const add=async f=>{
-     if(!f)return;
-     if(!/^image\//i.test(f.type)){alert("Please choose an image.");return}
-     blob=f;mime=f.type;preview.innerHTML='<img class="thumb" src="'+URL.createObjectURL(f)+'" alt="Photo preview">';saveBtn.disabled=false;
+   /* Like the other cameras: take (or pick) as many photos as you need, add a comment if you like, and they're saved
+      together as one PDF in the portfolio. */
+   const shots=[];
+   area.innerHTML='<p class="sp-lead">Take as many photos as you need. They’re saved together as one PDF.</p>'+
+     '<div class="sp-grid" id="sp-grid"></div>'+
+     '<div class="evidence-photo-actions"><button type="button" class="primary" id="supporting-take-photo">Camera</button><button type="button" class="secondary" id="supporting-choose-photo">Gallery</button>'+
+     '<input id="supporting-camera" type="file" accept="image/*" capture="environment" hidden><input id="supporting-gallery" type="file" accept="image/*" multiple hidden></div>'+
+     '<label class="sp-label" for="sp-note">Comments <span>(optional)</span></label><textarea id="sp-note" class="sp-note" rows="3" maxlength="1500" placeholder="What the photos show, where and when…"></textarea>'+
+     '<button type="button" class="primary sp-save" id="supporting-save-photo" disabled>Save to portfolio</button>';
+   const camera=$("#supporting-camera"),gallery=$("#supporting-gallery"),grid=$("#sp-grid"),saveBtn=$("#supporting-save-photo");
+   const draw=()=>{
+     grid.innerHTML=shots.map((f,i)=>'<span class="sp-shot"><img src="'+f.url+'" alt="Photo '+(i+1)+'"><button type="button" class="sp-x" data-x="'+i+'" aria-label="Remove photo '+(i+1)+'">×</button></span>').join("");
+     grid.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{const f=shots.splice(+b.dataset.x,1)[0];if(f)URL.revokeObjectURL(f.url);draw()});
+     saveBtn.disabled=!shots.length;saveBtn.textContent=shots.length?"Save "+(shots.length===1?"1 photo":shots.length+" photos")+" to portfolio":"Save to portfolio";
    };
-   /* The camera stays open for several photos; each one is saved as its own supporting photo. */
+   const add=files=>{[...files].forEach(f=>{if(f&&/^image\//i.test(f.type||"image/jpeg"))shots.push(Object.assign(f,{url:URL.createObjectURL(f)}))});draw()};
    $("#supporting-take-photo").onclick=()=>{
      if(!(window.eviaCamera&&window.eviaCamera.supported())){camera.click();return}
-     window.eviaCamera.open({title:"Supporting photos",onDone:async files=>{
-       try{
-         for(const f of files){
-           const id="support-"+Date.now()+"-"+Math.random().toString(36).slice(2,9),name="Photo_"+now()+"_"+id.slice(-4)+".jpg";
-           await supportingSaveRecord({id,course,title:name,type,mime:f.type||"image/jpeg",filename:name,addedAt:new Date().toISOString(),size:f.size},f);
-         }
-         close();showEvidenceToast(files.length===1?"Added to Portfolio":files.length+" photos added to Portfolio");openSupportingEvidence();
-       }catch(e){console.error("Supporting photos save failed",e);showEvidenceToast("Couldn't save — please try again",true)}
-     }});
+     window.eviaCamera.open({title:"Supporting photos",onDone:files=>add(files||[])});
    };
    $("#supporting-choose-photo").onclick=()=>gallery.click();
-   camera.onchange=()=>{add(camera.files[0]);camera.value=""};
-   gallery.onchange=()=>{add(gallery.files[0]);gallery.value=""};
-   saveBtn.onclick=()=>save(blob,mime,"Photo_"+now()+".jpg");
+   camera.onchange=()=>{add(camera.files);camera.value=""};
+   gallery.onchange=()=>{add(gallery.files);gallery.value=""};
+   saveBtn.onclick=async()=>{
+     if(!shots.length)return;
+     saveBtn.disabled=true;saveBtn.textContent="Making the PDF…";
+     try{
+       const note=$("#sp-note").value.trim(),when=new Date(),pdf=await supportingPhotosPdf(shots,note,when);
+       const id="support-"+Date.now()+"-"+Math.random().toString(36).slice(2,9),stamp=now(),title="Photos ("+shots.length+") "+when.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+       await supportingSaveRecord({id,course,title,type:"document",mime:"application/pdf",filename:"Photos_"+stamp+".pdf",addedAt:when.toISOString(),size:pdf.size,photos:shots.length,text:note||undefined},pdf);
+       shots.forEach(f=>URL.revokeObjectURL(f.url));
+       close();showEvidenceToast("Added to Portfolio");openSupportingEvidence();openSupportingDetails(id,true);
+     }catch(e){console.error("Supporting photos PDF failed",e);showEvidenceToast("Couldn’t make the PDF. Please try again",true);saveBtn.disabled=false;draw()}
+   };
  }else if(type==="document"){
    /* Gallery for photos and videos already on the phone; Files for documents (PDFs, certificates, Word files…). */
    area.innerHTML='<div class="evidence-capture-tile"><div class="section-title">UPLOAD</div><div class="evidence-photo-actions"><button type="button" class="primary" id="supporting-pick-gallery">Gallery</button><button type="button" class="secondary" id="supporting-pick-files">Files</button></div><input id="supporting-gallery-files" type="file" accept="'+(window.eviaRecordings?"image/*,video/*":"image/*")+'" multiple hidden><input id="supporting-file" type="file" multiple hidden><p class="supporting-hint">Gallery for photos on your phone. Files for documents like PDFs and certificates. You can choose more than one.</p></div>';
