@@ -25,7 +25,9 @@
   /* From Evia's list (evia-todo.js), only what really matters; "Strengthen…", backups and the like don't make it. */
   const WORTH=new Set(["checkin","assessor","message","evidence","target","review","draft","hours"]);
   function top(){
-    const items=(window.eviaTodo?window.eviaTodo.list():[]).filter(x=>WORTH.has(x.ic)&&x.u>=45);
+    let items=[];
+    try{items=(window.eviaTodo?window.eviaTodo.list():[]).filter(x=>x&&WORTH.has(x.ic)&&x.u>=45)}
+    catch(e){if(window.eviaErrors)window.eviaErrors.log(e.message,{where:"helper.top",stack:e.stack})}
     return items[0]||null;
   }
 
@@ -83,7 +85,8 @@
   function show(){
     document.body.classList.remove("evia-epa");
     const k=K();if(!k)return;
-    const name=k.firstName?k.firstName():"",h=new Date().getHours(),hello=(h<12?"Morning":h<18?"Afternoon":"Evening")+(name?" "+esc(name):"")+".";
+    let name="";try{name=k.firstName?k.firstName():""}catch(_){}
+    const h=new Date().getHours(),hello=(h<12?"Morning":h<18?"Afternoon":"Evening")+(name?" "+esc(name):"")+".";
     const t=top();
     if(window.eviaMood)window.eviaMood(t&&t.u>=85?"think":"happy");
     if(t){

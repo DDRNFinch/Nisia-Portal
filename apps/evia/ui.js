@@ -695,7 +695,12 @@
     const head=sheet&&sheet.querySelector(".sheet-head h2");if(head)head.innerHTML='<span class="evia-mini ev-head-face" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>Evia';
     c.innerHTML="";
     /* Evia opens as a helper: the one thing that matters and the jobs she does (helper.js); without it, what needs doing (evia-todo.js). */
-    if(!(opts&&opts.quiet===true))(window.eviaHelper||window.eviaTodo)&&(window.eviaHelper||window.eviaTodo).show();
+    /* Whatever goes wrong, Evia never opens empty: the helper, else the list, else a hello. */
+    if(!(opts&&opts.quiet===true)){
+      try{(window.eviaHelper||window.eviaTodo).show()}
+      catch(e){if(window.eviaErrors)window.eviaErrors.log(e.message,{where:"chat.open",stack:e.stack});
+        try{if(window.eviaHelper&&window.eviaTodo)window.eviaTodo.show();else throw e}catch(_){say("Hi. What can I help with?")}}
+    }
     if(sheet)buildBar(sheet);
   }
   /* After a test: celebrate a good score and offer what to do next. */
