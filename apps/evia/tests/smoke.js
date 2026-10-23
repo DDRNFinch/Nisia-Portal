@@ -43,6 +43,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const m=await page.evaluate(()=>{const n=document.querySelector(".bottom-nav").getBoundingClientRect(),f=document.querySelector(".evia-fab").getBoundingClientRect();return {l:Math.round(n.left),r:Math.round(innerWidth-n.right),fab:Math.round(f.left+f.width/2-innerWidth/2)}});
       await page.setViewportSize(vp);await page.waitForTimeout(250);
       check("On a computer the bottom bar is centred, with Evia in the middle of it",Math.abs(m.l-m.r)<=2&&m.l>0&&Math.abs(m.fab)<=2,JSON.stringify(m));}
+    /* The tester's tidy layout (ui-tidy.js) has its own Progress page: these checks are for the classic one. */
+    if(await page.evaluate(()=>!!document.getElementById("pv-review"))){
     check("My progress starts with the progress review, and each section has its way in",await page.evaluate(()=>{const first=document.querySelector(".pv-grid .pv-card");return first&&first.id==="pv-review"&&!document.querySelector(".pv-grid .pv-act")}));
     const deepActs=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
       for(const id of ["review","otj","conf"]){document.getElementById("pv-"+id).click();await w(250);out[id]=[...document.querySelectorAll("#modal-root .pv-deep-acts .pv-act")].map(b=>b.textContent);document.getElementById("modal-root").innerHTML="";await w(50)}
@@ -52,6 +54,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Where you are lists the KSBs, and tapping one opens it with a way back",await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));document.getElementById("pv-where").click();await w(300);const ok=/Your KSBs/.test(document.querySelector(".pv-sheet").textContent)&&document.querySelectorAll(".pv-sheet .pv-ksb").length>10;document.getElementById("modal-root").innerHTML="";return ok}));
     await page.click("#pv-otj");await page.waitForTimeout(500);
     check("Tapping a card opens its deep dive with a how-to note",await page.evaluate(()=>/Learning hours/.test(document.getElementById("pv-sheet-title").textContent)&&!!document.querySelector(".pv-sheet .pv-note")&&!!document.querySelector(".pv-sheet .pv-cols")));
+    }
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.chat({quiet:true})});await page.waitForTimeout(300);
     await page.evaluate(()=>{window.eviaChatKit.userSays("Log my hours");window.eviaCoachFlows.hours()});
     await page.waitForSelector('#chat .chat-pill:has-text("Toolbox talk")',{timeout:8000});await page.click('#chat .chat-pill:has-text("Toolbox talk")');
@@ -152,8 +155,21 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
     await page.waitForFunction(()=>{const c=document.getElementById("chat");return c&&!c.querySelector(".evia-thinking")},null,{timeout:15000});
-    await page.waitForSelector("#chat .es-card",{timeout:15000});
-    check("Evia opens with how you're doing: four stats, your targets with On track/Ahead/Behind, the next badge with its coins, and no typing box or menu",await page.evaluate(()=>{const c=document.querySelector("#chat .es-card");return c.querySelectorAll(".es-stat").length===4&&c.querySelectorAll(".es-target").length>=1&&c.querySelectorAll(".es-target").length<=3&&[...c.querySelectorAll(".es-t-top em")].every(e=>/On track|Ahead|Behind|Overdue|Done/.test(e.textContent))&&/Next badge/.test(c.textContent)&&/coins/.test(c.textContent)&&document.querySelectorAll("#chat .td-item").length<=2&&!/things? to do/.test(document.querySelector("#chat .bubble.evia").textContent)&&!document.querySelector(".chat-sheet input[type=text],.chat-sheet .ui-ask,#chat .mn-tile")}));
+    await page.waitForSelector("#chat .jy-map",{timeout:15000});
+    check("Evia opens on her path: a season of 30 stones, today's step with a Start button, and only a More button under it",await page.evaluate(()=>{const c=document.getElementById("chat");return c.querySelectorAll(".jy-stone").length===30&&!!c.querySelector(".jy-stone.now")&&!!c.querySelector(".jy-card [data-go]")&&!c.querySelector(".td-item,.es-card")&&[...c.querySelectorAll(".ui-replies .chat-pill")].map(p=>p.textContent).every(t=>/^More/.test(t))}));
+    const jy=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),J=window.eviaJourney,t=J.today(),coins=window.eviaRewards.balance();
+      const real=J.TASKS[t.task].done;J.TASKS[t.task].done=()=>true;
+      const s=JSON.parse(localStorage.getItem("evia7-journey")||"{}");s.active={d:t.day,task:t.task,bonus:false,at:Date.now(),base:{}};localStorage.setItem("evia7-journey",JSON.stringify(Object.assign({days:[],bonus:{}},s)));
+      const didit=J.check();J.TASKS[t.task].done=real;const after=J.today();
+      J.show();await w(1200);const card=[...document.querySelectorAll("#chat .jy-card")].pop();
+      return {didit,done:after.done,steps:after.steps===t.steps+1,paid:window.eviaRewards.balance()-coins===15,bonus:!!card&&!!card.querySelector("[data-bonus]")&&after.bonusTask!==after.task,again:!J.check()}});
+    check("Doing today's step lights the stone, pays 15 coins once, and offers a different bonus step",Object.values(jy).every(Boolean),JSON.stringify(jy));
+    const pop=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),N=window.eviaNisia,rj=N.joined,rc=N.classNow;
+      N.joined=()=>({live:true});N.classNow=()=>({id:"s1",class:"BWK Apps",starts_at:new Date().toISOString(),room:"GLC"});sessionStorage.removeItem("evia7-checkin-asked");
+      window.eviaJourney.askCheckIn();const el=document.getElementById("jy-checkin"),text=el?el.textContent:"";if(el)el.querySelector("[data-no]").click();await w(400);
+      window.eviaJourney.askCheckIn();const twice=!!document.getElementById("jy-checkin");N.joined=rj;N.classNow=rc;
+      return {shown:/BWK Apps is on/.test(text)&&/Check in/.test(text),closed:!twice}});
+    check("When the class is on, a check-in pop-up shows once when the app opens (Not now closes it for that class)",pop.shown&&pop.closed,JSON.stringify(pop));
     check("Evia's list never includes games or Rewards, and each item has one way to do it",await page.evaluate(()=>window.eviaTodo.list().every(x=>!/game|reward|coin|shop/i.test(x.title+x.detail+x.label)&&typeof x.run==="function")));
     await page.evaluate(()=>{window.eviaChatKit.userSays("Check my evidence");window.eviaCoachFlows.evidenceCheck()});
     await page.waitForFunction(()=>[...document.querySelectorAll("#chat .ui-replies button")].length>=1,null,{timeout:15000});
@@ -219,15 +235,6 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("EPA mode ends when the chat closes",await page.evaluate(()=>!document.body.classList.contains("evia-epa")));
     await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies",{timeout:15000});
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
-    const sc=await page.evaluate(async()=>{window.eviaTodo.show();await new Promise(r=>setTimeout(r,3500));const pills=[...document.querySelectorAll("#chat .ui-replies .chat-pill")].map(p=>p.textContent);return pills.includes("My review")&&pills.includes("Confidence check")&&!pills.includes("My targets")});
-    check("Under Evia's panel: just My review and Confidence check",sc);
-    const others=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));const real=window.eviaTodo.list;
-      window.eviaTodo.list=()=>[{u:100,ic:"assessor",title:"Assessor wants more",detail:"d",label:"Go",run:()=>{}},{u:75,ic:"draft",title:"Finish a draft",detail:"d",label:"Go",run:()=>{}},{u:55,ic:"write",title:"Strengthen x",detail:"d",label:"Go",run:()=>{}},{u:50,ic:"hours",title:"Log hours",detail:"d",label:"Go",run:()=>{}}];
-      window.eviaTodo.show();await w(3500);const c=document.getElementById("chat"),urgent=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");
-      const more=[...c.querySelectorAll(".es-others")].pop(),label=more?more.textContent:"";if(more)more.click();await w(300);
-      const after=[...c.querySelectorAll(".td-item")].map(x=>x.textContent).join("|");window.eviaTodo.list=real;
-      return {urgent:/Assessor wants more/.test(urgent)&&!/draft|Strengthen|Log hours/.test(urgent),label:label==="1 other thing",after:/Finish a draft/.test(after)&&!/Strengthen|Log hours/.test(after)}});
-    check("Only what can't wait shows as a row; the rest waits behind “1 other thing”, and weak write-ups and hours aren't listed (they're in the targets and stats)",Object.values(others).every(Boolean),JSON.stringify(others));
     const streak=await page.evaluate(()=>{const k=t=>{const x=new Date(t);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};const save=localStorage.getItem("evia7-days");
       const d=new Date();d.setHours(12);const days=[];for(let i=0;i<10;i++){const x=new Date(d);x.setDate(d.getDate()-i);if(x.getDay()!==0&&x.getDay()!==6)days.push(k(x))}
       localStorage.setItem("evia7-days",JSON.stringify(days.reverse()));const n=window.eviaStats.dayStreak();localStorage.setItem("evia7-days",save);return {n,want:days.length}});

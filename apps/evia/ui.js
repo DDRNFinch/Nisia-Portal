@@ -598,7 +598,7 @@
   /* "Something else" brings back what's left on Evia's list. */
   function somethingElse(){
     document.body.classList.remove("evia-epa");
-    if(window.eviaTodo)window.eviaTodo.show({again:true});
+    if(window.eviaJourney)window.eviaJourney.show();else if(window.eviaTodo)window.eviaTodo.show({again:true});
   }
   function statsFromMenu(){userSays("My stats");myStats()}
   /* My targets: the targets from the latest review, or a new set from Evia if there aren't any. */
@@ -694,8 +694,8 @@
     const sheet=c.closest(".chat-sheet");
     const head=sheet&&sheet.querySelector(".sheet-head h2");if(head)head.innerHTML='<span class="evia-mini ev-head-face" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>Evia';
     c.innerHTML="";
-    /* Evia opens with what needs doing (evia-todo.js). */
-    if(!(opts&&opts.quiet===true)&&window.eviaTodo)window.eviaTodo.show();
+    /* Evia opens on her path: today's step (journey.js); without it, what needs doing (evia-todo.js). */
+    if(!(opts&&opts.quiet===true))(window.eviaJourney||window.eviaTodo)&&(window.eviaJourney||window.eviaTodo).show();
     if(sheet)buildBar(sheet);
   }
   /* After a test: celebrate a good score and offer what to do next. */
