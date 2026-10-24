@@ -54,6 +54,8 @@ try {
   res.staffSees = (staffView.body.find((x) => x.title === "Level 3 open evening") || {}).interested?.[0] === "Lee Erna";
   /* The College page: a week, the careers session on its day, and tapping it opens it. */
   await ev.page.evaluate(() => { document.getElementById("modal-root").innerHTML = ""; nav("calendar"); }); await ev.page.waitForTimeout(1500);
+  /* (The tester: the week is in the full calendar, from Time.) */
+  if (await ev.page.$("#th-cal")) { await ev.page.click("#th-cal"); await ev.page.waitForTimeout(800); }
   res.week = await ev.page.evaluate(() => document.querySelectorAll("#cw-strip .cw-d").length === 7);
   await shot(ev.page, "college");
   const day = await ev.page.evaluate((iso) => { const d = new Date(iso); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }, at(2, 17));

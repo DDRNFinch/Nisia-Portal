@@ -101,8 +101,9 @@ try {
   check("Evia: both arrive in Lee's Supporting evidence (from the one “what's new” request)", sup.length === 2 && sup.includes("Employer feedback: behaviours") && sup.some((t) => /^Witness testimony/.test(t)), JSON.stringify(sup) + " " + warnings.join(" | "));
 
   /* 8. Attendance in Lee's My progress: a percentage and a calendar. */
-  await ev.page.evaluate(() => { window.eviaChatKit && window.eviaChatKit.closeChat(); nav("learning"); }); await ev.page.waitForTimeout(900);
-  const tile = await ev.page.textContent("#pv-attendance").catch(() => "");
+  /* (The tester: an Attendance row on the Time tab.) */
+  await ev.page.evaluate(() => { window.eviaChatKit && window.eviaChatKit.closeChat(); nav("calendar"); }); await ev.page.waitForTimeout(900);
+  const tile = await ev.page.textContent("#th-att").catch(() => "");
   await ev.page.evaluate(() => window.eviaProgressDeep("attendance")); await ev.page.waitForSelector(".pv-acal-d", { timeout: 5000 }).catch(() => {});
   const greenToday = await ev.page.evaluate(() => { const d = new Date(), k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); const c = document.querySelector('.pv-acal-d[data-day="' + k + '"]'); return c ? c.className : "no cell " + k + " " + document.querySelectorAll(".pv-acal-d").length; });
   /* (The register started at 00:01, so Lee's check-in was late. The calendar has three kinds of day, so today is

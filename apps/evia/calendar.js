@@ -158,7 +158,7 @@
     on("cw-month",()=>window.eviaProgressDeep("attendance"));
     if(window.eviaCareers&&!page.asked){page.asked=true;window.eviaCareers.load().finally(()=>{setTimeout(()=>{page.asked=false},30000)})}
   }
-  window.addEventListener("evia-careers",()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))page()});
+  window.addEventListener("evia-careers",()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))(window.eviaTidy?window.eviaTidy.plan():page())});
   window.eviaCalendar={page,name:tabName};
 
   const prev=window.render;
