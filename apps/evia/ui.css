@@ -3230,3 +3230,56 @@ body.evia-dark #chat .hp-chip,body.evia-dark #chat .hp-did textarea,body.evia-da
 #chat .hp-help strong{font-size:14px}
 body.evia-dark #chat .hp-doors button{background:#161b26;border-color:#2a3140;color:#eef0f3}
 body.evia-dark #chat .hp-help{background:#16233a;border-color:#22385a;color:#cfe0f7}
+/* Topics: strength as 3 bars (not words). */
+.th-bars{flex:none;display:flex;align-items:center;margin-right:2px}
+/* Time: the last 8 weeks of learning hours. */
+.th-card{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow);margin-top:12px}
+.th-sec.th-in{margin:0}
+.th-chart{position:relative;display:grid;grid-template-columns:repeat(8,1fr);gap:8px;height:118px;padding-bottom:20px}
+.th-col{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.th-col i{display:block;width:100%;max-width:26px;border-radius:7px 7px 3px 3px;background:#e4e7ec;animation:thGrow .7s cubic-bezier(.2,.8,.3,1) both}
+.th-col.met i{background:var(--yellow,#e7b900)}
+.th-col.now i{outline:2px solid var(--ui-ink,#172033);outline-offset:1px}
+.th-col small{position:absolute;bottom:-20px;font-size:10.5px;color:var(--ui-muted,#667085);white-space:nowrap}
+.th-col.now small{font-weight:800;color:var(--ui-ink,#172033)}
+.th-aim{position:absolute;left:0;right:0;bottom:calc(20px + (100% - 20px) * var(--aim) / 100%);border-top:1.5px dashed #98a2b3;pointer-events:none}
+@keyframes thGrow{from{height:0}}
+/* The journey: course start to end, "now", and how much the evidence covers (journey-pack.js). */
+.jp-road{display:flex;flex-direction:column;gap:6px;margin:6px 0 4px}
+.jp-track{position:relative;height:12px;border-radius:999px;background:#eceef2;margin-top:16px}
+.jp-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:#3cb371;animation:thGrow2 .9s cubic-bezier(.2,.8,.3,1) both}
+.jp-fill.behind{background:#f08a24}
+@keyframes thGrow2{from{width:0}}
+.jp-now{position:absolute;top:-6px;bottom:-6px;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--ui-ink,#172033)}
+.jp-now em{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-style:normal;font-size:11px;font-weight:800;color:var(--ui-ink,#172033);margin-bottom:2px}
+.jp-ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ui-muted,#667085)}
+.jp-say{margin:2px 0 0;font-size:13.5px;line-height:1.45;color:var(--ui-ink,#172033)}
+.jp-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.jp-tiles.jp-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.jp-tile{display:flex;flex-direction:column;gap:1px;padding:9px 9px 8px;border-radius:12px;background:var(--ui-soft,#f4f5f7);min-width:0}
+.jp-tile b{font-size:17px;font-weight:800;white-space:nowrap;color:var(--ui-ink,#172033)}
+.jp-tile b i{font-style:normal;font-size:12px;color:var(--ui-muted,#667085)}
+.jp-tile small{font-size:11.5px;line-height:1.25;color:var(--ui-muted,#667085)}
+.jp-mini{gap:2px}
+.jp-sheet .jp{padding:0 18px 12px;display:flex;flex-direction:column;gap:14px}
+.jp-head{display:flex;flex-direction:column;gap:2px}
+.jp-head strong{font-size:20px;color:var(--ui-ink,#172033)}.jp-head span{font-size:13.5px;color:var(--ui-muted,#667085)}
+.jp-sec{padding:14px;border-radius:16px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff)}
+.jp-sec h3{margin:0 0 6px;font-size:14px;font-weight:800;color:var(--ui-ink,#172033)}
+.jp-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:var(--ui-muted,#667085)}
+.jp-units{display:flex;flex-direction:column}
+.jp-unit{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--ui-line,#eef0f3)}
+.jp-unit:first-child{border-top:0}
+.jp-unit span{font-size:14px;font-weight:700;color:var(--ui-ink,#172033)}.jp-unit small{font-size:12px;color:var(--ui-muted,#667085)}
+.jp-bars{display:flex;align-items:flex-end;gap:3px;height:16px}
+.jp-bars i{display:block;width:5px;border-radius:2px;background:#e4e7ec}
+.jp-bars i:nth-child(1){height:7px}.jp-bars i:nth-child(2){height:11px}.jp-bars i:nth-child(3){height:15px}
+.jp-bars i.on{background:var(--yellow,#e7b900)}
+.jp-goal{display:grid;grid-template-columns:1fr 70px auto;align-items:center;gap:10px;padding:7px 0}
+.jp-goal span:first-child{font-size:13.5px;color:var(--ui-ink,#172033)}.jp-goal small{font-size:12px;font-weight:800;color:var(--ui-muted,#667085);min-width:42px;text-align:right}
+.jp-bar{display:block;height:6px;border-radius:999px;background:#eceef2;overflow:hidden}
+.jp-bar i{display:block;height:100%;border-radius:inherit;background:var(--yellow,#e7b900)}.jp-bar i.done{background:#3cb371}
+.jp-acts{position:sticky;bottom:0;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,var(--ui-card,#fff) 30%)}
+.jp-acts button{width:100%;min-height:50px;border-radius:14px;font-size:16px}
+body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
+@media (prefers-reduced-motion:reduce){.th-col i,.jp-fill{animation:none}}

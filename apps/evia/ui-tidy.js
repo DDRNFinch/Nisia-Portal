@@ -93,7 +93,7 @@
       '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":A.timePct-A.ksbPct>25?"Behind for this point in your course: you’re "+A.timePct+"% of the way through":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small></section>':"";
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
-        (draft?'<span class="th-pill th-pill-y">Draft</span>':lv?'<span class="th-pill th-pill-'+LV[lv][1]+'">'+LV[lv][0]+'</span>':"")+GO+'</button>'});
+        (draft?'<span class="th-pill th-pill-y">Draft</span>':"")+(n&&typeof strengthBars==="function"?'<span class="th-bars" title="'+esc(lv?LV[lv][0]+" evidence":"")+'">'+strengthBars(lv)+'</span>':"")+GO+'</button>'});
     scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+
 hero+
       group(rows,nvq?"Site jobs":"Units")+
@@ -181,15 +181,16 @@ hero+
       '<section class="th-hero th-rev"><span class="th-ring" style="--p:'+pct+'"><b>'+C.done+'/'+n+'<small>ready</small></b></span><span class="th-rev-copy"><span class="th-k">Next review</span>'+
       '<strong class="th-big th-big-s">'+(!rd?"Not booked yet":rd.days<0?"Overdue":rd.days===0?"Today":esc(rd.due.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})))+'</strong>'+
       '<small class="th-note">'+(!rd?"Your assessor will set it":rd.days>0?"In "+rd.days+" day"+(rd.days===1?"":"s"):"Talk to your assessor")+(who?" · with "+esc(who):"")+'</small></span></section>'+
+      (window.eviaJourneyPack?window.eviaJourneyPack.journeyCard():"")+
       '<h2 class="th-h2">Ready for your review</h2><div class="th-group">'+C.items.map(x=>'<button type="button" class="th-row th-check'+(x.ok?" th-ok":"")+'" data-check="'+x.id+'"><span class="th-tick">'+(x.ok?TICK:"")+'</span>'+
         '<span class="th-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.sub)+'</small></span>'+GO+'</button>').join("")+'</div>'+
-      '<div class="th-group th-quiet">'+[window.eviaPrepPack?row({id:"th-prep",ic:"send",title:"Share my prep pack",sub:"A PDF for your assessor"}):"",
+      '<div class="th-group th-quiet">'+[window.eviaJourneyPack?row({id:"th-prep",ic:"send",title:"My journey pack",sub:"Where you are, to show or share with your assessor"}):"",
         row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>'+
       /* My future: their goal, the steps towards it, guides and the college's careers sessions (future.js). */
       (window.eviaFuture?'<div class="th-group th-quiet">'+row({id:"th-future",ic:"star",title:"My future",sub:(()=>{const F=window.eviaFuture.summary&&window.eviaFuture.summary();return F?F.goal+" · "+F.done+" of "+F.steps+" steps":"Where do you want your trade to take you?"})()})+'</div>':"");
     wireHeader();
     scr().querySelectorAll("[data-check]").forEach(b=>b.onclick=()=>{const x=C.items.find(i=>i.id===b.dataset.check);if(x&&x.run)x.run()});
-    on("th-prep",()=>window.eviaPrepPack.open());
+    on("th-prep",()=>window.eviaJourneyPack.open());
     on("th-past",()=>window.eviaProgressDeep&&window.eviaProgressDeep("review"));
     on("th-future",()=>window.eviaFuture.open());
   }
@@ -221,14 +222,24 @@ hero+
     let next=null;for(let i=0;i<60&&!next;i++){const d=new Date(Date.now()+i*DAY),l=by[dkey(d)]||[];const x=l.find(y=>y.kind!=="off");if(x)next=[d,x,i]}
     const nextRow=next?row({id:"th-next",ic:next[1].kind==="visit"?"pin":"cal",title:(next[2]===0?"Today":next[2]===1?"Tomorrow":next[0].toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))+" · "+next[1].title,sub:next[1].sub}).replace('class="th-row"','class="th-row th-static"').replace(GO,""):
       row({id:"th-next",ic:"cal",title:"Nothing booked yet",sub:live()?"Your tutor sets your college days":"Set your college days in the calendar"});
+    /* The last 8 weeks of learning hours, against the weekly aim; and the latest logs. */
+    const H=typeof hours!=="undefined"&&Array.isArray(hours)?hours:[],ws=t=>{const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()};
+    const weeks=[];for(let i=7;i>=0;i--){const from=ws(Date.now())-i*7*DAY;weeks.push({from,h:H.filter(x=>{const t=Number(x.on||x.createdAt)||0;return t>=from&&t<from+7*DAY}).reduce((n,x)=>n+Number(x.n||0),0)})}
+    const top=Math.max(aim,...weeks.map(w=>w.h))||1,met=weeks.filter(w=>w.h>=aim).length;
+    const chart='<section class="th-card th-weeks"><div class="th-sec th-in"><span class="th-k">Last 8 weeks</span><small class="th-note">Aim met '+met+' of 8</small></div>'+
+      '<div class="th-chart" style="--aim:'+Math.round(aim/top*100)+'%">'+weeks.map((w,i)=>'<span class="th-col'+(i===7?" now":"")+(w.h>=aim?" met":"")+'" title="'+esc(hm(w.h))+'"><i style="height:'+Math.max(w.h?6:0,Math.round(w.h/top*100))+'%"></i><small>'+esc(i===7?"Now":new Date(w.from).toLocaleDateString("en-GB",{day:"numeric",month:"short"}).replace(" "," "))+'</small></span>').join("")+'<em class="th-aim"></em></div></section>';
+    const total=St?St.otjTotal||0:0,planned=(()=>{try{return Number((D().enrolment&&D().enrolment()||{}).plannedOtjHours)||0}catch(_){return 0}})();
+    const recent=H.slice().sort((x,y)=>Number(y.on||y.createdAt)-Number(x.on||x.createdAt)).slice(0,3);
+    const logs=recent.length?'<h2 class="th-h2">Latest learning</h2><div class="th-group">'+recent.map(x=>row({ic:"clock",title:x.description||"Learning",sub:new Date(Number(x.on||x.createdAt)).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+" · "+hm(Number(x.n)||0)}).replace('class="th-row"','class="th-row th-static"').replace(GO,"")).join("")+'</div>':"";
     scr().innerHTML=header("Time")+
       '<section class="th-hero"><span class="th-k">Learning hours this week</span><strong class="th-big">'+esc(hm(wk))+'<small> / '+esc(hm(aim))+'</small></strong><span class="th-bar"><i style="width:'+pct+'%"></i></span>'+
-      '<div class="th-btns"><button type="button" class="primary" id="th-log">Log hours</button><button type="button" class="secondary" id="th-logs">See logs</button></div></section>'+
+      '<small class="th-note">'+esc(hm(total))+' in total'+(planned?' of '+planned+'h · '+Math.min(100,Math.round(total/planned*100))+'% done':'')+'</small>'+
+      '<div class="th-btns"><button type="button" class="primary" id="th-log">Log hours</button><button type="button" class="secondary" id="th-logs">See logs</button></div></section>'+chart+
       '<div class="th-sec"><h2 class="th-h2">College</h2><button type="button" class="th-link" id="th-cal">Full calendar</button></div>'+
       '<div class="th-group">'+strip+nextRow+
         (now&&window.eviaCheckIn?row({id:"th-checkin",ic:"qr",title:"Check in now",sub:now.class||"Your class is on"}):"")+
         (AT?row({id:"th-att",ic:"qr",title:"Attendance",sub:AT.pct==null?"No registers yet":AT.pct+"% · "+AT.here+" of "+AT.n+" sessions"}):"")+
-        (canAway?row({id:"th-away",ic:"away",title:"Can’t make college?",sub:"Tell your tutor"}):"")+'</div>';
+        (canAway?row({id:"th-away",ic:"away",title:"Can’t make college?",sub:"Tell your tutor"}):"")+'</div>'+logs;
     wireHeader();
     on("th-log",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)});
     on("th-logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs());
