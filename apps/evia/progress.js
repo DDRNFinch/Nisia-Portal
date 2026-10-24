@@ -15,6 +15,7 @@
   const entryTime=e=>{const t=Date.parse(e.savedAt||"");if(!isNaN(t))return t;const m=String(e.d||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?new Date(+m[3],m[2]-1,+m[1]).getTime():0};
   const testPct=t=>typeof t.pct==="number"?t.pct:(t.total?Math.round((t.score||0)/t.total*100):0);
   const shortDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+  const midDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
   const longDate=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
   /* Hours as a learner reads them: 1h:30m, never 1.5 (app.js). */
   const hm=h=>window.eviaHM(h);
@@ -375,7 +376,7 @@
           (S.weeksLeft!=null?stat("Weeks left",S.weeksLeft):"")+
           stat((nvqOn()?"Site jobs":"Units")+" not started",S.unitsLeft)+
           (S.weeksPerUnit!=null?stat("Time for each one","about "+Math.max(1,Math.floor(S.weeksPerUnit))+" weeks"):"")+
-          (p.start&&p.end?stat("Course dates",longDate(p.start)+" – "+longDate(p.end)):"")+
+          (p.start&&p.end?stat("Course dates",'<span class="pv-nw">'+midDate(p.start)+'</span> – <span class="pv-nw">'+midDate(p.end)+'</span>'):"")+
           (rd?stat("Next review",rd.days<0?"Overdue · was due "+shortDate(rd.due):shortDate(rd.due)):"")+
         '</div>'+
         '<h3 class="pv-deep-h">'+(nvqOn()?"Your units":"Your "+esc(T.many))+' <small>'+a.met+' / '+a.total+(a.signoff?' signed off':' with evidence')+'</small></h3>'+ksbList()+
