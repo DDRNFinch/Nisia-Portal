@@ -488,7 +488,7 @@
     {seen:"calendar",text:"<strong>Time</strong> is your learning hours and college: log hours, check in, or tell me if you can’t make it."},
     {target:'[data-nav="teach"]',tap:true,text:"Tap <strong>Learn</strong>."},
     {seen:"teach",target:"#tg-shop",text:"Lessons, tests and games, like the one you just did. Each earns <strong>coins</strong>: spend them in the <strong>Shop</strong> on new looks for me."},
-    {seen:"evia",target:"#evia-fab",text:"And this is me. Tap me any time for help, evidence checks and practice tests."},
+    {seen:"evia",target:"#evia-fab",text:"And this is me, your coach. Once a week we’ll have a quick catch-up, and any time you’ve done a job, tell me and I’ll turn it into evidence."},
     {nav:"course",target:"#th-me",tap:true,text:"Last one: tap your <strong>photo</strong>. Your profile is always here, top right."},
     {profile:true,seen:"profile"}
   ];

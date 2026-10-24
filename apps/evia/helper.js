@@ -63,6 +63,7 @@
       C().targets&&{label:"My targets",run:()=>C().targets()},
       C().confidence&&{label:"Confidence check",run:()=>{k.userSays("Confidence check");C().confidence()}},
       live&&window.eviaTodo&&window.eviaTodo.away&&{label:"Can’t make college?",run:()=>window.eviaTodo.away()},
+      window.eviaFuture&&{label:"My future",run:()=>{k.closeChat();setTimeout(()=>window.eviaFuture.open(),120)}},
       {label:"Back",back:true,run:()=>show()}].filter(Boolean));
   }
 
@@ -336,6 +337,15 @@
     if(window.eviaMood)window.eviaMood("happy");
     if(urgent){k.say(esc(urgent.title)+(urgent.detail?". <span class=\"hp-detail\">"+esc(urgent.detail)+"</span>":""));
       k.widget('<button type="button" class="secondary hp-one">'+esc(urgent.label)+'</button>',el=>{el.querySelector("button").onclick=()=>urgent.run()})}
+    /* Connected and never asked: notifications about their course, offered once (yes or no, it's not asked again). */
+    else if(window.eviaPush&&window.eviaPush.state()==="off"&&!window.eviaPush.asked()){
+      k.say("Want me to tell you when your assessor signs your work off, or your review is coming up?");
+      k.widget('<div class="hp-row hp-push"><button type="button" class="secondary hp-one" data-push>Turn on notifications</button><button type="button" class="hp-skip" data-nopush>Not now</button></div>',el=>{
+        el.querySelector("[data-push]").onclick=async()=>{el.querySelectorAll("button").forEach(b=>b.disabled=true);k.userSays("Turn on notifications");let ok=false;try{ok=await window.eviaPush.on()}catch(_){}
+          k.say(ok?"Done. I’ll only tell you about your course, and never between 9pm and 7:30am. You can turn them off in your profile.":window.eviaPush.state()==="blocked"?"Notifications are blocked for Evia in your phone’s settings. Allow them there, then turn them on in your profile.":"I couldn’t turn them on just now. You can try again from your profile.")};
+        el.querySelector("[data-nopush]").onclick=()=>{el.querySelectorAll("button").forEach(b=>b.disabled=true);try{window.eviaPush.later&&window.eviaPush.later()}catch(_){}k.userSays("Not now");k.say("No problem. You can turn them on in your profile any time.")};
+      });
+    }
     const done=thisWeek();
     if(!done){
       const last=lastCheckin();

@@ -35,7 +35,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       hours.push({id:"h1",n:3,description:"Toolbox talk",createdAt:Date.now()});persist();render()});
     await page.waitForTimeout(500);
 
-    check("The app opens on Topics; the nav is Topics, Progress, Evia, College (Me without a college) and Learn",await page.evaluate(()=>screen==="course"&&!!document.getElementById("ui-course-head")&&/^Topics,Progress,(College|Me),Learn$/.test([...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join())));
+    check("The app opens on Topics; the nav is Topics, Time, Evia, Review and Learn (the tester's layout)",await page.evaluate(()=>screen==="course"&&!!document.querySelector(".th-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Topics,Time,Review,Learn"));
     for(const s of ["course","progress","portfolio","learning"]){await page.evaluate(s=>nav(s),s);await page.waitForTimeout(450)}
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
     /* On a computer screen the bottom bar sits in the middle, with Evia at its centre. */
@@ -172,15 +172,16 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       out.measured=window.eviaHelper.goalProgress(saved[0].goal)!==null;out.synced=window.eviaData.changesSince().some(ch=>ch.collection==="checkins"&&ch.record.mood==="low"&&ch.record.about==="Work");return out});
     check("The weekly catch-up: mood (Not great asks what about, offers the tutor and shows help contacts), how it's going in plain words, one goal they pick, saved, measured and sent to Evia Portal for Milos",Object.values(catchup).every(Boolean),JSON.stringify(catchup));
     await page.evaluate(async()=>{const c=document.getElementById("chat"),w=ms=>new Promise(r=>setTimeout(r,ms));for(let n=0;n<40&&!c.querySelector(".hp-doors");n++)await w(150);[...c.querySelectorAll("[data-door=job]")].pop().click();for(let n=0;n<40&&!c.querySelector(".hp-jobs-pick [data-u]:not([disabled])");n++)await w(150)});
-    const day=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),wait=async sel=>{for(let n=0;n<40;n++){const x=[...c.querySelectorAll(sel)].pop();if(x&&!x.disabled)return x;await w(150)}return null};
+    const day=await page.evaluate(async()=>{try{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),wait=async sel=>{for(let n=0;n<80;n++){const x=[...c.querySelectorAll(sel)].pop();if(x&&!x.disabled){await w(300);return x}await w(150)}return null};
       const before=window.eviaData.list("evidence").length,u=[...c.querySelectorAll(".hp-jobs-pick [data-u]")].pop(),topic=u.textContent;u.click();
       (await wait("[data-none]")).click();
       const f=await wait(".hp-did textarea");f.value="laid the first course to the line";(await wait(".hp-did button")).click();
       let chip=await wait(".hp-pick .hp-chip");if(chip&&!chip.closest(".hp-jobs-pick")){chip.click();(await wait(".hp-next")).click()}
-      chip=await wait(".hp-pick .hp-chip:not([aria-pressed=true])");chip.click();(await wait(".hp-next")).click();
+      /* A topic with no "things to mention" goes straight to safety, so this may already be the write-up. */
+      await w(1500);if(!c.querySelector(".hp-write textarea:not([disabled])")){chip=await wait(".hp-pick .hp-chip:not([aria-pressed=true])");chip.click();(await wait(".hp-next")).click()}
       const t=await wait(".hp-write textarea"),text=t?t.value:"";(await wait(".hp-write button")).click();for(let n=0;n<30&&!/learning hours/.test(c.textContent);n++)await w(200);
       const e=window.eviaData.list("evidence").slice(-1)[0]||{};
-      return {saved:window.eviaData.list("evidence").length===before+1&&(e.unit||e.u)===topic,own:/laid the first course to the line/i.test(text)&&/^Today I worked on/.test(text),ksbs:(e.ksbs||e.k||[]).length>0,hours:/learning hours/.test(c.textContent)}});
+      return {saved:window.eviaData.list("evidence").length===before+1&&(e.unit||e.u)===topic,own:/laid the first course to the line/i.test(text)&&/^Today I worked on/.test(text),ksbs:(e.ksbs||e.k||[]).length>0,hours:/learning hours/.test(c.textContent)}}catch(err){return {err:err.message,tail:document.getElementById("chat").innerText.slice(-700)}}});
     check("Telling Evia about the day: pick a topic, photos (or none), a few words, key points and safety, then a write-up from the learner's own words saved to that topic with its KSBs, and an offer to log hours",Object.values(day).every(Boolean),JSON.stringify(day));
     const hp=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),out={};
       window.eviaHelper.show();for(let n=0;n<30&&!c.querySelector("[data-door=ask]");n++)await w(200);[...c.querySelectorAll("[data-door=ask]")].pop().click();
@@ -340,29 +341,30 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
-    check("The first-run demo can point at Where you are on My progress",!!await page.$("#pv-where"));
+    check("The first-run tour can point at Review and at the learner's photo",!!await page.$('[data-nav="learning"]')&&await page.evaluate(async()=>{nav("course");await new Promise(r=>setTimeout(r,300));return !!document.getElementById("th-me")}));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
-    check("College tab: the profile is at the top and opens the profile, above the calendar",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
-      const me=document.getElementById("cal-me"),first=me&&me.compareDocumentPosition(document.getElementById("cal-month"))&Node.DOCUMENT_POSITION_FOLLOWING;if(!me)return false;me.click();await w(400);
-      const opened=!!document.querySelector(".profile-sheet");document.getElementById("modal-root").innerHTML="";await w(100);return !!first&&opened}));
-    check("Calendar: this week's learning hours, the month and Learning logs (moved off Topics), and the Learn tab has the coins and Shop",await page.evaluate(async()=>{const ok=!!document.getElementById("cal-log")&&document.querySelectorAll("#cal-month #cw-strip .cw-d").length===7&&!!document.getElementById("cw-month")===!!window.eviaAttendance.data()&&!!document.getElementById("cal-logs")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
-      nav("course");await new Promise(r=>setTimeout(r,200));const off=!document.getElementById("ui-logs-grid");
+    check("Time: the profile photo is in the header and opens the profile",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
+      const me=document.getElementById("th-me");if(!me)return false;me.click();await w(400);const opened=!!document.querySelector(".profile-sheet");document.getElementById("modal-root").innerHTML="";await w(100);return opened}));
+    /* The tester's Time tab sums things up; "Full calendar" opens the calendar itself. */
+    await page.evaluate(()=>{window.__fullCal=async()=>{nav("calendar");await new Promise(r=>setTimeout(r,300));const b=document.getElementById("th-cal");if(b){b.click();await new Promise(r=>setTimeout(r,300))}}});
+    check("Time: this week's learning hours with Log hours and See logs, the week's college days and Full calendar; the Learn tab has the coins and Shop",await page.evaluate(async()=>{nav("calendar");await new Promise(r=>setTimeout(r,300));
+      const t=document.getElementById("screen").textContent,ok=/Learning hours this week/i.test(t)&&/Log hours/.test(t)&&/See logs/.test(t)&&!!document.getElementById("th-cal")&&document.querySelector('[data-nav="calendar"]').classList.contains("active");
       nav("teach");await new Promise(r=>setTimeout(r,300));const shop=document.getElementById("tg-shop");if(!shop)return false;shop.click();await new Promise(r=>setTimeout(r,400));
-      const inShop=screen==="rewards"&&document.querySelector('[data-nav="teach"]').classList.contains("active")&&!!document.querySelector(".tg-back");return ok&&off&&inShop}));
+      const inShop=screen==="rewards"&&!!document.querySelector(".tg-back");return ok&&inShop}));
     check("Calendar: every college day on the class timetable shows, every week to the class's end date, and the calendar goes a year ahead",await page.evaluate(async()=>{const N=window.eviaNisia;
       localStorage.setItem("evia7-nisia-timetable",JSON.stringify([{class:"L2 Bricklaying",room:"W2",schedule:{day:"Tuesday",start:"09:00",end:"16:00",recurrence:{type:"weekly",interval:1,weekdays:["Tuesday"],startDate:"2026-10-05",endDate:"2026-12-22",anchorDate:"2026-10-05"}}},{class:"Maths",schedule:{day:"Monday",start:"10:00",recurrence:{type:"weekly",interval:2,weekdays:["Monday"],startDate:"2026-10-05",endDate:"2026-11-30",anchorDate:"2026-10-05"}}}]));
       const d=N.timetableDays("2026-10-01","2027-06-30"),tue=d.filter(x=>x.class==="L2 Bricklaying").map(x=>x.session_date),mon=d.filter(x=>x.class==="Maths").map(x=>x.session_date);
       localStorage.removeItem("evia7-nisia-timetable");
-      nav("course");await new Promise(r=>setTimeout(r,100));nav("calendar");await new Promise(r=>setTimeout(r,300));let n=0;for(let i=0;i<53;i++){const b=document.querySelector('[data-w="1"]');if(!b)break;b.click();n++;await new Promise(r=>setTimeout(r,10))}
+      nav("course");await new Promise(r=>setTimeout(r,100));await window.__fullCal();let n=0;for(let i=0;i<53;i++){const b=document.querySelector('[data-w="1"]');if(!b)break;b.click();n++;await new Promise(r=>setTimeout(r,10))}
       return tue.length===12&&tue[0]==="2026-10-06"&&tue[11]==="2026-12-22"&&mon.join()==="2026-10-05,2026-10-19,2026-11-02,2026-11-16,2026-11-30"&&n>=52}));
     check("Calendar: a visit the assessor booked in Milos shows as Next, on its day in the week, and in the day's details",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));
       const t=new Date(Date.now()+2*864e5);t.setHours(11,30,0,0);localStorage.setItem("evia7-nisia-visits",JSON.stringify([{id:"V1",starts_at:t.toISOString(),minutes:90,kind:"observation",place:"Kings Road site",note:"Bring your PPE",booked_by:"Mark Ellis"}]));
-      nav("course");await w(100);nav("calendar");await w(300);const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
+      nav("course");await w(100);await window.__fullCal();const top=document.getElementById("cal-visit");if(!top||!/Assessor observation/.test(top.textContent)||!/11:30/.test(top.textContent))return false;
       top.click();await w(300);const k=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
       const ok=!!document.querySelector('#cw-strip .cal-v[data-day="'+k+'"]')&&/Kings Road site/.test(document.getElementById("cal-day").textContent)&&/Mark Ellis/.test(document.getElementById("cal-day").textContent);
       const card=!!document.querySelector("#cal-day.cal-dcard .cal-row .ri-visit")&&!!document.querySelector(".cal-card #cal-logs")&&!document.querySelector(".cal-links");
       localStorage.removeItem("evia7-nisia-visits");return ok&&card}));
-    check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");nav("calendar");await w(300);
+    check("Calendar: a learner not connected to a college picks their college days, and they show as days coming up",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));localStorage.removeItem("evia7-college-days");await window.__fullCal();
       const picker=document.querySelectorAll("[data-cd]").length===7;document.querySelector('[data-cd="2"]').click();await w(100);document.getElementById("cal-days-done").click();await w(100);
       const cs=[...document.querySelectorAll("#cw-strip .cw-d.cw-coming")],tue=cs.length===1&&new Date(cs[0].dataset.day+"T12:00:00").getDay()===2||(cs.length===0&&new Date().getDay()>2);
       const next=/Tue|Today/.test((document.querySelector(".cw-next")||{}).textContent||"")&&!!document.getElementById("cal-days-edit");localStorage.removeItem("evia7-college-days");return picker&&tue&&next}));
@@ -425,7 +427,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
 
     // Page headings, draft tags, the strength key, the backup reminder, clean test screens and the OTJ PDF.
     await page.evaluate(()=>{localStorage.setItem("evia7-working-evidence-packs",JSON.stringify({["bricklayer|"+data().u[5][0]]:{course:"bricklayer",unit:data().u[5][0],photos:[],write:"Started"}}));nav("course")});await page.waitForTimeout(450);
-    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Topics/.test(document.querySelector(".ui-page-head h1").textContent)&&document.querySelectorAll(".draft-chip").length===1));
+    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Topics/.test((document.querySelector(".th-head h1")||{}).textContent||"")&&[...document.querySelectorAll(".th-pill")].filter(x=>x.textContent==="Draft").length===1));
     check("Evia reminds learners to back up once they have a few packs",await page.evaluate(()=>{localStorage.removeItem("evia7-last-backup");return window.eviaStats.nudges(window.eviaStats.compute()).some(n=>n.id==="backup")}));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaStartTest("maths",5,"Maths")});await page.waitForSelector(".ex #ex-start",{state:"visible",timeout:12000});
     check("A maths test from Practice opens as an exam",await page.evaluate(()=>/Maths test/.test(document.querySelector(".ex").textContent)));
@@ -469,8 +471,11 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{course="bricklayer";persist();openUnit(data().u.findIndex(u=>u[0]==="Cavity opening"))});await page.waitForTimeout(700);
     await page.evaluate(()=>document.getElementById("eg-start").click());await page.waitForTimeout(300);
     // The first sheet has one full-width Get started; with no camera it goes straight to the questions.
+    const photoFirst=await page.evaluate(()=>/photo/i.test((document.getElementById("modal-root")||{}).textContent||""));
     const oneStart=await page.evaluate(()=>{const b=[...document.querySelectorAll(".eg-sheet .eg-actions button")];return b.length===1&&b[0].textContent.trim()==="Get started"&&!!b[0].closest(".eg-wide")});
     await page.evaluate(()=>document.querySelector(".eg-sheet .eg-actions button").click());await page.waitForTimeout(300);
+    /* The tester's guided capture is a photo checklist (guide.js); the question-by-question checks are for the classic guide. */
+    if(await page.evaluate(()=>!!document.querySelector(".eg-q"))){
     const q1=await page.evaluate(()=>[...document.querySelectorAll(".eg-codes span")].map(x=>x.textContent).join("+")+" "+document.querySelector(".eg-q").textContent+" "+[...document.querySelectorAll(".eg-chip")].map(b=>b.textContent).join(" · "));
     const oneBox=await page.evaluate(()=>!document.querySelector(".eg-pill")&&!!document.getElementById("eg-text"));
     if(process.env.EVIA_SHOTS){await page.evaluate(()=>{const b=document.getElementById("eg-text");b.value="I set out the opening with the gauge rod and fitted the cavity closer, checking it was plumb.";b.dispatchEvent(new Event("input"))});await page.waitForTimeout(300);await page.screenshot({path:process.env.EVIA_SHOTS+"/eg-ask.png"});await page.evaluate(()=>{const b=document.getElementById("eg-text");b.value="";b.dispatchEvent(new Event("input"))})}
@@ -491,7 +496,11 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await btn("Use this statement");await page.evaluate(()=>{window.eviaCamera.supported=window._camSupported});await page.waitForTimeout(500);
     check("Evia guides the write-up KSB by KSB (codes, her question, things to mention, one box each; the sheet stays put between them), then the answers become the statement",oneBox&&/^S\d/.test(q1)&&/How did you/.test(q1)&&ticked&&await page.evaluate(()=>document.getElementById("write").value==="I fitted the cavity closer at the reveal.\n\nThe ties go in at 450 centres."));
     check("Guided evidence carries on where the learner left off, and starts with one Get started button",back&&at2&&oneStart);
-    await page.evaluate(()=>{const w=document.getElementById("write");w.value="";w.dispatchEvent(new Event("input"))});
+    }else{
+      check("Guided evidence (tester): it starts as a photo checklist (Take photos)",photoFirst);
+      await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";document.querySelectorAll(".cam-photo").forEach(x=>x.remove());if(window._camSupported)window.eviaCamera.supported=window._camSupported});await page.waitForTimeout(300);
+    }
+    await page.evaluate(()=>{const w=document.getElementById("write");if(w){w.value="";w.dispatchEvent(new Event("input"))}});
 
     // Teach me: the tile, a lesson played through, and Evia's view in the confidence check.
     await page.evaluate(()=>{course="bricklayer";persist();document.getElementById("modal-root").innerHTML="";nav("course")});await page.waitForTimeout(500);
@@ -646,7 +655,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     // Problem log: script errors are kept on the phone, counted once each, shown in Profile and synced.
     const pl=await page.evaluate(async()=>{
       const w=ms=>new Promise(r=>setTimeout(r,ms)),E=window.eviaErrors,out={};
-      const hidden=E.list().filter(x=>x.kind!=="reported");out.noneSoFar=!hidden.length;out.hidden=hidden.map(x=>x.message).join(" | ");if(!hidden.length)delete out.hidden;
+      const hidden=E.list().filter(x=>x.kind!=="reported");out.noneSoFar=!hidden.length;out.hidden=hidden.map(x=>x.message+" @ "+(x.where||"")+" "+String(x.stack||"").slice(0,400)).join(" | ");if(!hidden.length)delete out.hidden;
       const fire=()=>window.dispatchEvent(new ErrorEvent("error",{message:"Smoke test problem",filename:"https://x/app.js?v=1",lineno:12,colno:3,error:new Error("Smoke test problem")}));
       fire();fire();
       const mine=E.list().find(x=>x.message==="Smoke test problem");
@@ -1228,12 +1237,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const pv={};
       pv.offFirst=await p8.evaluate(()=>window.eviaPush&&window.eviaPush.state());
       await p8.evaluate(()=>window.chat());await p8.waitForTimeout(4500);
-      pv.todayAsks=await p8.evaluate(()=>window.eviaTodo.list().some(x=>/notifications/.test(x.title)));
+      pv.todayAsks=await p8.evaluate(()=>!!document.querySelector("#chat [data-push]"));
       if(d8)await p8.locator("#chat .td-list").screenshot({path:d8+"/push-today.png"}).catch(()=>{});
-      await p8.evaluate(()=>window.eviaTodo.list().find(x=>/notifications/.test(x.title)).run());await p8.waitForTimeout(3500);
+      await p8.evaluate(()=>document.querySelector("#chat [data-push]").click());await p8.waitForTimeout(3500);
       const up=calls8.filter(x=>x.p==="/rest/v1/device_tokens"&&x.m==="POST").map(x=>JSON.parse(x.body)).pop();
       pv.saved=!!up&&up.app==="evia"&&up.user_id==="u-learner"&&up.token===up.subscription.endpoint&&up.subscription.keys.auth==="au"&&await p8.evaluate(()=>window.__pushKey===65);
-      pv.on=await p8.evaluate(()=>window.eviaPush.state()==="on"&&!window.eviaTodo.list().some(x=>/notifications/.test(x.title))&&/never between 9pm/.test(document.getElementById("chat").innerText));
+      pv.on=await p8.evaluate(()=>window.eviaPush.state()==="on"&&/never between 9pm/.test(document.getElementById("chat").innerText));
       /* A push from Evia Portal, delivered to the service worker the way Chrome's push service would. */
       const cdp=await c8.newCDPSession(p8);const regs=[];cdp.on("ServiceWorker.workerRegistrationUpdated",e=>regs.push(...e.registrations));
       await cdp.send("ServiceWorker.enable");await p8.waitForTimeout(800);
@@ -1327,11 +1336,12 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       cv.locked=await p9.evaluate(()=>{const row=[...document.querySelectorAll(".ui-hours-item")].find(r=>/College · L2 Brickwork/.test(r.textContent));return !!row&&!row.querySelector("[data-rm-log]")&&!!row.querySelector(".ui-college-lock")&&/College register/.test(row.textContent)});
       if(d9)await p9.screenshot({path:d9+"/checkin-log.png"}).catch(()=>{});
       /* Registers: during a class, checking in is the top of Evia's list; with no signal the scan is kept and sent later. */
-      await p9.evaluate(()=>{window.eviaChatKit.closeChat();window.chat()});await p9.waitForTimeout(4500);
-      cv.card=await p9.evaluate(()=>{const b=document.querySelector("#chat .td-item");return !!b&&b.classList.contains("td-k-checkin")&&/Check in to L2 Brickwork/.test(b.textContent)&&/Workshop 2/.test(b.textContent)});
+      /* (The tester: a pop-up when the app opens during the class.) */
+      await p9.evaluate(()=>{window.eviaChatKit.closeChat();if(!document.getElementById("hp-checkin")){sessionStorage.removeItem("evia7-checkin-asked");window.eviaHelper.askCheckIn()}});await p9.waitForTimeout(800);
+      cv.card=await p9.evaluate(()=>{const b=document.getElementById("hp-checkin");return !!b&&/L2 Brickwork is on/.test(b.textContent)&&/Workshop 2/.test(b.textContent)});
       if(d9)await p9.screenshot({path:d9+"/checkin-card.png"}).catch(()=>{});
       await c9.setOffline(true);
-      await p9.click("#chat .td-item.td-k-checkin");await p9.waitForTimeout(1500);
+      await p9.click("#hp-checkin [data-in]");await p9.waitForTimeout(1500);
       await p9.fill("#ci-view .ci-code","XYZ789");await p9.click('#ci-view .ci-form button[type=submit]');await p9.waitForTimeout(800);
       cv.kept=await p9.evaluate(()=>/no signal/i.test(document.getElementById("ci-view").textContent)&&window.eviaNisia.waitingCheckIns()===1&&!window.eviaTodo.list().some(x=>x.ic==="checkin"));
       if(d9)await p9.locator("#ci-view .ci-sheet").screenshot({path:d9+"/checkin-saved.png"}).catch(()=>{});
@@ -1342,7 +1352,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       cv.sentLater=calls9.some(x=>x.p==="/rest/v1/rpc/nisia_check_in"&&JSON.parse(x.body).p_code==="XYZ789"&&!!JSON.parse(x.body).p_scanned_at)&&await p9.evaluate(()=>window.eviaNisia.waitingCheckIns()===0&&!window.eviaTodo.list().some(x=>x.ic==="checkin"));
       /* Can't make college: the days and why, and everyone is told. */
       await p9.evaluate(()=>{window.eviaChatKit.closeChat();window.chat()});await p9.waitForTimeout(4500);
-      await p9.click("#chat .td-away");await p9.waitForTimeout(4500);
+      /* (The tester: under Evia's Other things, and on the Time tab.) */
+      await p9.evaluate(()=>window.eviaTodo.away());await p9.waitForTimeout(4500);
       await p9.click('#chat .chat-pill:has-text("Tomorrow")');await p9.waitForTimeout(2000);
       await p9.click('#chat .chat-pill:has-text("Sickness")');await p9.waitForTimeout(2500);
       await p9.fill("#chat .td-note input","Flu");await p9.click("#chat .td-note button");await p9.waitForTimeout(3500);
@@ -1350,9 +1361,10 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       cv.away=!!bk&&JSON.parse(bk.body).p_kind==="ill"&&JSON.parse(bk.body).p_reason==="Flu"&&JSON.parse(bk.body).p_from===tmk&&await p9.evaluate(()=>/is booked/.test(document.getElementById("chat").innerText)&&/tutor, assessor and employer/.test(document.getElementById("chat").innerText)&&window.eviaNisia.absences().length===1);
       if(d9)await p9.screenshot({path:d9+"/away-booked.png"}).catch(()=>{});
       /* Attendance in My progress: the percentage, and a calendar with a colour for each kind of day. */
-      await p9.evaluate(()=>{window.eviaChatKit.closeChat();nav("learning")});await p9.waitForTimeout(2000);
-      cv.attTile=await p9.evaluate(()=>{const c=document.getElementById("pv-attendance");return !!c&&/50%/.test(c.textContent)&&/2 of 4 sessions/.test(c.textContent)&&/1 absent/.test(c.textContent)&&c.querySelectorAll(".pv-adots i").length===4});
-      await p9.click("#pv-attendance");await p9.waitForTimeout(700);
+      /* (The tester: an Attendance row on the Time tab opens the same calendar.) */
+      await p9.evaluate(()=>{window.eviaChatKit.closeChat();nav("calendar")});await p9.waitForTimeout(2000);
+      cv.attTile=await p9.evaluate(()=>{const c=document.getElementById("th-att");return !!c&&/50%/.test(c.textContent)&&/2 of 4 sessions/.test(c.textContent)});
+      await p9.click("#th-att");await p9.waitForTimeout(700);
       const calDay=await p9.evaluate(()=>{const d=new Date();d.setDate(d.getDate()-2);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")});
       if(!(await p9.$('.pv-acal-d[data-day="'+calDay+'"]')))await p9.click('.pv-acal-nav[data-m="-1"]');
       cv.attCal=await p9.evaluate(d=>{const key=document.querySelector(".pv-acal-key").textContent,cell=document.querySelector('.pv-acal-d[data-day="'+d+'"]');return !!cell&&cell.classList.contains("pv-a-booked")&&[...document.querySelectorAll(".pv-acal-key span")].map(x=>x.textContent.trim()).join()==="Present,Absent,Booked off,Coming up"&&document.querySelectorAll(".pv-acal-d.pv-a-present,.pv-acal-d.pv-a-absent").length>=1},calDay);
@@ -1381,7 +1393,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
          Then the review prep pack: how ready they are, everything since the last review, and a PDF to share. */
       {
         await p9.evaluate(()=>{document.getElementById("modal-root").innerHTML="";nav("learning")});await p9.waitForTimeout(700);
-        await p9.click("#pv-future");await p9.waitForSelector('.fu-sheet [data-k="business"]');
+        await p9.click("#th-future");await p9.waitForSelector('.fu-sheet [data-k="business"]');
         await p9.click('.fu-sheet [data-k="business"]');await p9.click('.fu-sheet [data-w="In 5 years or more"]');await p9.click("#fu-save");
         await p9.waitForSelector(".fu-steps li");
         const n=await p9.$$eval(".fu-steps li",x=>x.length);

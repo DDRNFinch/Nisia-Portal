@@ -111,8 +111,8 @@
     /* One checklist in the app: only what can't wait (checking in, a visit, messages, what the assessor asked
        for, the first evidence) stays here; everything else is on the Review checklist (ui-tidy.js). */
     const keep=out.filter(x=>x.u>=95);
-    const C=window.eviaReviewChecklist?window.eviaReviewChecklist():null,left=C?C.items.length-C.done:0;
-    if(C&&left)keep.push({u:60,ic:"review",title:"Your review checklist",detail:C.done+" of "+C.items.length+" ready"+(C.rd&&C.rd.days>0?" · review in "+C.rd.days+" day"+(C.rd.days===1?"":"s"):""),label:"Open it",run:leave(()=>nav("learning"))});
+    const CL=window.eviaReviewChecklist?window.eviaReviewChecklist():null,left=CL?CL.items.length-CL.done:0;
+    if(CL&&left)keep.push({u:60,ic:"review",title:"Your review checklist",detail:CL.done+" of "+CL.items.length+" ready"+(CL.rd&&CL.rd.days>0?" · review in "+CL.rd.days+" day"+(CL.rd.days===1?"":"s"):""),label:"Open it",run:leave(()=>nav("learning"))});
     return keep.sort((x,y)=>y.u-x.u);
   }
   async function pushOn(){

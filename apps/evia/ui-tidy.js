@@ -83,12 +83,14 @@
   /* ---------- Topics: doing the work ---------- */
   function topics(){
     const d=typeof data==="function"?data():{u:[]},us=d.u||[],nvq=window.eviaNvq&&window.eviaNvq.on();
+    /* An NVQ keeps its own screen (site jobs by type of work, the knowledge questions), under the same header. */
+    if(nvq&&window.eviaNvq.courseScreen){window.eviaNvq.courseScreen();scr().insertAdjacentHTML("afterbegin",header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"'));wireHeader();return}
     let A=null;try{A=window.eviaStats.compute().a}catch(_){}
     const ev=typeof evidence!=="undefined"?evidence:[],mine=n=>ev.filter(e=>e.c===course&&e.u===n&&!e.induction);
     const LV={strong:["Strong","g"],good:["Good","y"],weak:["Weak","o"]};
     const behind=A&&A.timePct!=null&&A.timePct-A.ksbPct>10;
     const hero=A?'<section class="th-hero"><span class="th-k">Your course</span><strong class="th-big">'+A.ksbPct+'%<small> of '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+'</small></strong>'+
-      '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small></section>':"";
+      '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":A.timePct-A.ksbPct>25?"Behind for this point in your course: you’re "+A.timePct+"% of the way through":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small></section>':"";
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':lv?'<span class="th-pill th-pill-'+LV[lv][1]+'">'+LV[lv][0]+'</span>':"")+GO+'</button>'});
@@ -100,6 +102,8 @@ hero+
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
+    /* The first-run tour points at Supporting evidence by this. */
+    const sup=document.getElementById("th-sup");if(sup)sup.setAttribute("data-supporting-evidence","");
     on("th-share",()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio());
   }
 
@@ -129,7 +133,8 @@ hero+
     const items=[
       {id:"evidence",title:"Evidence on track",ok:gap<=10,sub:A?A.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+(gap>10?": add some evidence":""):"",run:()=>nav("course")},
       {id:"hours",title:"Learning hours on track",ok:!!(otj&&otj.ok),sub:otj?otj.text:"",run:()=>nav("calendar")},
-      {id:"targets",title:"Targets met",ok:!tg.length||tdone===tg.length,sub:tg.length?tdone+" of "+tg.length+" done":"None set yet",run:()=>window.eviaProgressDeep&&window.eviaProgressDeep("targets")},
+      /* Only when there are targets: none set isn't something to tick. */
+      tg.length?{id:"targets",title:"Targets met",ok:tdone===tg.length,sub:tdone+" of "+tg.length+" done",run:()=>window.eviaProgressDeep&&window.eviaProgressDeep("targets")}:null,
       {id:"conf",title:"Confidence check",ok:confNew,sub:confNew?"Done "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Two minutes: rate your skills",run:()=>window.eviaPractice&&window.eviaPractice.openConfidence?window.eviaPractice.openConfidence():go(()=>window.eviaCoachFlows.confidence())()},
       live()?{id:"employer",title:"Employer feedback",ok:emNew,sub:emNew?(EM.who||"Your employer")+" rated you "+new Date(rated.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not yet since "+fromTxt+": ask your employer",run:()=>emNew?window.eviaProgressDeep("employer"):window.eviaMessages&&window.eviaMessages.open()}:null,
       prep&&prep.rd&&(prep.rd.college||live())?{id:"comments",title:"Your comments",ok:!!prep.commentsDone,sub:prep.commentsDone?"Done: your assessor can read them":"How it’s going, any help you need",run:comments}:null
@@ -179,11 +184,14 @@ hero+
       '<h2 class="th-h2">Ready for your review</h2><div class="th-group">'+C.items.map(x=>'<button type="button" class="th-row th-check'+(x.ok?" th-ok":"")+'" data-check="'+x.id+'"><span class="th-tick">'+(x.ok?TICK:"")+'</span>'+
         '<span class="th-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.sub)+'</small></span>'+GO+'</button>').join("")+'</div>'+
       '<div class="th-group th-quiet">'+[window.eviaPrepPack?row({id:"th-prep",ic:"send",title:"Share my prep pack",sub:"A PDF for your assessor"}):"",
-        row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>';
+        row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>'+
+      /* My future: their goal, the steps towards it, guides and the college's careers sessions (future.js). */
+      (window.eviaFuture?'<div class="th-group th-quiet">'+row({id:"th-future",ic:"star",title:"My future",sub:(()=>{const F=window.eviaFuture.summary&&window.eviaFuture.summary();return F?F.goal+" · "+F.done+" of "+F.steps+" steps":"Where do you want your trade to take you?"})()})+'</div>':"");
     wireHeader();
     scr().querySelectorAll("[data-check]").forEach(b=>b.onclick=()=>{const x=C.items.find(i=>i.id===b.dataset.check);if(x&&x.run)x.run()});
     on("th-prep",()=>window.eviaPrepPack.open());
     on("th-past",()=>window.eviaProgressDeep&&window.eviaProgressDeep("review"));
+    on("th-future",()=>window.eviaFuture.open());
   }
 
   /* ---------- Time: learning hours and college ---------- */

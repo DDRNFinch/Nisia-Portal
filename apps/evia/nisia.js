@@ -794,5 +794,5 @@
     if(open)setTimeout(()=>pushOpen(open),1200);
     setTimeout(pushRefresh,8000);
   });
-  window.eviaPush={state:pushState,on:pushOn,off:pushOff,asked:()=>!!pushPref().asked,open:pushOpen};
+  window.eviaPush={state:pushState,on:pushOn,off:pushOff,asked:()=>!!pushPref().asked,later:()=>pushPref({asked:true}),open:pushOpen};
 })();
