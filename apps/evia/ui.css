@@ -3195,3 +3195,26 @@ body.evia-dark .hp-pop-card strong{color:#eef0f3}
 #chat .hp-ask button{flex:0 0 auto;padding:0 18px;border-radius:14px}
 body.evia-dark #chat .hp-jobs button,body.evia-dark #chat .hp-topics,body.evia-dark #chat .hp-ask input{background:#161b26;border-color:#2a3140;color:#eef0f3}
 body.evia-dark #chat .hp-topics button{color:#eef0f3;border-color:#2a3140}
+/* Today at work → evidence (helper.js). */
+#chat .hp-pick{display:flex;flex-wrap:wrap;gap:8px}
+#chat .hp-chip{padding:9px 14px;border-radius:999px;border:1.5px solid var(--ui-line,#d0d5dd);background:#fff;font:inherit;font-size:14px;font-weight:700;color:var(--ink,#101828);cursor:pointer;transition:background .15s,border-color .15s}
+#chat .hp-chip[aria-pressed="true"]{background:var(--soft,#fff7d6);border-color:var(--yellow,#f5c518);color:var(--yellow-ink,#5a4500)}
+#chat .hp-chip[aria-pressed="true"]::before{content:"✓ "}
+#chat .hp-next{margin-top:10px;min-height:46px;padding:0 22px;border-radius:14px;font-size:15px}
+#chat .hp-photos{display:flex;flex-direction:column;gap:10px}
+#chat .hp-thumbs{display:flex;flex-wrap:wrap;gap:6px}
+#chat .hp-thumbs:empty{display:none}
+#chat .hp-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:12px;animation:tdIn .35s ease both}
+#chat .hp-row{display:flex;gap:8px}
+#chat .hp-row button{flex:1;min-height:46px;border-radius:14px;font-size:15px}
+#chat .hp-skip{align-self:flex-start;padding:6px 2px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--ui-muted,#667085);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+#chat .hp-photos .hp-next{align-self:stretch;margin-top:0}
+#chat .hp-did,#chat .hp-write{display:flex;flex-direction:column;gap:8px}
+#chat .hp-did textarea,#chat .hp-write textarea{font:inherit;font-size:16px;line-height:1.45;padding:12px 14px;border-radius:14px;border:1px solid var(--ui-line,#d0d5dd);background:#fff;color:var(--ink,#101828);resize:vertical}
+#chat .hp-write small{font-size:12.5px;color:var(--ui-muted,#667085)}
+#chat .hp-did button,#chat .hp-write button{min-height:46px;border-radius:14px;font-size:15px}
+body.evia-dark #chat .hp-chip,body.evia-dark #chat .hp-did textarea,body.evia-dark #chat .hp-write textarea{background:#161b26;border-color:#2a3140;color:#eef0f3}
+#chat .hp-jobs-pick .hp-chip{font-size:14.5px;padding:10px 14px;background:#fff}
+#chat .hp-jobs-pick .hp-more{border-style:dashed;color:var(--ui-muted,#667085)}
+#chat .hp-extras{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:14px;padding:0 2px}
+#chat .hp-extras button{padding:4px 0;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--ui-muted,#667085);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent)}

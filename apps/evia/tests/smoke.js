@@ -155,15 +155,25 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
     await page.waitForFunction(()=>{const c=document.getElementById("chat");return c&&!c.querySelector(".evia-thinking")},null,{timeout:15000});
-    await page.waitForSelector("#chat .hp-jobs",{timeout:15000});
-    check("Evia opens as a helper: one thing that matters (or you're on track), four jobs (Add evidence, Log hours, Ask me, Practise) and More",await page.evaluate(()=>{const c=document.getElementById("chat"),jobs=[...c.querySelectorAll(".hp-jobs strong")].map(x=>x.textContent).join("|");
-      return jobs==="Add evidence|Log hours|Ask me|Practise"&&c.querySelectorAll(".hp-one").length<=1&&!c.querySelector(".td-item,.es-card,.jy-map")&&[...c.querySelectorAll(".ui-replies .chat-pill")].map(p=>p.textContent).join()==="More"}));
+    await page.waitForSelector("#chat .hp-jobs-pick",{timeout:15000});
+    check("Evia opens asking what you worked on, with the topics as chips, Something else, and quiet extras (Log hours, Ask me, Practise, Other things)",await page.evaluate(()=>{const c=document.getElementById("chat");
+      return c.querySelectorAll(".hp-jobs-pick [data-u]").length>=3&&!!c.querySelector("[data-other]")&&[...c.querySelectorAll(".hp-extras button")].map(b=>b.textContent).join("|")==="Log hours|Ask me|Practise|Other things"&&/working on|work on/.test(c.textContent)&&!c.querySelector(".td-item,.es-card,.jy-map,.hp-jobs")}));
+    const day=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),wait=async sel=>{for(let n=0;n<40;n++){const x=[...c.querySelectorAll(sel)].pop();if(x&&!x.disabled)return x;await w(150)}return null};
+      const before=window.eviaData.list("evidence").length,u=c.querySelector(".hp-jobs-pick [data-u]"),topic=u.textContent;u.click();
+      (await wait("[data-none]")).click();
+      const f=await wait(".hp-did textarea");f.value="laid the first course to the line";(await wait(".hp-did button")).click();
+      let chip=await wait(".hp-pick .hp-chip");if(chip&&!chip.closest(".hp-jobs-pick")){chip.click();(await wait(".hp-next")).click()}
+      chip=await wait(".hp-pick .hp-chip:not([aria-pressed=true])");chip.click();(await wait(".hp-next")).click();
+      const t=await wait(".hp-write textarea"),text=t?t.value:"";(await wait(".hp-write button")).click();for(let n=0;n<30&&!/learning hours/.test(c.textContent);n++)await w(200);
+      const e=window.eviaData.list("evidence").slice(-1)[0]||{};
+      return {saved:window.eviaData.list("evidence").length===before+1&&(e.unit||e.u)===topic,own:/laid the first course to the line/i.test(text)&&/^Today I worked on/.test(text),ksbs:(e.ksbs||e.k||[]).length>0,hours:/learning hours/.test(c.textContent)}});
+    check("Telling Evia about the day: pick a topic, photos (or none), a few words, key points and safety, then a write-up from the learner's own words saved to that topic with its KSBs, and an offer to log hours",Object.values(day).every(Boolean),JSON.stringify(day));
     const hp=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),out={};
-      c.querySelector("[data-job=evidence]").click();await w(1500);out.topics=c.querySelectorAll(".hp-topics button").length>=3;
-      window.eviaHelper.show();await w(1200);for(let n=0;n<30&&!c.querySelector("[data-job=ask]");n++)await w(200);[...c.querySelectorAll("[data-job=ask]")].pop().click();
-      let f=null;for(let n=0;n<40&&!f;n++){await w(200);f=[...c.querySelectorAll(".hp-ask")].pop()}f.q.value="bricks for a 4m by 1.2m wall";f.requestSubmit();await w(2500);
+      window.eviaHelper.show();for(let n=0;n<30&&!c.querySelector(".hp-extras [data-x=ask]:not([disabled])");n++)await w(200);[...c.querySelectorAll(".hp-extras [data-x=ask]")].pop().click();
+      let f=null;for(let n=0;n<40&&!f;n++){await w(200);f=[...c.querySelectorAll(".hp-ask")].pop()}
+      f.q.value="bricks for a 4m by 1.2m wall";f.requestSubmit();await w(2500);
       out.answer=/bricks/.test(c.textContent)&&!!c.querySelector(".hp-ask");return out});
-    check("Add evidence lists the topics to pick from; Ask me answers a typed question and keeps the box for the next one",hp.topics&&hp.answer,JSON.stringify(hp));
+    check("Ask me answers a typed question and keeps the box for the next one",hp.answer,JSON.stringify(hp));
     const pop=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),N=window.eviaNisia,rj=N.joined,rc=N.classNow;
       N.joined=()=>({live:true});N.classNow=()=>({id:"s1",class:"BWK Apps",starts_at:new Date().toISOString(),room:"GLC"});sessionStorage.removeItem("evia7-checkin-asked");
       window.eviaHelper.askCheckIn();const el=document.getElementById("hp-checkin"),text=el?el.textContent:"";if(el)el.querySelector("[data-no]").click();await w(400);
@@ -233,7 +243,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Recorded discussions are graded from the transcript: a model answer scores high, a vague one low, and follow-up answers count",disc.strong>=75&&disc.weak<30&&disc.half,JSON.stringify(disc));
     await page.click('#x');await page.waitForTimeout(400);
     check("EPA mode ends when the chat closes",await page.evaluate(()=>!document.body.classList.contains("evia-epa")));
-    await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies",{timeout:15000});
+    await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies,#chat .hp-jobs-pick",{timeout:15000});
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
     const streak=await page.evaluate(()=>{const k=t=>{const x=new Date(t);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};const save=localStorage.getItem("evia7-days");
       const d=new Date();d.setHours(12);const days=[];for(let i=0;i<10;i++){const x=new Date(d);x.setDate(d.getDate()-i);if(x.getDay()!==0&&x.getDay()!==6)days.push(k(x))}
