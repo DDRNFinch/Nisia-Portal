@@ -12,7 +12,7 @@
 
   /* ---------- Log my hours ---------- */
   const KINDS=[
-    ["College day","College day",7.5],["Toolbox talk","Toolbox talk",.5],["Training course","Training course",3],
+    ["College day","College day",6],["Toolbox talk","Toolbox talk",.5],["Training course","Training course",3],
     ["Research or reading","Research and reading",1],["Shadowing someone","Shadowing",2],["Something else","",1]
   ];
   /* The wheel: hours 0–12 and minutes in 5s, each a scroll-snapping column. */

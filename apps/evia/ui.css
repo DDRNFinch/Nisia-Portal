@@ -3320,3 +3320,8 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .jp-tiles.jp-3 .jp-tile{padding:11px 10px 10px}
 .jp-tiles.jp-3 .jp-tile b{font-size:18px}
 .jp-tiles.jp-3 .jp-tile small{font-size:11.5px;line-height:1.25}
+.tg-coins{display:inline-flex;align-items:center;gap:8px}
+.tg-coins svg{width:30px;height:30px;flex:none}
+.tg-player .tg-medals{gap:12px;margin:8px 0 10px}
+.tg-player .tg-medal i{width:16px;height:16px}
+.tg-player .tg-medal{font-size:13px}
