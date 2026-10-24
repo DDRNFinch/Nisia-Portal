@@ -22,7 +22,7 @@ export async function loadLearner(row) {
   const e = row.enrolment_id;
   const [enr, recs, reviews, evidence, otj] = await Promise.all([
     db.from("enrolments").select("*").eq("id", e).single(),
-    db.from("evia_records").select("collection, record_id, data, deleted_at, updated_at").eq("enrolment_id", e).is("deleted_at", null).in("collection", ["snapshot", "targets", "reviews", "learner", "lessonResults", "tests", "confidence"]),
+    db.from("evia_records").select("collection, record_id, data, deleted_at, updated_at").eq("enrolment_id", e).is("deleted_at", null).in("collection", ["snapshot", "targets", "reviews", "learner", "lessonResults", "tests", "confidence", "checkins"]),
     db.from("reviews").select("*").eq("enrolment_id", e).order("reviewed_at", { ascending: true }),
     db.from("evidence").select("id, organisation_id, title, evidence_type, created_at, source_metadata, client_reference").eq("enrolment_id", e).order("created_at", { ascending: false }),
     db.from("otj_entries").select("activity_date, hours, description, activity_type").eq("enrolment_id", e),
@@ -31,7 +31,7 @@ export async function loadLearner(row) {
   const by = (c) => recs.data.filter((r) => r.collection === c).map((r) => r.data);
   return {
     row, enrolment: enr.data, snapshot: by("snapshot")[0] || null, eviaTargets: by("targets"), eviaReviews: by("reviews"),
-    eviaLearner: by("learner")[0] || null, reviews: reviews.data || [], evidence: evidence.data || [], otj: otj.data || [],
+    eviaLearner: by("learner")[0] || null, eviaCheckins: by("checkins").sort((x, y) => String(x.week).localeCompare(String(y.week))), reviews: reviews.data || [], evidence: evidence.data || [], otj: otj.data || [],
   };
 }
 

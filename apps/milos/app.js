@@ -295,6 +295,10 @@ function drawToday(X) {
         big: '<p class="m-big ' + (overdue.length ? "bad" : due.length ? "warn" : "good") + '">' + (overdue.length ? overdue.length + " overdue" : due.length ? due.length + " due soon" : "All up to date") + '</p>',
         sub: overdue.length ? "Funding rules need one every 12 weeks." + (due.length > overdue.length ? " " + (due.length - overdue.length) + " more due in the next 2 weeks." : "") : due.length ? "Due in the next 2 weeks." : "Nobody is due in the next 2 weeks.",
         inner: due.length ? '<div class="m-minis">' + due.slice(0, 4).map((r) => mini(r, pill(r.due))).join("") + '</div>' : "" }) +
+      /* Learners who told Evia they're not doing great in the last 2 weeks. */
+      (() => { const low = X.filter((x) => { const c = ((x.D && x.D.L.eviaCheckins) || []).slice(-1)[0]; return c && c.mood === "low" && Date.now() - Date.parse(c.at) < 14 * 864e5; });
+        return low.length ? card({ cls: "is-bad", label: "Wellbeing", big: '<p class="m-big bad">' + low.length + '<small> not doing great</small></p>', sub: "From their weekly catch-up with Evia.",
+          inner: '<div class="m-minis">' + low.map((x) => { const c = x.D.L.eviaCheckins.slice(-1)[0]; return mini(x.r, '<span class="pill ' + (c.askedToTalk ? "bad" : "warn") + '">' + (c.askedToTalk ? "Asked to talk" : esc(c.about || "Not great")) + '</span>'); }).join("") + '</div>' }) : ""; })() +
       (dr.length ? card({ label: "Reviews in progress", big: '<p class="m-big">' + dr.length + '</p>', sub: "Pick up where you left off.", inner: '<div class="m-minis">' + dr.map((r) => mini(r, '<span class="pill accent">Draft</span>')).join("") + '</div>' }) : "") +
       card({ label: "To assess", go: fresh.length ? "assess" : "", big: '<p class="m-big">' + fresh.length + (fresh.length ? '<small> new</small>' : "") + '</p>',
         sub: fresh.length ? "From " + from + (from === 1 ? " learner" : " learners") + ". The oldest came in " + esc(ago(oldest)) + "." : "Everything has been assessed.",
@@ -525,6 +529,7 @@ async function learner(r, keep) {
       (() => { const nv = comingVisits().find((x) => x.enrolment_id === r.enrolment_id); return nv ? '<section class="card m-list"><p class="label m-in">Next visit</p>' + visitRow(nv, true) + '</section>' : ""; })() +
       '<div class="m-acts">' + act("bookV", IC.cal, "Book a visit", "It shows on their Evia calendar") + act("obs", IC.eye, "New observation", "Capture it like Evia, then sign off") + act("pack", IC.pack, "IQA / EPA pack", "Everything, ready to download") +
         act("pair", IC.phone, r.paired ? "Connect a new phone" : "Connect Evia", r.paired ? "If they’ve changed phone" : "A code they scan") + '</div>' +
+      checkinsHtml(L.eviaCheckins, r) +
       employerHtml(D.E, r) +
       packCard(r) +
       '<div id="absBox"></div>' + '<div id="colBox"></div>' +
@@ -598,6 +603,22 @@ async function mountCollege(box, r) {
 }
 /* From the employer (Paros): their witness testimonies and how they rate the apprentice's behaviours. */
 const WITNESS = ["", "Getting there", "Competent", "Excellent"], BEHAVE = ["", "Needs support", "Developing", "Good", "Excellent"];
+/* Weekly catch-ups the learner has with Evia (their coach in Evia): how they've been, whether they asked to talk, and
+   the goal they set. The latest first, with the last few weeks as dots. */
+const MOOD = { good: ["Good", "good"], ok: ["OK", "accent"], low: ["Not great", "bad"] };
+function checkinsHtml(list, r) {
+  const C = (list || []).slice().reverse(), c = C[0];
+  if (!c) return "";
+  const m = MOOD[c.mood] || ["Not answered", "idle"], days = Math.round((Date.now() - Date.parse(c.at)) / 864e5);
+  const prev = C[1] && C[1].goal ? C[1] : null;
+  return '<section class="card m-card m-checkins' + (c.mood === "low" && days <= 14 ? " is-bad" : "") + '"><p class="label">Check-ins with Evia</p>' +
+    '<div class="m-emp-head"><b>' + (days <= 0 ? "This week" : days < 7 ? days + (days === 1 ? " day ago" : " days ago") : ukDate(c.at)) + '</b><span class="pill ' + m[1] + '">' + esc(m[0]) + '</span></div>' +
+    (c.mood === "low" ? '<p class="m-card-sub">' + (c.about && c.about !== "Rather not say" ? "Mostly about " + esc(c.about.toLowerCase()) + ". " : "") + (c.askedToTalk ? "<b>Asked to talk to their tutor.</b>" : "Didn’t ask to talk. Worth a gentle check-in.") + '</p>' : "") +
+    (c.goal ? '<p class="m-card-sub">This week’s goal: <b>' + esc(c.goal.title) + '</b></p>' : "") +
+    (prev ? '<p class="m-card-sub">Last goal: ' + esc(prev.goal.title) + ' · ' + (prev.goalResult ? (prev.goalResult.done ? '<b class="good-t">Done</b>' : '<b class="warn-t">Not done</b>') : "Not checked yet") + '</p>' : "") +
+    (C.length > 1 ? '<div class="m-moods" aria-label="Last few check-ins">' + C.slice(0, 8).reverse().map((x) => '<i class="m-mood ' + ((MOOD[x.mood] || [0, "idle"])[1]) + '" title="' + esc(ukDate(x.at) + ": " + ((MOOD[x.mood] || ["Not answered"])[0])) + '"></i>').join("") + '<span class="sub">' + C.length + ' check-ins</span></div>' : "") +
+  '</section>';
+}
 function employerHtml(E, r) {
   if (!E || (!E.witness.length && !E.ratings.length)) return "";
   const C = coursePack(r.course_code, r.enrolment_id) || { ksbs: [] }, name = (k) => ((C.ksbs || []).find((x) => x[0] === k) || [k, ""])[1];

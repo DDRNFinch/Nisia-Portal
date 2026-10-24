@@ -70,6 +70,8 @@ function handle(route) {
   if (p === "/rest/v1/enrolments") return json(one ? { id: "E1", organisation_id: "O1", course_id: "C1", learner_id: "L1", start_date: start, end_date: end, status: "active", planned_otj_hours: 416, employer_name: "Hughes & Sons Builders", employer_contact_name: "Dave Hughes" } : []);
   if (p === "/rest/v1/evia_records") return json([
     { collection: "snapshot", record_id: "current", data: SNAPSHOT },
+    { collection: "checkins", record_id: "checkin-a", data: { id: "checkin-a", week: day(-14).slice(0, 10), at: day(-14), mood: "good", goal: { kind: "evidence", n: 1, title: "Add 1 piece of evidence" }, goalResult: { got: 1, done: true } } },
+    { collection: "checkins", record_id: "checkin-b", data: { id: "checkin-b", week: day(-2).slice(0, 10), at: day(-2), mood: "low", about: "Work", askedToTalk: true, goal: { kind: "hours", n: 4, title: "Log 4 hours of learning" } } },
     { collection: "targets", record_id: "t1", data: { id: "t1", course: "bricklayer", title: "Log 10 learning hours", due: day(-5), metAt: null } },
     { collection: "reviews", record_id: "r1", data: { id: "r1", date: day(-3), reflection: { feelsSafe: "Yes", knowsReporting: "Yes", changes: "No", hsIncident: "Yes", hsDetail: "Cut my hand on a brick, first aid given.", otjHappening: "Mostly", learnerFeedback: "Enjoying the cavity work.", support: "Help with reading drawings.", nextSteps: "Level 3 next year." } } }]);
   if (p === "/rest/v1/reviews" && q.method() === "GET") return json(u.searchParams.get("select") === "enrolment_id,reviewed_at" ? [] : []);
@@ -149,6 +151,8 @@ try {
     calEmpty && b0.p_enrolment === "E1" && new Date(b0.p_starts_at).getHours() === 11 && b0.p_kind === "observation" && b0.p_note === "Bring your PPE" && !!placeFilled && b0.p_place === placeFilled && !!onMonth && /Observation/.test(sheetText) && /Evia calendar/.test(sheetText),
     JSON.stringify({ calEmpty, b0, placeFilled, onMonth: !!onMonth, sheetText }));
   await page.click("#navTodo"); await page.waitForSelector("[data-id=L1]"); await page.waitForTimeout(300); await page.screenshot({ path: shots + "/m1f-todo.png", fullPage: true });
+  const wb = await page.textContent(".m-card.is-bad:has(.label)").catch(() => "");
+  check("What needs doing flags a learner who told Evia they're not doing great, and that they asked to talk", /Wellbeing/.test(await page.textContent("#main")) && /Asked to talk/.test(await page.textContent("#main")), wb.slice(0, 200));
   check("The face in the middle opens what needs doing, with the visit coming up this week", /Visits/.test(await page.textContent("#main")) && !!(await page.$("#navTodo.on")) && !!(await page.$("#main [data-visit]")));
   await page.click("[data-id=L1]"); await page.waitForSelector("#rev"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m2-learner.png", fullPage: true });
@@ -158,6 +162,8 @@ try {
   check("A learner's pack shows on their Overview (here the college's own), and their assessor can move them onto Evia Portal's", /Brookfield bricklaying/.test(packCard) && /college’s own/.test(packCard) && PACKMOVE && PACKMOVE.p_enrolment === "E1" && PACKMOVE.p_pack === "k0" &&
     /Bricklayer · Evia Portal’s/.test(await page.textContent(".m-card:has(#packBtn)")), packCard + " " + JSON.stringify(PACKMOVE));
   check("The learner page shows what's signed off and hours", /KSBs signed off/.test(lt) && /120 h/.test(lt));
+  const ci = await page.textContent(".m-checkins").catch(() => "");
+  check("…and their weekly check-ins with Evia: how they've been (Not great, about work, asked to talk), this week's goal and how the last one went", /Not great/.test(ci) && /about work/.test(ci) && /Asked to talk/.test(ci) && /Log 4 hours of learning/.test(ci) && /Add 1 piece of evidence/.test(ci) && /Done/.test(ci) && /2 check-ins/.test(ci), ci.slice(0, 300));
   await page.waitForSelector("#absBox .ab-row");
   const emp = await page.textContent(".m-employer").catch(() => "");
   check("…and what the employer sent from Paros: behaviours and witness testimonies", /From Hughes & Sons Builders/.test(emp) && /Reliable and keen/.test(emp) && /bucket handle joint/.test(emp) && /Excellent/.test(emp) && /Developing/.test(emp), emp.slice(0, 300));

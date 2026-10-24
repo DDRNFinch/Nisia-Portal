@@ -143,6 +143,8 @@
     if(window.eviaMood)window.eviaMood("happy");
     /* 1. Last week's goal, measured. */
     if(last&&last.goal){const p=goalProgress(last.goal);
+      /* How it went is kept with last week's catch-up, so Milos sees it too. */
+      if(p&&!last.goalResult)try{window.eviaData.put("checkins",{week:last.week,goalResult:{got:p.v,done:p.done}})}catch(_){}
       k.say(p&&p.done?"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. You did it ✓ Nice one.":"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. "+(p&&p.v>0?"You got part of the way.":"It didn’t happen, and that’s OK.")+" Let’s see what works this week.")}
     /* 2. How they're doing. */
     k.say("First, how are you doing at the moment?");
@@ -162,7 +164,7 @@
       .concat([{label:"Not this week",run:()=>{k.userSays("Not this week");finish(a)}}]));
   }
   function finish(a){
-    const k=K(),c=readC();c.checkins=c.checkins.filter(x=>x.week!==a.week).concat([a]).slice(-60);writeC(c);
+    const k=K();try{window.eviaData.put("checkins",a)}catch(_){const c=readC();c.checkins=c.checkins.filter(x=>x.week!==a.week).concat([a]).slice(-60);writeC(c)}
     if(window.eviaMood)window.eviaMood("happy");
     k.say((a.goal?"Great. I’ll check how you got on next week. ":"No problem. ")+"That’s our catch-up done ✓");
     k.say("Anything from this week to add while we’re here?");

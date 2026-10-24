@@ -169,8 +169,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const saved=JSON.parse(localStorage.getItem("evia7-coach")||"{}").checkins||[];
       out.saved=saved.length===1&&saved[0].mood==="low"&&saved[0].about==="Work"&&saved[0].goal&&saved[0].goal.title===title;
       window.eviaHelper.show();for(let n=0;n<50&&!/catch-up this week/.test(c.textContent);n++)await w(150);out.done=/catch-up this week/.test(c.textContent);
-      out.measured=window.eviaHelper.goalProgress(saved[0].goal)!==null;return out});
-    check("The weekly catch-up: mood (Not great asks what about, offers the tutor and shows help contacts), how it's going in plain words, one goal they pick, saved and measured",Object.values(catchup).every(Boolean),JSON.stringify(catchup));
+      out.measured=window.eviaHelper.goalProgress(saved[0].goal)!==null;out.synced=window.eviaData.changesSince().some(ch=>ch.collection==="checkins"&&ch.record.mood==="low"&&ch.record.about==="Work");return out});
+    check("The weekly catch-up: mood (Not great asks what about, offers the tutor and shows help contacts), how it's going in plain words, one goal they pick, saved, measured and sent to Evia Portal for Milos",Object.values(catchup).every(Boolean),JSON.stringify(catchup));
     await page.evaluate(async()=>{const c=document.getElementById("chat"),w=ms=>new Promise(r=>setTimeout(r,ms));for(let n=0;n<40&&!c.querySelector(".hp-doors");n++)await w(150);[...c.querySelectorAll("[data-door=job]")].pop().click();for(let n=0;n<40&&!c.querySelector(".hp-jobs-pick [data-u]:not([disabled])");n++)await w(150)});
     const day=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),wait=async sel=>{for(let n=0;n<40;n++){const x=[...c.querySelectorAll(sel)].pop();if(x&&!x.disabled)return x;await w(150)}return null};
       const before=window.eviaData.list("evidence").length,u=[...c.querySelectorAll(".hp-jobs-pick [data-u]")].pop(),topic=u.textContent;u.click();
