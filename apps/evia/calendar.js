@@ -39,7 +39,7 @@
   /* The tab is "College" for a learner connected to their college, "Me" on their own. At the top: their profile
      (where the profile button used to be) and their messages, then the calendar. */
   const live=()=>{try{const N=window.eviaNisia,e=N&&N.joined&&N.joined();return !!(e&&e.live)}catch(_){return false}};
-  function tabName(){return live()?"College":"Me"}
+  function tabName(){return "Time"}
   function label(){const l=document.getElementById("nav-college");if(l&&l.textContent!==tabName())l.textContent=tabName()}
   /* Profile and messages: one card, two rows. */
   function meCards(){
@@ -158,7 +158,7 @@
     on("cw-month",()=>window.eviaProgressDeep("attendance"));
     if(window.eviaCareers&&!page.asked){page.asked=true;window.eviaCareers.load().finally(()=>{setTimeout(()=>{page.asked=false},30000)})}
   }
-  window.addEventListener("evia-careers",()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))page()});
+  window.addEventListener("evia-careers",()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))(window.eviaTidy?window.eviaTidy.plan():page())});
   window.eviaCalendar={page,name:tabName};
 
   const prev=window.render;
@@ -171,5 +171,5 @@
   };
   /* New hours or a synced register while it's open: draw it again. */
   let t=null;
-  if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",()=>{clearTimeout(t);t=setTimeout(()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))page()},300)});
+  if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",()=>{clearTimeout(t);t=setTimeout(()=>{if(typeof screen!=="undefined"&&screen==="calendar"&&!document.querySelector(".chat-sheet,#modal-root .pv-sheet"))(window.eviaTidy?window.eviaTidy.plan():page())},300)});
 })();

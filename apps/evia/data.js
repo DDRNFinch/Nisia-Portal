@@ -11,7 +11,7 @@
    copy of the record, for the screens that show it; the fields around it are what Evia Portal reads.
    Sync (for Evia Portal, nothing else):     eviaData.changesSince()  eviaData.markSynced(records)
    Collections: learner, evidence, supporting, nvqAnswers, hours, lessonResults, tests, confidence, scenarios,
-   reviews, targets, rewards, errors (the problem log, read only). Every other collection is written through here.
+   reviews, targets, rewards, checkins (weekly catch-ups), errors (the problem log, read only). Every other collection is written through here.
    eviaData.replace("targets", {course}, list) swaps a course's targets after a review. */
 (function(){
   const V=1,ID_KEY="evia7-learner-id",SYNC_KEY="evia7-data-synced";
@@ -124,6 +124,12 @@
       return ((readJson("evia7-skills",{})||{}).done||[]).filter(x=>x&&x.id).map(x=>base(x.id,{course:x.course||"",taskId:x.taskId||"",title:x.title||"",hours:x.hours||0,
         skills:x.skills||[],startedAt:iso(x.startedAt),completedAt:iso(x.doneAt),markedBy:x.markedBy||"self",marks:(x.marks||[]).map(m=>({text:m.text,met:!!m.met})),
         note:x.note||"",updatedAt:iso(x.doneAt)}));
+    },
+    /* Weekly catch-ups with Evia as coach (helper.js): how they were doing, whether they asked to talk to their tutor,
+       the goal they picked and how last week's went. Milos shows them. */
+    checkins(){
+      return ((readJson("evia7-coach",{})||{}).checkins||[]).filter(c=>c&&c.week).map(c=>base("checkin-"+c.week,{week:c.week,at:iso(c.at),mood:c.mood||null,
+        about:c.about||null,askedToTalk:!!c.told,goal:c.goal?{kind:c.goal.kind,n:c.goal.n,title:c.goal.title,setAt:iso(c.goal.at)}:null,goalResult:c.goalResult||null,updatedAt:iso(c.updatedAt||c.at)}));
     },
     /* The problem log (errors.js): read only, so Evia Portal can see what went wrong on the phone. */
     errors(){
@@ -262,6 +268,14 @@
         writeJson("evia7-progress-reviews",all.slice(-30));return String(r.id||all[all.length-1].id);
       }
     },
+    /* A catch-up, one a week: the week's one is replaced. */
+    checkins:{
+      put(r){
+        const st=readJson("evia7-coach",{})||{},all=(st.checkins||[]).filter(Boolean),i=all.findIndex(x=>x.week===r.week);
+        const rec=Object.assign({},i>=0?all[i]:{},r,{updatedAt:Date.now()});if(i>=0)all[i]=rec;else all.push(rec);
+        st.checkins=all.slice(-60);writeJson("evia7-coach",st);return "checkin-"+r.week;
+      }
+    },
     /* The learner's own details, merged into the profile; course switches the course. (Evia Portal will own course and dates.) */
     learner:{
       put(r){
@@ -325,7 +339,7 @@
   /* ---------- Sync with Evia Portal ----------
      Works whoever wrote the data (a screen not yet moved here included): each record's fingerprint is compared with
      the one last sent. changesSince() gives new and changed records, plus ids that have gone (deleted). */
-  const SYNCED=["learner","evidence","supporting","nvqAnswers","hours","lessonResults","tests","confidence","scenarios","reviews","targets","rewards","errors","skills"];
+  const SYNCED=["learner","evidence","supporting","nvqAnswers","hours","lessonResults","tests","confidence","scenarios","reviews","targets","rewards","errors","skills","checkins"];
   const fp=r=>{const s=JSON.stringify(r);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)};
   function changesSince(){
     const done=readJson(SYNC_KEY,{})||{},out=[];
@@ -349,9 +363,12 @@
   function enrolment(){
     let e=readJson(ENROL_KEY,null);
     try{const q=new URLSearchParams(location.search).get("course");if(q&&!(e&&e.course))e=Object.assign({},e,{course:q})}catch(_){}
-    return e&&e.course&&(!window.eviaPacks||window.eviaPacks.COURSES.includes(e.course))?e:null;
+    return e&&e.course&&(!window.eviaPacks||window.eviaPacks.COURSES.includes(e.course))?names(e):null;
   }
-  const enrol=e=>writeJson(ENROL_KEY,Object.assign({},e,{at:new Date().toISOString()}));
+  /* The college and employer are names; a record from Evia Portal (with a name in it) becomes its name. */
+  const nameOf=x=>x&&typeof x==="object"?String(x.name||x.employer_name||x.title||""):x;
+  const names=e=>e?Object.assign({},e,{college:nameOf(e.college),employer:nameOf(e.employer)}):e;
+  const enrol=e=>writeJson(ENROL_KEY,Object.assign({},names(e),{at:new Date().toISOString()}));
   /* The learner's own record, for screens that only need a name or dates. */
   const learner=()=>R.learner()[0];
 

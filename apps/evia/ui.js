@@ -598,7 +598,7 @@
   /* "Something else" brings back what's left on Evia's list. */
   function somethingElse(){
     document.body.classList.remove("evia-epa");
-    if(window.eviaTodo)window.eviaTodo.show({again:true});
+    if(window.eviaHelper)window.eviaHelper.show();else if(window.eviaTodo)window.eviaTodo.show({again:true});
   }
   function statsFromMenu(){userSays("My stats");myStats()}
   /* My targets: the targets from the latest review, or a new set from Evia if there aren't any. */
@@ -694,8 +694,13 @@
     const sheet=c.closest(".chat-sheet");
     const head=sheet&&sheet.querySelector(".sheet-head h2");if(head)head.innerHTML='<span class="evia-mini ev-head-face" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>Evia';
     c.innerHTML="";
-    /* Evia opens with what needs doing (evia-todo.js). */
-    if(!(opts&&opts.quiet===true)&&window.eviaTodo)window.eviaTodo.show();
+    /* Evia opens as a helper: the one thing that matters and the jobs she does (helper.js); without it, what needs doing (evia-todo.js). */
+    /* Whatever goes wrong, Evia never opens empty: the helper, else the list, else a hello. */
+    if(!(opts&&opts.quiet===true)){
+      try{(window.eviaHelper||window.eviaTodo).show()}
+      catch(e){if(window.eviaErrors)window.eviaErrors.log(e.message,{where:"chat.open",stack:e.stack});
+        try{if(window.eviaHelper&&window.eviaTodo)window.eviaTodo.show();else throw e}catch(_){say("Hi. What can I help with?")}}
+    }
     if(sheet)buildBar(sheet);
   }
   /* After a test: celebrate a good score and offer what to do next. */

@@ -510,7 +510,7 @@
   async function refreshDetails(c,e){
     const {data:d,error}=await c.rpc("nisia_my_details");
     if(error||!d)return;
-    const keep=v=>v===null||v===undefined?undefined:v;
+    const keep=v=>v===null||v===undefined?undefined:v&&typeof v==="object"&&!Array.isArray(v)&&"name" in v?v.name:v;
     const next=Object.assign({},e,{name:keep(d.name)??e.name,college:keep(d.college)??e.college,start:keep(d.start)??e.start,end:keep(d.end)??e.end,
       employer:keep(d.employer)??e.employer,employerContact:keep(d.employerContact)??e.employerContact,assessor:keep(d.assessor)??e.assessor,tutor:keep(d.tutor)??e.tutor,
       plannedOtjHours:keep(d.plannedOtjHours)??e.plannedOtjHours,reviewDue:d.reviewDue||null,lastReview:d.lastReview||null,safeguarding:d.safeguarding||e.safeguarding});
@@ -794,5 +794,5 @@
     if(open)setTimeout(()=>pushOpen(open),1200);
     setTimeout(pushRefresh,8000);
   });
-  window.eviaPush={state:pushState,on:pushOn,off:pushOff,asked:()=>!!pushPref().asked,open:pushOpen};
+  window.eviaPush={state:pushState,on:pushOn,off:pushOff,asked:()=>!!pushPref().asked,later:()=>pushPref({asked:true}),open:pushOpen};
 })();

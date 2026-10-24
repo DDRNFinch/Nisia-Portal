@@ -141,8 +141,8 @@
       '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
         '<div class="ev-modes">'+
         (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up",(assessor?"Just what your assessor still needs: ":"Just what this topic still needs: ")+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
-        (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions"):"")+
-        card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
+        (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"A list of photos to take, in any order"):"")+
+        card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Drop in as much or as little as you like, any day. Saved as one pack.","fr-start")+
         (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
         '</div>'+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
@@ -172,7 +172,8 @@
         pack.media=(pack.media||[]).concat({id,kind:info.kind,mime:mime||blob.type,secs:info.secs||0,transcript:info.transcript||"",takenAt:Date.now()});await savePack(pack)}
       catch(err){console.error("Evia recording save failed",err);alert("That recording could not be saved. Please try again.")}
     };
-    const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,addMedia,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
+    const photoSrc=async p=>{try{const rec=p&&p.id?await idbGet(p.id):null;return rec?URL.createObjectURL(rec.blob):(p&&p.src)||""}catch(_){return ""}};
+    const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,addMedia,photoSrc,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
     const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}})));
     const fr=$("#fr-start");if(fr)fr.onclick=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}window.eviaGuide.free(ctx)};
     const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
@@ -234,6 +235,8 @@
   /* A photo from Evia Portal (Evia on a new device), under the id its evidence already uses. */
   window.eviaDeleteEvidencePhoto=id=>idbDelete(id);
   window.eviaPutEvidencePhoto=(id,blob)=>idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id);
+  /* A photo made phone-sized (1280px, JPEG), for Evia's chat (helper.js). */
+  window.eviaShrinkPhoto=makeThumb;
   window.eviaStoreEvidencePhoto=blob=>{const id="submitted-"+Date.now()+"-"+Math.random().toString(36).slice(2);return idbPut({id,blob,addedAt:new Date().toISOString()}).then(()=>id)};
   const supportingPut=value=>openDB().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(SUPPORT_STORE,"readwrite");tx.objectStore(SUPPORT_STORE).put(value);tx.oncomplete=()=>resolve(value);tx.onerror=()=>reject(tx.error||new Error("Supporting evidence save failed"))}));
   const supportingGet=id=>openDB().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(SUPPORT_STORE,"readonly"),req=tx.objectStore(SUPPORT_STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error||new Error("Supporting evidence load failed"))}));

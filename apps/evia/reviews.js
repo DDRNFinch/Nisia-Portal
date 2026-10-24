@@ -478,6 +478,11 @@
   window.eviaStartReview=()=>startReview();
   window.eviaReviewReminder=reminder;
   /* The learner's side of the review is now the few quick questions in the review prep (review-prep.js). */
+  /* The learner's comments for the assessor, on one page (ui-tidy.js): the latest ones, and saving new ones. */
+  window.eviaComments={
+    latest:()=>{const all=reviewsNow();for(let i=all.length-1;i>=0;i--){const r=all[i];if(r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim()))return r}return null},
+    save:reflection=>{const r=newReview();if(!r)return false;r.reflection=reflection;save(r);return true}
+  };
   window.eviaChatReview=()=>{if(window.eviaPrepPack&&window.eviaPrepPack.answers){const k=window.eviaChatKit;if(k&&k.closeChat)k.closeChat();setTimeout(()=>window.eviaPrepPack.answers(()=>window.eviaPrepPack.open()),120)}else chatReview()};
   window.eviaResumeReview=resumeReview;
   window.eviaChatReviewFull=chatReview;   /* the older click-through, kept for its tests */

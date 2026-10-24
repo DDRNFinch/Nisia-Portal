@@ -480,16 +480,16 @@
   const TOUR=[
     {nav:"course",seen:"course",target:"[data-supporting-evidence]",tap:true,text:"It’s in <strong>Supporting evidence</strong>, on Topics. Tap it."},
     {seen:"supporting",target:savedTarget,text:"Here’s your PPE, linked to "+"{ksb}"+". Tap any file to see it or share it."},
-    {nav:"course",target:"#screen .unit-card[data-u]",tap:true,text:"Your topics are here on <strong>Topics</strong>. Tap one."},
+    {nav:"course",target:"#screen [data-u]",tap:true,text:"Your topics are here on <strong>Topics</strong>. Tap one."},
     {seen:"unit",target:".ev-modes",text:"Every unit works like your PPE: <strong>Evia guides you</strong>, or go <strong>free range</strong> and add it your way."},
-    {target:'[data-nav="learning"]',tap:true,text:"Tap <strong>Progress</strong>."},
-    {seen:"learning",text:"<strong>My progress</strong> shows how you’re doing, and what to do next."},
+    {target:'[data-nav="learning"]',tap:true,text:"Tap <strong>Review</strong>."},
+    {seen:"learning",text:"<strong>Review</strong> is your one checklist: everything your assessor needs at your next review. It ticks itself off as you go."},
     {target:'[data-nav="calendar"]',tap:true,get text(){return "Tap <strong>"+tabName()+"</strong>."}},
-    {seen:"calendar",get text(){return "Your profile"+(tabName()==="College"?", messages":"")+", your college days and your learning hours. Can’t make college? Tell me from here."}},
+    {seen:"calendar",text:"<strong>Time</strong> is your learning hours and college: log hours, check in, or tell me if you can’t make it."},
     {target:'[data-nav="teach"]',tap:true,text:"Tap <strong>Learn</strong>."},
     {seen:"teach",target:"#tg-shop",text:"Lessons, tests and games, like the one you just did. Each earns <strong>coins</strong>: spend them in the <strong>Shop</strong> on new looks for me."},
-    {seen:"evia",target:"#evia-fab",text:"And this is me. Tap me any time for help, evidence checks and practice tests."},
-    {nav:"calendar",target:"#cal-me",tap:true,text:"Last one: tap your <strong>profile</strong>."},
+    {seen:"evia",target:"#evia-fab",text:"And this is me, your coach. Once a week we’ll have a quick catch-up, and any time you’ve done a job, tell me and I’ll turn it into evidence."},
+    {nav:"course",target:"#th-me",tap:true,text:"Last one: tap your <strong>photo</strong>. Your profile is always here, top right."},
     {profile:true,seen:"profile"}
   ];
   let card=null,tapWatch=null,profileObserver=null;

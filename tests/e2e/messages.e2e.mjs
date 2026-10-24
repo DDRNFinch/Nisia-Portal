@@ -145,13 +145,13 @@ try {
   await ev.page.goto(site + "/evia/"); await ev.page.waitForTimeout(2000);
   await ev.page.evaluate(() => { document.getElementById("app").classList.remove("welcome-app-hidden"); const w = document.getElementById("welcome-screen"); if (w) w.remove(); if (typeof nav === "function") nav("course"); });
   /* No icon in the corner: the College tab carries the unread number, and Messages is at the top of it. */
-  await ev.page.waitForFunction(() => { const b = document.getElementById("nav-college-n"); return b && !b.hidden && b.textContent === "2"; }, null, { timeout: 15000 });
+  /* (The tester: Messages is a button in every page's header, with the unread number.) */
+  await ev.page.waitForFunction(() => { const b = document.querySelector("#th-msg em"); return b && !b.hidden && b.textContent === "2"; }, null, { timeout: 15000 });
   const evPlace = await ev.page.evaluate(() => ({ noIcon: !document.querySelector("#nm-btn:not([hidden])") || !document.getElementById("nm-btn").isConnected,
-    tab: document.getElementById("nav-college").textContent === "College", todo: (window.eviaTodo.list() || []).some((t) => /new message/.test(t.title)) }));
-  await ev.page.click('[data-nav="calendar"]'); await ev.page.waitForSelector("#cal-msgs");
-  const evRow = await ev.page.textContent("#cal-msgs");
+    tab: document.getElementById("nav-college").textContent === "Time", todo: (window.eviaTodo.list() || []).some((t) => /new message/.test(t.title)) }));
+  const evRow = await ev.page.getAttribute("#th-msg", "aria-label");
   await ev.page.waitForTimeout(800); await shot(ev.page, "msg-evia-college");
-  await ev.page.click("#cal-msgs"); await ev.page.waitForSelector(".nm-row.nm-unread");
+  await ev.page.click("#th-msg"); await ev.page.waitForSelector(".nm-row.nm-unread");
   const evRows = await ev.page.$$eval(".nm-row", (x) => x.map((y) => y.textContent.replace(/\s+/g, " ").trim()));
   await ev.page.click(".nm-row.nm-unread:has-text(\"Em Ployer\")"); await ev.page.waitForSelector(".nm-compose textarea");
   await ev.page.fill(".nm-compose textarea", "Thanks Em!"); await ev.page.click(".nm-send");
@@ -161,9 +161,9 @@ try {
   await ev.page.click(".nm-msg.nm-theirs"); const offer = await ev.page.textContent(".nm-menu");
   await ev.page.click('[data-act="cancel"]');
   await ev.page.click(".nm-panel [data-nm=close]"); await ev.page.waitForTimeout(400);
-  const evAfter = await ev.page.evaluate(() => document.getElementById("nav-college-n").textContent === "1"); /* the tutor's group message is still unread */
+  const evAfter = await ev.page.evaluate(() => (document.querySelector("#th-msg em") || {}).textContent === "1"); /* the tutor's group message is still unread */
   check("Evia: no message icon in the corner; the College tab shows the unread count, Messages at the top of it says how many are new, and Evia's list says there's a new message",
-    evPlace.noIcon && evPlace.tab && evPlace.todo && /Messages/.test(evRow) && /2 new messages/.test(evRow), JSON.stringify({ evPlace, evRow }));
+    evPlace.noIcon && evPlace.tab && evPlace.todo && /Messages, 2 new/.test(evRow || ""), JSON.stringify({ evPlace, evRow }));
   check("Evia: the conversation with the employer opens from the list, the learner replies, can report the employer's message, and the count goes down",
     evRows.some((r) => /Em Ployer/.test(r) && /Great work/.test(r)) && /Report to the college/.test(offer) && evAfter, JSON.stringify({ evRows, offer, evAfter }));
 

@@ -1,5 +1,8 @@
 /* Evia7 guided evidence: Evia walks a learner through one evidence pack, if they want her to.
-   window.eviaGuide.start({unitName, prompts, ksbs, pack, addFiles, save, done})
+   window.eviaGuide.start({unitName, prompts, ksbs, pack, addFiles, save, done, photoSrc})
+   A unit's own guide is a photo list (shots() below): what's worth a photo, taken in any order, finished any time,
+   written up whenever they like, or at the end by saying what each photo shows. Catch up and the PPE induction
+   still use the step-by-step guide:
      1. Photos: Evia's camera asks for one thing at a time, in the order of the job (getting ready, setting out,
         part-way through, finished); take as many as you like, or skip. Each photo is saved as soon as it's taken.
      2. Questions: one per stage, with that stage's things to mention as pills; tapping one opens a box for it.
@@ -171,6 +174,8 @@
   }
   let cur="guide";   /* which route's Evia the sheets show */
   function start(ctx){
+    /* A unit's own guide is a photo list (shots); catch up and the PPE induction keep their step-by-step plan. */
+    if(!ctx.plan&&!ctx.route)return shots(ctx);
     cur=ctx.route||"guide";
     /* ctx.plan: a pack with its own photos and questions (the PPE induction), instead of the unit's. */
     const P=ctx.plan||plan(ctx),g=load(ctx.pack,gk(ctx)),answered=answeredIn(g,P.asks);
@@ -226,7 +231,7 @@
   const chipsOf=a=>(a.terms&&a.terms.length?a.terms:(a.topics||[]).filter(t=>t!==OTHER)).map(cap);
   function ask(ctx,P,i){
     const g=ctx.pack[gk(ctx)],n=P.asks.length;
-    if(i>=n){review(ctx,P);return}
+    if(i>=n){if(!ctx.plan&&!ctx.route){ctx.pack[gk(ctx)].at=null;ctx.save();return shots(ctx)}review(ctx,P);return}
     const a=P.asks[i],chips=chipsOf(a);
     mark(ctx,{phase:"ask",i});
     const el=sheet(
@@ -271,6 +276,71 @@
         if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Statement added to your write-up"),250);
       }}],
       {kicker:(ctx.kicker||"EVIA · GUIDED EVIDENCE"),title:"Your statement",back:()=>ask(ctx,P,P.asks.length-1),keep:true,full:true,compact:true});
+  }
+
+  /* ---------- The photo list ----------
+     Evia lists what's worth a photo; the learner takes them in any order, as many as they like, and finishes when they
+     want. They can write it up whenever they like (Evia's questions, as before). If they finish with no write-up,
+     Evia shows each photo in turn and asks what it shows, with what to mention, and the answers become the write-up.
+     Captions are kept in the pack (pack.guide.captions, by photo id). */
+  function shots(ctx){
+    cur="guide";
+    const P=plan(ctx),g=load(ctx.pack,"guide"),n=(ctx.pack.photos||[]).length,w=words(ctx.pack.write)+answeredIn(g,P.asks);
+    const canCam=window.eviaCamera&&window.eviaCamera.supported();
+    const list=P.photos.map(p=>'<li><strong>'+esc(p.say)+'</strong>'+(p.hint?'<small>'+esc(p.hint)+'</small>':"")+'</li>').join("");
+    const el=sheet('<p class="eg-say">'+(n?"You’ve got <strong>"+plural(n,"photo")+"</strong> so far. Add more, or finish whenever you’re ready.":"Here’s what’s worth a photo. Take them in any order, as many as you like, and finish whenever you want.")+'</p>'+
+      '<ul class="eg-shots">'+list+'</ul>'+
+      (n?'<div class="eg-thumbs" id="eg-thumbs"></div>':"")+
+      '<p class="eg-small">Everything saves as you go. You can write it up now, or I’ll help you at the end.</p>',
+      [{label:canCam?"Take photos":"Add photos",primary:!n,run:()=>canCam?shotCamera(ctx,P):gallery(ctx,()=>shots(ctx))},
+       canCam?{label:"Add from gallery",run:()=>gallery(ctx,()=>shots(ctx))}:null,
+       n||w?{label:w?"Carry on writing":"Write it up now",run:()=>ask(ctx,P,firstGap(P,g))}:null,
+       n||w?{label:"I’m finished",primary:true,run:()=>finish(ctx,P)}:null].filter(Boolean),
+      {kicker:"EVIA · PHOTO LIST",title:ctx.unitName,wide:true});
+    closeRefreshes(ctx);
+    if(n&&ctx.photoSrc){const box=el.querySelector("#eg-thumbs");Promise.all((ctx.pack.photos||[]).slice(-8).map(ctx.photoSrc)).then(srcs=>{if(box)box.innerHTML=srcs.filter(Boolean).map(s=>'<img src="'+s+'" alt="">').join("")})}
+  }
+  function shotCamera(ctx,P){
+    close(true);
+    window.eviaCamera.open({title:ctx.unitName,prompts:P.photos.map(p=>p.say),onDone:async files=>{
+      if(files.length)await ctx.addFiles(files);
+      setTimeout(()=>shots(ctx),60);
+    }});
+  }
+  /* Finished: a write-up already (theirs or from Evia's questions)? Use it. If not, describe each photo. */
+  function finish(ctx,P){
+    const g=ctx.pack.guide,text=compile(ctx,P);
+    if(text){ctx.pack.write=text;g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();return}
+    if(!(ctx.pack.photos||[]).length){close();ctx.done();return}
+    describe(ctx,P,0);
+  }
+  function describe(ctx,P,i){
+    const g=ctx.pack.guide;g.captions=g.captions||{};
+    const ph=ctx.pack.photos||[],n=ph.length;
+    if(i>=n)return describeDone(ctx,P);
+    const p=ph[i],terms=split(ctx.prompts&&ctx.prompts.writeup).slice(0,8);
+    const el=sheet('<div class="eg-progress" aria-hidden="true"><i style="width:'+Math.round((i+1)/n*100)+'%"></i></div>'+
+      '<div class="eg-photo" id="eg-photo"></div>'+
+      '<p class="eg-say eg-q">What does this photo show?</p>'+
+      '<p class="eg-small">What you were doing, how, and why. A sentence or two is fine.</p>'+
+      (terms.length?'<div class="eg-mention"><span class="eg-mention-h">Things to mention</span>'+terms.map(t=>'<span class="eg-chip" data-t="'+esc(cap(t))+'">'+esc(cap(t))+'</span>').join("")+'</div>':"")+
+      '<textarea class="eg-text" id="eg-text" data-otj="'+esc(ctx.unitName)+'" rows="4" placeholder="This photo shows…" aria-label="What this photo shows">'+esc(g.captions[p.id]||"")+'</textarea>',
+      [{label:i===n-1?"Done":"Next photo",primary:true,run:()=>{save();describe(ctx,P,i+1)}}],
+      {kicker:"EVIA · PHOTO "+(i+1)+" OF "+n,title:"Your photos",back:i>0?()=>{save();describe(ctx,P,i-1)}:()=>{save();shots(ctx)},keep:true,full:true,compact:true});
+    if(ctx.photoSrc)ctx.photoSrc(p).then(src=>{const b=el.querySelector("#eg-photo");if(b&&src)b.innerHTML='<img src="'+src+'" alt="Photo '+(i+1)+'">'});
+    const box=el.querySelector("#eg-text"),chips=[...el.querySelectorAll(".eg-chip")];
+    const light=()=>{const t=box.value.toLowerCase();chips.forEach(c=>c.classList.toggle("on",!!(window.eviaTermMatched?window.eviaTermMatched(c.dataset.t,t):t.includes(c.dataset.t.toLowerCase()))))};
+    function save(){g.captions[p.id]=box.value.trim();ctx.save()}
+    let t=null;box.oninput=()=>{light();clearTimeout(t);t=setTimeout(save,400)};light();
+  }
+  function describeDone(ctx,P){
+    const g=ctx.pack.guide,text=(ctx.pack.photos||[]).map(p=>String(g.captions[p.id]||"").trim()).filter(Boolean).join("\n\n");
+    if(!text){sheet('<p class="eg-say">No descriptions yet, so there’s no write-up. Your photos are saved: you can come back to me any time.</p>',[{label:"Close",primary:true,run:()=>{close();ctx.done()}}],{kicker:"EVIA · PHOTO LIST",title:ctx.unitName});return}
+    const el=sheet('<p class="eg-say">Here’s your write-up, from what you said about your photos. Change anything you like.</p>'+
+      '<textarea class="eg-text eg-final" id="eg-final" rows="12" aria-label="Your write-up">'+esc(text)+'</textarea>',
+      [{label:"Use this write-up",primary:true,run:()=>{ctx.pack.write=el.querySelector("#eg-final").value.trim();g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();
+        if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Write-up added"),250)}}],
+      {kicker:"EVIA · PHOTO LIST",title:"Your write-up",back:()=>describe(ctx,P,(ctx.pack.photos||[]).length-1),keep:true,full:true,compact:true});
   }
 
   /* ---------- Sheet ---------- */
