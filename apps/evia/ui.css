@@ -3310,3 +3310,13 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .pv-nw{white-space:nowrap}
 .pv-sheet .pv-stats .pv-stat:last-child:nth-child(odd){grid-column:1/-1}
 .pv-stat strong .pv-nw{display:inline;font-size:inherit;color:inherit;font-weight:inherit}
+/* Journey pack and the Review card: two roomy columns of numbers. */
+.jp-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.jp-tiles.jp-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.jp-tile{padding:12px 12px 11px;border-radius:14px}
+.jp-tile b{font-size:19px}
+.jp-tile small{font-size:12.5px}
+@media (max-width:380px){.jp-tiles.jp-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.jp-tiles.jp-3 .jp-tile{padding:11px 10px 10px}
+.jp-tiles.jp-3 .jp-tile b{font-size:18px}
+.jp-tiles.jp-3 .jp-tile small{font-size:11.5px;line-height:1.25}

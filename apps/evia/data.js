@@ -363,9 +363,12 @@
   function enrolment(){
     let e=readJson(ENROL_KEY,null);
     try{const q=new URLSearchParams(location.search).get("course");if(q&&!(e&&e.course))e=Object.assign({},e,{course:q})}catch(_){}
-    return e&&e.course&&(!window.eviaPacks||window.eviaPacks.COURSES.includes(e.course))?e:null;
+    return e&&e.course&&(!window.eviaPacks||window.eviaPacks.COURSES.includes(e.course))?names(e):null;
   }
-  const enrol=e=>writeJson(ENROL_KEY,Object.assign({},e,{at:new Date().toISOString()}));
+  /* The college and employer are names; a record from Evia Portal (with a name in it) becomes its name. */
+  const nameOf=x=>x&&typeof x==="object"?String(x.name||x.employer_name||x.title||""):x;
+  const names=e=>e?Object.assign({},e,{college:nameOf(e.college),employer:nameOf(e.employer)}):e;
+  const enrol=e=>writeJson(ENROL_KEY,Object.assign({},names(e),{at:new Date().toISOString()}));
   /* The learner's own record, for screens that only need a name or dates. */
   const learner=()=>R.learner()[0];
 

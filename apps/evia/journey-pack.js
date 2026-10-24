@@ -17,6 +17,8 @@
   const dt=t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
   const LEVEL={strong:3,good:2,weak:1};
 
+  /* The college or employer as Evia Portal sent it: a name, or a record with one. */
+  const nameOf=x=>!x?"":typeof x==="object"?String(x.name||x.employer_name||x.title||""):String(x);
   function data(){
     const S=window.eviaStats.compute(),a=S.a,P=window.eviaPrepPack?window.eviaPrepPack.pack():null;
     const D=window.eviaData,en=(D.enrolment&&D.enrolment())||{},pr=D.learner()||{};
@@ -26,7 +28,7 @@
     const T=window.eviaTargets,tg=T?T.mine():[];
     const targets=tg.map(t=>{let p={pct:t.done?1:0,text:""};try{p=T.progress(t,S)}catch(_){}return {title:t.title,pct:Math.round((t.done?1:p.pct)*100),done:!!t.done,due:t.due}});
     const conf=S.confidence||{},sc=conf.scores||[];
-    return {S,a,P,name:pr.name||en.name||"",course:(()=>{try{return C[course].name}catch(_){return ""}})(),college:en.college||"",employer:en.employer||"",
+    return {S,a,P,name:pr.name||en.name||"",course:(()=>{try{return C[course].name}catch(_){return ""}})(),college:nameOf(en.college),workplace:nameOf(en.employer),
       start,end,timePct:a.timePct,ksb:{met:a.met,total:a.total,pct:a.ksbPct,word:window.eviaNvq&&window.eviaNvq.on()?"criteria":"KSBs"},
       hours:{total:Math.round((S.otjTotal||0)*10)/10,planned:P&&P.hours.planned,since:P?P.hours.since:0},
       evidence:{total:(a.entries||[]).length,since:P?P.evidence.since:0,units:P?P.evidence.units:[]},
@@ -95,7 +97,7 @@
   function journeyCard(){try{const J=data();return '<section class="th-hero jp-mini"><span class="th-k">Your journey</span>'+road(J)+tiles(J)+'</section>'}catch(_){return ""}}
   function body(J){
     const sec=(t,h)=>h?'<section class="jp-sec"><h3>'+t+'</h3>'+h+'</section>':"";
-    return '<div class="jp-head"><strong>'+esc(J.name||"Apprentice")+'</strong><span>'+esc([J.course,J.employer,J.college].filter(Boolean).join(" · "))+'</span></div>'+
+    return '<div class="jp-head"><strong>'+esc(J.name||"Apprentice")+'</strong><span>'+esc([J.course,J.workplace,J.college].filter(Boolean).join(" · "))+'</span></div>'+
       sec("Where I am",road(J)+tiles(J))+
       sec("Since my last review"+(J.from?" ("+esc(dt(J.from))+")":""),'<div class="jp-tiles jp-3">'+tile(String(J.evidence.since),"new evidence")+tile(esc(hm(J.hours.since)),"hours logged")+tile(String(J.evidence.units.length),"topics worked on")+'</div>'+
         (J.evidence.units.length?'<p class="jp-note">'+esc(J.evidence.units.join(", "))+'</p>':""))+
@@ -152,7 +154,7 @@
     doc.setFillColor(...yellow);doc.rect(0,0,W,4,"F");
     font(8,true,muted);doc.setCharSpace(.35);doc.text("EVIA · MY APPRENTICESHIP JOURNEY",M,y+4);doc.setCharSpace(0);y+=8;
     font(20,true);doc.text(txt(J.name||"Apprentice"),M,y+7);y+=11;
-    font(10,false,muted);doc.text(txt([J.course,J.employer,J.college].filter(Boolean).join(" · ")),M,y+3);font(8.5,false,muted);doc.text(txt("Prepared "+dt(Date.now())),W-M,y+3,{align:"right"});y+=9;
+    font(10,false,muted);doc.text(txt([J.course,J.workplace,J.college].filter(Boolean).join(" · ")),M,y+3);font(8.5,false,muted);doc.text(txt("Prepared "+dt(Date.now())),W-M,y+3,{align:"right"});y+=9;
     /* Where I am: the road */
     head("Where I am");
     const k=Math.min(100,J.ksb.pct||0),t=J.timePct==null?null:Math.max(0,Math.min(100,J.timePct)),behind=t!=null&&t-k>10;
