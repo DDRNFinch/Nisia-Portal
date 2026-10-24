@@ -3283,3 +3283,16 @@ body.evia-dark #chat .hp-help{background:#16233a;border-color:#22385a;color:#cfe
 .jp-acts button{width:100%;min-height:50px;border-radius:14px;font-size:16px}
 body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 @media (prefers-reduced-motion:reduce){.th-col i,.jp-fill{animation:none}}
+/* Journey pack: every KSB as a chip, coloured by where it is. */
+.jp-kgroup{padding:8px 0;border-top:1px solid var(--ui-line,#eef0f3)}.jp-kgroup:first-of-type{border-top:0}
+.jp-khead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.jp-khead strong{font-size:13.5px}.jp-khead small{font-size:12px;color:var(--ui-muted,#667085)}
+.jp-codes{display:flex;flex-wrap:wrap;gap:5px}
+.jp-code{min-width:36px;padding:4px 7px;border-radius:8px;border:0;font:inherit;font-size:12px;font-weight:800;cursor:pointer;line-height:1.2}
+.jp-code.met{background:#dcf3e5;color:#067647}.jp-code.wait{background:#fff3cc;color:#7a5d00}.jp-code.none{background:#f2f4f7;color:#98a2b3}
+.jp-code.on{outline:2px solid var(--ui-ink,#172033);outline-offset:1px}
+.jp-key{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 0;font-size:12px;color:var(--ui-muted,#667085)}.jp-key .jp-code{cursor:default;min-width:0}
+.jp-list{display:flex;flex-direction:column}.jp-list>div{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-top:1px solid var(--ui-line,#eef0f3)}.jp-list>div:first-child{border-top:0}
+.jp-list b{font-size:13.5px;color:var(--ui-ink,#172033)}.jp-list small{font-size:12.5px;color:var(--ui-muted,#667085);line-height:1.4}
+/* Topics: Your course opens the KSBs. */
+.th-hero.th-tap{cursor:pointer;text-align:left;font:inherit;width:100%}
+.th-hero .th-more{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:13px;font-weight:800;color:var(--yellow-ink,#6e5c00)}

@@ -89,8 +89,8 @@
     const ev=typeof evidence!=="undefined"?evidence:[],mine=n=>ev.filter(e=>e.c===course&&e.u===n&&!e.induction);
     const LV={strong:["Strong","g"],good:["Good","y"],weak:["Weak","o"]};
     const behind=A&&A.timePct!=null&&A.timePct-A.ksbPct>10;
-    const hero=A?'<section class="th-hero"><span class="th-k">Your course</span><strong class="th-big">'+A.ksbPct+'%<small> of '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+'</small></strong>'+
-      '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":A.timePct-A.ksbPct>25?"Behind for this point in your course: you’re "+A.timePct+"% of the way through":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small></section>':"";
+    const hero=A?'<section class="th-hero th-tap" id="th-course" role="button" tabindex="0" aria-label="Your course: see your '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+'"><span class="th-k">Your course</span><strong class="th-big">'+A.ksbPct+'%<small> of '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+'</small></strong>'+
+      '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":A.timePct-A.ksbPct>25?"Behind for this point in your course: you’re "+A.timePct+"% of the way through":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small><span class="th-more">See your '+esc(window.eviaTerm?window.eviaTerm().many:"KSBs")+' ›</span></section>':"";
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':"")+(n&&typeof strengthBars==="function"?'<span class="th-bars" title="'+esc(lv?LV[lv][0]+" evidence":"")+'">'+strengthBars(lv)+'</span>':"")+GO+'</button>'});
@@ -101,6 +101,9 @@ hero+
         row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"Share your evidence as one PDF"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
+    /* Your course: every KSB (criterion on an NVQ), what it means and where it is. */
+    const ksbs=()=>window.eviaProgressDeep&&window.eviaProgressDeep(nvq?"ksb":"where");
+    on("th-course",ksbs);const hc=document.getElementById("th-course");if(hc)hc.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ksbs()}};
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     /* The first-run tour points at Supporting evidence by this. */
     const sup=document.getElementById("th-sup");if(sup)sup.setAttribute("data-supporting-evidence","");
@@ -185,12 +188,14 @@ hero+
       '<h2 class="th-h2">Ready for your review</h2><div class="th-group">'+C.items.map(x=>'<button type="button" class="th-row th-check'+(x.ok?" th-ok":"")+'" data-check="'+x.id+'"><span class="th-tick">'+(x.ok?TICK:"")+'</span>'+
         '<span class="th-copy"><strong>'+esc(x.title)+'</strong><small>'+esc(x.sub)+'</small></span>'+GO+'</button>').join("")+'</div>'+
       '<div class="th-group th-quiet">'+[window.eviaJourneyPack?row({id:"th-prep",ic:"send",title:"My journey pack",sub:"Where you are, to show or share with your assessor"}):"",
+        row({id:"th-ksbs",ic:"target",title:"My "+(window.eviaTerm?window.eviaTerm().many:"KSBs"),sub:(()=>{try{const a=window.eviaStats.compute().a;return a.met+" of "+a.total+(a.signoff?" signed off":" with evidence")}catch(_){return ""}})()}),
         row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>'+
       /* My future: their goal, the steps towards it, guides and the college's careers sessions (future.js). */
       (window.eviaFuture?'<div class="th-group th-quiet">'+row({id:"th-future",ic:"star",title:"My future",sub:(()=>{const F=window.eviaFuture.summary&&window.eviaFuture.summary();return F?F.goal+" · "+F.done+" of "+F.steps+" steps":"Where do you want your trade to take you?"})()})+'</div>':"");
     wireHeader();
     scr().querySelectorAll("[data-check]").forEach(b=>b.onclick=()=>{const x=C.items.find(i=>i.id===b.dataset.check);if(x&&x.run)x.run()});
     on("th-prep",()=>window.eviaJourneyPack.open());
+    on("th-ksbs",()=>window.eviaProgressDeep&&window.eviaProgressDeep(window.eviaNvq&&window.eviaNvq.on()?"ksb":"where"));
     on("th-past",()=>window.eviaProgressDeep&&window.eviaProgressDeep("review"));
     on("th-future",()=>window.eviaFuture.open());
   }

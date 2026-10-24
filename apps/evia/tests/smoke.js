@@ -191,12 +191,13 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Ask me answers a typed question and keeps the box for the next one",hp.answer,JSON.stringify(hp));
     const jp=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms));window.eviaChatKit&&window.eviaChatKit.closeChat();await w(300);
       window.eviaJourneyPack.open();await w(500);const sh=document.querySelector(".jp-sheet"),t=sh?sh.textContent:"";
-      const out={sheet:!!sh&&/Where I am/.test(t)&&/My topics/.test(t)&&!!sh.querySelector(".jp-now,.jp-track")&&sh.querySelectorAll(".jp-bars").length>=3&&!!sh.querySelector("#jp-share"),notReview:!/Signature|Review date/.test(t)};
+      const out={ksbChips:!!sh&&sh.querySelectorAll(".jp-code[data-k]").length>=10&&/Knowledge/.test(t),more:!!sh&&/How good my evidence is/.test(t)&&/At college/.test(t),sheet:!!sh&&/Where I am/.test(t)&&/My topics/.test(t)&&!!sh.querySelector(".jp-now,.jp-track")&&sh.querySelectorAll(".jp-bars").length>=3&&!!sh.querySelector("#jp-share"),notReview:!/Signature|Review date/.test(t)};
       const blob=await window.eviaJourneyPack.pdf();out.pdf=blob&&blob.size>3000;document.getElementById("modal-root").innerHTML="";
-      nav("learning");await w(400);out.card=!!document.querySelector(".jp-mini .jp-track")&&!!document.getElementById("th-prep");
+      nav("learning");await w(400);out.card=!!document.querySelector(".jp-mini .jp-track")&&!!document.getElementById("th-prep")&&!!document.getElementById("th-ksbs");
+      nav("course");await w(400);document.getElementById("th-course").click();await w(500);out.yourCourse=!!document.querySelector("#modal-root [data-ksb]");document.getElementById("modal-root").innerHTML="";
       nav("calendar");await w(400);out.weeks=document.querySelectorAll(".th-chart .th-col").length===8;
       nav("course");await w(400);out.bars=!document.querySelector(".th-pill-g,.th-pill-o")&&[...document.querySelectorAll(".th-pill")].every(x=>x.textContent==="Draft");window.chat({quiet:true});await w(800);return out});
-    check("Journey pack: a picture of where the learner is (the road to the end of the course, topics with strength bars), shared as a PDF, not a review; Review shows the journey, Time the last 8 weeks, Topics uses bars not words",Object.values(jp).every(Boolean),JSON.stringify(jp));
+    check("Your course on Topics and My KSBs on Review open every KSB; Journey pack: every KSB as a chip, everything Evia uses for a review, a picture of where the learner is (the road to the end of the course, topics with strength bars), shared as a PDF, not a review; Review shows the journey, Time the last 8 weeks, Topics uses bars not words",Object.values(jp).every(Boolean),JSON.stringify(jp));
     const pop=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),N=window.eviaNisia,rj=N.joined,rc=N.classNow;
       N.joined=()=>({live:true});N.classNow=()=>({id:"s1",class:"BWK Apps",starts_at:new Date().toISOString(),room:"GLC"});sessionStorage.removeItem("evia7-checkin-asked");
       window.eviaHelper.askCheckIn();const el=document.getElementById("hp-checkin"),text=el?el.textContent:"";if(el)el.querySelector("[data-no]").click();await w(400);
