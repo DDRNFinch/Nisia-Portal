@@ -1,12 +1,18 @@
-/* Evia7 helper: Evia turns the learner's day at work into their portfolio. Tapping Evia asks "How was today?" and
-   shows their topics as the jobs they might have done (typing a few words finds the topic too). Then, all in her chat:
-   photos of it (camera or the phone's pictures), what they did in a few words, which of the topic's key points it
-   involved (tap any), what they did to work safely (tap any), and a write-up built only from those answers, in their
-   own words, which they can change before saving it to the topic with its KSBs. Then an offer to log learning hours.
-   No AI: nothing is made up, so it works offline and the assessor sees what the learner said.
-   Ask me (sums, tools, terms) and Practise sit underneath as extras; More holds the review, targets and the rest.
+/* Evia7 coach: Evia is the learner's vocational coach. The other tabs are the portfolio and the tracking; she keeps
+   them on course between visits, the way a coach does.
+   - A weekly catch-up (about 3 minutes, she asks for it): how last week's goal went (measured, not asked), how
+     they're doing (one tap; "not great" asks what about, offers to tell their tutor, and gives support contacts), how
+     the course is going in one plain sentence, and one small goal for the week, picked by them from her suggestions.
+     Then anything from the week to add: evidence or learning hours.
+   - Four ways in whenever they need her: I've done a job (their day at work into evidence: photos, a few words, key
+     points, safety, a write-up from their own words saved to the topic with its KSBs), I'm stuck, Something's not
+     right (worries and safeguarding: support contacts, and their tutor told if they choose), and Ask me (sums, tools,
+     terms). Log hours, Practise and Other things sit underneath.
+   No AI: every conversation is written, so it's consistent, works offline and the college can trust it.
+   Kept in "evia7-coach": {checkins: [{week, at, mood, about, told, goal: {kind, n, title, at, base}}]}.
    Also here: the check-in pop-up when the app opens while the learner's class is on.
-   window.eviaHelper: show(), today(unitIndex), top(), askCheckIn(), writeUp(answers). */
+   window.eviaHelper: show(), catchUp(), today(unitIndex), job(), stuck(), notRight(), top(), askCheckIn(), writeUp(a),
+   goalProgress(goal). */
 (function(){
   const K=()=>window.eviaChatKit,C=()=>window.eviaCoachFlows||{};
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -58,6 +64,145 @@
       C().confidence&&{label:"Confidence check",run:()=>{k.userSays("Confidence check");C().confidence()}},
       live&&window.eviaTodo&&window.eviaTodo.away&&{label:"Can’t make college?",run:()=>window.eviaTodo.away()},
       {label:"Back",back:true,run:()=>show()}].filter(Boolean));
+  }
+
+
+  /* ---------- The coach: weekly catch-up ---------- */
+  const CKEY="evia7-coach",DAY=864e5;
+  const readC=()=>{try{const v=JSON.parse(localStorage.getItem(CKEY)||"null");return Object.assign({checkins:[]},v||{})}catch(_){return {checkins:[]}}};
+  const writeC=v=>{try{localStorage.setItem(CKEY,JSON.stringify(v))}catch(_){}};
+  const weekOf=t=>{const d=new Date(t==null?Date.now():t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+  const thisWeek=()=>readC().checkins.find(c=>c.week===weekOf());
+  const lastCheckin=()=>readC().checkins.filter(c=>c.week!==weekOf()).slice(-1)[0]||null;
+  const when=x=>Number(x)||Date.parse(x||"")||0;
+  const stats=()=>{try{return window.eviaStats.compute()}catch(_){return null}};
+  const hm=h=>window.eviaHM?window.eviaHM(h):Math.round(h*10)/10+"h";
+  const lessonsDone=()=>{try{return window.eviaTeach.report().done||0}catch(_){return 0}};
+  const ev=()=>typeof evidence!=="undefined"&&Array.isArray(evidence)?evidence.filter(e=>e&&e.c===course):[];
+  function aimPerWeek(){
+    try{const en=window.eviaData.enrolment&&window.eviaData.enrolment(),p=window.eviaData.learner()||{},a=Date.parse((en&&en.start)||p.start||""),b=Date.parse((en&&en.end)||p.end||""),pl=Number(en&&en.plannedOtjHours);
+      if(pl>0&&b>a)return Math.max(1,Math.round(pl/((b-a)/(7*DAY))))}catch(_){}
+    return 6;
+  }
+  /* A goal measures itself from what the learner does in the app. */
+  const GOALS={
+    evidence:{title:n=>n===1?"Add 1 piece of evidence":"Add "+n+" pieces of evidence",measure:g=>ev().filter(e=>when(e.savedAt)>=g.at).length},
+    hours:{title:n=>"Log "+n+" hours of learning",measure:g=>Math.round(window.eviaData.list("hours").filter(h=>when(h.createdAt)>=g.at).reduce((s,h)=>s+(Number(h.minutes)||0),0)/60*10)/10},
+    lessons:{title:n=>n===1?"Do 1 Teach me lesson":"Do "+n+" Teach me lessons",measure:g=>Math.max(0,lessonsDone()-(g.base||0))},
+    quiz:{title:()=>"Do a quick quiz",n:1,measure:g=>window.eviaData.list("tests").filter(t=>t&&when(t.takenAt)>=g.at).length},
+    topic:{title:()=>"Start a new topic",n:1,measure:g=>{const S=stats();return S?Math.max(0,S.a.units.filter(u=>u.started).length-(g.base||0)):0}}
+  };
+  function goalProgress(g){if(!g||!GOALS[g.kind])return null;const v=GOALS[g.kind].measure(g);return {v,done:v>=g.n}}
+  /* Three goals to pick from: what helps most first. */
+  function goalOptions(){
+    const S=stats(),aim=aimPerWeek(),out=[];if(!S)return [];
+    const behind=S.a.timePct!=null&&S.a.timePct-S.a.ksbPct>10;
+    out.push({kind:"evidence",n:behind?2:1});
+    out.push({kind:"hours",n:Math.max(1,Math.round(aim-Math.min(aim,S.otjWeek||0))||aim)});
+    if(S.unitsLeft>0&&behind)out.push({kind:"topic",n:1,base:S.a.units.filter(u=>u.started).length});
+    if(window.eviaTeach)out.push({kind:"lessons",n:2,base:lessonsDone()});
+    out.push({kind:"quiz",n:1});
+    return out.slice(0,3).map(g=>Object.assign(g,{title:GOALS[g.kind].title(g.n)}));
+  }
+  /* How the course is going, in one plain sentence. */
+  function howItsGoing(){
+    const S=stats();if(!S)return "";
+    const a=S.a,word=nvq()?"criteria":"KSBs";
+    if(a.timePct==null)return "Add your course dates in your profile and I’ll tell you how you’re doing against them.";
+    const want=Math.round(a.total*a.timePct/100),have=Math.max(a.met,0),gap=want-have;
+    const claimed=a.possible&&a.possible.size?a.possible.size:0;
+    if(gap<=0)return "You’re on track: "+have+" of "+a.total+" "+word+" done, and you’re "+a.timePct+"% of the way through the course.";
+    /* How much evidence would catch them up by the end: each piece covers about one topic's share of the KSBs. */
+    const weeks=S.weeksLeft||0,perPiece=Math.max(1,a.total/Math.max(1,a.units.length)),pieces=Math.ceil(gap/perPiece),rate=weeks?pieces/weeks:0;
+    const pace=!weeks?"":rate>=1?" About "+Math.ceil(rate)+" pieces of evidence a week would catch you up by the end.":" One piece of evidence every "+Math.max(1,Math.floor(1/rate))+" weeks would catch you up by the end.";
+    return "You’re "+gap+" "+word+" behind where you’d want to be ("+have+" of "+a.total+" done, "+a.timePct+"% of the way through)."+(claimed?" "+claimed+" more are waiting for your assessor to check.":"")+pace;
+  }
+  /* Let the tutor know the learner would like to talk (they choose). Connected: a message in Evia's messages. */
+  async function tellTutor(about){
+    const N=window.eviaNisia,live=N&&N.joined&&N.joined()&&N.joined().live;
+    if(!live||!N.call)return false;
+    try{
+      const people=(await N.call("msg_contacts",{}))||[],t=people.find(x=>x.role==="tutor")||people.find(x=>x.role==="assessor");
+      if(!t)return false;
+      await N.call("msg_send",{p_with:t.member_id,p_body:"Hi, I’d like a chat when you have a minute"+(about?" (it’s about "+about.toLowerCase()+")":"")+". Sent from my catch-up with Evia."});
+      return t.name||"your tutor";
+    }catch(_){return false}
+  }
+  const HELP='<div class="hp-help"><strong>Help any time</strong><span>Your tutor and the college safeguarding team are there for you.</span><span><b>Samaritans</b> 116 123 · free, any time</span><span><b>Lighthouse construction helpline</b> 0345 605 1956 · any time</span><span>In danger right now? Call <b>999</b>.</span></div>';
+  function offerTutor(about,then){
+    const k=K();
+    k.say("Would you like me to let your tutor know you’d like a chat? I’ll just say you’d like to talk.");
+    k.replies([{label:"Yes, tell my tutor",primary:true,run:async()=>{k.userSays("Yes, tell my tutor");const who=await tellTutor(about);
+        k.say(who?"Done. I’ve messaged "+esc(who)+". They’ll get back to you.":"I can’t message them from here, so please tell your tutor or assessor next time you see them, or ring the college.");
+        k.widget(HELP);then&&then(!!who)}},
+      {label:"No thanks",run:()=>{k.userSays("No thanks");k.say("That’s fine. If you change your mind, I’m here.");k.widget(HELP);then&&then(false)}}]);
+  }
+  function catchUp(){
+    const k=K(),last=lastCheckin(),a={week:weekOf(),at:Date.now(),mood:null,about:null,told:false,goal:null};
+    k.userSays("Start our catch-up");
+    if(window.eviaMood)window.eviaMood("happy");
+    /* 1. Last week's goal, measured. */
+    if(last&&last.goal){const p=goalProgress(last.goal);
+      k.say(p&&p.done?"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. You did it ✓ Nice one.":"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. "+(p&&p.v>0?"You got part of the way.":"It didn’t happen, and that’s OK.")+" Let’s see what works this week.")}
+    /* 2. How they're doing. */
+    k.say("First, how are you doing at the moment?");
+    k.replies([["good","Good"],["ok","OK"],["low","Not great"]].map(([id,l],i)=>({label:l,primary:!i,run:()=>{k.userSays(l);a.mood=id;
+      if(id!=="low"){k.say(id==="good"?"Good to hear.":"Fair enough. Thanks for being honest.");return progress(a)}
+      k.say("Sorry to hear that. What’s it mostly about?");
+      k.replies([["Work"],["College"],["Home"],["Health"],["Rather not say"]].map(([x])=>({label:x,run:()=>{k.userSays(x);a.about=x;
+        offerTutor(x==="Rather not say"?"":x,told=>{a.told=told;progress(a)})}})));
+    }})));
+  }
+  function progress(a){
+    const k=K(),line=howItsGoing();
+    if(line)k.say(line);
+    k.say("What will you aim for this week? Pick one.");
+    const opts=goalOptions();
+    k.replies(opts.map((g,i)=>({label:g.title,primary:!i,run:()=>{k.userSays(g.title);a.goal=Object.assign({},g,{at:Date.now()});finish(a)}}))
+      .concat([{label:"Not this week",run:()=>{k.userSays("Not this week");finish(a)}}]));
+  }
+  function finish(a){
+    const k=K(),c=readC();c.checkins=c.checkins.filter(x=>x.week!==a.week).concat([a]).slice(-60);writeC(c);
+    if(window.eviaMood)window.eviaMood("happy");
+    k.say((a.goal?"Great. I’ll check how you got on next week. ":"No problem. ")+"That’s our catch-up done ✓");
+    k.say("Anything from this week to add while we’re here?");
+    k.replies([{label:"Add evidence",primary:true,run:()=>job()},{label:"Log hours",run:logHours},{label:"All done",run:()=>{k.userSays("All done");k.say("Nice work. Speak next week.")}}]);
+  }
+
+  /* ---------- The four ways in ---------- */
+  function job(){
+    const k=K();k.userSays("I’ve done a job");
+    k.say("Nice. What did you work on?");
+    pickTopic();
+  }
+  function pickTopic(){
+    const k=K(),list=units().slice().sort((x,y)=>(y.started?1:0)-(x.started?1:0)),first=list.slice(0,8);
+    const chip=u=>'<button type="button" class="hp-chip hp-job" data-u="'+u.index+'">'+esc(u.name)+'</button>';
+    k.widget('<div class="hp-pick hp-jobs-pick">'+first.map(chip).join("")+(list.length>8?'<button type="button" class="hp-chip hp-more" data-all>More…</button>':'')+'<button type="button" class="hp-chip hp-more" data-other>Something else</button></div>',el=>{
+      const off=()=>el.querySelectorAll("button").forEach(x=>x.disabled=true);
+      const bind=()=>el.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{off();today(+b.dataset.u)});bind();
+      const all=el.querySelector("[data-all]");if(all)all.onclick=()=>{all.insertAdjacentHTML("beforebegin",list.slice(8).map(chip).join(""));all.remove();bind();k.scrollChat&&k.scrollChat()};
+      el.querySelector("[data-other]").onclick=()=>{off();other()};
+    });
+    k.replies([{label:"Back",back:true,run:()=>show()}]);
+  }
+  function stuck(){
+    const k=K();k.userSays("I’m stuck");
+    k.say("No problem, that’s what I’m here for. What with?");
+    k.replies([
+      {label:"Writing up my evidence",run:()=>{k.userSays("Writing up my evidence");k.say("Easy fix: tell me what you did and I’ll build the write-up from your answers.");k.replies([{label:"Let’s do it",primary:true,run:()=>job()},{label:"Back",back:true,run:()=>show()}])}},
+      {label:"A topic I don’t get",run:()=>{k.userSays("A topic I don’t get");k.say("Teach me goes through each topic in short lessons with pictures. Start with the one you’re stuck on.");k.replies([{label:"Open Teach me",primary:true,run:leave(()=>nav("teach"))},{label:"Ask me a question",run:ask},{label:"Back",back:true,run:()=>show()}])}},
+      {label:"Maths or English",run:()=>{k.userSays("Maths or English");k.say("Little and often works best. Try 5 questions with worked answers.");
+        k.replies([window.eviaStartTest&&{label:"Maths",primary:true,run:()=>window.eviaStartTest("maths",5,"Maths test")},window.eviaStartTest&&{label:"English",run:()=>window.eviaStartTest("english",5,"English test")},{label:"Back",back:true,run:()=>show()}].filter(Boolean))}},
+      {label:"Something at work",run:()=>{k.userSays("Something at work");k.say("Your supervisor is the best person to ask on site. If it’s bigger than that, your tutor can help.");offerTutor("something at work")}},
+      {label:"Back",back:true,run:()=>show()}]);
+  }
+  function notRight(){
+    const k=K();k.userSays("Something’s not right");
+    if(window.eviaMood)window.eviaMood("think");
+    k.say("I’m glad you said. What’s it about?");
+    const ABOUT=[["Feeling unsafe at work","Nobody should feel unsafe at work. Stop and tell your supervisor if it’s happening now."],["Being treated badly","That’s not OK, and it’s not your fault."],["Pay or hours aren’t right","Your apprenticeship has rules about pay and training time. Your tutor can help sort it."],["Struggling with how I feel","Thanks for telling me. Talking to someone really does help."],["Something else","Thanks for telling me."]];
+    k.replies(ABOUT.map(([l,line])=>({label:l,run:()=>{k.userSays(l);k.say(line);offerTutor(l)}})).concat([{label:"Back",back:true,run:()=>show()}]));
   }
 
   /* ---------- Today at work → evidence ---------- */
@@ -189,18 +334,20 @@
     if(window.eviaMood)window.eviaMood("happy");
     if(urgent){k.say(esc(urgent.title)+(urgent.detail?". <span class=\"hp-detail\">"+esc(urgent.detail)+"</span>":""));
       k.widget('<button type="button" class="secondary hp-one">'+esc(urgent.label)+'</button>',el=>{el.querySelector("button").onclick=()=>urgent.run()})}
-    k.say(hello+". "+(h<12?"What are you working on today?":"How was today? What did you work on?"));
-    /* The topics as the jobs they might have done, as chips: the ones started first. */
-    const list=units().slice().sort((x,y)=>(y.started?1:0)-(x.started?1:0)),first=list.slice(0,8);
-    const chip=u=>'<button type="button" class="hp-chip hp-job" data-u="'+u.index+'">'+esc(u.name)+'</button>';
-    k.widget('<div class="hp-pick hp-jobs-pick">'+first.map(chip).join("")+(list.length>8?'<button type="button" class="hp-chip hp-more" data-all>More…</button>':'')+'<button type="button" class="hp-chip hp-more" data-other>Something else</button></div>'+
-      '<div class="hp-extras"><button type="button" data-x="hours">Log hours</button><button type="button" data-x="ask">Ask me</button><button type="button" data-x="practise">Practise</button><button type="button" data-x="more">Other things</button></div>',el=>{
-      const off=()=>el.querySelectorAll(".hp-pick button").forEach(x=>x.disabled=true);
-      const bind=()=>el.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{off();today(+b.dataset.u)});bind();
-      const all=el.querySelector("[data-all]");if(all)all.onclick=()=>{all.insertAdjacentHTML("beforebegin",list.slice(8).map(chip).join(""));all.remove();bind();k.scrollChat&&k.scrollChat()};
-      el.querySelector("[data-other]").onclick=()=>{off();other()};
-      const go={hours:logHours,ask,practise,more};
-      el.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>go[b.dataset.x]());
+    const done=thisWeek();
+    if(!done){
+      const last=lastCheckin();
+      k.say(hello+". Got 3 minutes for our catch-up?"+(last&&last.goal?" I want to hear how <strong>"+esc(last.goal.title.toLowerCase())+"</strong> went.":""));
+      k.widget('<button type="button" class="primary hp-start">Start our catch-up</button>',el=>{el.querySelector("button").onclick=e=>{e.target.disabled=true;catchUp()}});
+    }else{
+      const p=goalProgress(done.goal);
+      k.say(hello+". We’ve had our catch-up this week ✓"+(done.goal?" Your goal: <strong>"+esc(done.goal.title.toLowerCase())+"</strong>"+(p?(p.done?" — done ✓":" ("+(done.goal.kind==="hours"?hm(p.v)+" of "+done.goal.n+"h":p.v+" of "+done.goal.n)+")"):""):"")+" What can I help with?");
+    }
+    k.widget('<div class="hp-doors">'+[["job","I’ve done a job","Turn it into evidence"],["stuck","I’m stuck","Write-ups, topics, maths"],["wrong","Something’s not right","Worries, safety, wellbeing"],["ask","Ask me","Sums, tools, terms"]]
+      .map(([id,l,sub])=>'<button type="button" data-door="'+id+'"><strong>'+l+'</strong><small>'+sub+'</small></button>').join("")+'</div>'+
+      '<div class="hp-extras"><button type="button" data-x="hours">Log hours</button><button type="button" data-x="practise">Practise</button><button type="button" data-x="more">Other things</button></div>',el=>{
+      const go={job,stuck,wrong:notRight,ask,hours:logHours,practise,more};
+      el.querySelectorAll("[data-door],[data-x]").forEach(b=>b.onclick=()=>go[b.dataset.door||b.dataset.x]());
     });
   }
 
@@ -228,5 +375,5 @@
   setTimeout(askCheckIn,3500);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(askCheckIn,1500)});
 
-  window.eviaHelper={show,today,top,askCheckIn,writeUp};
+  window.eviaHelper={show,catchUp,today,job,stuck,notRight,top,askCheckIn,writeUp,goalProgress};
 })();

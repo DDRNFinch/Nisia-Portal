@@ -3218,3 +3218,15 @@ body.evia-dark #chat .hp-chip,body.evia-dark #chat .hp-did textarea,body.evia-da
 #chat .hp-jobs-pick .hp-more{border-style:dashed;color:var(--ui-muted,#667085)}
 #chat .hp-extras{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:14px;padding:0 2px}
 #chat .hp-extras button{padding:4px 0;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--ui-muted,#667085);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent)}
+/* Evia as the vocational coach (helper.js). */
+#chat .hp-start{align-self:flex-start;min-height:48px;padding:0 22px;border-radius:14px;font-size:16px;animation:tdIn .4s ease .1s both}
+#chat .hp-doors{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+#chat .hp-doors button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-height:76px;padding:12px 14px;border-radius:16px;border:1px solid var(--ui-line,#e4e7ec);background:#fff;color:var(--ink,#101828);font:inherit;text-align:left;cursor:pointer;animation:tdIn .4s ease both}
+#chat .hp-doors button:nth-child(2){animation-delay:.05s}#chat .hp-doors button:nth-child(3){animation-delay:.1s}#chat .hp-doors button:nth-child(4){animation-delay:.15s}
+#chat .hp-doors button:active{transform:scale(.97)}
+#chat .hp-doors strong{font-size:15px;line-height:1.25}
+#chat .hp-doors small{font-size:12px;color:var(--ui-muted,#667085)}
+#chat .hp-help{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:#eef6ff;border:1px solid #d3e5fb;font-size:13.5px;color:#1d3b63}
+#chat .hp-help strong{font-size:14px}
+body.evia-dark #chat .hp-doors button{background:#161b26;border-color:#2a3140;color:#eef0f3}
+body.evia-dark #chat .hp-help{background:#16233a;border-color:#22385a;color:#cfe0f7}

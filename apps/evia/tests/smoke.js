@@ -155,11 +155,25 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
     await page.waitForFunction(()=>{const c=document.getElementById("chat");return c&&!c.querySelector(".evia-thinking")},null,{timeout:15000});
-    await page.waitForSelector("#chat .hp-jobs-pick",{timeout:15000});
-    check("Evia opens asking what you worked on, with the topics as chips, Something else, and quiet extras (Log hours, Ask me, Practise, Other things)",await page.evaluate(()=>{const c=document.getElementById("chat");
-      return c.querySelectorAll(".hp-jobs-pick [data-u]").length>=3&&!!c.querySelector("[data-other]")&&[...c.querySelectorAll(".hp-extras button")].map(b=>b.textContent).join("|")==="Log hours|Ask me|Practise|Other things"&&/working on|work on/.test(c.textContent)&&!c.querySelector(".td-item,.es-card,.jy-map,.hp-jobs")}));
+    await page.waitForSelector("#chat .hp-doors",{timeout:15000});
+    check("Evia opens as the coach: the weekly catch-up, four ways in (I've done a job, I'm stuck, Something's not right, Ask me) and quiet extras",await page.evaluate(()=>{const c=document.getElementById("chat");
+      return !!c.querySelector(".hp-start")&&[...c.querySelectorAll(".hp-doors strong")].map(x=>x.textContent).join("|")==="I’ve done a job|I’m stuck|Something’s not right|Ask me"&&[...c.querySelectorAll(".hp-extras button")].map(b=>b.textContent).join("|")==="Log hours|Practise|Other things"&&!c.querySelector(".td-item,.es-card,.jy-map")}));
+    const catchup=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat");
+      const pill=async t=>{for(let n=0;n<40;n++){const p=[...c.querySelectorAll(".ui-replies .chat-pill")].find(x=>x.textContent===t);if(p){p.click();return true}await w(150)}return false};
+      localStorage.removeItem("evia7-coach");window.eviaHelper.show();for(let n=0;n<30&&!c.querySelector(".hp-start:not([disabled])");n++)await w(150);
+      [...c.querySelectorAll(".hp-start")].pop().click();const out={};
+      out.mood=await pill("Not great");out.about=await pill("Work");out.no=await pill("No thanks");
+      for(let n=0;n<40&&!/Samaritans/.test(c.textContent);n++)await w(150);out.help=/Samaritans 116 123/.test(c.textContent);
+      for(let n=0;n<40&&!/aim for this week/.test(c.textContent);n++)await w(150);out.plain=/(behind where|on track)/.test(c.textContent);
+      const g=await (async()=>{for(let n=0;n<40;n++){const p=c.querySelector(".ui-replies .chat-pill");if(p&&/Add|Log|Do|Start/.test(p.textContent))return p;await w(150)}})();const title=g.textContent;g.click();await w(600);
+      const saved=JSON.parse(localStorage.getItem("evia7-coach")||"{}").checkins||[];
+      out.saved=saved.length===1&&saved[0].mood==="low"&&saved[0].about==="Work"&&saved[0].goal&&saved[0].goal.title===title;
+      window.eviaHelper.show();for(let n=0;n<50&&!/catch-up this week/.test(c.textContent);n++)await w(150);out.done=/catch-up this week/.test(c.textContent);
+      out.measured=window.eviaHelper.goalProgress(saved[0].goal)!==null;return out});
+    check("The weekly catch-up: mood (Not great asks what about, offers the tutor and shows help contacts), how it's going in plain words, one goal they pick, saved and measured",Object.values(catchup).every(Boolean),JSON.stringify(catchup));
+    await page.evaluate(async()=>{const c=document.getElementById("chat"),w=ms=>new Promise(r=>setTimeout(r,ms));for(let n=0;n<40&&!c.querySelector(".hp-doors");n++)await w(150);[...c.querySelectorAll("[data-door=job]")].pop().click();for(let n=0;n<40&&!c.querySelector(".hp-jobs-pick [data-u]:not([disabled])");n++)await w(150)});
     const day=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),wait=async sel=>{for(let n=0;n<40;n++){const x=[...c.querySelectorAll(sel)].pop();if(x&&!x.disabled)return x;await w(150)}return null};
-      const before=window.eviaData.list("evidence").length,u=c.querySelector(".hp-jobs-pick [data-u]"),topic=u.textContent;u.click();
+      const before=window.eviaData.list("evidence").length,u=[...c.querySelectorAll(".hp-jobs-pick [data-u]")].pop(),topic=u.textContent;u.click();
       (await wait("[data-none]")).click();
       const f=await wait(".hp-did textarea");f.value="laid the first course to the line";(await wait(".hp-did button")).click();
       let chip=await wait(".hp-pick .hp-chip");if(chip&&!chip.closest(".hp-jobs-pick")){chip.click();(await wait(".hp-next")).click()}
@@ -169,7 +183,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       return {saved:window.eviaData.list("evidence").length===before+1&&(e.unit||e.u)===topic,own:/laid the first course to the line/i.test(text)&&/^Today I worked on/.test(text),ksbs:(e.ksbs||e.k||[]).length>0,hours:/learning hours/.test(c.textContent)}});
     check("Telling Evia about the day: pick a topic, photos (or none), a few words, key points and safety, then a write-up from the learner's own words saved to that topic with its KSBs, and an offer to log hours",Object.values(day).every(Boolean),JSON.stringify(day));
     const hp=await page.evaluate(async()=>{const w=ms=>new Promise(r=>setTimeout(r,ms)),c=document.getElementById("chat"),out={};
-      window.eviaHelper.show();for(let n=0;n<30&&!c.querySelector(".hp-extras [data-x=ask]:not([disabled])");n++)await w(200);[...c.querySelectorAll(".hp-extras [data-x=ask]")].pop().click();
+      window.eviaHelper.show();for(let n=0;n<30&&!c.querySelector("[data-door=ask]");n++)await w(200);[...c.querySelectorAll("[data-door=ask]")].pop().click();
       let f=null;for(let n=0;n<40&&!f;n++){await w(200);f=[...c.querySelectorAll(".hp-ask")].pop()}
       f.q.value="bricks for a 4m by 1.2m wall";f.requestSubmit();await w(2500);
       out.answer=/bricks/.test(c.textContent)&&!!c.querySelector(".hp-ask");return out});
@@ -243,7 +257,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Recorded discussions are graded from the transcript: a model answer scores high, a vague one low, and follow-up answers count",disc.strong>=75&&disc.weak<30&&disc.half,JSON.stringify(disc));
     await page.click('#x');await page.waitForTimeout(400);
     check("EPA mode ends when the chat closes",await page.evaluate(()=>!document.body.classList.contains("evia-epa")));
-    await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies,#chat .hp-jobs-pick",{timeout:15000});
+    await page.evaluate(()=>window.chat());await page.waitForSelector("#chat .td-item,#chat .ui-replies,#chat .hp-jobs-pick,#chat .hp-doors",{timeout:15000});
     check("Targets are set from Evia's stats",await page.evaluate(()=>{window.eviaTargets.ensure();return window.eviaTargets.mine().length>=3}));
     const streak=await page.evaluate(()=>{const k=t=>{const x=new Date(t);return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};const save=localStorage.getItem("evia7-days");
       const d=new Date();d.setHours(12);const days=[];for(let i=0;i<10;i++){const x=new Date(d);x.setDate(d.getDate()-i);if(x.getDay()!==0&&x.getDay()!==6)days.push(k(x))}
