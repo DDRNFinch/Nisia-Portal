@@ -1,8 +1,8 @@
 {
-  "version": "0.34.29",
-  "title": "Registers keep your own learners",
+  "version": "0.34.30",
+  "title": "Symi in Evia's layout",
   "details": [
-    "Learners you added yourself stay on a register when it's linked to Evia Portal",
-    "Finished a register too early? Tap Open again to carry on (until the end of the session)"
+    "Each tab opens with one summary card and one tidy list: Timetable, Registers, Learners and Resources",
+    "Profile, Evia Portal and Help are behind your initials at the top; the orange dot means you're not connected yet"
   ]
 }
