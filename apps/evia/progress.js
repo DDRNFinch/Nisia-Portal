@@ -183,7 +183,7 @@
       pct:n?Math.round(here/n*100):null,booked:N.absences?N.absences():[],coming:coming(N,t)};
   }
   function attendanceSheet(){
-    const AT=attendanceData();if(!AT)return;
+    const AT=attendanceData();if(!AT){if(window.eviaOwnAttendance)window.eviaOwnAttendance.open();return}
     const first=AT.marks.length?new Date(AT.marks[0].date+"T12:00:00"):new Date(),now=new Date();
     const minM=first.getFullYear()*12+first.getMonth(),maxM=now.getFullYear()*12+now.getMonth()+1;let cur=now.getFullYear()*12+now.getMonth();
     const el=sheet("MY PROGRESS","Attendance",
@@ -288,6 +288,11 @@
     if(AT)out.push(card("attendance","Attendance",AT.pct==null?"–":num(AT.pct,"%"),
       AT.n?AT.here+" of "+AT.n+" session"+(AT.n===1?"":"s")+(AT.none?" · "+AT.none+" absent":""):"No college registers yet",
       AT.n?'<span class="pv-adots" aria-hidden="true">'+AT.marks.slice(-14).map((m,i)=>'<i class="pv-a-'+m.g+'" style="--d:'+(i*45)+'ms"></i>').join("")+'</span>':empty("Your tutor’s registers show here"),AT.none?" pv-warn":""));
+    // Not connected: the college days the learner marked themselves.
+    const OA=!AT&&window.eviaOwnAttendance?window.eviaOwnAttendance.data():null;
+    if(OA&&OA.days.length)out.push(card("attendance","Attendance",OA.pct==null?"–":num(OA.pct,"%"),
+      OA.here+OA.missed?OA.here+" of "+(OA.here+OA.missed)+" college day"+(OA.here+OA.missed===1?"":"s")+(OA.open?" · "+OA.open+" to mark":""):OA.open+" college day"+(OA.open===1?"":"s")+" to mark",
+      '<span class="pv-adots" aria-hidden="true">'+OA.days.slice(0,14).reverse().map((x,i)=>'<i class="pv-a-'+(x.state==="here"?"present":x.state==="missed"?"absent":"coming")+'" style="--d:'+(i*45)+'ms"></i>').join("")+'</span>',OA.missed?" pv-warn":""));
     // From the employer (Paros): how they rate the behaviours, and their witness testimonies.
     const EM=window.eviaEmployer&&window.eviaEmployer.get();
     if(EM){

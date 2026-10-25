@@ -111,7 +111,7 @@
       sec("Learning",(J.teach?'<div class="jp-goal"><span>Teach me lessons</span><span class="jp-bar"><i style="width:'+Math.round(J.teach.done/J.teach.total*100)+'%"></i></span><small>'+J.teach.done+" of "+J.teach.total+'</small></div>':"")+
         J.tests.map(t=>'<div class="jp-goal"><span>'+esc(t.name)+' (best)</span><span class="jp-bar"><i style="width:'+t.best+'%"></i></span><small>'+t.best+'%</small></div>').join("")+
         (J.confidence?'<p class="jp-note">Feels confident in '+J.confidence.confident+" of "+J.confidence.total+" practical areas"+(J.confidence.practise.length?"; wants more practice with "+esc(J.confidence.practise.join(", ").toLowerCase()):"")+'.</p>':""))+
-      sec("At college",(J.attendance?'<div class="jp-goal"><span>Attendance</span><span class="jp-bar"><i style="width:'+(J.attendance.pct||0)+'%"></i></span><small>'+J.attendance.pct+'%</small></div><p class="jp-note">'+J.attendance.here+" of "+J.attendance.n+" sessions"+(J.attendance.absent?", "+J.attendance.absent+" missed":"")+'</p>':"")+
+      sec("At college",(J.attendance?'<div class="jp-goal"><span>Attendance</span><span class="jp-bar"><i style="width:'+(J.attendance.pct||0)+'%"></i></span><small>'+J.attendance.pct+'%</small></div><p class="jp-note">'+J.attendance.here+" of "+J.attendance.n+(J.attendance.own?" college days (marked by me)":" sessions")+(J.attendance.absent?", "+J.attendance.absent+" missed":"")+'</p>':"")+
         (J.taught.length?'<div class="jp-list">'+J.taught.map(c=>'<div><b>'+esc(c.lesson||c.cls||"Class")+'</b><small>'+esc([c.date?dt(c.date+"T12:00:00"):"",c.cls,c.ksbs.join(" ")].filter(Boolean).join(" · "))+'</small></div>').join("")+'</div>':(J.attendance?"":'<p class="jp-note">Nothing from college yet.</p>')))+
       (J.employer?sec("From "+esc(J.employer.who),(J.employer.ratings.length?J.employer.ratings.map(r=>'<div class="jp-goal"><span>'+esc(r.k)+'</span><span class="jp-bar"><i style="width:'+r.v*25+'%"></i></span><small>'+esc(r.word)+'</small></div>').join(""):"")+
         (J.employer.comment?'<p class="jp-note">“'+esc(J.employer.comment)+'”</p>':"")+(J.employer.witness?'<p class="jp-note">'+J.employer.witness+" witness testimon"+(J.employer.witness===1?"y":"ies")+'</p>':"")):"")+
@@ -190,7 +190,7 @@
     if(J.confidence)para("Feels confident in "+J.confidence.confident+" of "+J.confidence.total+" practical areas"+(J.confidence.practise.length?"; wants more practice with "+J.confidence.practise.join(", ").toLowerCase():"")+".");
     if(!J.teach&&!J.tests.length&&!J.confidence)para("Nothing yet.");
     head("At college");
-    if(J.attendance){goal("Attendance ("+J.attendance.here+" of "+J.attendance.n+" sessions)",J.attendance.pct||0,J.attendance.pct+"%")}
+    if(J.attendance){goal("Attendance ("+J.attendance.here+" of "+J.attendance.n+(J.attendance.own?" college days, marked by me)":" sessions)"),J.attendance.pct||0,J.attendance.pct+"%")}
     J.taught.forEach(c=>{need(10);font(9.5,true);doc.text(txt(c.lesson||c.cls||"Class").slice(0,80),M,y+4);font(8,false,muted);doc.text(txt([c.date?dt(c.date+"T12:00:00"):"",c.cls,c.ksbs.join(" ")].filter(Boolean).join(" · ")).slice(0,110),M,y+8.5);y+=11});
     if(!J.attendance&&!J.taught.length)para("Nothing from college yet.");
     if(J.employer){head("From "+J.employer.who);J.employer.ratings.forEach(r=>goal(r.k,r.v*25,r.word));if(J.employer.comment)para("\u201c"+J.employer.comment+"\u201d");if(J.employer.witness)para(J.employer.witness+" witness testimon"+(J.employer.witness===1?"y":"ies"))}

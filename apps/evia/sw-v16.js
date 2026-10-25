@@ -1,4 +1,4 @@
-const VERSION = "2026-10-23-evia7-v291";
+const VERSION = "2026-10-23-evia7-v292";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [

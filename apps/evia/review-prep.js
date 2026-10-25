@@ -51,6 +51,8 @@
     const hoursSince=H.filter(x=>Number(x.on||x.createdAt)>=from).reduce((n,x)=>n+Number(x.n||0),0);
     let planned=null;try{const en=window.eviaData.enrolment&&window.eviaData.enrolment();planned=Number(en&&en.plannedOtjHours)||null}catch(_){}
     const AT=window.eviaAttendance&&window.eviaAttendance.data?window.eviaAttendance.data():null;
+    /* Not connected to a college: the college days the learner marked themselves (own-attendance.js). */
+    const OA=!AT&&window.eviaOwnAttendance?window.eviaOwnAttendance.data():null;
     const tg=window.eviaTargets?window.eviaTargets.mine():[];
     const conf=S.confidence||{},sc=conf.scores||[];
     const fut=window.eviaFuture&&window.eviaFuture.summary?window.eviaFuture.summary():null;
@@ -59,7 +61,7 @@
       evidence:{since:newer.length,units:[...new Set(newer.map(e=>e.u).filter(Boolean))],total:(a.entries||[]).length},
       ksb:{met:a.met,total:a.total,pct:a.ksbPct,timePct:a.timePct},
       hours:{since:Math.round(hoursSince*10)/10,total:Math.round((S.otjTotal||0)*10)/10,planned},
-      attendance:AT&&AT.n?{pct:AT.pct,here:AT.here,n:AT.n,absent:AT.none}:null,
+      attendance:AT&&AT.n?{pct:AT.pct,here:AT.here,n:AT.n,absent:AT.none}:OA&&OA.pct!=null?{pct:OA.pct,here:OA.here,n:OA.here+OA.missed,absent:OA.missed,own:true}:null,
       tests:(S.tests||[]).map(t=>({name:t.name,count:t.count,best:t.best,latest:t.latest?t.latest.pct:null})),
       teach:S.teach?{done:S.teach.done||0,total:S.teach.total||0,avg:S.teach.avg}:null,
       confidence:sc.length?{confident:(conf.confident||[]).length,total:sc.length,practise:(conf.practise||[]).slice(0,4)}:null,
@@ -130,7 +132,7 @@
     if(A.conf)add("conf",A.conf.title,st(A.conf),A.conf.text,"Rate my skills",inChat("confidence"));
     const edi=sub("edi");if(edi&&edi.total)add("edi","Safeguarding, Prevent and British values",edi.done>=edi.total?"ok":"todo",edi.done+" of "+edi.total+" short lessons done","Open the lessons",()=>{close();setTimeout(()=>window.eviaTeach&&window.eviaTeach.open("edi"),60)});
     const fut=P.future;add("future","My future",fut&&fut.goal?"ok":"todo",fut&&fut.goal?fut.goal:"No goal yet: where do you want your trade to take you?",fut&&fut.goal?"":"Set my goal",()=>{close();setTimeout(()=>window.eviaFuture&&window.eviaFuture.open(),60)});
-    if(live()&&P.attendance)add("attendance","College attendance",P.attendance.pct>=90?"ok":"info",P.attendance.pct+"% ("+P.attendance.here+" of "+P.attendance.n+" sessions)");
+    if(P.attendance)add("attendance","College attendance",P.attendance.pct>=90?"ok":"info",P.attendance.pct+"% ("+P.attendance.here+" of "+P.attendance.n+(P.attendance.own?" college days, marked by you)":" sessions)"));
     else add("attendance","College attendance","info",live()?"Your tutor’s registers fill this in":"Your college adds this at the review");
     const emp=employerSince();add("employer","Your employer’s feedback",emp.length?"ok":"info",emp.length?emp.length+" from your employer since your last review":live()?"Your employer can add it in Paros, or at the review":"Your employer adds this at the review");
     const ans=latestAnswers();add("answers","A few quick questions",ans?"ok":"todo",ans?"Done":"Five quick taps for your assessor",ans?"Change":"Answer now",()=>answers(open));
@@ -243,7 +245,7 @@
     // 4. Attendance
     head("4. College attendance");
     const att=L.find(x=>x.id==="attendance");
-    if(college&&P.attendance)para(att.text);else blank(1,"Attendance this period (college to complete):");
+    if(P.attendance)para(att.text);else blank(1,"Attendance this period (college to complete):");
     // 5. Employer
     head("5. The employer");
     const emp=employerSince();if(emp.length)para("From the employer in Paros: "+emp.map(x=>x.employer.kind==="behaviours"?"behaviour ratings":"witness testimony"+(x.employer.unit?" ("+x.employer.unit+")":"")).join(", ")+".",{size:9.5});
