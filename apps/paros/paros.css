@@ -31,8 +31,8 @@ body.paros select{font:inherit;padding:12px;border-radius:14px;border:1px solid 
 body.paros{--accent-deep:#d0620c}
 body.paros .btn.primary{background:linear-gradient(180deg,#f28c28,var(--accent-deep));box-shadow:0 6px 16px rgba(232,120,28,.28),inset 0 1px 0 rgba(255,255,255,.18)}
 body.paros .btn.ghost{color:var(--accent-text)}
-body.paros .m-seg{grid-template-columns:repeat(4,1fr)}
-body.paros .m-seg button{font-size:13px;padding:0 4px}
+body.paros .m-seg{grid-template-columns:repeat(5,1fr)}
+body.paros .m-seg button{font-size:12.5px;padding:0 2px}
 body.paros .m-row .m-chips{margin:6px 0 0;padding:0;flex-wrap:wrap;overflow:visible}
 body.paros .m-row .m-chip{height:28px;padding:0 10px;font-size:12.5px}
 body.paros #wKsbs{flex-direction:column;flex-wrap:nowrap;overflow:visible;margin:6px 0 0;padding:0;gap:6px}
@@ -59,3 +59,8 @@ body.paros .m-beh-bar i{background:var(--accent)}
 .p-week-row:first-of-type{border-top:0}
 .p-week-row ul{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:3px;font-size:14.5px;line-height:1.4;color:var(--muted)}
 .p-week-row ul b{color:#b5530a}
+
+/* The week: confirm an apprentice's learning hours in one tap. */
+.p-week-act{display:flex;gap:8px;margin:2px 0 12px 54px}
+.p-week-act .btn{min-height:40px;padding:0 14px;font-size:14px}
+.p-week-act .btn.primary{flex:1}

@@ -151,3 +151,6 @@
 .sn-times{margin-top:4px}
 .sn-times .sn-dates{margin:4px 0 0}
 .sn-dates input[type=time]{min-height:46px}
+/* A day booked off: its own colour, and the row softened so it stands apart from an absence. */
+.sn-mark.off{border:0;background:#e6efff;color:#1d4ed8}
+.sn-booked-off .attendance-name strong,.sn-booked-off .attendance-name>b,.sn-booked-off .timer-readout{opacity:.55}

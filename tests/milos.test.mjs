@@ -54,6 +54,9 @@ function handle(route) {
   if (/\/verify$/.test(p)) return json({ access_token: jwt("aal2"), token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "r", user: { id: "u-mark", aud: "authenticated", factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } });
   if (p === "/rest/v1/rpc/nisia_me") return json({ user_id: "u-mark", platform_admin: false, name: "Mark Ellis", memberships: [{ organisation_id: "O1", organisation: "Brookfield College", member_id: "M2", roles: ["assessor"] }] });
   if (p === "/rest/v1/rpc/nisia_packs") return json(PACKS());
+  if (p === "/rest/v1/rpc/nisia_learner_timeline") return json([{ kind: "visit", at: new Date(Date.now() + 3 * 864e5).toISOString(), title: "Observation visit (booked)", sub: "10:00 · Site office", tone: "" },
+    { kind: "evidence", at: new Date(Date.now() - 2 * 864e5).toISOString(), title: "Evidence: Jointing Styles", sub: "Signed off", tone: "good" },
+    { kind: "college", at: new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10), title: "Missed college", sub: "L2 Brickwork · ill", tone: "bad" }]);
   if (p === "/rest/v1/rpc/set_enrolment_pack") { PACKMOVE = body; return json(null); }
   if (p === "/rest/v1/rpc/milos_employer_feedback" && NOEMP) return json({ code: "PGRST202", message: "Could not find the function public.milos_employer_feedback" }, 404);
   if (p === "/rest/v1/rpc/milos_employer_feedback") return json({ witness: [{ id: "W1", unit: "Jointing Styles", statement: "Callum pointed a full elevation in a bucket handle joint.", rating: 3, ksbs: ["S12", "B6"], signed_at: "2026-09-30T10:00:00Z", created_at: "2026-09-30T10:00:00Z" }], ratings: [{ id: "BR1", ratings: { B1: 3, B2: 4, B3: 2 }, comment: "Reliable and keen.", created_at: "2026-09-30T10:00:00Z" }] });
@@ -125,13 +128,13 @@ try {
   /* The other tabs: learners with search, one queue of new evidence across learners, and reviews by when they're due. */
   await page.click("[data-tab=learners]"); await page.waitForSelector("#q"); await page.fill("#q", "hug"); await page.waitForTimeout(300);
   await page.screenshot({ path: shots + "/m1b-learners.png", fullPage: true });
-  const found = await page.$$eval("#list [data-id]", (b) => b.length), ringShown = !!(await page.$("#list .m-ring"));
+  const found = await page.$$eval("#list [data-id]", (b) => b.length), ringShown = !!(await page.$("#list .m-pace em")) && /behind|On track|ahead/.test(await page.textContent("#list"));
   await page.fill("#q", "zzz"); await page.waitForTimeout(300); const none = /Nobody matches/.test(await page.textContent("#main")); await page.fill("#q", "");
   await page.click("[data-tab=assess]"); await page.waitForSelector("[data-q]"); await page.screenshot({ path: shots + "/m1c-assess.png", fullPage: true });
   const queue = await page.$$eval("[data-q]", (b) => b.map((x) => x.textContent)), badge = await page.textContent("[data-tab=assess] .m-badge");
   await page.click("[data-tab=reviews]"); await page.waitForTimeout(200); await page.screenshot({ path: shots + "/m1d-reviews.png", fullPage: true });
   const revText = await page.textContent("#main");
-  check("Learners search, one To assess queue across learners, and reviews by when they're due", found === 1 && ringShown && none && queue.length === 3 && badge === "3" && queue.some((t) => /Construct Cavity Walling/.test(t)) && /Overdue/.test(revText) && /Callum Hughes/.test(revText), JSON.stringify({ found, ringShown, none, queue, badge }));
+  check("Learners search (each with progress against time, most behind first), one To assess queue across learners, and reviews by when they're due", found === 1 && ringShown && none && queue.length === 3 && badge === "3" && queue.some((t) => /Construct Cavity Walling/.test(t)) && /Overdue/.test(revText) && /Callum Hughes/.test(revText), JSON.stringify({ found, ringShown, none, queue, badge }));
   /* Calendar: book a visit with Callum; it goes to Evia Portal (so it's on his Evia calendar), shows on the month and in
      Coming up, and opening it offers the observation. The face in the middle goes back to what needs doing. */
   await page.click("[data-tab=calendar]"); await page.waitForSelector("#bookVisit");
@@ -180,6 +183,11 @@ try {
   check("Milos shows Evia's evidence strength on units, and a compact From Evia panel", await page.$$eval(".pf-unit .sbars", (b) => b.length) >= 2 && !!(await page.$(".pf-unit .sbars-strong")) &&
     /Evidence strength/.test(await page.textContent(".insights")) && /EPA mock\s*70%/.test(await page.textContent(".insights")) && /Reading drawings\s*2/.test(await page.textContent(".insights")));
   check("Milos shows how steadily evidence has come in over 12 weeks", await page.$$eval(".consistency .cs-w", (w) => w.length) === 12 && /of 12 weeks/.test(await page.textContent(".consistency")));
+  /* The learner's timeline: the same story as in Paros and Symi (Evia Portal's nisia_learner_timeline). */
+  await page.click("#tab-timeline"); await page.waitForSelector("#tlBox .tl-row"); await page.screenshot({ path: shots + "/m2b-timeline.png", fullPage: true });
+  const tlText = await page.textContent("#tlBox");
+  check("Milos shows the learner's timeline: newest first, by month, with the booked visit, evidence signed off and a missed college day",
+    (await page.$$eval("#tlBox .tl-row", (r) => r.length)) === 3 && /Observation visit \(booked\)/.test(tlText) && /Signed off/.test(tlText) && !!(await page.$("#tlBox .tl-ic.bad")), tlText.slice(0, 300));
   /* An observation, captured the way Evia captures evidence, then signed off. */
   await page.click("#tab-overview"); await page.click("#obs"); await page.waitForSelector(".obs-units [data-u]");
   await page.click('.obs-units [data-u="0"]'); await page.waitForSelector("#obText");

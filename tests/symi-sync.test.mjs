@@ -50,7 +50,7 @@ async function device(seed) {
   await page.goto(url + "update.json");
   await page.evaluate((s) => { localStorage.clear(); localStorage.setItem("symi-last-seen-release-v1", "9.9.9"); if (s) localStorage.setItem("samos.classroom.data", JSON.stringify(s)); }, seed);
   await page.goto(url); await page.waitForTimeout(1200);
-  await page.click("#nisiaButton");
+  await page.evaluate(() => document.getElementById("nisiaButton").click());
   await page.fill(".sn-auth #email", "p.shah@x"); await page.fill(".sn-auth #pw", "Str0ng-pass!"); await page.click(".sn-auth button[type=submit]");
   await page.waitForSelector(".sn-auth #c"); await page.fill(".sn-auth #c", "123456");
   await page.waitForFunction(() => document.querySelector("#nisiaButton.on"), null, { timeout: 8000 });

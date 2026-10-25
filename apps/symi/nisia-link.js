@@ -582,8 +582,11 @@ function decorate() {
       const m = p && marking ? markOf(regId, key, id) : null, b = p && p.nisia && marking ? bookedFor(p.nisia.enrolmentId, key) : null;
       /* No mark yet: someone whose timer ran was here; once the class is over, anyone else was absent. */
       const ran = !m && !x && p && marking && !!App().times(regId, key, id).in;
-      const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason : ran ? "Here" : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
-      const cls = m ? markCls(m) : b ? "why" : ran ? "here" : label === "Mark" ? "" : "no";
+      /* A day booked off (by the learner, their employer in Paros, or the college) says so, and who booked it. */
+      const by = b && b.booked_by_role && b.booked_by_role !== "tutor" ? " · booked by " + (b.booked_by_role === "employer" ? "their employer" : b.booked_by_role === "learner" ? "them" : "the college") : "";
+      const label = !p || !marking ? "" : m ? markText(m) : x ? "" : b ? "Off · " + b.reason + by : ran ? "Here" : code === "completed" || code === "ended" ? "Absent · no reason" : "Mark";
+      const cls = m ? markCls(m) : b ? "off" : ran ? "here" : label === "Mark" ? "" : "no";
+      row.classList.toggle("sn-booked-off", !!(b && !m && !x));
       if (old.length === 1 && label && old[0].textContent === label && old[0].className.replace(" sn-still", "") === "sn-mark " + cls && old[0].parentElement === n.parentElement) return;
       old.forEach((o) => o.remove());
       if (!label) return;
