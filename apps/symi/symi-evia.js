@@ -1,7 +1,12 @@
-/* Symi laid out exactly like Evia: each tab opens with its name as the title and a round avatar on the right (Evia's
-   page header), with Profile, Help and Evia Portal in a sheet behind the avatar instead of a row of buttons along the
-   top. Every page is still drawn by Symi (app.js, symi-look.js) and every row here presses Symi's own button, so all
-   of Symi works the same; symi-evia.css gives the pages Evia's cards, rows, buttons and week strip. */
+/* Symi laid out exactly like Evia. The four tabs are drawn here in Evia's layout: a title with Messages and the
+   avatar, one summary card, then one tidy list, and one way to each thing:
+     Timetable   today's classes, then the week (tap a day to see its classes)
+     Registers   today's register, your registers, then Classes and Past registers
+     Learners    how many and their attendance, then everyone
+     Resources   Symi's own library, tidied by symi-evia.css
+   Pages further in (taking a register, a learner's profile, a class, the wizards) are still Symi's own, tidied, with a
+   way back. Every button here presses Symi's own button or calls Symi (window.SamosApp), so Symi works exactly as it
+   did. The avatar holds Profile, Evia Portal and Help. */
 (function () {
   const S = window.SamosApp;
   if (!S) return;
@@ -13,141 +18,178 @@
     help: svg('<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7"/><path d="M12 17h.01"/>'),
     link: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
     install: svg('<path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19.5h14"/>'),
+    reg: svg('<path d="M9.5 3h5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M8.5 5H7a2.5 2.5 0 0 0-2.5 2.5v11A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 17 5h-1.5"/><path d="M8.5 13.5l2.3 2.3 4.7-4.7"/>'),
+    classes: svg('<path d="M3.5 7.5l8.5-4 8.5 4-8.5 4z"/><path d="M3.5 12l8.5 4 8.5-4M3.5 16.5l8.5 4 8.5-4"/>'),
+    past: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
   };
-  document.body.classList.add("se-look");
+  const app = $("#staffApp"), main = $("main"), body = document.body;
+  body.classList.add("se-look");
 
-  /* The avatar: the tutor's initials (from Profile), or Symi's eyes before a name is set. */
-  const me = document.createElement("button");
-  me.type = "button"; me.className = "se-me"; me.setAttribute("aria-label", "Profile, help and Evia Portal");
-  const main = $("main");
-  function initials() {
-    let n = ""; try { n = ((S.getState().settings || {}).teacherName || "").trim(); } catch (_) {}
-    return n ? n.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() : "";
+  /* ---------- Dates and classes ---------- */
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const key = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const st = () => { try { return S.getState(); } catch (_) { return {}; } };
+  const regs = () => (st().classes || []).filter((c) => !c.archived);
+  function on(c, d) {
+    const r = c.recurrence || {}, k = key(d), day = DAYS[d.getDay()];
+    if (r.type === "once") return r.onceDate === k;
+    if (r.startDate && k < r.startDate) return false;
+    if (r.endDate && k > r.endDate) return false;
+    if (r.type === "monthly" || c.dayOfMonth) return Number(c.dayOfMonth) === d.getDate() || (r.monthDays || []).includes(d.getDate());
+    return c.day === day || (r.weekdays || []).includes(day);
   }
-  /* Put it in the header of whichever tab is showing (the four tabs' pages; pages further in have a back button). */
-  /* With it, the Messages button (once signed in), like the one beside Evia's avatar. */
+  const onDay = (d) => regs().filter((c) => on(c, d)).sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
+  const people = (c) => { const n = (c.learners || []).length; return n + " learner" + (n === 1 ? "" : "s"); };
+  const times = (c) => (c.start || "") + (c.end ? "–" + c.end : "");
+  const repeat = (c) => c.dayOfMonth ? "Monthly, day " + c.dayOfMonth : (c.recurrence || {}).type === "once" ? "One day" : c.day ? "Every " + c.day : "";
+
+  /* ---------- Pieces ---------- */
+  const row = (o) => '<button type="button" class="se-lrow"' + (o.data || "") + ">" + (o.lead || "") + '<span class="se-copy"><strong>' + esc(o.title) + "</strong>" + (o.sub ? "<small>" + esc(o.sub) + "</small>" : "") + "</span>" + (o.pill || "") + '<span class="se-go" aria-hidden="true">›</span></button>';
+  const ic = (name) => '<span class="se-ic">' + IC[name] + "</span>";
+  const timeTile = (c) => '<span class="se-time"><b>' + esc(c.start || "–") + "</b></span>";
+  const head = (title) => '<header class="se-head"><h1>' + esc(title) + '</h1><span class="se-slot"></span></header>';
+
+  /* ---------- The avatar, and Messages beside it ---------- */
+  const me = document.createElement("button");
+  me.type = "button"; me.className = "se-me"; me.setAttribute("aria-label", "Profile, Evia Portal and help");
   const acts = document.createElement("div");
   acts.className = "se-acts"; acts.appendChild(me);
-  function place() {
+  const name = () => String((st().settings || {}).teacherName || "").trim();
+  const connected = () => { const c = $(".sn-chip"); return !!(c && c.classList.contains("on")); };
+  function drawMe() {
+    const n = name(), i = n ? n.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() : "";
+    me.innerHTML = (i ? "<b>" + esc(i) + "</b>" : '<span class="se-eyes" aria-hidden="true"><i></i><i></i></span>') + (connected() ? "" : '<em class="se-dot" aria-hidden="true"></em>');
     const msg = document.getElementById("nm-btn");
     if (msg && msg.parentNode !== acts) acts.insertBefore(msg, me);
-    const head = $(".sy-is-home .sy-hello") || $("#staffApp .staff-page-head.sy-top-head");
-    if (head && acts.parentNode !== head) head.appendChild(acts);
-    else if (!head && acts.parentNode !== main) (main || document.body).prepend(acts);
   }
-  function drawMe() {
-    place();
-    const i = initials(), chip = $(".sn-chip"), on = !!(chip && chip.classList.contains("on"));
-    me.innerHTML = (i ? "<b>" + esc(i) + "</b>" : '<span class="se-eyes" aria-hidden="true"><i></i><i></i></span>') + (on ? "" : '<em class="se-dot" aria-hidden="true"></em>');
+  /* Into whichever page is showing: its slot (our pages), or the top of Symi's own Resources page. */
+  function place() {
+    const slot = $(".se-page .se-slot") || $("#staffApp>.se-backrow .se-slot") || (body.classList.contains("se-is-home") && $(".se-home .se-slot")) || $("#staffApp .staff-page-head.sy-top-head");
+    if (slot && acts.parentNode !== slot) slot.appendChild(acts);
+    if (!slot && acts.parentNode) acts.remove();
   }
-
-  /* The sheet behind the avatar: rows that press Symi's own Profile, Help/Symi and Evia Portal buttons. */
-  function openMe() {
-    const chip = $(".sn-chip"), on = !!(chip && chip.classList.contains("on")), inst = $("#installApp");
+  function sheet(title, rows) {
+    const o = document.createElement("div");
+    o.className = "se-overlay";
+    o.innerHTML = '<section class="se-sheet" role="dialog" aria-modal="true" aria-labelledby="se-title"><span class="se-grab" aria-hidden="true"></span><div class="se-sheet-head"><h2 id="se-title">' + esc(title) + '</h2><button type="button" class="se-close" aria-label="Close">×</button></div>' +
+      '<div class="se-group">' + rows.map((r, i) => '<button type="button" class="se-lrow" data-i="' + i + '">' + ic(r[0]) + '<span class="se-copy"><strong>' + esc(r[1]) + '</strong><small class="' + (r[4] || "") + '">' + esc(r[2]) + '</small></span><span class="se-go" aria-hidden="true">›</span></button>').join("") + "</div></section>";
+    const close = () => { o.classList.add("se-closing"); setTimeout(() => o.remove(), 200); };
+    o.addEventListener("click", (e) => {
+      if (e.target === o || e.target.closest(".se-close")) return close();
+      const b = e.target.closest("[data-i]"); if (!b) return;
+      o.remove(); setTimeout(rows[+b.dataset.i][3], 30);
+    });
+    body.appendChild(o);
+  }
+  me.addEventListener("click", () => {
+    const chip = $(".sn-chip"), inst = $("#installApp"), ok = connected();
     const rows = [
       ["profile", "Profile", "Your name, college and settings", () => $("#profileButton") && $("#profileButton").click()],
-      ["link", "Evia Portal", on ? "Connected" : "Not connected: connect so learners can check in", () => chip && chip.click(), on ? "" : "se-warn"],
+      ["link", "Evia Portal", ok ? "Connected" : "Not connected: connect so learners can check in", () => chip && chip.click(), ok ? "" : "se-warn"],
       ["help", "Help", "How Symi works", () => $("#helpButton") && $("#helpButton").click()],
     ];
     if (inst && !inst.hidden) rows.push(["install", "Install Symi", "Add it to your home screen", () => inst.click()]);
-    const o = document.createElement("div");
-    o.className = "se-overlay";
-    o.innerHTML = '<section class="se-sheet" role="dialog" aria-modal="true" aria-labelledby="se-title"><div class="se-sheet-head"><div><small>SYMI</small><h2 id="se-title">' + esc(initials() ? (S.getState().settings || {}).teacherName : "You") + '</h2></div><button type="button" class="se-close" aria-label="Close">×</button></div>' +
-      '<div class="se-group">' + rows.map((r, i) => '<button type="button" class="se-row" data-i="' + i + '"><span class="se-ic">' + IC[r[0]] + '</span><span class="se-copy"><strong>' + esc(r[1]) + '</strong><small class="' + (r[4] || "") + '">' + esc(r[2]) + '</small></span><span class="se-go">›</span></button>').join("") + "</div></section>";
-    const close = () => { o.classList.add("se-closing"); setTimeout(() => o.remove(), 180); };
-    o.addEventListener("click", (e) => {
-      if (e.target === o || e.target.closest(".se-close")) return close();
-      const b = e.target.closest(".se-row"); if (!b) return;
-      const r = rows[+b.dataset.i]; o.remove(); setTimeout(r[3], 30);
-    });
-    document.body.appendChild(o);
-    o.querySelector(".se-close").focus();
-  }
-  me.addEventListener("click", openMe);
+    sheet(name() || "You", rows);
+  });
 
-  /* Home: the tab's name as the title (like Evia), with the greeting and date underneath. */
-  const home = $(".sy-home");
-  function titleHome() {
-    const h = home && home.querySelector(".sy-hello");
-    if (!h || h.dataset.se) return;
-    const g = h.querySelector("h1"), p = h.querySelector("p");
-    h.dataset.se = "1";
-    if (p) p.textContent = (g ? g.textContent + " · " : "") + p.textContent;
-    if (g) g.textContent = "Timetable";
+  /* ---------- Timetable ---------- */
+  let pick = null; /* the day picked in the week, as a date key */
+  function homePage() {
+    const now = new Date(), today = onDay(now), mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const week = [...Array(7)].map((_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
+    if (!pick || !week.some((d) => key(d) === pick)) pick = key(now);
+    const picked = week.find((d) => key(d) === pick), list = onDay(picked), isToday = pick === key(now);
+    const label = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    const classRow = (c) => row({ data: ' data-se-open="' + esc(c.id) + '"', lead: timeTile(c), title: c.name, sub: [c.room, people(c)].filter(Boolean).join(" · ") });
+    return head("Timetable") +
+      '<section class="se-hero"><span class="se-k">Today · ' + esc(label) + "</span>" +
+        (today.length
+          ? '<strong class="se-big">' + today.length + "<small> " + (today.length === 1 ? "class" : "classes") + '</small></strong><div class="se-in">' + today.map(classRow).join("") + "</div>"
+          : '<strong class="se-big se-big-s">Nothing on today</strong><small class="se-note">' + (regs().length ? "Your week is below." : "Make a register from Symi’s button in the middle.") + "</small>") +
+      "</section>" +
+      '<h2 class="se-h2">This week</h2><div class="se-group"><div class="se-strip">' + week.map((d) => { const k = key(d), has = onDay(d).length;
+        return '<button type="button" class="se-day' + (k === pick ? " on" : "") + (k === key(now) ? " today" : "") + '" data-se-day="' + k + '" aria-pressed="' + (k === pick) + '"><small>' + d.toLocaleDateString("en-GB", { weekday: "short" }) + "</small><b>" + d.getDate() + "</b><i" + (has ? ' class="has"' : "") + "></i></button>"; }).join("") + "</div>" +
+        (isToday ? "" : list.length ? list.map(classRow).join("") : '<p class="se-empty">Nothing on ' + esc(picked.toLocaleDateString("en-GB", { weekday: "long" })) + ".</p>") +
+      "</div>";
   }
-  if (home) new MutationObserver(() => { titleHome(); place(); }).observe(home, { childList: true });
-  const app = $("#staffApp");
-  /* ---------- Registers and Learners: Evia's page, a summary card on top and a list to tap into ----------
-     The rows press Symi's own (hidden) buttons, so opening a register, adding one, or opening a learner is Symi's own. */
-  const ICR = {
-    reg: svg('<path d="M9.5 3h5a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M8.5 5H7a2.5 2.5 0 0 0-2.5 2.5v11A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 17 5h-1.5"/><path d="M8.5 13.5l2.3 2.3 4.7-4.7"/>'),
-    past: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  };
-  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const isToday = (c) => { const r = c.recurrence || {}, k = S.today ? S.today() : new Date().toISOString().slice(0, 10);
-    if (r.type === "once") return r.onceDate === k; if (r.startDate && k < r.startDate) return false; if (r.endDate && k > r.endDate) return false;
-    return c.day === DAYS[new Date().getDay()] || (r.weekdays || []).includes(DAYS[new Date().getDay()]); };
-  const when = (c) => [c.dayOfMonth ? "Monthly · day " + c.dayOfMonth : c.day ? "Every " + c.day : "", (c.start || "") + (c.end ? "–" + c.end : ""), c.room].filter(Boolean).join(" · ");
-  const press = (sel) => { const b = app.querySelector(sel); if (b) b.click(); return !!b; };
-  const row = (o) => '<button type="button" class="se-lrow"' + (o.data || "") + ">" + (o.lead || "") + '<span class="se-copy"><strong>' + esc(o.title) + "</strong>" + (o.sub ? "<small>" + esc(o.sub) + "</small>" : "") + "</span>" + (o.pill || "") + '<span class="se-go">›</span></button>';
-  /* The list shows when the tutor taps the Registers tab; anything else that opens Registers (today's class on the
-     home screen, "Take the register" from Symi's panel) goes straight to that register, as before. */
-  let detail = true;
-  document.addEventListener("click", (e) => { if (e.target.closest('[data-sy-tab="registers"],[data-sy-pill="registers"]')) detail = false; }, true);
-  function registersPage(st) {
-    const regs = (st.classes || []).filter((c) => !c.archived), today = regs.filter(isToday).sort((a, b) => String(a.start).localeCompare(String(b.start)));
-    const t = today[0], n = (c) => (c.learners || []).length + " learner" + ((c.learners || []).length === 1 ? "" : "s");
-    return '<section class="se-hero">' + (t
-        ? '<span class="se-k">Today</span><strong class="se-big">' + esc(t.name) + '</strong><small class="se-note">' + esc([(t.start || "") + (t.end ? "–" + t.end : ""), t.room, n(t)].filter(Boolean).join(" · ")) + "</small>" +
-          '<div class="se-btns"><button type="button" class="blue-button" data-se-open="' + esc(t.id) + '">Take the register</button><button type="button" class="soft-button" data-se-new>+ New</button></div>'
-        : '<span class="se-k">Today</span><strong class="se-big">No class today</strong><small class="se-note">' + (regs.length ? "Your registers are below." : "Make your first register to get started.") + "</small>" +
-          '<div class="se-btns"><button type="button" class="blue-button" data-se-new>+ New register</button></div>') + "</section>" +
-      (regs.length ? '<h2 class="se-h2">Your registers</h2><div class="se-group">' + regs.map((c) => row({ data: ' data-se-open="' + esc(c.id) + '"', lead: '<span class="se-ic">' + ICR.reg + "</span>", title: c.name, sub: [when(c), n(c)].filter(Boolean).join(" · "), pill: isToday(c) ? '<span class="se-pill">Today</span>' : "" })).join("") + "</div>" : "") +
-      '<div class="se-group se-quiet">' + row({ data: " data-se-list", lead: '<span class="se-ic">' + ICR.past + "</span>", title: "Past registers", sub: "Every register you've finished, and the spreadsheet" }) + "</div>";
+
+  /* ---------- Registers ---------- */
+  let detail = true; /* a register open on its own; the list shows when the Registers tab is tapped */
+  function registersPage() {
+    const all = regs(), t = onDay(new Date())[0], past = (st().history || []).length;
+    return head("Registers") +
+      '<section class="se-hero">' + (t
+        ? '<span class="se-k">Today</span><strong class="se-big se-big-s">' + esc(t.name) + '</strong><small class="se-note">' + esc([times(t), t.room, people(t)].filter(Boolean).join(" · ")) + '</small><div class="se-btns"><button type="button" class="blue-button" data-se-open="' + esc(t.id) + '">Take the register</button></div>'
+        : '<span class="se-k">Today</span><strong class="se-big se-big-s">No register today</strong><small class="se-note">' + (all.length ? "Your registers are below." : "Make your first one to get started.") + "</small>" + (all.length ? "" : '<div class="se-btns"><button type="button" class="blue-button" data-se-new>Make a register</button></div>')) +
+      "</section>" +
+      (all.length ? '<h2 class="se-h2">Your registers</h2><div class="se-group">' + all.map((c) => row({ data: ' data-se-open="' + esc(c.id) + '"', lead: ic("reg"), title: c.name, sub: [repeat(c), times(c)].filter(Boolean).join(" · "), pill: c === t ? '<span class="se-pill">Today</span>' : "" })).join("") + "</div>" : "") +
+      '<div class="se-group se-more">' + row({ data: " data-se-classes", lead: ic("classes"), title: "Classes", sub: "Courses, dates and who’s in them" }) + row({ data: " data-se-past", lead: ic("past"), title: "Past registers", sub: past ? past + " finished" : "None finished yet" }) + "</div>";
   }
+
+  /* ---------- Learners ---------- */
   function learnersPage() {
-    const rows = [...app.querySelectorAll(".learner-row[data-learner-info]")].map((r) => ({ id: r.dataset.learnerInfo, name: (r.querySelector("strong") || {}).textContent || "", sub: (r.querySelector("small") || {}).textContent || "", pct: parseInt((r.querySelector(".mini-progress b") || {}).textContent, 10) }));
-    const withPct = rows.filter((r) => !isNaN(r.pct) && !/ 0 sessions/.test(r.sub)), avg = withPct.length ? Math.round(withPct.reduce((a, r) => a + r.pct, 0) / withPct.length) : null;
+    const rows = [...app.querySelectorAll(".learner-row[data-learner-info]")].map((r) => ({ id: r.dataset.learnerInfo, name: ($("strong", r) || {}).textContent || "", sub: ($("small", r) || {}).textContent || "", pct: parseInt(($(".mini-progress b", r) || {}).textContent, 10) }));
+    const seen = rows.filter((r) => !isNaN(r.pct) && !/\b0 sessions/.test(r.sub)), avg = seen.length ? Math.round(seen.reduce((a, r) => a + r.pct, 0) / seen.length) : null;
     const ini = (n) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase();
-    const tone = (p) => p >= 90 ? "g" : p >= 75 ? "y" : "r";
-    return '<section class="se-hero"><span class="se-k">Your learners</span><strong class="se-big">' + rows.length + "<small> " + (rows.length === 1 ? "learner" : "learners") + "</small></strong>" +
-      '<small class="se-note">' + (avg == null ? "Attendance shows here once registers are finished." : "Average attendance " + avg + "%") + "</small>" +
-      '<div class="se-btns"><button type="button" class="blue-button" data-se-add>+ Add learner</button></div></section>' +
-      (rows.length ? '<h2 class="se-h2">Everyone</h2><div class="se-group">' + rows.map((r) => row({ data: ' data-se-learner="' + esc(r.id) + '"', lead: '<span class="se-av">' + esc(ini(r.name)) + "</span>", title: r.name, sub: r.sub,
-        pill: isNaN(r.pct) || / 0 sessions/.test(r.sub) ? "" : '<span class="se-pill se-pill-' + tone(r.pct) + '">' + r.pct + "%</span>" })).join("") + "</div>" : "");
+    const tone = (p) => (p >= 90 ? "" : p >= 75 ? " se-pill-y" : " se-pill-r");
+    return head("Learners") +
+      '<section class="se-hero"><span class="se-k">Your learners</span><strong class="se-big">' + rows.length + "<small> " + (rows.length === 1 ? "learner" : "learners") + (avg == null ? "" : " · " + avg + "% attendance") + "</small></strong>" +
+        '<div class="se-btns"><button type="button" class="blue-button" data-se-add>Add a learner</button></div></section>' +
+      (rows.length ? '<div class="se-group se-gap">' + rows.map((r) => row({ data: ' data-se-learner="' + esc(r.id) + '"', lead: '<span class="se-av">' + esc(ini(r.name)) + "</span>", title: r.name, sub: r.sub, pill: seen.includes(r) ? '<span class="se-pill' + tone(r.pct) + '">' + r.pct + "%</span>" : "" })).join("") + "</div>" : "");
   }
-  function pages() {
-    let st; try { st = S.getState(); } catch (_) { return; }
-    const v = st.view || "home";
+
+  /* ---------- Drawing ---------- */
+  const press = (sel) => { const b = app.querySelector(sel); if (b) b.click(); return !!b; };
+  const homeBox = document.createElement("section");
+  homeBox.className = "se-home"; (main || body).insertBefore(homeBox, app);
+  function show(el, html) { el.innerHTML = html; el.classList.remove("se-enter"); void el.offsetWidth; el.classList.add("se-enter"); }
+  let lastView = "";
+  function draw() {
+    const v = st().view || "home";
     if (v !== "registers") detail = true;
-    const list = (v === "registers" && !detail) || v === "learners";
-    document.body.classList.toggle("se-list", list);
-    document.body.classList.toggle("se-detail", v === "registers" && detail);
-    if (!list) {
-      const old = app.querySelector(".se-page"); if (old) old.remove();
-      if (v === "registers" && detail && !app.querySelector(".se-back")) {
-        const b = document.createElement("button"); b.type = "button"; b.className = "se-back"; b.textContent = "‹ Registers";
-        b.onclick = () => { detail = false; pages(); window.scrollTo({ top: 0 }); };
-        const at = app.querySelector(".staff-page-head"); if (at) at.after(b); else app.prepend(b);
-      }
-      return;
+    const home = v === "home", list = (v === "registers" && !detail) || v === "learners";
+    body.classList.toggle("se-is-home", home);
+    body.classList.toggle("se-list", list);
+    body.classList.toggle("se-detail", v === "registers" && detail);
+    if (home) { const sig = JSON.stringify([pick, key(new Date()), regs().map((c) => [c.id, c.name, c.start, c.end, c.room, c.day, c.recurrence, (c.learners || []).length])]); if (sig !== homeBox.dataset.sig || v !== lastView) { homeBox.dataset.sig = sig; show(homeBox, homePage()); } }
+    if (list && !app.querySelector(".se-page")) {
+      const pg = document.createElement("div"); pg.className = "se-page";
+      app.prepend(pg); show(pg, v === "registers" ? registersPage() : learnersPage());
     }
-    if (app.querySelector(".se-page")) return;
-    const pg = document.createElement("div"); pg.className = "se-page";
-    pg.innerHTML = v === "registers" ? registersPage(st) : learnersPage();
-    const after = app.querySelector(".sy-pills") || app.querySelector(".staff-page-head");
-    if (after) after.after(pg); else app.prepend(pg);
-    pg.addEventListener("click", (e) => {
-      const o = e.target.closest("[data-se-open]"), l = e.target.closest("[data-se-learner]");
-      if (o) { detail = true; document.body.classList.remove("se-list"); if (!press('[data-select-register="' + CSS.escape(o.dataset.seOpen) + '"]')) pages(); else setTimeout(pages, 0); window.scrollTo({ top: 0 }); return; }
-      if (e.target.closest("[data-se-new]")) return void press("[data-new-register]");
-      if (e.target.closest("[data-se-list]")) return void press("[data-register-list]");
-      if (e.target.closest("[data-se-add]")) return void press("[data-add-learner]");
-      if (l) press('[data-learner-info="' + CSS.escape(l.dataset.seLearner) + '"]');
-    });
+    if (!list) { const old = app.querySelector(".se-page"); if (old) old.remove(); }
+    /* A way back from a register, Classes or Past registers to the Registers list. */
+    if (((v === "registers" && detail) || ["classes", "registerList"].includes(v)) && !app.querySelector(".se-backrow")) {
+      const r = document.createElement("div"); r.className = "se-backrow";
+      r.innerHTML = '<button type="button" class="se-back"><span aria-hidden="true">‹</span> Registers</button><span class="se-slot"></span>';
+      r.firstChild.onclick = () => { detail = false; if (st().view === "registers") draw(); else S.openRegisters(); window.scrollTo({ top: 0 }); };
+      app.prepend(r);
+    }
+    lastView = v;
+    drawMe(); place();
   }
-  if (app) new MutationObserver(() => { drawMe(); pages(); }).observe(app, { childList: true });
-  /* The Evia Portal button arrives once Symi has checked the sign-in. */
-  new MutationObserver(drawMe).observe(document.querySelector(".header-utility-actions") || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
-  titleHome(); drawMe(); pages();
+  /* Taps on our pages: each presses Symi's own button, or calls Symi. */
+  function tap(e) {
+    const o = e.target.closest("[data-se-open]"), d = e.target.closest("[data-se-day]"), l = e.target.closest("[data-se-learner]");
+    if (d) { pick = d.dataset.seDay; return draw(); }
+    if (o) {
+      const id = o.dataset.seOpen; detail = true;
+      const old = app.querySelector(".se-page"); if (old) old.remove();
+      if (st().view === "registers" && press('[data-select-register="' + CSS.escape(id) + '"]')) { draw(); return window.scrollTo({ top: 0 }); }
+      S.mutate((x) => { x.activeClassId = id; x.view = "registers"; }); window.scrollTo({ top: 0 }); return;
+    }
+    if (e.target.closest("[data-se-new]")) return void press("[data-new-register]");
+    if (e.target.closest("[data-se-past]")) return void press("[data-register-list]");
+    if (e.target.closest("[data-se-classes]")) { S.openClasses(); return window.scrollTo({ top: 0 }); }
+    if (e.target.closest("[data-se-add]")) return void press("[data-add-learner]");
+    if (l) press('[data-learner-info="' + CSS.escape(l.dataset.seLearner) + '"]');
+  }
+  homeBox.addEventListener("click", tap);
+  app.addEventListener("click", (e) => { if (e.target.closest(".se-page")) tap(e); });
+  document.addEventListener("click", (e) => { if (e.target.closest('[data-sy-tab="registers"]')) detail = false; }, true);
+
+  new MutationObserver(draw).observe(app, { childList: true });
+  /* Signing in, and the Messages button, arrive after Symi starts. */
+  new MutationObserver(() => { drawMe(); place(); }).observe($(".header-utility-actions") || body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { homeBox.dataset.sig = ""; draw(); } });
+  draw();
 })();
