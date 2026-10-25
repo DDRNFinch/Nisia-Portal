@@ -3325,3 +3325,23 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .tg-player .tg-medals{gap:12px;margin:8px 0 10px}
 .tg-player .tg-medal i{width:16px;height:16px}
 .tg-player .tg-medal{font-size:13px}
+.oa-top{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:8px}
+.oa-pct,.oa-hrs{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:16px;background:var(--ui-soft,#f3f4f6)}
+.oa-pct b,.oa-hrs b{font-size:26px;font-weight:850;letter-spacing:-.02em;color:var(--ui-ink)}
+.oa-pct span,.oa-hrs span{font-size:13px;color:var(--ui-muted)}
+.oa-ref{margin:4px 2px 14px;font-size:13px;color:var(--ui-muted)}
+.oa-empty{color:var(--ui-muted);margin:8px 2px}
+.oa-list{display:flex;flex-direction:column;gap:8px}
+.oa-day{padding:12px 14px;border-radius:16px;border:1px solid var(--ui-line,#e5e7eb);background:var(--ui-card,#fff)}
+.oa-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.oa-row strong{font-size:15px}
+.oa-seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--ui-soft,#f3f4f6);flex:none}
+.oa-seg button{border:0;background:none;font:inherit;font-size:13.5px;font-weight:700;padding:7px 13px;border-radius:999px;color:var(--ui-muted);cursor:pointer;min-height:34px}
+.oa-seg button[aria-pressed="true"]{background:var(--ui-card,#fff);color:var(--ui-ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.oa-here .oa-seg [data-st="here"][aria-pressed="true"]{background:#dff5e8;color:#17663a}
+.oa-missed .oa-seg [data-st="missed"][aria-pressed="true"]{background:#fde7e4;color:#a1281a}
+.oa-time{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ui-line,#eef0f3)}
+.oa-time span{flex:1;font-size:13.5px;color:var(--ui-muted)}
+.oa-time b{min-width:62px;text-align:center;font-size:16px;font-variant-numeric:tabular-nums}
+.oa-step{width:38px;height:38px;border-radius:50%;border:1px solid var(--ui-line,#e5e7eb);background:var(--ui-card,#fff);font:inherit;font-size:20px;font-weight:700;color:var(--ui-ink);cursor:pointer}
+.oa-step:disabled{opacity:.35}

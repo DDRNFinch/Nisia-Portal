@@ -236,6 +236,8 @@ hero+
     const total=St?St.otjTotal||0:0,planned=(()=>{try{return Number((D().enrolment&&D().enrolment()||{}).plannedOtjHours)||0}catch(_){return 0}})();
     const recent=H.slice().sort((x,y)=>Number(y.on||y.createdAt)-Number(x.on||x.createdAt)).slice(0,3);
     const logs=recent.length?'<h2 class="th-h2">Latest learning</h2><div class="th-group">'+recent.map(x=>row({ic:"clock",title:x.description||"Learning",sub:new Date(Number(x.on||x.createdAt)).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+" · "+hm(Number(x.n)||0)}).replace('class="th-row"','class="th-row th-static"').replace(GO,"")).join("")+'</div>':"";
+    /* Not connected to a college: the learner marks their own college days (own-attendance.js). */
+    const OA=!AT&&window.eviaOwnAttendance?window.eviaOwnAttendance.data():null;
     scr().innerHTML=header("Time")+
       '<section class="th-hero"><span class="th-k">Learning hours this week</span><strong class="th-big">'+esc(hm(wk))+'<small> / '+esc(hm(aim))+'</small></strong><span class="th-bar"><i style="width:'+pct+'%"></i></span>'+
       '<small class="th-note">'+esc(hm(total))+' in total'+(planned?' of '+planned+'h · '+Math.min(100,Math.round(total/planned*100))+'% done':'')+'</small>'+
@@ -244,12 +246,14 @@ hero+
       '<div class="th-group">'+strip+nextRow+
         (now&&window.eviaCheckIn?row({id:"th-checkin",ic:"qr",title:"Check in now",sub:now.class||"Your class is on"}):"")+
         (AT?row({id:"th-att",ic:"qr",title:"Attendance",sub:AT.pct==null?"No registers yet":AT.pct+"% · "+AT.here+" of "+AT.n+" sessions"}):"")+
+        (!AT&&OA&&OA.days.length?row({id:"th-own-att",ic:"qr",title:"Attendance",sub:OA.open?OA.open+" college day"+(OA.open===1?"":"s")+" to mark"+(OA.pct!=null?" · "+OA.pct+"%":""):OA.pct+"% · "+hm(OA.mins/60)+" at college"}):"")+
         (canAway?row({id:"th-away",ic:"away",title:"Can’t make college?",sub:"Tell your tutor"}):"")+'</div>'+logs;
     wireHeader();
     on("th-log",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)});
     on("th-logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs());
     on("th-checkin",()=>window.eviaCheckIn.open());
     on("th-att",()=>window.eviaProgressDeep&&window.eviaProgressDeep("attendance"));
+    on("th-own-att",()=>window.eviaOwnAttendance&&window.eviaOwnAttendance.open());
     on("th-away",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaTodo.away(),120)});
     on("th-cal",()=>{full=true;fullCalendar()});
     if(!next)on("th-next",()=>{full=true;fullCalendar()});

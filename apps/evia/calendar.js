@@ -28,7 +28,7 @@
   /* College days for learners not connected to a college: weekdays (0 Sunday to 6 Saturday). */
   const CD_KEY="evia7-college-days";
   const myDays=()=>{try{const d=JSON.parse(localStorage.getItem(CD_KEY)||"[]");return Array.isArray(d)?d.filter(n=>n>=0&&n<=6):[]}catch(_){return []}};
-  const setDays=d=>{try{localStorage.setItem(CD_KEY,JSON.stringify(d))}catch(_){}};
+  const setDays=d=>{try{localStorage.setItem(CD_KEY,JSON.stringify(d))}catch(_){}if(window.eviaOwnAttendance)window.eviaOwnAttendance.noteSet()};
   const PICK=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"],[6,"Sat"],[0,"Sun"]];
   let editDays=false,picked=null;
   const RI={class:'<svg viewBox="0 0 24 24"><path d="M3 9.5 12 5l9 4.5-9 4.5z"/><path d="M7 11.5V16c1.5 1.3 3.2 2 5 2s3.5-.7 5-2v-4.5"/></svg>',
