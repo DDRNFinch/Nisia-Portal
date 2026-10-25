@@ -783,11 +783,48 @@ function trend(rows, color) {
     (rows.length ? '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>' + rows.map((r, i) => '<circle cx="' + x(i) + '" cy="' + y(r.n) + '" r="3.5" fill="' + color + '"><title>' + r.n + '</title></circle>' + (i % 3 === 0 || i === rows.length - 1 ? '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(new Date(r.week).toLocaleDateString("en-GB", { day: "numeric", month: "short" })) + '</text>' : "")).join("") : "") +
     '</svg></div>';
 }
+/* Learners' ratings and, for those who shared it, their time with Evia week by week (nisia_admin_feedback). One per
+   learner (the newest from each phone's random code) for the results; every rating is listed. */
+const median = (xs) => { const a = xs.filter((x) => x != null && isFinite(x)).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+const r1 = (x) => x == null ? "–" : String(Math.round(x * 10) / 10);
+function pilotResults(fb) {
+  const seen = new Set(), people = [];
+  fb.forEach((f) => { const k = f.fid || "x" + people.length + Math.random(); if (seen.has(k)) return; seen.add(k); people.push(f); });
+  const withUse = people.filter((f) => f.usage && Array.isArray(f.usage.by_week) && f.usage.by_week.length);
+  const per = withUse.map((f) => { const u = f.usage, w = Math.max(1, u.by_week.length), t = u.totals || {};
+    const aim = Number(u.aim_per_week) || 0, metWeeks = aim ? u.by_week.filter((b) => b.h >= aim).length : null;
+    return { weeks: u.weeks || w, ev: ((t.evidence || 0) + (t.supporting || 0)) / w, hrs: (t.hours || 0) / w, les: (t.lessons || 0) / w,
+      active: (u.active_weeks || 0) / w, aimMet: metWeeks == null ? null : metWeeks / w, ksb: u.ksbs && u.ksbs.total ? u.ksbs.met / u.ksbs.total : null }; });
+  /* Week by week (week 1 = their first week), averaged over the learners who had reached that week. */
+  const curve = [];
+  for (let i = 0; i < 26; i++) { const at = withUse.filter((f) => f.usage.by_week.length > i); if (at.length < 1) break;
+    curve.push({ w: i + 1, n: at.length, e: at.reduce((a, f) => a + (f.usage.by_week[i].e || 0) + (f.usage.by_week[i].s || 0), 0) / at.length, h: at.reduce((a, f) => a + (f.usage.by_week[i].h || 0), 0) / at.length }); }
+  return { people, withUse, curve,
+    stars: people.length ? people.reduce((a, f) => a + f.stars, 0) / people.length : null,
+    m: { weeks: median(per.map((x) => x.weeks)), ev: median(per.map((x) => x.ev)), hrs: median(per.map((x) => x.hrs)), les: median(per.map((x) => x.les)),
+      active: median(per.map((x) => x.active)), aimMet: median(per.map((x) => x.aimMet)), ksb: median(per.map((x) => x.ksb)) } };
+}
+function weekCurve(rows) {
+  const W = 460, H = 160, pl = 30, pb = 24, pt = 10, pr = 8, n = Math.max(rows.length, 2);
+  const mx = (k) => Math.max(1, ...rows.map((r) => r[k]));
+  const x = (i) => pl + (W - pl - pr) * i / (n - 1), y = (v, k) => pt + (H - pt - pb) * (1 - v / mx(k));
+  const line = (k, c) => '<polyline points="' + rows.map((r, i) => x(i) + "," + y(r[k], k)).join(" ") + '" fill="none" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+    rows.map((r, i) => '<circle cx="' + x(i) + '" cy="' + y(r[k], k) + '" r="3" fill="' + c + '"><title>Week ' + r.w + ': ' + r1(r[k]) + (k === "h" ? " hours" : " pieces") + ' (' + r.n + ' learner' + (r.n === 1 ? "" : "s") + ')</title></circle>').join("");
+  return '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average evidence and learning hours by week since starting">' +
+    '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + (H - pb) + '" y2="' + (H - pb) + '" stroke="var(--line)"/>' +
+    (rows.length ? line("e", "var(--accent)") + line("h", "#E8A33C") + rows.map((r, i) => (i % 2 === 0 || i === rows.length - 1 ? '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="' + (i === rows.length - 1 && i ? "end" : i ? "middle" : "start") + '">Wk ' + r.w + '</text>' : "")).join("") : "") +
+    '</svg></div><p class="small muted"><b style="color:var(--accent)">●</b> Evidence a week (average) &nbsp; <b style="color:#E8A33C">●</b> Learning hours a week (average). Each line is scaled to its own highest week.</p>';
+}
+const STARS = (n) => '<span aria-label="' + n + ' stars" style="color:#E8A33C;letter-spacing:1px">' + "★".repeat(n) + '<span style="color:var(--line)">' + "★".repeat(5 - n) + '</span></span>';
+const notCounted = () => { try { return localStorage.getItem("nisia-not-counted") === "1"; } catch (_) { return false; } };
 async function usagePage() {
   shell('<p class="loading">Loading usage…</p>');
-  S.days = S.days || 30; S.uapp = S.uapp || "evia";
-  let u;
-  try { u = await rpc("nisia_admin_usage", { p_days: S.days }); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  S.days = S.days || 30; S.uapp = S.uapp || "evia"; S.utest = !!S.utest;
+  let u, fb = [];
+  try { [u, fb] = await Promise.all([rpc("nisia_admin_usage", { p_days: S.days, p_testing: S.utest }), rpc("nisia_admin_feedback", { p_days: S.days, p_testing: S.utest }).catch(() => [])]); }
+  catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  fb = fb || [];
+  const period = S.days === 365 ? "the last 12 months" : "the last " + S.days + " days";
   const apps = Object.keys(APP_NAMES), byApp = Object.fromEntries((u.apps || []).map((a) => [a.app, a])), A = S.uapp, dd = (byApp[A] || {}).device_days || 0;
   const feats = (u.features || []).filter((f) => f.app === A).sort((a, b) => b.device_days - a.device_days || b.uses - a.uses);
   const used = new Set(feats.map((f) => f.feature)), unused = (KNOWN[A] || []).filter((k) => !used.has(k));
@@ -796,28 +833,71 @@ async function usagePage() {
   const platTotals = {}; plats.forEach((p) => platTotals[p.platform] = (platTotals[p.platform] || 0) + p.device_days);
   const versions = {}; plats.forEach((p) => versions[p.version] = (versions[p.version] || 0) + p.device_days);
   const share = (n) => dd ? Math.round(n / dd * 100) : 0;
-  const bars = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => '<div class="pbar-row"><span class="small" style="min-width:110px">' + esc(k) + '</span><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(n) + '%;background:var(--accent)"></div></div><span class="num">' + share(n) + '%</span></div>').join("") || '<p class="muted small">Nothing yet.</p>';
+  const PLAT = { "ios-app": "iPhone (installed)", "ios-web": "iPhone (browser)", "android-app": "Android (installed)", "android-web": "Android (browser)", "desktop-app": "Computer (installed)", "desktop-web": "Computer (browser)" };
+  const bars = (obj, names) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => '<div class="pbar-row"><span class="small" style="min-width:150px">' + esc((names && names[k]) || k || "Unknown") + '</span><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(n) + '%;background:var(--accent)"></div></div><span class="num">' + share(n) + '%</span></div>').join("") || '<p class="muted small">Nothing yet.</p>';
+  /* What Evia learners did in the period, from the daily counts. */
+  const ef = Object.fromEntries((u.features || []).filter((f) => f.app === "evia").map((f) => [f.feature, f.uses]));
+  const P = pilotResults(fb), m = P.m, pc = (x) => x == null ? "–" : Math.round(x * 100) + "%";
+  const dist = [5, 4, 3, 2, 1].map((s) => [s, P.people.filter((f) => f.stars === s).length]);
+  const tile = (label, big, sub) => '<div class="stat"><span class="label">' + label + '</span><span class="big num">' + big + '</span><span class="sub">' + sub + '</span></div>';
   shell(
-    '<div class="topbar"><div><div class="label">Master admin</div><h1>Usage</h1></div><div class="actions"><div class="seg" role="group" aria-label="Period">' +
-      [7, 30, 90, 365].map((d) => '<button type="button" data-days="' + d + '" aria-pressed="' + (S.days === d) + '">' + (d === 365 ? "12 months" : d + " days") + '</button>').join("") + '</div></div></div>' +
+    '<div class="topbar"><div><div class="label">Master admin</div><h1>Usage and feedback</h1></div><div class="actions"><div class="seg" role="group" aria-label="Period">' +
+      [7, 30, 90, 365].map((d) => '<button type="button" data-days="' + d + '" aria-pressed="' + (S.days === d) + '">' + (d === 365 ? "12 months" : d + " days") + '</button>').join("") + '</div>' +
+      '<button type="button" class="btn ghost" id="uPrint">Print or save as PDF</button></div></div>' +
+    '<section class="panel" style="margin-bottom:16px"><p style="margin:0 0 6px"><b>What these numbers are.</b> Each phone or computer sends one line for each day it uses an app: counts only, with no names and nothing that says who it is. ' +
+      '“Days used” means one device on one day, so 10 learners using Evia every weekday for a month is about 200.</p>' +
+      '<p class="small muted" style="margin:0">' + (S.utest ? "Including the testers and the devices marked as yours." : "The testers and the devices marked as yours are left out" + (u.left_out ? " (" + u.left_out + (u.left_out === 1 ? " line" : " lines") + " in " + period + ")" : "") + ". Anything sent before 25 October 2026 wasn’t marked, so your own testing before then is still counted.") +
+      ' <button type="button" class="linkish" id="uTest">' + (S.utest ? "Leave them out" : "Include them") + '</button> · This device is <b>' + (notCounted() ? "not counted" : "counted") + '</b>: <button type="button" class="linkish" id="uMine">' + (notCounted() ? "Count it again" : "It’s mine, leave it out") + '</button></p></section>' +
+
+    /* For colleges: the headline. */
+    '<h2 style="margin:6px 0 10px">Evia at a glance <span class="small muted">' + period + '</span></h2>' +
+    '<section class="stats" aria-label="Evia at a glance">' +
+      tile("Rating", P.stars == null ? "–" : r1(P.stars) + "<small>/5</small>", P.people.length ? "from " + P.people.length + " learner" + (P.people.length === 1 ? "" : "s") : "no ratings yet") +
+      tile("Days used", (byApp.evia || {}).device_days || 0, "Evia on a phone, one day each") +
+      tile("Evidence saved", (ef["saved.evidence"] || 0) + (ef["saved.supporting"] || 0), "photo packs and supporting evidence") +
+      tile("Learning hours", ef["saved.hours"] || 0, "entries logged") +
+      tile("Lessons and tests", (ef["saved.lessons-done"] || 0) + (ef["saved.tests"] || 0), "lessons finished and tests taken") + '</section>' +
+
+    '<div class="grid cols-2" style="margin-top:16px">' +
+      '<section class="panel"><div class="panel-head"><h2>Learners who shared their usage</h2><span class="small muted">' + P.withUse.length + ' learner' + (P.withUse.length === 1 ? "" : "s") + ' · the middle learner (median)</span></div>' +
+        (P.withUse.length ? '<div class="course"><span>Using Evia for</span><b class="num">' + r1(m.weeks) + ' weeks</b></div>' +
+          '<div class="course"><span>Evidence added a week</span><b class="num">' + r1(m.ev) + '</b></div>' +
+          '<div class="course"><span>Learning hours logged a week</span><b class="num">' + r1(m.hrs) + '</b></div>' +
+          '<div class="course"><span>Lessons finished a week</span><b class="num">' + r1(m.les) + '</b></div>' +
+          '<div class="course"><span>Weeks they did something in Evia</span><b class="num">' + pc(m.active) + '</b></div>' +
+          '<div class="course"><span>Weeks they met their hours aim</span><b class="num">' + pc(m.aimMet) + '</b></div>' +
+          '<div class="course"><span>KSBs covered by their evidence</span><b class="num">' + pc(m.ksb) + '</b></div>' +
+          '<h3 class="label" style="margin:16px 0 8px">Week by week since they started</h3>' + weekCurve(P.curve)
+          : '<p class="muted">No one has shared their usage yet. Learners can from the bottom of Review in Evia (Rate Evia).</p>') + '</section>' +
+      '<section class="panel"><div class="panel-head"><h2>What learners say</h2><span class="small muted">' + fb.length + ' rating' + (fb.length === 1 ? "" : "s") + '</span></div>' +
+        (P.people.length ? dist.map(([sN, n]) => '<div class="pbar-row"><span class="small" style="min-width:64px">' + sN + ' star' + (sN === 1 ? "" : "s") + '</span><div class="pbar" style="flex:1"><div class="fill" style="width:' + Math.round(n / P.people.length * 100) + '%;background:#E8A33C"></div></div><span class="num">' + n + '</span></div>').join("") : "") +
+        (fb.length ? '<div style="margin-top:12px">' + fb.slice(0, 40).map((f) => '<div class="course" style="display:block"><div>' + STARS(f.stars) + ' <span class="small muted">' + esc(ukDate(f.created_at)) + (f.course ? " · " + esc(courseName(f.course)) : "") + (f.usage && f.usage.weeks ? " · " + f.usage.weeks + " weeks with Evia" : "") + (f.tester ? " · test" : "") + '</span></div><p style="margin:6px 0 0;white-space:pre-wrap">' + esc(f.comment) + '</p></div>').join("") + '</div>'
+          : '<p class="muted">No ratings yet. Learners rate Evia from the bottom of Review.</p>') + '</section>' +
+    '</div>' +
+
+    /* Each app's features. */
+    '<h2 style="margin:22px 0 10px">Each app</h2>' +
     '<section class="stats" aria-label="Apps">' + apps.map((a) => { const r = byApp[a] || { device_days: 0, connected: 0 };
-      return '<button type="button" class="stat stat-btn" data-app="' + a + '" aria-pressed="' + (a === A) + '"><span class="label">' + APP_NAMES[a] + '</span><span class="big num">' + r.device_days + '</span><span class="sub">device-days' + (a === "evia" && r.device_days ? " · " + Math.round(r.connected / r.device_days * 100) + "% with a college" : "") + '</span></button>'; }).join("") + '</section>' +
-    '<div class="grid cols-2">' +
-      '<section class="panel"><div class="panel-head"><h2>' + APP_NAMES[A] + ': features used</h2><span class="small muted">Last ' + (S.days === 365 ? "12 months" : S.days + " days") + ' · real colleges only</span></div>' +
-        (feats.length ? '<div class="table-wrap flat"><table><thead><tr><th>Feature</th><th>Reach</th><th>Uses</th></tr></thead><tbody>' + feats.map((f) =>
-          '<tr class="static"><td>' + esc(word(f.feature)) + '<br><span class="small muted">' + esc(f.feature) + '</span></td><td style="min-width:160px"><div class="pbar-row"><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(f.device_days) + '%;background:var(--accent)"></div></div><span class="num">' + share(f.device_days) + '%</span></div></td><td class="num">' + f.uses + '</td></tr>').join("") + '</tbody></table></div>'
-          : '<p class="muted">No counts from ' + APP_NAMES[A] + ' yet. Apps send the day’s counts the next time they open, so allow a day or two.</p>') +
-        '<p class="small muted" style="margin-top:8px">Reach: the share of ' + APP_NAMES[A] + '’s device-days that used the feature at least once.</p></section>' +
+      return '<button type="button" class="stat stat-btn" data-app="' + a + '" aria-pressed="' + (a === A) + '"><span class="label">' + APP_NAMES[a] + '</span><span class="big num">' + r.device_days + '</span><span class="sub">days used' + (a === "evia" && r.device_days ? " · " + Math.round(r.connected / r.device_days * 100) + "% joined to a college" : "") + '</span></button>'; }).join("") + '</section>' +
+    '<div class="grid cols-2" style="margin-top:16px">' +
+      '<section class="panel"><div class="panel-head"><h2>' + APP_NAMES[A] + ': what’s used</h2><span class="small muted">' + period + '</span></div>' +
+        (feats.length ? '<div class="table-wrap flat"><table><thead><tr><th>Feature</th><th>Days it was used</th><th>Times</th></tr></thead><tbody>' + feats.map((f) =>
+          '<tr class="static"><td>' + esc(word(f.feature)) + '</td><td style="min-width:160px"><div class="pbar-row"><div class="pbar" style="flex:1"><div class="fill" style="width:' + share(f.device_days) + '%;background:var(--accent)"></div></div><span class="num">' + share(f.device_days) + '%</span></div></td><td class="num">' + f.uses + '</td></tr>').join("") + '</tbody></table></div>'
+          : '<p class="muted">Nothing from ' + APP_NAMES[A] + ' yet. Apps send each day’s counts the next time they open, so allow a day or two.</p>') +
+        '<p class="small muted" style="margin-top:8px">“Days it was used”: of the ' + dd + (dd === 1 ? ' day ' : ' days ') + APP_NAMES[A] + ' was used, how many used this at least once.</p></section>' +
       '<div class="grid" style="align-content:start">' +
+        '<section class="panel"><div class="panel-head"><h2>Weekly use</h2><span class="small muted">days used, last 12 weeks</span></div>' + trend(weeks, "var(--accent)") + '</section>' +
         '<section class="panel"><div class="panel-head"><h2>Not used</h2><span class="small muted">' + unused.length + ' of ' + (KNOWN[A] || []).length + '</span></div>' +
           (unused.length ? '<div class="chips">' + unused.map((k) => '<span class="chip">' + esc(word(k)) + '</span>').join("") + '</div><p class="small muted" style="margin-top:8px">Nobody used these in the period: improve them, make them easier to find, or retire them.</p>' : '<p class="muted small">Every feature was used.</p>') + '</section>' +
-        '<section class="panel"><div class="panel-head"><h2>Weekly use</h2><span class="small muted">device-days, last 12 weeks</span></div>' + trend(weeks, "var(--accent)") + '</section>' +
-        '<section class="panel"><div class="panel-head"><h2>Devices</h2></div>' + bars(platTotals) + '<h3 class="label" style="margin:14px 0 8px">Versions</h3>' + bars(versions) + '</section>' +
-        (A === "evia" ? '<section class="panel"><div class="panel-head"><h2>Courses</h2></div>' + (u.courses || []).map((c) => '<div class="course"><span>' + esc(c.course === "?" || !c.course ? "No course chosen" : courseName(c.course)) + '</span><b class="num">' + c.device_days + '</b></div>').join("") + '</section>' : "") +
-      '</div></div>' +
-    '<p class="small muted" style="margin-top:14px">Counts only: no names, no work, no identifiers. Learners can switch it off in Evia’s profile. Copies running on this computer (localhost) never send.</p>');
+        '<section class="panel"><div class="panel-head"><h2>Devices</h2></div>' + bars(platTotals, PLAT) + '<h3 class="label" style="margin:14px 0 8px">Versions</h3>' + bars(versions) + '</section>' +
+        (A === "evia" ? '<section class="panel"><div class="panel-head"><h2>Courses</h2><span class="small muted">days used</span></div>' + (u.courses || []).map((c) => '<div class="course"><span>' + esc(c.course === "?" || !c.course ? "No course chosen" : courseName(c.course)) + '</span><b class="num">' + c.device_days + '</b></div>').join("") + '</section>' : "") +
+      '</div></div>');
   root.querySelectorAll("[data-days]").forEach((b) => b.onclick = () => { S.days = +b.dataset.days; usagePage(); });
   root.querySelectorAll("[data-app]").forEach((b) => b.onclick = () => { S.uapp = b.dataset.app; usagePage(); });
+  root.querySelector("#uTest").onclick = () => { S.utest = !S.utest; usagePage(); };
+  root.querySelector("#uMine").onclick = () => { try { notCounted() ? localStorage.removeItem("nisia-not-counted") : localStorage.setItem("nisia-not-counted", "1"); } catch (_) {}
+    toast(notCounted() ? "This device is left out. On your other phones, open Evia once with ?notcounted on the end of its address" : "This device is counted again"); usagePage(); };
+  root.querySelector("#uPrint").onclick = () => window.print();
 }
 
 /* ---------- College: impact ----------

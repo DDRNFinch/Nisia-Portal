@@ -3349,3 +3349,15 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .oa-from{display:block;margin:-6px 2px 14px;font-size:13px;color:var(--ui-muted)}
 .oa-set{padding:12px 14px;margin:0 0 14px;border-radius:14px;background:var(--ui-soft,#f3f4f6);color:var(--ui-ink);font-weight:600}
 .oa-set input{display:block;width:100%;margin-top:8px;min-height:44px;font:inherit}
+/* Rate Evia (feedback.js). */
+.er-stars{display:flex;gap:6px}
+.er-star{width:48px;height:48px;border:0;background:none;padding:2px;cursor:pointer;color:#d0d5dd;transition:transform .15s ease,color .15s ease}
+.er-star svg{width:100%;height:100%;fill:currentColor;stroke:none}
+.er-star.on{color:#f5a524}.er-star:active{transform:scale(.9)}
+.er-say,.er-left{font-size:13px;color:var(--ui-muted,#667085);min-height:1em}
+.er-what{margin:12px 4px 0;font-size:14px;color:var(--ui-muted,#667085)}
+.er-what summary{cursor:pointer;font-weight:700;color:var(--ui-ink,#172033);min-height:36px;display:flex;align-items:center}
+.er-what p{margin:6px 0;line-height:1.45}
+.er-wrap .th-btns{display:flex;flex-direction:column;gap:8px}
+.er-plain{min-height:44px;border:0;background:none;font:inherit;font-weight:700;font-size:14.5px;color:var(--ui-muted,#475467);cursor:pointer}
+.er-plain:disabled{opacity:.5}

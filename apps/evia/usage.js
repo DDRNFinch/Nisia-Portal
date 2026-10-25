@@ -71,6 +71,9 @@
   const platform=()=>{const u=navigator.userAgent,app=(matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;
     return (/iP(hone|ad|od)/.test(u)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)?"ios":/Android/.test(u)?"android":"desktop")+(app?"-app":"-web")};
   const version=()=>((document.querySelector('meta[name="evia-version"]')||{}).content)||"";
+  /* Not counted in Evia Portal's figures: the testers (…-ui/), and the owner's own phones (set from the portal's Usage page). */
+  try{if(/[?&]notcounted\b/.test(location.search))localStorage.setItem("nisia-not-counted","1")}catch(_){}
+  const tester=()=>{try{return /-ui\//.test(location.pathname)||localStorage.getItem("nisia-not-counted")==="1"}catch(_){return false}};
   let sending=false;
   async function send(){
     if(sending||!navigator.onLine||/^(localhost|127\.)/.test(location.hostname))return;   /* never from a test copy */
@@ -81,7 +84,7 @@
     try{
       let token="";try{const a=JSON.parse(localStorage.getItem("evia7-nisia-auth")||"null");token=a&&a.access_token||""}catch(_){}
       for(const d of days.slice(-14)){
-        const body={p:{day:d,app:"evia",version:version(),course:typeof course==="string"?course:"",platform:platform(),counts:Object.assign({},saved(d),st.days[d])}};
+        const body={p:{day:d,app:"evia",version:version(),course:typeof course==="string"?course:"",platform:platform(),counts:Object.assign({},saved(d),st.days[d]),tester:tester()}};
         const post=auth=>fetch(URL,{method:"POST",headers:Object.assign({"Content-Type":"application/json",apikey:API},auth?{Authorization:"Bearer "+auth}:{}),body:JSON.stringify(body)});
         let r=await post(token);
         if(r.status===401&&token)r=await post("");   /* an old sign-in: send it without the college */
