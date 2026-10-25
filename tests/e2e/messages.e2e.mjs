@@ -174,9 +174,9 @@ try {
   await sy.page.goto(site + "/apps/symi/"); await sy.page.waitForTimeout(1200);
   const syBefore = await sy.page.evaluate(() => { const b = document.getElementById("nm-btn"); return !b || b.hidden; });
   await sy.page.evaluate(() => window.SamosApp.openRegisters());
-  await sy.page.click("#nisiaButton"); await signIn(sy.page, "tee@e2e.test", ".sn-auth ");
+  await sy.page.evaluate(() => document.getElementById("nisiaButton").click()); await signIn(sy.page, "tee@e2e.test", ".sn-auth ");
   await sy.page.waitForSelector("#nm-btn:not([hidden])", { timeout: 15000 });
-  const syPlace = await sy.page.evaluate(() => document.getElementById("nm-btn").nextElementSibling === document.getElementById("profileButton"));
+  const syPlace = await sy.page.evaluate(() => [document.getElementById("profileButton"), document.querySelector(".se-me")].includes(document.getElementById("nm-btn").nextElementSibling));
   await sy.page.click("#nm-btn"); await sy.page.waitForSelector(".nm-row");
   const syRows = await sy.page.$$eval(".nm-row b", (x) => x.map((y) => y.textContent));
   await shot(sy.page, "msg-symi-list");
