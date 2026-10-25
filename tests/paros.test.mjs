@@ -82,7 +82,7 @@ try {
   const shots = path.join(root, "tests", "shots"); fs.mkdirSync(shots, { recursive: true });
   await page.waitForTimeout(3000); await page.screenshot({ path: shots + "/p1-today.png", fullPage: true });
   const today = await page.textContent("#main");
-  check("An employer signs in and sees their apprentices, hours to confirm and who needs feedback", /Callum Hughes/.test(today) && /Jordan Price/.test(today) && /Learning hours to confirm/.test(today) && /Your feedback/.test(today) && (await page.textContent("[data-tab=hours] .m-badge")) === "2");
+  check("An employer signs in and sees their apprentices, hours to confirm and who needs feedback", /Callum Hughes/.test(today) && /Jordan Price/.test(today) && /learning logs? to confirm/.test(today) && /to rate/.test(today) && (await page.textContent("[data-tab=hours] .m-badge")) === "2");
 
   /* The week, on Today: worked out the same way here, from the same records. */
   await page.waitForSelector("#pWeek [data-wk=E1]", { timeout: 8000 }).catch(() => {});
