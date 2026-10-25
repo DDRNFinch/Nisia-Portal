@@ -1,4 +1,4 @@
-/* Evia7: small idle behaviours that make Evia feel alive. Works on every .evia-face in the app through CSS
+/* Evia7: small idle behaviours that make Evia feel alive. Moods (window.eviaMood): happy, oops, proud, concerned, calm. Works on every .evia-face in the app through CSS
    variables on <html> (--evia-lx/--evia-ly: where she looks, --evia-sy: how open her eyes are) plus a few mood classes. */
 (function(){
   const root=document.documentElement;
@@ -59,13 +59,36 @@
     }
     /* A gentle "oh well": a squish and a glance down, then back to normal. */
     if(mood==="oops"){root.classList.remove("evia-happy");play("evia-squish",1200);look(0,22,1400)}
+    /* Proud (a goal met, a topic at full strength): a hop, rosy cheeks and a few sparkles. */
+    if(mood==="proud"){
+      root.classList.remove("evia-concerned");root.classList.add("evia-proud","evia-happy");hop();sparkle();
+      clearTimeout(moodTimer);moodTimer=setTimeout(()=>root.classList.remove("evia-proud","evia-happy"),2600);
+    }
+    /* Concerned (the learner isn't doing great): soft brows and a look down for a while, no bouncing. */
+    if(mood==="concerned"){
+      root.classList.remove("evia-happy","evia-proud");root.classList.add("evia-concerned");look(0,14,2600);
+      clearTimeout(moodTimer);moodTimer=setTimeout(()=>root.classList.remove("evia-concerned"),9000);
+    }
+    if(mood==="calm"){clearTimeout(moodTimer);root.classList.remove("evia-happy","evia-proud","evia-concerned")}
   };
+  /* A few sparkles burst out around the floating button. */
+  function sparkle(){
+    const el=fab();if(!el||reduce())return;
+    for(let i=0;i<5;i++){
+      const s=document.createElement("i"),a=(i/5)*Math.PI*2-Math.PI/2,r=34+Math.random()*10;
+      s.className="evia-spark";s.style.left=(50+Math.cos(a)*30)+"%";s.style.top=(50+Math.sin(a)*30)+"%";
+      s.style.setProperty("--sx",Math.round(Math.cos(a)*r*.6)+"px");s.style.setProperty("--sy",Math.round(Math.sin(a)*r*.6)+"px");
+      s.style.animationDelay=(i*60)+"ms";el.appendChild(s);setTimeout(()=>s.remove(),1200);
+    }
+  }
   window.eviaLook=look;
 
   /* She glances towards wherever the learner taps. */
   document.addEventListener("pointerdown",e=>{
     wake();
     const el=fab();if(!el||busy)return;
+    /* Tapping her gives a springy squash. */
+    if(el.contains(e.target)&&!reduce()){el.classList.remove("evia-boing");void el.offsetWidth;el.classList.add("evia-boing");setTimeout(()=>el.classList.remove("evia-boing"),720)}
     const r=el.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy)||1;
     look(dx/d*30,dy/d*18,1500);
   },{passive:true});
