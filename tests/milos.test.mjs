@@ -342,7 +342,7 @@ try {
   const nothingSent = posted.length === before;
   check("Offline, Milos opens from the phone with the learners and their progress, and an observation waits on the phone", /Offline/.test(offBar) && offLearner && waitingShown && nothingSent, JSON.stringify({ offBar, offLearner, waitingShown, nothingSent }));
   await ctx.setOffline(false); await page.evaluate(() => dispatchEvent(new Event("online"))); await page.waitForTimeout(300);
-  await page.click("#syncNow"); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
+  await page.evaluate(() => document.getElementById("syncNow").click()); await page.waitForFunction(() => !/waiting to send/i.test(document.getElementById("syncbar").textContent) && !/Syncing/.test(document.getElementById("syncbar").textContent), null, { timeout: 15000 });
   const ev2 = posted.slice(before).find((x) => x.table === "evidence"), up2 = posted.slice(before).filter((x) => x.table === "storage").length, as2 = posted.slice(before).find((x) => x.table === "assessments");
   check("Back online, Sync now sends it: the observation, its photo, its PDF for the learner's Evia, and the sign-off", !!ev2 && ev2.body.source_metadata.unit === "Jointing Styles" && up2 === 2 && !!as2 && as2.body.evidence_id === ev2.body.id);
   /* Syncing by itself shows what's new without Sync now: a learner added in Evia Portal appears after a background sync. */

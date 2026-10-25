@@ -93,17 +93,21 @@ async function detail(r, fresh) {
 /* ---------- The frame: header, the four tabs, Paros in the middle (update) ---------- */
 const TABS = [["today", "Today"], ["apprentices", "Apprentices"], ["hours", "Hours"], ["feedback", "Feedback"]];
 const toConfirm = () => rows.reduce((n, r) => n + (r.to_confirm || 0), 0);
+/* A page rises in when it's a different page from the one showing, not when the same page redraws. */
+let shownKey = "";
 function frame({ title, sub, backTo, body }) {
+  const enterKey = (view ? "page:" : "tab:") + (view ? title : tab);
   const nb = ([k, t]) => '<button type="button" data-tab="' + k + '" class="' + (tab === k && !view ? "on" : "") + '">' + IC[k] + '<span>' + t + '</span>' + (k === "hours" && toConfirm() ? '<b class="m-badge">' + toConfirm() + '</b>' : "") + '</button>';
   root.innerHTML = '<div class="m-app">' +
     '<header class="m-head">' + (backTo ? '<button type="button" class="m-back" id="backBtn">' + IC.back + '<span>' + esc(backTo) + '</span></button>' : "") +
       '<div class="m-head-row"><div class="m-titles"><h1 class="m-title">' + esc(title) + '</h1>' + (sub ? '<p class="m-sub">' + sub + '</p>' : "") + '</div>' +
       '<button type="button" class="m-me" id="meBtn" aria-label="You and Paros">' + esc(initials(who && who.name)) + '</button></div></header>' +
-    '<main class="m-main" id="main">' + body + '</main>' +
+    '<main class="m-main' + (enterKey !== shownKey ? " e-enter" : "") + '" id="main">' + body + '</main>' +
     '<nav class="m-nav" aria-label="Paros">' + nb(TABS[0]) + nb(TABS[1]) + '<button type="button" class="m-nav-milos" id="navSync" aria-label="Update from Evia Portal">' + EYES + '</button>' + nb(TABS[2]) + nb(TABS[3]) + '</nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; view = null; draw(); scrollTo(0, 0); });
   root.querySelector("#navSync").onclick = () => start(true);
   root.querySelector("#meBtn").onclick = account;
+  shownKey = enterKey;
   root.querySelectorAll("[data-id]").forEach((b) => b.onclick = () => apprentice(rows.find((r) => r.enrolment_id === b.dataset.id)));
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { tab = b.dataset.go; view = null; draw(); scrollTo(0, 0); });
 }
@@ -139,20 +143,22 @@ function drawToday() {
     '<p class="label">' + esc(label) + '</p>' + big + (sub ? '<p class="m-card-sub">' + sub + '</p>' : "") + inner + '</section>';
   const n = toConfirm(), rate = rows.filter(ratingDue), soon = rows.map((r) => ({ r, d: reviewDue(r) })).filter((x) => x.d && x.d.days <= 14).sort((a, b) => a.d.days - b.d.days);
   const lastCollege = rows.filter((r) => r.last_session).sort((a, b) => String(b.last_session).localeCompare(String(a.last_session)));
-  frame({ title: hi + " " + first(who && who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
+  /* Evia's layout: one card for today (your apprentices), one list of what needs you, then the week. */
+  const over = soon.filter((x) => x.d.days < 0);
+  const need = [
+    n && { ic: "hours", go: "hours", title: n + (n === 1 ? " learning log to confirm" : " learning logs to confirm"), sub: "Hours your apprentices logged in Evia while working for you", tone: "accent" },
+    soon.length && { ic: "star", id: soon.length === 1 ? soon[0].r.enrolment_id : "", go: soon.length === 1 ? "" : "apprentices", title: soon.length + (soon.length === 1 ? " progress review due" : " progress reviews due"), sub: soon.map((x) => first(x.r.name) + (x.d.days < 0 ? " (overdue)" : x.d.days === 0 ? " (today)" : " (in " + x.d.days + " days)")).join(", "), tone: over.length ? "bad" : "warn" },
+    rate.length && { ic: "feedback", go: "feedback", title: rate.length + (rate.length === 1 ? " apprentice to rate" : " apprentices to rate"), sub: "How they’re doing at work. It takes a minute.", tone: "" },
+  ].filter(Boolean);
+  const erow = (x) => '<button type="button" class="e-row"' + (x.id ? ' data-id="' + x.id + '"' : ' data-go="' + x.go + '"') + '><span class="e-ic' + (x.tone ? " " + x.tone : "") + '">' + IC[x.ic] + '</span><span class="e-copy"><b>' + esc(x.title) + '</b><small>' + esc(x.sub) + '</small></span><span class="e-go">' + IC.chev + '</span></button>';
+  frame({ title: "Today", body:
     (!rows.length ? empty("No apprentices yet", "The college links you to your apprentices in Evia Portal. They’ll appear here.") :
-      '<section class="card m-card p-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section>' +
-      card({ cls: "m-hero", label: "Your apprentices", go: "apprentices", big: '<p class="m-big">' + rows.length + '</p>', sub: "Their college attendance, evidence and progress.",
-        inner: '<div class="m-minis">' + rows.slice(0, 4).map((r) => mini(r, ring(ksbPct(r)))).join("") + '</div>' }) +
-      card({ label: "Learning hours to confirm", go: n ? "hours" : "", big: '<p class="m-big ' + (n ? "warn" : "good") + '">' + (n || "None") + '</p>',
-        sub: n ? "Hours your apprentices logged in Evia while working for you. Confirm they’re right." : "Everything your apprentices logged has been confirmed.",
-        inner: n ? '<button type="button" class="btn primary wide" data-go="hours">Check hours</button>' : "" }) +
-      (lastCollege.length ? card({ label: "At college", big: "", inner: '<div class="m-minis">' + lastCollege.slice(0, 4).map((r) => mini(r, '<span class="small muted">' + esc(day(r.last_session)) + '</span>')).join("") + '</div>',
-        sub: "When they were last at college. Open one to see what was taught." }) : "") +
-      (soon.length ? card({ label: "Progress reviews", big: '<p class="m-big ' + (soon.some((x) => x.d.days < 0) ? "bad" : "warn") + '">' + soon.length + (soon.length === 1 ? " due" : " due") + '</p>',
-        sub: "You join the review and sign it with the assessor and your apprentice.", inner: '<div class="m-minis">' + soon.map((x) => mini(x.r, '<span class="pill ' + (x.d.days < 0 ? "bad" : "warn") + '">' + (x.d.days < 0 ? "Overdue" : x.d.days === 0 ? "Today" : "In " + x.d.days + " days") + '</span>')).join("") + '</div>' }) : "") +
-      (rate.length ? card({ label: "Your feedback", go: "feedback", big: '<p class="m-big">' + rate.length + '</p>', sub: "Rate how they’re doing at work (their behaviours). It takes a minute and counts towards their apprenticeship.",
-        inner: '<div class="m-minis">' + rate.slice(0, 3).map((r) => mini(r, '<span class="pill accent">Rate</span>')).join("") + '</div>' }) : "")) });
+      '<section class="e-hero"><p class="e-k">' + esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })) + '</p>' +
+        '<p class="e-big">' + rows.length + '<small> ' + (rows.length === 1 ? "apprentice" : "apprentices") + (need.length ? " · " + need.length + (need.length === 1 ? " thing needs you" : " things need you") : " · all up to date") + '</small></p>' +
+        '<div class="e-in">' + rows.slice(0, 4).map((r) => '<button type="button" class="e-row" data-id="' + r.enrolment_id + '">' + face(r.name) + '<span class="e-copy"><b>' + esc(r.name) + '</b><small>' + esc(course(r).name) + (r.last_session ? " · college " + esc(day(r.last_session)) : "") + '</small></span>' + ring(ksbPct(r)) + '</button>').join("") + '</div>' +
+        (n ? '<div class="e-btns"><button type="button" class="btn primary" data-go="hours">Check hours</button></div>' : "") + '</section>' +
+      (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "") +
+      '<section class="card m-card p-week e-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section>') });
   fillWeek();
 }
 

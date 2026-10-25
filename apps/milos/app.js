@@ -90,7 +90,11 @@ const initials = (n) => String(n || "").trim().split(/\s+/).map((w) => w[0]).fil
 const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 const face = (name) => '<span class="m-face" style="--h:' + hue(name) + '" aria-hidden="true">' + esc(initials(name)) + '</span>';
 const TABS = [["learners", "Learners"], ["assess", "Assess"], ["reviews", "Reviews"], ["calendar", "Calendar"]];
+/* A page rises in when it's a different page from the one showing (not when the same page redraws, as it does
+   while typing in the search). */
+let shownKey = "";
 function frame({ title, sub, back, body }) {
+  const enterKey = view === "home" ? "tab:" + tab : "page:" + title;
   const w = status().waiting, fresh = IDX ? IDX.reduce((n, x) => n + (x.fresh ? x.fresh.length : 0), 0) : 0;
   const navBtn = ([k, t]) => '<button type="button" data-tab="' + k + '" class="' + (tab === k ? "on" : "") + '"' + (tab === k && view === "home" ? ' aria-current="page"' : "") + '>' + IC[k] +
     '<span>' + t + '</span>' + (k === "assess" && fresh ? '<b class="m-badge">' + fresh + '</b>' : "") + '</button>';
@@ -99,13 +103,14 @@ function frame({ title, sub, back, body }) {
       '<div class="m-head-row"><div class="m-titles"><h1 class="m-title">' + esc(title) + '</h1>' + (sub ? '<p class="m-sub">' + sub + '</p>' : "") + '</div>' +
       '<button type="button" class="m-me" id="meBtn" aria-label="You and Milos">' + esc(initials(who && who.name)) + '</button></div>' +
       '<div class="m-sync" id="syncbar"></div></header>' +
-    '<main class="m-main" id="main">' + body + '</main>' +
+    '<main class="m-main' + (enterKey !== shownKey ? " e-enter" : "") + '" id="main">' + body + '</main>' +
     '<nav class="m-nav" aria-label="Milos">' + navBtn(TABS[0]) + navBtn(TABS[1]) +
       '<button type="button" class="m-nav-milos' + (tab === "today" && view === "home" ? " on" : "") + '" id="navTodo" aria-label="What needs doing">' + EYES + '</button>' +
       navBtn(TABS[2]) + navBtn(TABS[3]) + '</nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; home(); scrollTo(0, 0); });
   root.querySelector("#navTodo").onclick = () => { tab = "today"; home(); scrollTo(0, 0); };
   root.querySelector("#meBtn").onclick = account;
+  shownKey = enterKey;
   drawSync(status());
 }
 const pill = (d) => !d ? "" : '<span class="pill ' + (d.overdue ? "bad" : d.soon ? "warn" : "good") + '">' + esc(dueText(d)) + '</span>';
@@ -115,7 +120,9 @@ const hhmm = (d) => { const t = new Date(d); return (t.toDateString() === new Da
 function drawSync(st) {
   const bar = document.getElementById("syncbar"); if (!bar) return;
   const msg = st.syncing ? "Syncing with Evia Portal…" : (!st.online ? "Offline · " : "") + (st.syncedAt ? "Synced " + hhmm(st.syncedAt) : "Not downloaded yet");
-  bar.className = "m-sync" + (!st.online ? " off" : "") + (st.error && !st.syncing ? " err" : "") + (st.syncing ? " busy" : "");
+  /* Nothing to report (online, synced, nothing waiting): the line stays out of the way; Sync now is in Account too. */
+  const quiet = st.online && !st.syncing && !st.error && !st.waiting && !st.notice && st.syncedAt;
+  bar.className = "m-sync" + (!st.online ? " off" : "") + (st.error && !st.syncing ? " err" : "") + (st.syncing ? " busy" : "") + (quiet ? " quiet" : "");
   bar.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="msg">' + esc(msg) + (st.waiting ? ' · <b>' + st.waiting + ' waiting to send</b>' : "") +
     (st.error && !st.syncing && st.online ? '<small>' + esc(st.error) + '</small>' : "") +
     (st.notice ? '<small class="m-sync-note">' + esc(st.notice) + ' <button type="button" class="m-note-ok" id="noteOk">OK</button></small>' : "") + '</span><button type="button" class="m-sync-btn" id="syncNow"' + (st.syncing || !st.online ? " disabled" : "") + '>' + (st.syncing ? "Syncing…" : "Sync now") + '</button>';
@@ -287,27 +294,36 @@ function drawToday(X) {
   const mini = (r, right) => '<button type="button" class="m-mini" data-id="' + r.learner_id + '">' + face(r.name) + '<span class="m-mini-name"><b>' + esc(r.name) + '</b><span class="sub">' + esc(courseName(r.course_code)) + '</span></span>' + right + '</button>';
   const oldest = fresh.map((f) => f.it.e.created_at).sort()[0];
   const week = Date.now() + 7 * 864e5, todayV = comingVisits().filter((v) => vDay(v) === dkey(new Date())), soonV = comingVisits().filter((v) => Date.parse(v.starts_at) < week);
-  frame({ title: hi + " " + firstName(who.name), sub: esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })), body:
+  const low = X.filter((x) => { const c = ((x.D && x.D.L.eviaCheckins) || []).slice(-1)[0]; return c && c.mood === "low" && Date.now() - Date.parse(c.at) < 14 * 864e5; });
+  /* One learner: their full name (and how overdue); several: first names. */
+  const names = (list, withDue) => list.length === 1 ? list[0].name + (withDue && list[0].due ? " · " + dueText(list[0].due) : "") : list.map((r) => firstName(r.name)).slice(0, 3).join(", ") + (list.length > 3 ? " and " + (list.length - 3) + " more" : "");
+  const one = (list) => list.length === 1 ? list[0].learner_id : "";
+  /* Evia's layout: one card for today, then one list of what needs the assessor, most urgent first. Each row goes
+     to the one place that deals with it. */
+  const need = [
+    overdue.length && { ic: "reviews", id: one(overdue), go: "reviews", title: overdue.length + (overdue.length === 1 ? " review overdue" : " reviews overdue"), sub: names(overdue, true), tone: "bad" },
+    low.length && { ic: "learners", id: one(low.map((x) => x.r)), go: "learners", title: "Wellbeing: " + low.length + " not doing great", tone: "bad",
+      sub: names(low.map((x) => x.r)) + (low.some((x) => x.D.L.eviaCheckins.slice(-1)[0].askedToTalk) ? " · Asked to talk" : " · from their catch-up with Evia") },
+    fresh.length && { ic: "assess", go: "assess", title: fresh.length + " new to assess", sub: "From " + from + (from === 1 ? " learner" : " learners") + " · oldest " + ago(oldest), tone: "accent" },
+    dr.length && { ic: "pen", id: one(dr), go: "reviews", title: dr.length + (dr.length === 1 ? " review in progress" : " reviews in progress"), sub: names(dr), tone: "" },
+    due.length > overdue.length && { ic: "reviews", id: one(due.filter((r) => !r.due.overdue)), go: "reviews", title: (due.length - overdue.length) + " due in the next 2 weeks", sub: names(due.filter((r) => !r.due.overdue), true), tone: "warn" },
+    quiet.length && { ic: "learners", id: one(quiet), go: "learners", gf: "quiet", title: quiet.length + " gone quiet", sub: (quiet.length === 1 ? quiet[0].name + " · " : "") + "No Evia for 14 days or more", tone: "" },
+    unpaired.length && { ic: "phone", id: one(unpaired), go: "learners", gf: "unpaired", title: unpaired.length + " without Evia connected", sub: (unpaired.length === 1 ? unpaired[0].name + " · " : "") + "Open them and tap Connect Evia", tone: "" },
+  ].filter(Boolean);
+  const urgent = need.filter((x) => x.tone === "bad" || x.tone === "accent").length;
+  const erow = (x) => '<button type="button" class="e-row"' + (x.id ? ' data-id="' + x.id + '"' : ' data-go="' + x.go + '"' + (x.gf ? ' data-gf="' + x.gf + '"' : "")) + '><span class="e-ic' + (x.tone ? " " + x.tone : "") + '">' + IC[x.ic] + '</span><span class="e-copy"><b>' + esc(x.title) + '</b><small>' + esc(x.sub) + '</small></span><span class="e-go">' + IC.chev + '</span></button>';
+  const extra = [canInstall() && '<button type="button" class="e-row" id="installCard"><span class="e-ic">' + IC.install + '</span><span class="e-copy"><b>Install Milos</b><small>On your home screen, and it works offline</small></span><span class="e-go">' + IC.chev + '</span></button>',
+    rows.length && push.state() === "off" && !push.asked() && '<button type="button" class="e-row" id="pushCard"><span class="e-ic">' + IC.bell + '</span><span class="e-copy"><b>Turn on notifications</b><small>Know when learners add evidence</small></span><span class="e-go">' + IC.chev + '</span></button>'].filter(Boolean);
+  frame({ title: "Today", body:
     (!rows.length ? empty("No learners yet", "Your college assigns learners to you in Evia Portal. They appear here after the next sync.") :
-      (soonV.length ? card({ label: "Visits", go: "calendar", big: '<p class="m-big">' + (todayV.length ? todayV.length + '<small> today</small>' : soonV.length + '<small> this week</small>') + '</p>',
-        sub: todayV.length ? "Open one to start the observation." : "Coming up in the next 7 days.", inner: '<div class="card m-list m-in-card">' + soonV.slice(0, 4).map((v) => visitRow(v, !todayV.includes(v))).join("") + '</div>' }) : "") +
-      card({ cls: "m-hero" + (overdue.length ? " is-bad" : ""), label: "Progress reviews", go: "reviews",
-        big: '<p class="m-big ' + (overdue.length ? "bad" : due.length ? "warn" : "good") + '">' + (overdue.length ? overdue.length + " overdue" : due.length ? due.length + " due soon" : "All up to date") + '</p>',
-        sub: overdue.length ? "Funding rules need one every 12 weeks." + (due.length > overdue.length ? " " + (due.length - overdue.length) + " more due in the next 2 weeks." : "") : due.length ? "Due in the next 2 weeks." : "Nobody is due in the next 2 weeks.",
-        inner: due.length ? '<div class="m-minis">' + due.slice(0, 4).map((r) => mini(r, pill(r.due))).join("") + '</div>' : "" }) +
-      /* Learners who told Evia they're not doing great in the last 2 weeks. */
-      (() => { const low = X.filter((x) => { const c = ((x.D && x.D.L.eviaCheckins) || []).slice(-1)[0]; return c && c.mood === "low" && Date.now() - Date.parse(c.at) < 14 * 864e5; });
-        return low.length ? card({ cls: "is-bad", label: "Wellbeing", big: '<p class="m-big bad">' + low.length + '<small> not doing great</small></p>', sub: "From their weekly catch-up with Evia.",
-          inner: '<div class="m-minis">' + low.map((x) => { const c = x.D.L.eviaCheckins.slice(-1)[0]; return mini(x.r, '<span class="pill ' + (c.askedToTalk ? "bad" : "warn") + '">' + (c.askedToTalk ? "Asked to talk" : esc(c.about || "Not great")) + '</span>'); }).join("") + '</div>' }) : ""; })() +
-      (dr.length ? card({ label: "Reviews in progress", big: '<p class="m-big">' + dr.length + '</p>', sub: "Pick up where you left off.", inner: '<div class="m-minis">' + dr.map((r) => mini(r, '<span class="pill accent">Draft</span>')).join("") + '</div>' }) : "") +
-      card({ label: "To assess", go: fresh.length ? "assess" : "", big: '<p class="m-big">' + fresh.length + (fresh.length ? '<small> new</small>' : "") + '</p>',
-        sub: fresh.length ? "From " + from + (from === 1 ? " learner" : " learners") + ". The oldest came in " + esc(ago(oldest)) + "." : "Everything has been assessed.",
-        inner: fresh.length ? '<button type="button" class="btn primary wide" data-go="assess">Start assessing</button>' : "" }) +
-      (quiet.length ? card({ label: "Gone quiet", go: "learners", gf: "quiet", big: '<p class="m-big">' + quiet.length + '</p>', sub: "No Evia activity for 14 days or more. A nudge helps.",
-        inner: '<div class="m-minis">' + quiet.slice(0, 3).map((r) => mini(r, '<span class="small muted">' + esc(r.last_activity ? ago(r.last_activity) : "Never") + '</span>')).join("") + '</div>' }) : "") +
-      (unpaired.length ? card({ label: "Evia not connected", go: "learners", gf: "unpaired", big: '<p class="m-big">' + unpaired.length + '</p>', sub: "Reviews can’t be filled in from Evia until it’s connected. Open the learner and tap Connect Evia." }) : "")) +
-    (canInstall() ? '<button type="button" class="card m-install" id="installCard"><span class="m-ic">' + IC.install + '</span><span class="m-row-main"><b>Install Milos</b><span class="sub">On your home screen, and it works offline</span></span></button>' : "") +
-    (rows.length && push.state() === "off" && !push.asked() ? '<button type="button" class="card m-install" id="pushCard"><span class="m-ic">' + IC.bell + '</span><span class="m-row-main"><b>Turn on notifications</b><span class="sub">Know when learners add evidence. Weekdays only, never in the evening.</span></span></button>' : "") });
+      '<section class="e-hero"><p class="e-k">' + esc(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })) + '</p>' +
+        (need.length ? '<p class="e-big">' + need.length + '<small> ' + (need.length === 1 ? "thing needs you" : "things need you") + (urgent ? " · " + urgent + " urgent" : "") + '</small></p>'
+          : '<p class="e-big e-big-s">All clear</p><p class="e-note">Nothing needs you today. Your learners are all up to date.</p>') +
+        /* Visits today (or this week) in the card, each opening to start the observation. */
+        (soonV.length ? '<p class="e-sub">' + (todayV.length ? "Visits today" : "Visits this week") + '</p><div class="e-in e-visits">' + (todayV.length ? todayV : soonV.slice(0, 4)).map((v) => visitRow(v, !todayV.length)).join("") + '</div>' : "") +
+        (fresh.length ? '<div class="e-btns"><button type="button" class="btn primary" data-go="assess">Start assessing</button></div>' : "") + '</section>' +
+      (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "")) +
+    (extra.length ? '<section class="e-group e-quiet">' + extra.join("") + '</section>' : "") });
   bindVisits();
   if (Date.now() - visitsAt > 60000 && navigator.onLine) loadVisits().then(() => { if (view === "home" && tab === "today") drawTab(); });
   const ic = root.querySelector("#installCard"); if (ic) ic.onclick = install;
