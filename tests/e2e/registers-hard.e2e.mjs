@@ -140,7 +140,7 @@ try {
     join public.learners l on l.id = e.learner_id join public.organisation_members m on m.id = l.organisation_member_id join public.profiles p on p.id = m.user_id order by 1`);
   const by = Object.fromEntries(marks.map((m) => [m.n.split(" ")[0], m]));
   check("Symi: Finish sends it: Lee, Kay and Ash present for about 2 hours, Zed absent (Sickness), all confirmed",
-    ["Lee", "Kay", "Ash"].every((n) => by[n] && by[n].status === "present" && by[n].minutes >= 110 && by[n].c) && by.Zed && by.Zed.status === "absent" && /ill/i.test(by.Zed.reason || "") && by.Zed.c, JSON.stringify(marks));
+    ["Lee", "Kay", "Ash"].every((n) => by[n] && by[n].status === "present" && by[n].minutes >= 110 && by[n].c) && by.Zed && by.Zed.status === "absent" && /ill|sick/i.test(by.Zed.reason || "") && by.Zed.c, JSON.stringify(marks));
 
   /* 9. Zed was actually on holiday: the tutor changes the finished register. Kept, not doubled. */
   const zedAgain = await symi.page.$('.sn-mark[aria-label^="Mark for Zed"]');
