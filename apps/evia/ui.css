@@ -3346,3 +3346,6 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .oa-step{width:38px;height:38px;border-radius:50%;border:1px solid var(--ui-line,#e5e7eb);background:var(--ui-card,#fff);font:inherit;font-size:20px;font-weight:700;color:var(--ui-ink);cursor:pointer}
 .oa-step:disabled{opacity:.35}
 .oa-all{width:100%;margin:0 0 14px;min-height:46px;font-weight:700}
+.oa-from{display:block;margin:-6px 2px 14px;font-size:13px;color:var(--ui-muted)}
+.oa-set{padding:12px 14px;margin:0 0 14px;border-radius:14px;background:var(--ui-soft,#f3f4f6);color:var(--ui-ink);font-weight:600}
+.oa-set input{display:block;width:100%;margin-top:8px;min-height:44px;font:inherit}

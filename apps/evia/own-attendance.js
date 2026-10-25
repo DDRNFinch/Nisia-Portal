@@ -86,6 +86,9 @@
       body.innerHTML='<div class="oa-top"><div class="oa-pct"><b>'+(A.pct==null?"–":A.pct+"%")+'</b><span>'+(A.here+A.missed?A.here+" of "+(A.here+A.missed)+" college days":"No days marked yet")+'</span></div>'+
         '<div class="oa-hrs"><b>'+esc(hm(A.mins))+'</b><span>at college</span></div></div>'+
         '<p class="oa-ref">The percentage is just for you. It isn’t sent anywhere.'+(A.open?" "+A.open+" day"+(A.open===1?"":"s")+" still to mark.":"")+'</p>'+
+        (()=>{const st=startDate(),f=since(),nice=k=>new Date(k+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+          return st?'<p class="oa-from">From your start date, '+esc(nice(st))+'</p>':
+            '<label class="oa-from oa-set">'+(f?"From "+esc(nice(f))+". ":"")+'Add your start date to go back to it<input type="date" id="oa-start" max="'+dkey(new Date())+'"></label>'})()+
         (A.open>1?'<button type="button" class="secondary oa-all" id="oa-all">Mark the '+A.open+' unmarked days as There ('+hm(START_MINS)+' each)</button>':"")+
         '<div class="oa-list">'+A.days.map(x=>'<div class="oa-day'+(x.state?" oa-"+x.state:"")+'" data-day="'+x.d+'"><div class="oa-row"><strong>'+esc(longDay(x.d))+'</strong>'+
           '<span class="oa-seg" role="group" aria-label="'+esc(longDay(x.d))+'"><button type="button" data-st="here" aria-pressed="'+(x.state==="here")+'">There</button><button type="button" data-st="missed" aria-pressed="'+(x.state==="missed")+'">Missed</button></span></div>'+
@@ -98,6 +101,11 @@
       const st=e.target.closest("[data-st]"),step=e.target.closest("[data-dm]");
       if(st){mark(day,cur.state===st.dataset.st?null:st.dataset.st);draw()}
       else if(step){mark(day,"here",(cur.mins||START_MINS)+Number(step.dataset.dm));draw()}
+    });
+    body.addEventListener("change",e=>{
+      if(e.target.id!=="oa-start"||!e.target.value)return;
+      try{window.eviaData.put("learner",{start:e.target.value})}catch(_){}
+      draw();
     });
     draw();
     const h=root.querySelector("#oa-title");h.setAttribute("tabindex","-1");h.focus({preventScroll:true});
