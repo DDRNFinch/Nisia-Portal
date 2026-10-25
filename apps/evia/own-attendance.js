@@ -3,7 +3,8 @@
    which can be changed) or "Missed". A day marked "There" is a "College day" learning log, so the hours count; changing
    the hours changes that log, and "Missed" takes it away. The percentage (days there out of days marked) is only for
    the learner's reference. Connected learners never see this: their tutor's registers are their attendance.
-   Kept on the phone: evia7-own-attendance {"YYYY-MM-DD": {here, mins, hid}}; evia7-college-days-since. */
+   Days are listed from the apprenticeship start date.
+   Kept on the phone: evia7-own-attendance {"YYYY-MM-DD": {here, mins, hid}}; evia7-college-days-since (used without a start date). */
 (function(){
   "use strict";
   const KEY="evia7-own-attendance",SINCE="evia7-college-days-since",DAYS_KEY="evia7-college-days",DAY=864e5,START_MINS=360,STEP=30;
@@ -16,11 +17,21 @@
   const myDays=()=>{const d=read(DAYS_KEY,[]);return Array.isArray(d)?d.filter(n=>n>=0&&n<=6):[]};
   const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* From when: the day the college days were first picked (four weeks back for anyone who picked them before this). */
+  /* From when: the start of the apprenticeship (from Evia Portal or the learner's profile); without one, the day the
+     college days were first picked. */
+  function startDate(){
+    try{
+      const en=(window.eviaData&&window.eviaData.enrolment&&window.eviaData.enrolment())||{},pr=(window.eviaData&&window.eviaData.learner&&window.eviaData.learner())||read("evia7-profile",{})||{};
+      const t=Date.parse(en.start||en.startDate||pr.start||"");
+      if(t&&t<=Date.now())return dkey(new Date(t));
+    }catch(_){}
+    return null;
+  }
   function since(){
-    let s=read(SINCE,null);
-    if(!s&&myDays().length){s=dkey(new Date(Date.now()-28*DAY));write(SINCE,s)}
-    return s;
+    const s=startDate();if(s)return s;
+    let x=read(SINCE,null);
+    if(!x&&myDays().length){x=dkey(new Date(Date.now()-28*DAY));write(SINCE,x)}
+    return x;
   }
   const noteSet=()=>{if(!read(SINCE,null)&&myDays().length)write(SINCE,dkey(new Date()))};
 
@@ -75,12 +86,14 @@
       body.innerHTML='<div class="oa-top"><div class="oa-pct"><b>'+(A.pct==null?"–":A.pct+"%")+'</b><span>'+(A.here+A.missed?A.here+" of "+(A.here+A.missed)+" college days":"No days marked yet")+'</span></div>'+
         '<div class="oa-hrs"><b>'+esc(hm(A.mins))+'</b><span>at college</span></div></div>'+
         '<p class="oa-ref">The percentage is just for you. It isn’t sent anywhere.'+(A.open?" "+A.open+" day"+(A.open===1?"":"s")+" still to mark.":"")+'</p>'+
+        (A.open>1?'<button type="button" class="secondary oa-all" id="oa-all">Mark the '+A.open+' unmarked days as There ('+hm(START_MINS)+' each)</button>':"")+
         '<div class="oa-list">'+A.days.map(x=>'<div class="oa-day'+(x.state?" oa-"+x.state:"")+'" data-day="'+x.d+'"><div class="oa-row"><strong>'+esc(longDay(x.d))+'</strong>'+
           '<span class="oa-seg" role="group" aria-label="'+esc(longDay(x.d))+'"><button type="button" data-st="here" aria-pressed="'+(x.state==="here")+'">There</button><button type="button" data-st="missed" aria-pressed="'+(x.state==="missed")+'">Missed</button></span></div>'+
           (x.state==="here"?'<div class="oa-time"><span>Hours</span><button type="button" class="oa-step" data-dm="-'+STEP+'" aria-label="30 minutes less"'+(x.mins<=STEP?" disabled":"")+'>−</button><b>'+esc(hm(x.mins))+'</b><button type="button" class="oa-step" data-dm="'+STEP+'" aria-label="30 minutes more"'+(x.mins>=720?" disabled":"")+'>+</button></div>':"")+
           '</div>').join("")+'</div>';
     };
     body.addEventListener("click",e=>{
+      if(e.target.closest("#oa-all")){data().days.filter(x=>!x.state).forEach(x=>mark(x.d,"here"));draw();return}
       const row=e.target.closest(".oa-day");if(!row)return;const day=row.dataset.day,cur=(data().days.find(x=>x.d===day)||{});
       const st=e.target.closest("[data-st]"),step=e.target.closest("[data-dm]");
       if(st){mark(day,cur.state===st.dataset.st?null:st.dataset.st);draw()}
