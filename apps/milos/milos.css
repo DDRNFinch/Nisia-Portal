@@ -547,3 +547,6 @@ html body .m-app .m-empty{padding:22px 18px}
 .e-sub+.e-in{margin-top:8px}
 .e-visits>*{border-radius:0!important;border:0!important;border-top:1px solid var(--e-line2)!important;box-shadow:none!important;margin:0!important;width:100%}
 .e-visits>:first-child{border-top:0!important}
+/* The filter chips run edge to edge with the page's 16px sides. */
+html body .m-app .m-main .m-chips{margin:0 -16px;padding:2px 16px}
+html body .m-app .m-college .m-chips{margin:0;padding:0}
