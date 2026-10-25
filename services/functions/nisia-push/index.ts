@@ -2,10 +2,11 @@
 // when something is waiting (with the key from the vault); nobody else can.
 //   Course things: evidence signed off or sent back, new targets, reviews, observations and witness testimony
 //   (learners, in Evia); new evidence to assess (assessors and tutors, in Milos); and the dated reminders that
-//   private.course_reminders() writes (reviews and targets due, Friday learning hours, Monday reviews to book). And
+//   private.course_reminders() writes (reviews and targets due, the Friday summaries, the nudges, Monday reviews to book,
+//   and the monthly behaviours prompt; employers' go to Paros). And
 //   new messages (who from, never what they say): to Evia for a learner, to Milos for staff.
 //   Bursts are grouped into one message ("3 pieces of evidence from Sam"). Nothing between 9pm and 7:30am (it waits
-//   until the morning), nothing to staff at the weekend, and at most 4 a day to anyone (the rest stay in the app). Messages are the
+//   until the morning), nothing to staff or employers at the weekend, and at most 4 a day to anyone (the rest stay in the app). Messages are the
 //   exception to the weekend and the 4 a day (someone wrote to them), and are sent the moment they arrive
 //   (run-2026-10-22-messages-push-now.sql); they still wait for the morning at night.
 import { CORS, reply, fail, service } from "../_shared/nisia.ts";
@@ -16,7 +17,7 @@ type Row = {
   created_at: string; unit: string | null; enrolment_id: string | null; decision: string | null; target_title: string | null;
   learner_name: string; sent_today: number;
 };
-type Message = { title: string; body: string; tag: string; open: string; app: "evia" | "milos" };
+type Message = { title: string; body: string; tag: string; open: string; app: "evia" | "milos" | "paros" };
 
 const STAFF = new Set(["evidence_submitted", "reviews_due", "witness_testimony_staff", "behaviour_rated_staff", "message_reported"]);
 const DAILY_CAP = 4;
@@ -38,7 +39,7 @@ function london(now = new Date()) {
 export function word(rows: Row[]): Message {
   const r = rows[0], n = rows.length, t = r.notification_type;
   /* Messages say which app (Evia for a learner, Milos for staff); everything else goes by its kind. */
-  const app = r.data?.app === "evia" || r.data?.app === "milos" ? r.data.app as "evia" | "milos" : STAFF.has(t) ? "milos" : "evia";
+  const app = ["evia", "milos", "paros"].includes(r.data?.app) ? r.data.app as Message["app"] : STAFF.has(t) ? "milos" : "evia";
   const units = list(rows.map((x) => x.unit));
   switch (t) {
     case "evidence_submitted":
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
 
   for (const g of group(rows)) {
     const m = word(g), who = g[0].recipient_user_id, ids = g.map((r) => r.id), msg = g[0].notification_type === "message";
-    if (m.app === "milos" && when.weekend && !msg) continue;    // waits for Monday (messages don't: someone wrote to them)
+    if (m.app !== "evia" && when.weekend && !msg) continue;    // staff and employers: waits for Monday (messages don't: someone wrote to them)
     const phones = (devices || []).filter((d) => d.user_id === who && d.app === m.app);
     if (!phones.length) { mark("no_device", ids); continue; }
     if (!msg && (sentToday.get(who) || 0) >= DAILY_CAP) { mark("capped", ids); continue; }
