@@ -56,7 +56,8 @@
     let c="";try{c=typeof course==="string"?course:""}catch(_){}
     /* A random code made on this phone, so rating again counts once in the results; it isn't tied to anyone. */
     let fid=read("evia7-rate-fid",null);if(!fid){fid=Math.random().toString(36).slice(2)+Date.now().toString(36);write("evia7-rate-fid",fid)}
-    const body={stars,comment:words.slice(0,2000),app:"evia",fid,version:version(),platform:platform(),course:c.slice(0,24),tester:tester(),usage:withUsage?summary():null};
+    let connected=false;try{connected=!!(window.eviaNisia&&window.eviaNisia.joined&&window.eviaNisia.joined())}catch(_){}
+    const body={stars,comment:words.slice(0,2000),app:"evia",fid,connected,version:version(),platform:platform(),course:c.slice(0,24),tester:tester(),usage:withUsage?summary():null};
     write(LAST,{stars,at:Date.now()});
     try{if(!navigator.onLine)throw 0;await post(body);return true}
     catch(_){const q=read(WAIT,[]);q.push(body);write(WAIT,q.slice(-5));return false}

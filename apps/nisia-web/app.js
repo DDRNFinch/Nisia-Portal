@@ -819,11 +819,14 @@ const STARS = (n) => '<span aria-label="' + n + ' stars" style="color:#E8A33C;le
 const notCounted = () => { try { return localStorage.getItem("nisia-not-counted") === "1"; } catch (_) { return false; } };
 async function usagePage() {
   shell('<p class="loading">Loading usage…</p>');
-  S.days = S.days || 30; S.uapp = S.uapp || "evia"; S.utest = !!S.utest;
+  S.days = S.days || 30; S.uapp = S.uapp || "evia"; S.utest = !!S.utest; S.uwho = S.uwho || "all";
   let u, fb = [];
-  try { [u, fb] = await Promise.all([rpc("nisia_admin_usage", { p_days: S.days, p_testing: S.utest }), rpc("nisia_admin_feedback", { p_days: S.days, p_testing: S.utest }).catch(() => [])]); }
+  try { [u, fb] = await Promise.all([rpc("nisia_admin_usage", { p_days: S.days, p_testing: S.utest, p_who: S.uwho }), rpc("nisia_admin_feedback", { p_days: S.days, p_testing: S.utest }).catch(() => [])]); }
   catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
-  fb = fb || [];
+  /* Joined to a college or not: as the learner's phone said when they sent it. */
+  const isConn = (f) => f.connected != null ? f.connected : !!(f.usage && f.usage.connected);
+  fb = (fb || []).filter((f) => S.uwho === "all" || (S.uwho === "connected") === isConn(f));
+  const WHO = { all: "Everyone", connected: "Joined to a college", unconnected: "Using Evia on their own" };
   const period = S.days === 365 ? "the last 12 months" : "the last " + S.days + " days";
   const apps = Object.keys(APP_NAMES), byApp = Object.fromEntries((u.apps || []).map((a) => [a.app, a])), A = S.uapp, dd = (byApp[A] || {}).device_days || 0;
   const feats = (u.features || []).filter((f) => f.app === A).sort((a, b) => b.device_days - a.device_days || b.uses - a.uses);
@@ -843,14 +846,16 @@ async function usagePage() {
   shell(
     '<div class="topbar"><div><div class="label">Master admin</div><h1>Usage and feedback</h1></div><div class="actions"><div class="seg" role="group" aria-label="Period">' +
       [7, 30, 90, 365].map((d) => '<button type="button" data-days="' + d + '" aria-pressed="' + (S.days === d) + '">' + (d === 365 ? "12 months" : d + " days") + '</button>').join("") + '</div>' +
+      '<div class="seg" role="group" aria-label="Which learners">' + Object.entries({ all: "Everyone", connected: "Connected", unconnected: "Not connected" }).map(([k, t]) => '<button type="button" data-who="' + k + '" aria-pressed="' + (S.uwho === k) + '">' + t + '</button>').join("") + '</div>' +
       '<button type="button" class="btn ghost" id="uPrint">Print or save as PDF</button></div></div>' +
     '<section class="panel" style="margin-bottom:16px"><p style="margin:0 0 6px"><b>What these numbers are.</b> Each phone or computer sends one line for each day it uses an app: counts only, with no names and nothing that says who it is. ' +
-      '“Days used” means one device on one day, so 10 learners using Evia every weekday for a month is about 200.</p>' +
-      '<p class="small muted" style="margin:0">' + (S.utest ? "Including the testers and the devices marked as yours." : "The testers and the devices marked as yours are left out" + (u.left_out ? " (" + u.left_out + (u.left_out === 1 ? " line" : " lines") + " in " + period + ")" : "") + ". Anything sent before 25 October 2026 wasn’t marked, so your own testing before then is still counted.") +
+      '“Days used” means one device on one day, so 10 learners using Evia every weekday for a month is about 200. ' +
+      '<b>Connected</b> learners have joined their college on Evia Portal; <b>not connected</b> learners use Evia on their own, with everything kept on their phone.</p>' +
+      '<p class="small muted" style="margin:0">' + (S.utest ? "Including the testers, the test college and the devices marked as yours." : "The testers, the test college and the devices marked as yours are left out" + (u.left_out ? " (" + u.left_out + (u.left_out === 1 ? " line" : " lines") + " in " + period + ")" : "") + ". Anything sent before 25 October 2026 wasn’t marked, so your own testing before then is still counted.") +
       ' <button type="button" class="linkish" id="uTest">' + (S.utest ? "Leave them out" : "Include them") + '</button> · This device is <b>' + (notCounted() ? "not counted" : "counted") + '</b>: <button type="button" class="linkish" id="uMine">' + (notCounted() ? "Count it again" : "It’s mine, leave it out") + '</button></p></section>' +
 
     /* For colleges: the headline. */
-    '<h2 style="margin:6px 0 10px">Evia at a glance <span class="small muted">' + period + '</span></h2>' +
+    '<h2 style="margin:6px 0 10px">Evia at a glance <span class="small muted">' + esc(WHO[S.uwho]) + ' · ' + period + '</span></h2>' +
     '<section class="stats" aria-label="Evia at a glance">' +
       tile("Rating", P.stars == null ? "–" : r1(P.stars) + "<small>/5</small>", P.people.length ? "from " + P.people.length + " learner" + (P.people.length === 1 ? "" : "s") : "no ratings yet") +
       tile("Days used", (byApp.evia || {}).device_days || 0, "Evia on a phone, one day each") +
@@ -894,6 +899,7 @@ async function usagePage() {
       '</div></div>');
   root.querySelectorAll("[data-days]").forEach((b) => b.onclick = () => { S.days = +b.dataset.days; usagePage(); });
   root.querySelectorAll("[data-app]").forEach((b) => b.onclick = () => { S.uapp = b.dataset.app; usagePage(); });
+  root.querySelectorAll("[data-who]").forEach((b) => b.onclick = () => { S.uwho = b.dataset.who; usagePage(); });
   root.querySelector("#uTest").onclick = () => { S.utest = !S.utest; usagePage(); };
   root.querySelector("#uMine").onclick = () => { try { notCounted() ? localStorage.removeItem("nisia-not-counted") : localStorage.setItem("nisia-not-counted", "1"); } catch (_) {}
     toast(notCounted() ? "This device is left out. On your other phones, open Evia once with ?notcounted on the end of its address" : "This device is counted again"); usagePage(); };

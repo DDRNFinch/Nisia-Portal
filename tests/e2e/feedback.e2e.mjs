@@ -69,6 +69,20 @@ try {
   await po.page.click("#uTest"); await po.page.waitForSelector("text=Leave them out");
   const pt2 = await po.page.textContent("#app");
   check("…and Include them shows the testers' feedback too", /maths lessons/.test(pt2) && /from 2 learners/.test(pt2), pt2.slice(0, 600));
+  /* Connected or not: a learner joined to a college, with feedback sent while connected. */
+  await q(`insert into public.usage_daily (day, app, counts, organisation_id) values (current_date - 2, 'evia', '{"saved.evidence":7}', '0e2e0000-0000-0000-0000-000000000001')`);
+  await q(`insert into public.evia_feedback (stars, comment, fid, connected) values (5, 'Joined to my college and it is great', 'conn1', true)`);
+  const cu = await rpc("nisia_admin_usage", { p_days: 30, p_who: "connected" }, { sub: TEE, aal: "aal2" }), nu = await rpc("nisia_admin_usage", { p_days: 30, p_who: "unconnected" }, { sub: TEE, aal: "aal2" });
+  const ed = (r) => (r.body.apps.find((a) => a.app === "evia") || {}).device_days || 0;
+  check("Usage for connected learners only, and for those on their own", cu.status === 200 && ed(cu) === 1 && ed(nu) === 1, JSON.stringify([cu.body && cu.body.apps, nu.body && nu.body.apps]));
+  await po.page.click("#uTest"); await po.page.waitForSelector("text=Include them");
+  await po.page.click('[data-who="unconnected"]'); await po.page.waitForSelector('[data-who="unconnected"][aria-pressed="true"]');
+  const pu = await po.page.textContent("#app");
+  await po.page.click('[data-who="connected"]'); await po.page.waitForSelector('[data-who="connected"][aria-pressed="true"]');
+  const pc = await po.page.textContent("#app");
+  await po.page.screenshot({ path: SHOTS + "portal-usage-connected.png" });
+  check("The switch: Not connected shows learners on their own; Connected shows those joined to a college",
+    /Using Evia on their own/.test(pu) && /From a real learner/.test(pu) && !/Joined to my college/.test(pu) && /Joined to a college/.test(pc) && /Joined to my college/.test(pc) && !/From a real learner/.test(pc), pu.slice(0, 300) + " ||| " + pc.slice(0, 300));
   check("No script errors", !errors.length, errors.join(" | "));
 } catch (e) { check("The test ran to the end", false, e.stack + "\nERRORS: " + errors.join(" | ")); }
 await finish();
