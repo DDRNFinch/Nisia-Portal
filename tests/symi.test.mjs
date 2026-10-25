@@ -86,12 +86,14 @@ try {
     look[tab] = (await page.evaluate(() => window.SamosApp.getState().view)) === view && await page.$eval('.sy-nav [data-sy-tab="' + tab + '"]', (b) => b.classList.contains("on"));
   }
   /* Classes sit with the registers, one pill apart; Resources has its own tabs (Course, College, Community, My resources). */
-  await page.click('.sy-pills [data-sy-pill="classes"]'); await page.waitForTimeout(250);
+  await page.click('[data-se-classes]'); await page.waitForTimeout(250);
   look.classes = await page.evaluate(() => window.SamosApp.getState().view === "classes" && document.querySelector('.sy-nav [data-sy-tab="registers"]').classList.contains("on"));
   await page.click('.sy-nav [data-sy-tab="resources"]'); await page.waitForTimeout(250);
   await page.waitForSelector(".sl-tabs");
   look.library = await page.evaluate(() => [...document.querySelectorAll(".sl-tabs [data-sl-tab]")].map((b) => b.dataset.slTab).join() === "course,college,community,mine" && document.querySelector('.sy-nav [data-sy-tab="resources"]').classList.contains("on"));
   await page.click('.sy-nav [data-sy-tab="registers"]'); await page.waitForTimeout(250);
+  /* The Registers tab lists the registers (Evia's layout): open the active one. */
+  await page.evaluate(() => { const id = window.SamosApp.activeRegisterId(); const b = document.querySelector('.se-page [data-se-open="' + id + '"]'); if (b) b.click(); }); await page.waitForTimeout(250);
   /* The face: what needs doing, then ways to make something new. */
   await page.click(".sy-nav [data-sy-face]"); await page.waitForTimeout(400);
   look.menu = await page.evaluate(() => document.body.classList.contains("evia-open")) && !(await page.isVisible(".sy-nav"));
@@ -103,7 +105,7 @@ try {
   await page.setViewportSize({ width: 1280, height: 800 }); await page.evaluate(() => window.scrollTo(0, 0));
   check("Symi looks like Evia: the bar (Registers, Learners, Resources, Timetable) goes to each screen, classes sit with registers, Resources has its Course/College/Community/My resources tabs, the face opens what needs doing, and nothing is hidden behind the bar on a phone", Object.values(look).every(Boolean), JSON.stringify(look));
 
-  await page.click("#nisiaButton");
+  await page.evaluate(() => document.getElementById("nisiaButton").click());
   await page.fill(".sn-auth #email", "p.shah@x"); await page.fill(".sn-auth #pw", "Str0ng-pass!"); await page.click(".sn-auth button[type=submit]");
   await page.waitForSelector(".sn-auth #c"); await page.fill(".sn-auth #c", "123456");
   await page.waitForFunction(() => document.querySelector("#nisiaButton.on"), null, { timeout: 8000 });
@@ -218,7 +220,7 @@ try {
     !!fin && att[0].arrived_at === new Date(minuteOf(T1)).toISOString() && att[0].left_at === new Date(minuteOf(T2)).toISOString() && att[0].left_reason === "Family" &&
     att[0].minutes === Math.round((minuteOf(T2) - minuteOf(T1)) / 60000) && att[1].arrived_at === null && att[1].left_at === null, JSON.stringify(att));
   /* Past registers: the tutor opens today's from the list, sees it in full, corrects a time, and downloads it. */
-  await page.click("[data-register-list]"); await page.waitForTimeout(300);
+  await page.click('.sy-nav [data-sy-tab="registers"]'); await page.waitForTimeout(250); await page.click('[data-se-past]'); await page.waitForTimeout(300);
   await page.click("[data-past-register]"); await page.waitForSelector(".sy-past");
   const past = await page.evaluate(() => [...document.querySelectorAll(".sy-past-row")].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
   const callumRow = past.find((x) => /Callum Hughes/.test(x)) || "", amiraRow = past.find((x) => /Amira Khan/.test(x)) || "";
