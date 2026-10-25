@@ -146,12 +146,10 @@
     if(last&&last.goal){const p=goalProgress(last.goal);
       /* How it went is kept with last week's catch-up, so Milos sees it too. */
       if(p&&!last.goalResult)try{window.eviaData.put("checkins",{week:last.week,goalResult:{got:p.v,done:p.done}})}catch(_){}
-      if(p&&p.done&&window.eviaMood)window.eviaMood("proud");
       k.say(p&&p.done?"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. You did it ✓ Nice one.":"Last time you said you’d <strong>"+esc(last.goal.title.toLowerCase())+"</strong>. "+(p&&p.v>0?"You got part of the way.":"It didn’t happen, and that’s OK.")+" Let’s see what works this week.")}
     /* 2. How they're doing. */
     k.say("First, how are you doing at the moment?");
     k.replies([["good","Good"],["ok","OK"],["low","Not great"]].map(([id,l],i)=>({label:l,primary:!i,run:()=>{k.userSays(l);a.mood=id;
-      if(window.eviaMood)window.eviaMood(id==="low"?"concerned":id==="good"?"happy":"calm");
       if(id!=="low"){k.say(id==="good"?"Good to hear.":"Fair enough. Thanks for being honest.");return progress(a)}
       k.say("Sorry to hear that. What’s it mostly about?");
       k.replies([["Work"],["College"],["Home"],["Health"],["Rather not say"]].map(([x])=>({label:x,run:()=>{k.userSays(x);a.about=x;
