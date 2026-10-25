@@ -237,7 +237,7 @@ hero+
     const recent=H.slice().sort((x,y)=>Number(y.on||y.createdAt)-Number(x.on||x.createdAt)).slice(0,3);
     const logs=recent.length?'<h2 class="th-h2">Latest learning</h2><div class="th-group">'+recent.map(x=>row({ic:"clock",title:x.description||"Learning",sub:new Date(Number(x.on||x.createdAt)).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+" · "+hm(Number(x.n)||0)}).replace('class="th-row"','class="th-row th-static"').replace(GO,"")).join("")+'</div>':"";
     /* Not connected to a college: the learner marks their own college days (own-attendance.js). */
-    const OA=!AT&&window.eviaOwnAttendance?window.eviaOwnAttendance.data():null;
+    const OA=!AT&&window.eviaOwnAttendance?(window.eviaOwnAttendance.tidy(),window.eviaOwnAttendance.data()):null;
     scr().innerHTML=header("Time")+
       '<section class="th-hero"><span class="th-k">Learning hours this week</span><strong class="th-big">'+esc(hm(wk))+'<small> / '+esc(hm(aim))+'</small></strong><span class="th-bar"><i style="width:'+pct+'%"></i></span>'+
       '<small class="th-note">'+esc(hm(total))+' in total'+(planned?' of '+planned+'h · '+Math.min(100,Math.round(total/planned*100))+'% done':'')+'</small>'+

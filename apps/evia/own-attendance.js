@@ -42,7 +42,7 @@
     if(!own.length&&!Object.keys(marks).length)return null;
     const from=since(),today=dkey(new Date()),list={};
     if(from)for(let d=new Date(from+"T12:00:00");dkey(d)<=today;d.setDate(d.getDate()+1))if(own.includes(d.getDay()))list[dkey(d)]=null;
-    Object.keys(marks).forEach(k=>{if(k<=today)list[k]=marks[k]});
+    Object.keys(marks).forEach(k=>{if(k<=today&&(!from||k>=from))list[k]=marks[k]});
     const days=Object.keys(list).sort().reverse().map(d=>{const m=list[d];return {d,state:m?(m.here?"here":"missed"):null,mins:m&&m.here?Number(m.mins)||START_MINS:0}});
     const here=days.filter(x=>x.state==="here").length,missed=days.filter(x=>x.state==="missed").length,marked=here+missed;
     return {days,here,missed,open:days.length-marked,pct:marked?Math.round(here/marked*100):null,mins:days.reduce((n,x)=>n+x.mins,0)};
@@ -70,7 +70,18 @@
     try{window.dispatchEvent(new CustomEvent("evia-own-attendance"))}catch(_){}
   }
 
+  /* Days marked before the apprenticeship started (marked before the start date was set) go, with the learning logs
+     marking them made. */
+  function tidy(){
+    const st=startDate();if(!st)return;
+    const marks=read(KEY,{})||{},H=hoursList();let changed=false;
+    Object.keys(marks).forEach(k=>{if(k>=st)return;const m=marks[k];
+      if(m&&m.hid&&H.some(h=>h&&h.id===m.hid))try{window.eviaData.remove("hours",m.hid)}catch(_){}
+      delete marks[k];changed=true});
+    if(changed)write(KEY,marks);
+  }
   function sheet(){
+    tidy();
     const root=document.getElementById("modal-root");if(!root)return;
     root.innerHTML='<div class="overlay pv-overlay"><section class="sheet pr-sheet pv-sheet oa-sheet" role="dialog" aria-modal="true" aria-labelledby="oa-title"><div class="sheet-head"><div><div class="chat-kicker">COLLEGE</div><h2 id="oa-title">Attendance</h2></div><button class="close" id="oa-close" type="button" aria-label="Close">×</button></div><div class="pr-body" id="oa-body"></div></section></div>';
     /* Back on the Time tab, its Attendance row shows what was marked. */
@@ -105,11 +116,11 @@
     body.addEventListener("change",e=>{
       if(e.target.id!=="oa-start"||!e.target.value)return;
       try{window.eviaData.put("learner",{start:e.target.value})}catch(_){}
-      draw();
+      tidy();draw();
     });
     draw();
     const h=root.querySelector("#oa-title");h.setAttribute("tabindex","-1");h.focus({preventScroll:true});
   }
 
-  window.eviaOwnAttendance={data,mark,open:sheet,noteSet,KEY,START_MINS};
+  window.eviaOwnAttendance={data,tidy,mark,open:sheet,noteSet,KEY,START_MINS};
 })();
