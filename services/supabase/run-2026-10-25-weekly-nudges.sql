@@ -19,10 +19,9 @@
 alter table public.device_tokens drop constraint if exists device_tokens_app_check;
 alter table public.device_tokens add constraint device_tokens_app_check check (app in ('evia', 'milos', 'paros'));
 
--- It now takes the day to run for (today when left out, as pg_cron calls it), so it can be tried for any day.
-drop function if exists private.course_reminders();
-
-create or replace function private.course_reminders(p_today date default null) returns int
+-- The work is in course_reminders_on(day), so it can be tried for any day; course_reminders() (what pg_cron calls)
+-- runs it for today.
+create or replace function private.course_reminders_on(p_today date) returns int
 language plpgsql security definer set search_path = '' as $$
 declare
   today date := coalesce(p_today, (now() at time zone 'Europe/London')::date);
@@ -269,4 +268,8 @@ begin
   return made;
 end;
 $$;
-revoke all on function private.course_reminders(date) from public, anon, authenticated;
+revoke all on function private.course_reminders_on(date) from public, anon, authenticated;
+
+create or replace function private.course_reminders() returns int
+language sql security definer set search_path = '' as $$ select private.course_reminders_on(null) $$;
+revoke all on function private.course_reminders() from public, anon, authenticated;

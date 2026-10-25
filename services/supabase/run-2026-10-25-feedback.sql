@@ -68,9 +68,8 @@ end $function$;
 revoke all on function public.nisia_feedback_send(jsonb) from public;
 grant execute on function public.nisia_feedback_send(jsonb) to anon, authenticated;
 
--- The master admin's Usage page: the testers and own devices left out unless p_testing.
-drop function if exists public.nisia_admin_usage(integer);
-drop function if exists private.admin_usage(date);
+-- The master admin's Usage page (nisia_admin_usage_by): the testers and own devices left out unless p_testing.
+-- The old nisia_admin_usage stays as it was, for the portal until it updates.
 CREATE OR REPLACE FUNCTION private.admin_usage(v_from date, p_testing boolean, p_who text)
  RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
 AS $function$
@@ -93,7 +92,7 @@ AS $function$
                  where x.day >= v_from and not p_testing and (x.tester or coalesce(o.is_test, false))));
 $function$;
 
-CREATE OR REPLACE FUNCTION public.nisia_admin_usage(p_days integer DEFAULT 30, p_testing boolean DEFAULT false, p_who text DEFAULT 'all')
+CREATE OR REPLACE FUNCTION public.nisia_admin_usage_by(p_days integer DEFAULT 30, p_testing boolean DEFAULT false, p_who text DEFAULT 'all')
  RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO ''
 AS $function$
 declare v_from date := current_date - greatest(1, least(p_days, 365));
@@ -101,8 +100,8 @@ begin
   if not private.is_platform_admin() then raise exception 'Not allowed'; end if;
   return private.admin_usage(v_from, coalesce(p_testing, false), case when p_who in ('connected', 'unconnected') then p_who else 'all' end);
 end $function$;
-revoke all on function public.nisia_admin_usage(integer, boolean, text) from public, anon;
-grant execute on function public.nisia_admin_usage(integer, boolean, text) to authenticated;
+revoke all on function public.nisia_admin_usage_by(integer, boolean, text) from public, anon;
+grant execute on function public.nisia_admin_usage_by(integer, boolean, text) to authenticated;
 
 -- The feedback, for the master admin: the latest 1000 in the period.
 CREATE OR REPLACE FUNCTION public.nisia_admin_feedback(p_days integer DEFAULT 365, p_testing boolean DEFAULT false)

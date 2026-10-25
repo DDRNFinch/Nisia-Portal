@@ -26,7 +26,7 @@ try {
   const sent = async () => q(`select recipient_user_id u, notification_type t, title, body, data from public.notifications where data ? 'key' order by created_at, notification_type`);
 
   /* A Thursday: the daily nudges only. */
-  await q(`select private.course_reminders($1::date)`, [day(-1)]);
+  await q(`select private.course_reminders_on($1::date)`, [day(-1)]);
   let N = await sent(), of = (t) => N.filter((x) => x.t === t);
   check("Employer: hours waiting over 2 weeks, in Paros (the recent ones don't count)", of("hours_waiting").length === 1 && of("hours_waiting")[0].u === EM && of("hours_waiting")[0].data.app === "paros" &&
     /^1 entry from .+ has been waiting over 2 weeks/.test(of("hours_waiting")[0].body), JSON.stringify(of("hours_waiting")));
@@ -36,8 +36,8 @@ try {
   /* The Friday: the summaries; the nudges aren't sent again the same week. */
   await q(`insert into public.evidence (organisation_id, enrolment_id, course_id, created_by_member_id, evidence_type, title, created_at, source_metadata)
     values ($1, $2, $3, $4, 'photo', 'New wall', $5::date - 1, '{"unit":"Mixing mortar"}')`, [ORG, ENROL, COURSE, LEARNER, day(0)]);
-  await q(`select private.course_reminders($1::date)`, [day(0)]);
-  await q(`select private.course_reminders($1::date)`, [day(0)]);
+  await q(`select private.course_reminders_on($1::date)`, [day(0)]);
+  await q(`select private.course_reminders_on($1::date)`, [day(0)]);
   N = await sent();
   const ws = of("week_summary");
   check("Learner, Friday: Your week (evidence, hours against this week's share), in Evia, once", ws.length === 1 && ws[0].u === LEE && /1 piece of evidence\./.test(ws[0].body) && /1\.5 of your \d/.test(ws[0].body) && ws[0].data.app === "evia" && ws[0].data.open === "hours", JSON.stringify(ws));
@@ -50,7 +50,7 @@ try {
 
   /* The review in 7 days: the employer hears too. Due = start + 84, so start it 77 days before the day. */
   await q(`update public.enrolments set start_date = $2::date - 77 where id = $1`, [ENROL, day(3)]);
-  await q(`select private.course_reminders($1::date)`, [day(3)]);
+  await q(`select private.course_reminders_on($1::date)`, [day(3)]);
   N = await sent();
   const re = of("review_due_employer");
   check("Employer: their apprentice's review is next week, in Paros (the learner hears as before)", re.length === 1 && re[0].u === EM && /progress review is next week/.test(re[0].title) && re[0].data.app === "paros" && of("review_due").some((x) => x.u === LEE), JSON.stringify(re));
@@ -59,13 +59,13 @@ try {
   const mon = (await q(`select d::date from generate_series(date_trunc('month', current_date) + interval '1 month', date_trunc('month', current_date) + interval '1 month 6 days', interval '1 day') d where extract(isodow from d) = 1`))[0].d;
   const m = mon.toISOString().slice(0, 10);
   await q(`update public.enrolments set start_date = $2::date - 40 where id = $1`, [ENROL, m]);
-  await q(`select private.course_reminders($1::date)`, [m]);
+  await q(`select private.course_reminders_on($1::date)`, [m]);
   N = await sent();
   const bd = of("behaviours_due");
   check("Employer, first Monday of the month: rate how they're doing at work, in Paros", bd.length === 1 && bd[0].u === EM && /this month/.test(bd[0].body) && bd[0].data.open === "feedback" && bd[0].data.app === "paros", JSON.stringify(bd));
   await q(`delete from public.notifications where notification_type = 'behaviours_due'`);
   await q(`insert into public.behaviour_ratings (organisation_id, enrolment_id, rater_member_id, ratings, created_at) values ($1, $2, '0e2e0000-0000-0000-0000-0000000000b3', '{}'::jsonb, $3::date - 3)`, [ORG, ENROL, m]);
-  await q(`select private.course_reminders($1::date)`, [m]);
+  await q(`select private.course_reminders_on($1::date)`, [m]);
   check("…but not if they rated them in the last 4 weeks", !(await sent()).some((x) => x.t === "behaviours_due"));
   check("Called with no day (as pg_cron does), it runs for today", typeof (await q(`select private.course_reminders() n`))[0].n === "number");
   if (process.env.SHOW) for (const x of await sent()) console.log("  [" + x.data.app + "] " + x.title + " — " + x.body);

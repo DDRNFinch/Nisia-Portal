@@ -53,7 +53,7 @@ try {
   const no = await rpc("nisia_admin_feedback", {}, { sub: LEE, aal: "aal2" }), yes = await rpc("nisia_admin_feedback", {}, { sub: TEE, aal: "aal2" }), all = await rpc("nisia_admin_feedback", { p_testing: true }, { sub: TEE, aal: "aal2" });
   check("Only the master admin sees feedback, testers left out unless asked", no.status >= 400 && yes.status === 200 && yes.body.length === 1 && yes.body[0].fid === "real1" && all.body.length === 3, JSON.stringify([no.status, yes.body && yes.body.length, all.body && all.body.length]));
   await q(`insert into public.usage_daily (day, app, counts, tester) values (current_date - 1, 'evia', '{"saved.evidence":3}', false), (current_date - 1, 'evia', '{"saved.evidence":50}', true)`);
-  const us = await rpc("nisia_admin_usage", { p_days: 30 }, { sub: TEE, aal: "aal2" });
+  const us = await rpc("nisia_admin_usage_by", { p_days: 30 }, { sub: TEE, aal: "aal2" });
   check("Usage leaves the testers out and says how many", us.status === 200 && us.body.apps.find((a) => a.app === "evia").device_days === 1 && us.body.left_out === 1, JSON.stringify(us.body && us.body.apps));
 
   /* The Usage page. */
@@ -72,7 +72,7 @@ try {
   /* Connected or not: a learner joined to a college, with feedback sent while connected. */
   await q(`insert into public.usage_daily (day, app, counts, organisation_id) values (current_date - 2, 'evia', '{"saved.evidence":7}', '0e2e0000-0000-0000-0000-000000000001')`);
   await q(`insert into public.evia_feedback (stars, comment, fid, connected) values (5, 'Joined to my college and it is great', 'conn1', true)`);
-  const cu = await rpc("nisia_admin_usage", { p_days: 30, p_who: "connected" }, { sub: TEE, aal: "aal2" }), nu = await rpc("nisia_admin_usage", { p_days: 30, p_who: "unconnected" }, { sub: TEE, aal: "aal2" });
+  const cu = await rpc("nisia_admin_usage_by", { p_days: 30, p_who: "connected" }, { sub: TEE, aal: "aal2" }), nu = await rpc("nisia_admin_usage_by", { p_days: 30, p_who: "unconnected" }, { sub: TEE, aal: "aal2" });
   const ed = (r) => (r.body.apps.find((a) => a.app === "evia") || {}).device_days || 0;
   check("Usage for connected learners only, and for those on their own", cu.status === 200 && ed(cu) === 1 && ed(nu) === 1, JSON.stringify([cu.body && cu.body.apps, nu.body && nu.body.apps]));
   await po.page.click("#uTest"); await po.page.waitForSelector("text=Include them");

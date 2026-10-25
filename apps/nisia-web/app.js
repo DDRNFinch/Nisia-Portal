@@ -821,7 +821,7 @@ async function usagePage() {
   shell('<p class="loading">Loading usage…</p>');
   S.days = S.days || 30; S.uapp = S.uapp || "evia"; S.utest = !!S.utest; S.uwho = S.uwho || "all";
   let u, fb = [];
-  try { [u, fb] = await Promise.all([rpc("nisia_admin_usage", { p_days: S.days, p_testing: S.utest, p_who: S.uwho }), rpc("nisia_admin_feedback", { p_days: S.days, p_testing: S.utest }).catch(() => [])]); }
+  try { [u, fb] = await Promise.all([rpc("nisia_admin_usage_by", { p_days: S.days, p_testing: S.utest, p_who: S.uwho }), rpc("nisia_admin_feedback", { p_days: S.days, p_testing: S.utest }).catch(() => [])]); }
   catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
   /* Joined to a college or not: as the learner's phone said when they sent it. */
   const isConn = (f) => f.connected != null ? f.connected : !!(f.usage && f.usage.connected);
