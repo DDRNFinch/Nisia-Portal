@@ -111,3 +111,25 @@ html body.se-look .sl-tabs button{flex:none;min-height:36px!important;padding:0 
 html body.se-look .sl-tabs button.on{background:#fff!important;color:var(--se-ink)!important;box-shadow:0 1px 3px rgba(16,24,40,.12)!important}
 .se-close:focus:not(:focus-visible){outline:none}
 html body.se-look.se-look :is(.sy-hello,.sy-top-head):has(.nm-btn:not([hidden])){margin-right:114px!important}
+
+/* ---------- Registers and Learners in Evia's layout (symi-evia.js) ---------- */
+html body.se-look.se-list #staffApp>:not(.se-page):not(.staff-page-head):not(.sy-pills){display:none!important}
+.se-hero{display:flex;flex-direction:column;gap:4px;padding:16px;border-radius:20px;background:var(--se-card);border:1px solid var(--se-line);box-shadow:var(--se-shadow);margin:0 0 4px}
+.se-k{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--se-muted)}
+.se-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--se-ink);line-height:1.15}
+.se-big small{font-size:14px;font-weight:600;color:var(--se-muted);letter-spacing:0}
+.se-note{font-size:13.5px;color:var(--se-muted)}
+.se-btns{display:flex;gap:8px;margin-top:10px}.se-btns>*{flex:1}
+.se-h2{margin:20px 4px 8px;font-size:12.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--se-muted)}
+.se-page .se-group{background:var(--se-card);box-shadow:var(--se-shadow);margin-bottom:4px}
+.se-page .se-group+.se-group{margin-top:12px}
+.se-lrow{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:12px 16px;border:0;border-top:1px solid var(--se-line2);background:none;text-align:left;font:inherit;color:var(--se-ink);cursor:pointer;box-sizing:border-box}
+.se-group>.se-lrow:first-child{border-top:0}.se-lrow:active{background:#f7f8fa}
+.se-av{width:38px;height:38px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--se-soft);color:#344054;font-weight:800;font-size:14px}
+.se-pill{flex:none;font-size:12px;font-weight:800;padding:4px 9px;border-radius:8px;background:var(--se-accent-soft);color:var(--se-accent-ink)}
+.se-pill-y{background:#fef0c7;color:#93370d}.se-pill-r{background:#fee4e2;color:#b42318}
+.se-quiet .se-lrow{min-height:54px}
+.se-back{display:inline-flex;align-items:center;gap:4px;margin:0 0 12px;padding:8px 14px;border-radius:999px;border:1px solid var(--se-line);background:#fff;font:inherit;font-weight:700;font-size:14px;color:var(--se-ink);cursor:pointer}
+/* A register opened from the list: just the register, with a way back. */
+html body.se-look.se-detail #staffApp>:is(.sy-pills,.register-top-actions,.samos-register-picker){display:none!important}
+html body.se-look.se-list .sy-top-sub{display:none!important}
