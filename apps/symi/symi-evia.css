@@ -179,3 +179,7 @@ html body.se-look #samosOverlay :is(.evia-copy,.evia-stage>*){margin-left:0!impo
 .se-backrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 12px;animation:seIn .3s var(--se-ease) both}
 .se-backrow .se-back{margin:0}
 html body.se-look.se-detail #staffApp>.staff-page-head,html body.se-look #staffApp>.se-backrow~.staff-page-head.sy-top-head .se-acts{display:none!important}
+
+/* Patterns worth a word: a small tag by the name on the register. */
+.se-flag{display:inline-block;margin-left:8px;vertical-align:middle;font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:7px;letter-spacing:0}
+.se-flag.r{background:#fee4e2;color:#b42318}.se-flag.y{background:#fef0c7;color:#93370d}

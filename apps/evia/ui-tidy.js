@@ -191,13 +191,16 @@ hero+
         row({id:"th-ksbs",ic:"target",title:"My "+(window.eviaTerm?window.eviaTerm().many:"KSBs"),sub:(()=>{try{const a=window.eviaStats.compute().a;return a.met+" of "+a.total+(a.signoff?" signed off":" with evidence")}catch(_){return ""}})()}),
         row({id:"th-past",ic:"review",title:"Past reviews and targets"})].filter(Boolean).join("")+'</div>'+
       /* My future: their goal, the steps towards it, guides and the college's careers sessions (future.js). */
-      (window.eviaFuture?'<div class="th-group th-quiet">'+row({id:"th-future",ic:"star",title:"My future",sub:(()=>{const F=window.eviaFuture.summary&&window.eviaFuture.summary();return F?F.goal+" · "+F.done+" of "+F.steps+" steps":"Where do you want your trade to take you?"})()})+'</div>':"");
+      (window.eviaFuture?'<div class="th-group th-quiet">'+row({id:"th-future",ic:"star",title:"My future",sub:(()=>{const F=window.eviaFuture.summary&&window.eviaFuture.summary();return F?F.goal+" · "+F.done+" of "+F.steps+" steps":"Where do you want your trade to take you?"})()})+'</div>':"")+
+      /* Rate Evia, whenever they like (feedback.js). */
+      (window.eviaRate?'<div class="th-group th-quiet">'+row({id:"th-rate",ic:"star",title:"Rate Evia",sub:window.eviaRate.sub()})+'</div>':"");
     wireHeader();
     scr().querySelectorAll("[data-check]").forEach(b=>b.onclick=()=>{const x=C.items.find(i=>i.id===b.dataset.check);if(x&&x.run)x.run()});
     on("th-prep",()=>window.eviaJourneyPack.open());
     on("th-ksbs",()=>window.eviaProgressDeep&&window.eviaProgressDeep(window.eviaNvq&&window.eviaNvq.on()?"ksb":"where"));
     on("th-past",()=>window.eviaProgressDeep&&window.eviaProgressDeep("review"));
     on("th-future",()=>window.eviaFuture.open());
+    on("th-rate",()=>window.eviaRate.open());
   }
 
   /* ---------- Time: learning hours and college ---------- */

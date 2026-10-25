@@ -11,6 +11,9 @@ const platform = () => {
   return (/iP(hone|ad|od)/.test(u) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) ? "ios" : /Android/.test(u) ? "android" : "desktop") + (installed ? "-app" : "-web");
 };
 
+/* Not counted in the figures: the testers (…-ui/), and the owner's own devices (set from the portal's Usage page). */
+const tester = () => { try { return /-ui\//.test(location.pathname) || localStorage.getItem("nisia-not-counted") === "1"; } catch (_) { return false; } };
+
 /* Count one use of a feature today. */
 export function hit(feature) {
   if (!key || !feature) return;
@@ -27,7 +30,7 @@ export async function send() {
   sending = true;
   try {
     for (const d of days) {
-      const { error } = await db.rpc("nisia_usage_ping", { p: { day: d, app, version, platform: platform(), counts: st.days[d] } });
+      const { error } = await db.rpc("nisia_usage_ping", { p: { day: d, app, version, platform: platform(), counts: st.days[d], tester: tester() } });
       if (error) break;
       delete st.days[d];
     }
@@ -38,6 +41,7 @@ export async function send() {
 
 /* Each app starts it once: its name and version. */
 export function startUsage(name, ver) {
+  try { if (/[?&]notcounted\b/.test(location.search)) localStorage.setItem("nisia-not-counted", "1"); } catch (_) {}
   app = name; version = String(ver || "").slice(0, 24); key = "nisia-usage-" + name;
   try { st = JSON.parse(localStorage.getItem(key) || "null") || { days: {} }; } catch (_) { st = { days: {} }; }
   setTimeout(send, 8000);

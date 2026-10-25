@@ -550,3 +550,10 @@ html body .m-app .m-empty{padding:22px 18px}
 /* The filter chips run edge to edge with the page's 16px sides. */
 html body .m-app .m-main .m-chips{margin:0 -16px;padding:2px 16px}
 html body .m-app .m-college .m-chips{margin:0;padding:0}
+/* A learner's tabs: Overview, Portfolio, Reviews and Timeline. */
+html body .m-app .m-seg{grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column}
+html body .m-app .m-seg button{font-size:13.5px;padding:0 4px}
+/* Caseload at a glance: KSBs signed off (the fill) against how far through the course they are (the line). */
+.m-pace{position:relative;display:block;height:6px;margin:8px 0 2px;border-radius:9px;background:#eef0f3;overflow:visible}
+.m-pace i{display:block;height:100%;border-radius:9px;background:var(--accent)}
+.m-pace em{position:absolute;top:-3px;width:2px;height:12px;margin-left:-1px;border-radius:2px;background:var(--e-ink,#172033)}

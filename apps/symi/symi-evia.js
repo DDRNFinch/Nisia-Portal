@@ -126,16 +126,43 @@
       '<div class="se-group se-more">' + row({ data: " data-se-classes", lead: ic("classes"), title: "Classes", sub: "Courses, dates and who’s in them" }) + row({ data: " data-se-past", lead: ic("past"), title: "Past registers", sub: past ? past + " finished" : "None finished yet" }) + "</div>";
   }
 
+  /* ---------- Patterns worth a quiet word ----------
+     From the learner's finished registers, oldest first: missed the last two without a reason, or late to at least
+     3 of their last 5. Marks from Evia Portal (here, late, absent with or without a reason) count first; otherwise the
+     time they were first clocked in, against the register's start (more than 10 minutes counts as late). */
+  const marksAll = () => { try { return JSON.parse(localStorage.getItem("symi.nisia.marks.v1") || "{}") || {}; } catch (_) { return {}; } };
+  function pattern(id) {
+    const s = st(), mk = marksAll();
+    const rows = (s.history || []).filter((h) => h && h.data && h.data[id]).sort((a, b) => String(a.date).localeCompare(String(b.date))).map((h) => {
+      const d = h.data[id], m = (mk[h.classId + ":" + h.date] || {})[id], reg = (s.classes || []).find((c) => c.id === h.classId);
+      const absent = m ? m.kind === "absent" : !(Number(d.attendedMs) > 0), why = !!(m && m.kind === "absent" && m.reason);
+      let late = !!(m && m.kind === "late");
+      if (!m && !absent && reg && /^\d\d:\d\d/.test(reg.start || "") && d.intervals && d.intervals[0]) {
+        const t = new Date(h.date + "T00:00:00"); t.setHours(+reg.start.slice(0, 2), +reg.start.slice(3, 5), 0, 0);
+        late = Number(d.intervals[0].start) > t.getTime() + 10 * 6e4;
+      }
+      return { absent, why, late };
+    });
+    const last2 = rows.slice(-2), came = rows.filter((r) => !r.absent).slice(-5), lateN = came.filter((r) => r.late).length;
+    return { missed: last2.length === 2 && last2.every((r) => r.absent && !r.why), late: came.length >= 3 && lateN >= 3, lateN, of: came.length };
+  }
+  const flagPill = (f) => f.missed ? '<span class="se-pill se-pill-r">Missed 2 in a row</span>' : f.late ? '<span class="se-pill se-pill-y">Often late</span>' : "";
+  window.SymiPatterns = { pattern };
+
   /* ---------- Learners ---------- */
   function learnersPage() {
     const rows = [...app.querySelectorAll(".learner-row[data-learner-info]")].map((r) => ({ id: r.dataset.learnerInfo, name: ($("strong", r) || {}).textContent || "", sub: ($("small", r) || {}).textContent || "", pct: parseInt(($(".mini-progress b", r) || {}).textContent, 10) }));
     const seen = rows.filter((r) => !isNaN(r.pct) && !/\b0 sessions/.test(r.sub)), avg = seen.length ? Math.round(seen.reduce((a, r) => a + r.pct, 0) / seen.length) : null;
     const ini = (n) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase();
     const tone = (p) => (p >= 90 ? "" : p >= 75 ? " se-pill-y" : " se-pill-r");
+    const flagged = rows.map((r) => ({ r, f: pattern(r.id) })).filter((x) => x.f.missed || x.f.late);
     return head("Learners") +
       '<section class="se-hero"><span class="se-k">Your learners</span><strong class="se-big">' + rows.length + "<small> " + (rows.length === 1 ? "learner" : "learners") + (avg == null ? "" : " · " + avg + "% attendance") + "</small></strong>" +
         '<div class="se-btns"><button type="button" class="blue-button" data-se-add>Add a learner</button></div></section>' +
-      (rows.length ? '<div class="se-group se-gap">' + rows.map((r) => row({ data: ' data-se-learner="' + esc(r.id) + '"', lead: '<span class="se-av">' + esc(ini(r.name)) + "</span>", title: r.name, sub: r.sub, pill: seen.includes(r) ? '<span class="se-pill' + tone(r.pct) + '">' + r.pct + "%</span>" : "" })).join("") + "</div>" : "");
+      /* Worth a quiet word: only when someone has missed two in a row or keeps arriving late. */
+      (flagged.length ? '<h2 class="se-h2">Worth a word</h2><div class="se-group">' + flagged.map(({ r, f }) => row({ data: ' data-se-learner="' + esc(r.id) + '"', lead: '<span class="se-av">' + esc(ini(r.name)) + "</span>", title: r.name,
+        sub: f.missed ? "Missed their last 2 sessions without a reason" : "Late to " + f.lateN + " of their last " + f.of + " sessions", pill: flagPill(f) })).join("") + '</div><h2 class="se-h2">Everyone</h2>' : "") +
+      (rows.length ? '<div class="se-group' + (flagged.length ? "" : " se-gap") + '">' + rows.map((r) => row({ data: ' data-se-learner="' + esc(r.id) + '"', lead: '<span class="se-av">' + esc(ini(r.name)) + "</span>", title: r.name, sub: r.sub, pill: seen.includes(r) ? '<span class="se-pill' + tone(r.pct) + '">' + r.pct + "%</span>" : "" })).join("") + "</div>" : "");
   }
 
   /* ---------- Drawing ---------- */
@@ -164,6 +191,17 @@
       r.firstChild.onclick = () => { detail = false; if (st().view === "registers") draw(); else S.openRegisters(); window.scrollTo({ top: 0 }); };
       app.prepend(r);
     }
+    /* A learner linked to Evia Portal: their timeline under their profile, the same story as in Milos and Paros. */
+    if (v === "learner" && !app.querySelector(".se-tl")) {
+      const l = (st().learners || []).find((x) => x.id === st().selectedLearnerId), en = l && l.nisia && l.nisia.enrolmentId;
+      if (en && connected()) {
+        const sec = document.createElement("section"); sec.className = "se-tl";
+        sec.innerHTML = '<h2 class="se-h2">Timeline</h2><div class="se-tl-box"></div>';
+        app.appendChild(sec);
+        Promise.all([import("../../packages/core/timeline.js"), import("../../packages/core/nisia.js")])
+          .then(([t, n]) => t.mountTimeline(sec.querySelector(".se-tl-box"), { rpc: n.rpc, enrolment: en })).catch(() => sec.remove());
+      }
+    }
     lastView = v;
     drawMe(); place();
   }
@@ -188,6 +226,19 @@
   document.addEventListener("click", (e) => { if (e.target.closest('[data-sy-tab="registers"]')) detail = false; }, true);
 
   new MutationObserver(draw).observe(app, { childList: true });
+  /* On the register (drawn a moment after the page), a small tag by anyone with a pattern worth a word. */
+  let tagWait = 0;
+  function tags() {
+    tagWait = 0;
+    if (st().view !== "registers") return;
+    const cache = {};
+    app.querySelectorAll("[data-attendance-learner]").forEach((rw) => {
+      const nm = rw.querySelector(".attendance-name"); if (!nm || nm.querySelector(".se-flag")) return;
+      const id = rw.dataset.attendanceLearner, f = cache[id] || (cache[id] = pattern(id)); if (!(f.missed || f.late)) return;
+      nm.insertAdjacentHTML("beforeend", '<span class="se-flag ' + (f.missed ? "r" : "y") + '">' + (f.missed ? "Missed last 2" : "Often late") + "</span>");
+    });
+  }
+  new MutationObserver(() => { if (!tagWait) tagWait = setTimeout(tags, 150); }).observe(app, { childList: true, subtree: true });
   /* Signing in, and the Messages button, arrive after Symi starts. */
   new MutationObserver(() => { drawMe(); place(); }).observe($(".header-utility-actions") || body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { homeBox.dataset.sig = ""; draw(); } });

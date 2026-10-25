@@ -545,3 +545,4 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
 .msg-line.reported{outline:2px solid var(--bad)}
 .msg-body{white-space:pre-wrap;word-wrap:break-word;margin:3px 0}
 .mobile-head .nm-btn{width:38px;height:38px;margin-left:auto;margin-right:8px}
+.linkish{border:0;background:none;padding:0;font:inherit;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}

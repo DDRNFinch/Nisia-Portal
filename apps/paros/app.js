@@ -11,6 +11,8 @@ import { auth } from "../../packages/core/signin.js";
 import { coursePack, loadPacks } from "../../packages/core/packs.js";
 import { mountAbsences } from "../../packages/core/absences.js";
 import "../../packages/core/messages-ui.js";
+import { mountTimeline } from "../../packages/core/timeline.js";
+import * as push from "./push.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos", "paros");
@@ -19,6 +21,7 @@ let who = null, rows = [], tab = "today", view = null, lTab = "overview", back =
 /* ---------- Icons, drawn like Evia's ---------- */
 const svg = (d) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
 const IC = {
+  bell: svg('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
   today: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M8.5 14.5l2.2 2.2 4.8-4.8"/>'),
   apprentices: svg('<path d="M4 18.5c.9-3.3 3.6-5.2 6.5-5.2s5.6 1.9 6.5 5.2"/><circle cx="10.5" cy="8" r="3.5"/><path d="M6.5 6.2c1-2.3 2.6-3.4 4-3.4s3 1.1 4 3.4"/><path d="M5.5 6.4h10"/>'),
   hours: svg('<circle cx="12" cy="12.5" r="8"/><path d="M12 8v4.8l3 1.8"/><path d="M9.5 2.5h5"/>'),
@@ -57,6 +60,10 @@ function sheet(html, label) {
 
 /* ---------- Opening Paros ---------- */
 const AUTH = { title: "Paros", subtitle: "For employers", onReady: () => start(true) };
+/* Opened from a notification: straight to what it was about (Hours, Feedback or Today). */
+const openTab = (o) => { if (["today", "apprentices", "hours", "feedback"].includes(o)) { tab = o; view = null; if (who) draw(); } };
+try { const o = new URLSearchParams(location.search).get("open"); if (o) openTab(o); } catch (_) {}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "paros-open") openTab(e.data.open); });
 async function boot() {
   const cached = read("paros-cache", null);
   const { data } = await db.auth.getSession();
@@ -72,7 +79,7 @@ async function start(loud) {
       root.innerHTML = '<div class="auth"><div class="box"><h2>Paros is for employers</h2><p class="muted">This Evia Portal account isn’t set up as an employer. Ask the college to add you as the employer for your apprentices.</p><button class="btn ghost wide" id="out">Sign out</button></div></div>';
       root.querySelector("#out").onclick = async () => { await signOut(); location.reload(); }; return;
     }
-    rows = await rpc("paros_learners");
+    rows = await rpc("paros_learners"); push.refresh();
     try { await loadPacks(rpc); } catch (e) { console.warn("Paros: packs", e.message); }
     write("paros-cache", { who, rows, at: new Date().toISOString() });
     details = {};
@@ -115,10 +122,18 @@ function account() {
   const orgs = [...new Set(rows.map((r) => r.organisation))].join(", ");
   const o = sheet('<div class="m-acct"><span class="m-me lg">' + esc(initials(who && who.name)) + '</span><div><h2>' + esc(who && who.name || "Employer") + '</h2><p class="muted small">' + esc(orgs || "Paros") + '</p></div></div>' +
     '<div class="card m-list"><button type="button" class="m-row" id="acSync"><span class="m-ic">' + IC.sync + '</span><span class="m-row-main"><b>Update from Evia Portal</b><span class="sub">' + esc((read("paros-cache", {}) || {}).at ? "Last updated " + ago(read("paros-cache", {}).at) : "") + '</span></span></button>' +
+    '<button type="button" class="m-row" id="acPush"><span class="m-ic">' + IC.bell + '</span><span class="m-row-main"><b>Notifications</b><span class="sub">' + esc(push.state() === "on" ? "On: your apprentices’ week on Fridays, and hours to confirm" : push.WHY[push.state()] || "Off. Turn on for your apprentices’ week on Fridays.") + '</span></span></button>' +
     '<button type="button" class="m-row" id="signout"><span class="m-ic bad">' + IC.out + '</span><span class="m-row-main"><b>Sign out</b><span class="sub">Removes your apprentices from this device</span></span></button></div>' +
     '<p class="small muted center">You see your own apprentices’ college attendance, evidence and progress. Their personal notes in Evia stay private to them and the college.</p>', "Account");
   o.querySelector("#acSync").onclick = () => { o.remove(); start(true); };
-  o.querySelector("#signout").onclick = async () => { Object.keys(localStorage).filter((k) => k.startsWith("paros-")).forEach((k) => localStorage.removeItem(k)); await signOut(); };
+  o.querySelector("#acPush").onclick = async () => {
+    const st = push.state();
+    if (st === "on") { await push.off(); toast("Notifications off"); }
+    else if (st === "off") toast(await push.on().catch(() => false) ? "Notifications on" : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Notifications not turned on");
+    else toast(push.WHY[st]);
+    o.remove(); account();
+  };
+  o.querySelector("#signout").onclick = async () => { await push.off().catch(() => {}); Object.keys(localStorage).filter((k) => k.startsWith("paros-")).forEach((k) => localStorage.removeItem(k)); await signOut(); };
 }
 const empty = (h, p) => '<section class="card m-empty">' + EYES + '<h2>' + h + '</h2><p class="muted">' + p + '</p></section>';
 const mini = (r, right) => '<button type="button" class="m-mini" data-id="' + r.enrolment_id + '">' + face(r.name) + '<span class="m-mini-name"><b>' + esc(r.name) + '</b><span class="sub">' + esc(course(r).name) + '</span></span>' + right + '</button>';
@@ -158,7 +173,10 @@ function drawToday() {
         '<div class="e-in">' + rows.slice(0, 4).map((r) => '<button type="button" class="e-row" data-id="' + r.enrolment_id + '">' + face(r.name) + '<span class="e-copy"><b>' + esc(r.name) + '</b><small>' + esc(course(r).name) + (r.last_session ? " · college " + esc(day(r.last_session)) : "") + '</small></span>' + ring(ksbPct(r)) + '</button>').join("") + '</div>' +
         (n ? '<div class="e-btns"><button type="button" class="btn primary" data-go="hours">Check hours</button></div>' : "") + '</section>' +
       (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "") +
+      (push.state() === "off" && !push.asked() ? '<section class="e-group e-quiet"><button type="button" class="e-row" id="pushCard"><span class="e-ic">' + IC.bell + '</span><span class="e-copy"><b>Turn on notifications</b><small>Your apprentices’ week on Fridays, and hours to confirm. Weekdays only.</small></span><span class="e-go">' + IC.chev + '</span></button></section>' : "") +
       '<section class="card m-card p-week e-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section>') });
+  const pc = document.getElementById("pushCard");
+  if (pc) pc.onclick = async () => { pc.disabled = true; let ok = false; try { ok = await push.on(); } catch (_) {} toast(ok ? "Notifications on. Change this in Account." : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Not turned on. You can do it later in Account."); draw(); };
   fillWeek();
 }
 
@@ -200,9 +218,24 @@ async function fillWeek() {
   box.innerHTML = '<div class="p-week-head"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><button type="button" class="btn ghost p-week-flip">' + (weekBack ? "This week" : "Last week") + '</button></div>' +
     '<p class="muted small p-week-dates">' + esc(w.label) + '</p>' +
     out.map(({ r, x }) => '<button type="button" class="p-week-row" data-wk="' + r.enrolment_id + '">' + face(r.name) + '<span class="m-row-main"><b>' + esc(first(r.name)) + '</b>' +
-      (x ? '<ul>' + weekLines(r, x).map((l) => '<li>' + l + '</li>').join("") + '</ul>' : '<span class="sub">Not on this phone yet. Open it once with signal.</span>') + '</span></button>').join("");
+      (x ? '<ul>' + weekLines(r, x).map((l) => '<li>' + l + '</li>').join("") + '</ul>' : '<span class="sub">Not on this phone yet. Open it once with signal.</span>') + '</span></button>' +
+      /* One tap confirms the week's learning hours for this apprentice; to query one, open Hours. */
+      (x && x.waiting ? '<div class="p-week-act"><button type="button" class="btn primary" data-cw="' + r.enrolment_id + '">Confirm ' + x.waiting + (x.waiting === 1 ? " learning log" : " learning logs") + '</button><button type="button" class="btn ghost" data-go="hours">Check first</button></div>' : "")).join("");
   box.querySelector(".p-week-flip").onclick = () => { weekBack = weekBack ? 0 : 1; hit("week." + (weekBack ? "last" : "this")); fillWeek(); };
   box.querySelectorAll("[data-wk]").forEach((b) => b.onclick = () => apprentice(rows.find((r) => r.enrolment_id === b.dataset.wk)));
+  box.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { tab = b.dataset.go; view = null; draw(); scrollTo(0, 0); });
+  box.querySelectorAll("[data-cw]").forEach((b) => b.onclick = async () => {
+    const r = rows.find((x) => x.enrolment_id === b.dataset.cw); if (!r) return;
+    b.disabled = true; b.textContent = "Confirming…";
+    const d = await detail(r).catch(() => null), inWeek = (o) => { const k = String(o.date || "").slice(0, 10); return k >= w.from && k <= w.to; };
+    const waiting = ((d && d.otj) || []).filter((o) => o.type !== "college" && !o.decision && inWeek(o));
+    let done = 0;
+    for (const o of waiting) { try { await A.send("confirmHours", { p_otj: o.id, p_decision: "approved", p_comment: null }); o.decision = "approved"; done++; } catch (e) { toast("Couldn’t save: " + e.message); break; } }
+    r.to_confirm = Math.max(0, (r.to_confirm || 0) - done); write("paros-cache", { who, rows, at: (read("paros-cache", {}) || {}).at });
+    if (d) write("paros-l-" + r.enrolment_id, d);
+    if (done) toast("Confirmed " + done + (done === 1 ? " learning log" : " learning logs"));
+    draw();
+  });
 }
 
 /* ---------- Apprentices ---------- */
@@ -320,7 +353,7 @@ async function apprentice(r, keep) {
   const college = D.college || [], att = college.filter((c) => (c.minutes || 0) > 0 && c.status !== "absent").length;
   const d = reviewDue(r);
   const stat = (b, s, warn) => '<div class="card m-stat"><b' + (warn ? ' class="warn"' : "") + '>' + esc(b) + '</b><span>' + esc(s) + '</span></div>';
-  const seg = [["overview", "Overview"], ["college", "College"], ["evidence", "Evidence"], ["feedback", "Feedback"]];
+  const seg = [["overview", "Overview"], ["college", "College"], ["evidence", "Evidence"], ["feedback", "Feedback"], ["timeline", "Timeline"]];
   const pill = (dec) => dec === "accepted" ? '<span class="pill good">Signed off</span>' : dec === "changes_required" ? '<span class="pill warn">More needed</span>' : dec === "rejected" ? '<span class="pill bad">Not accepted</span>' : '<span class="pill">With the assessor</span>';
   frame({ ...head, body:
     '<div class="m-seg" role="tablist">' + seg.map(([k, t]) => '<button type="button" role="tab" data-lt="' + k + '" aria-selected="' + (lTab === k) + '">' + t + '</button>').join("") + '</div>' +
@@ -354,9 +387,13 @@ async function apprentice(r, keep) {
       ((D.witness || []).length ? '<p class="label">Your witness testimonies</p><div class="card m-list">' + D.witness.map((w) => '<div class="m-row"><span class="m-ic">' + IC.pen + '</span><span class="m-row-main"><b>' + esc(w.unit || "Witness testimony") + '</b><span class="sub">' + esc(day(w.at)) + ' · ' + esc(["", "Getting there", "Competent", "Excellent"][w.rating] || "") + '</span><span class="p-quote">' + esc(w.statement) + '</span></span></div>').join("") + '</div>' : "") +
       ((D.ratings || []).length ? '<p class="label">Behaviour ratings</p><div class="card m-list">' + D.ratings.map((b) => '<div class="m-row"><span class="m-ic">' + IC.star + '</span><span class="m-row-main"><b>' + esc(day(b.at)) + '</b><span class="m-chips">' + Object.entries(b.ratings || {}).map(([k, v]) => '<span class="m-chip">' + esc(k) + ' · ' + esc(["", "Needs support", "Developing", "Good", "Excellent"][v] || v) + '</span>').join("") + '</span>' + (b.comment ? '<span class="p-quote">' + esc(b.comment) + '</span>' : "") + '</span></div>').join("") + '</div>' : "") +
       ((D.witness || []).length || (D.ratings || []).length ? "" : empty("No feedback yet", "Your witness testimonies and behaviour ratings appear here.")) +
-    '</div>' });
+    '</div>' +
+    /* Timeline: the apprentice's whole story, the same as in Milos and Symi */
+    '<div class="m-pane" data-pane="timeline"' + (lTab === "timeline" ? "" : " hidden") + '><div id="tlBox"></div></div>' });
   root.querySelector("#backBtn").onclick = goBack;
-  root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => { lTab = b.dataset.lt; root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", x === b)); root.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== lTab); });
+  const tl = () => { const box = root.querySelector("#tlBox"); if (box && !box.dataset.on) { box.dataset.on = "1"; mountTimeline(box, { rpc, enrolment: r.enrolment_id }); } };
+  if (lTab === "timeline") tl();
+  root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => { lTab = b.dataset.lt; if (lTab === "timeline") tl(); root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", x === b)); root.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== lTab); });
   ["doWitness", "doWitness2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => witness(r); });
   ["doRate", "doRate2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => rateBehaviours(r); });
   /* Days off, and why they weren't at college. */

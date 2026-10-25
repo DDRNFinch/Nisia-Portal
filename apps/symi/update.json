@@ -1,8 +1,9 @@
 {
-  "version": "0.34.30",
-  "title": "Symi in Evia's layout",
+  "version": "0.34.31",
+  "title": "Spot patterns, timeline and days off",
   "details": [
-    "Each tab opens with one summary card and one tidy list: Timetable, Registers, Learners and Resources",
-    "Profile, Evia Portal and Help are behind your initials at the top; the orange dot means you're not connected yet"
+    "Learners: a “Worth a word” list for anyone who missed their last 2 sessions without a reason, or was late 3 of their last 5",
+    "A linked learner’s profile shows their timeline: college days, evidence, hours, visits and days off",
+    "Days off say who booked them"
   ]
 }

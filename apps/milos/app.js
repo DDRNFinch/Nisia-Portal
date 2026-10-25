@@ -17,6 +17,7 @@ import { buildPack, openPack, packPdf } from "./pack.js";
 import { cached, sync, onStatus, onSynced, status, learnerData, refreshLearner, withPending, clear, flush, dismissNotice } from "./store.js";
 import { reviewHtml } from "../../packages/core/reviewdoc.js";
 import * as push from "./push.js";
+import { mountTimeline } from "../../packages/core/timeline.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos");
@@ -336,12 +337,19 @@ function drawToday(X) {
   };
 }
 
-/* Learners: search, a few filters, and each learner with how far along they are. */
+/* Learners: search, a few filters, and the caseload at a glance: most behind first, each with progress against time. */
 function drawLearners(X) {
   const by = Object.fromEntries(X.map((x) => [x.r.learner_id, x]));
   const F = { all: () => true, due: (r) => r.due && (r.due.overdue || r.due.soon), quiet: (r) => quietFor(r) > 14, unpaired: (r) => !r.paired };
   const q = query.trim().toLowerCase();
-  const shown = rows.filter(F[filter] || F.all).filter((r) => !q || (r.name + " " + (r.employer_name || "") + " " + courseName(r.course_code)).toLowerCase().includes(q));
+  /* Caseload at a glance: most behind first. Behind = how far through their course they are, less how much of it
+     is signed off; learners Milos hasn't worked out yet go last. */
+  const gap = (r) => { const Fx = (by[r.learner_id] || {}).F; return Fx && Fx.timePct != null ? Fx.timePct - (Fx.ksb.pct || 0) : -Infinity; };
+  const shown = rows.filter(F[filter] || F.all).filter((r) => !q || (r.name + " " + (r.employer_name || "") + " " + courseName(r.course_code)).toLowerCase().includes(q)).slice().sort((a, b) => gap(b) - gap(a));
+  const pace = (Fx) => { if (!Fx || Fx.timePct == null) return ""; const g = Fx.timePct - (Fx.ksb.pct || 0);
+    return '<span class="m-pace" title="' + esc(Fx.ksb.pct + "% signed off, " + Fx.timePct + "% of the way through") + '"><i style="width:' + Math.min(100, Fx.ksb.pct || 0) + '%"></i><em style="left:' + Math.min(100, Fx.timePct) + '%"></em></span>'; };
+  const paceTag = (Fx) => { if (!Fx || Fx.timePct == null) return ""; const g = Fx.timePct - (Fx.ksb.pct || 0);
+    return g > 5 ? '<span class="pill ' + (g > 20 ? "bad" : "warn") + '">' + g + '% behind</span>' : '<span class="pill good">' + (g < -5 ? -g + "% ahead" : "On track") + '</span>'; };
   const chip = (k, t) => { const n = rows.filter(F[k]).length; return k !== "all" && !n && filter !== k ? "" : '<button type="button" class="m-chip' + (filter === k ? " on" : "") + '" data-f="' + k + '">' + t + (k !== "all" ? " <b>" + n + "</b>" : "") + '</button>'; };
   frame({ title: "Learners", sub: rows.length + (rows.length === 1 ? " learner" : " learners"), body:
     '<label class="m-search">' + IC.search + '<input id="q" type="search" placeholder="Search by name, employer or course" value="' + esc(query) + '" autocomplete="off" aria-label="Search learners"></label>' +
@@ -349,8 +357,8 @@ function drawLearners(X) {
     (shown.length ? '<section class="card m-list" id="list">' + shown.map((r) => { const x = by[r.learner_id] || {}, Fx = x.F;
       return '<button type="button" class="m-row" data-id="' + r.learner_id + '">' + face(r.name) + '<span class="m-row-main"><b>' + esc(r.name) + '</b>' +
         '<span class="sub">' + esc(courseName(r.course_code)) + (r.employer_name ? " · " + esc(r.employer_name) : "") + '</span>' +
-        '<span class="m-row-tags">' + pill(r.due) + (r.paired ? '<span class="small muted">Evia ' + esc(ago(r.last_activity)) + '</span>' : '<span class="pill warn">Evia not connected</span>') + (x.fresh && x.fresh.length ? '<span class="pill accent">' + x.fresh.length + ' to assess</span>' : "") + '</span></span>' +
-        (Fx ? ring(Fx.ksb.pct, Fx.ksb.pct + "% of " + (Fx.nvq ? "criteria" : "KSBs") + " signed off") : "") + '<span class="m-chev">' + IC.chev + '</span></button>'; }).join("") + '</section>'
+        pace(Fx) + '<span class="m-row-tags">' + paceTag(Fx) + pill(r.due) + (r.paired ? '<span class="small muted">Evia ' + esc(ago(r.last_activity)) + '</span>' : '<span class="pill warn">Evia not connected</span>') + (x.fresh && x.fresh.length ? '<span class="pill accent">' + x.fresh.length + ' to assess</span>' : "") + '</span></span>' +
+        '<span class="m-chev">' + IC.chev + '</span></button>'; }).join("") + '</section>'
       : rows.length ? empty(q ? "Nobody matches" : "Nobody here", q ? "No learner matches “" + esc(query) + "”." : "Nobody here right now.") : empty("No learners yet", "No learners are assigned to you yet. Your college assigns them in Evia Portal.")) });
   root.querySelectorAll("[data-f]").forEach((b) => b.onclick = () => { filter = b.dataset.f; drawTab(); });
   const inp = root.querySelector("#q");
@@ -528,7 +536,7 @@ async function learner(r, keep) {
   const dueBig = !d ? "Not scheduled" : d.overdue ? "Overdue" : d.days === 0 ? "Due today" : d.soon ? "Due in " + d.days + (d.days === 1 ? " day" : " days") : "Due " + ukDate(d.due);
   const stat = (b, s, warn) => '<div class="card m-stat"><b' + (warn ? ' class="warn"' : "") + '>' + esc(b) + '</b><span>' + esc(s) + '</span></div>';
   const act = (id, icon, t, s) => '<button type="button" class="card m-act" id="' + id + '"><span class="m-ic">' + icon + '</span><b>' + t + '</b><span class="sub">' + s + '</span></button>';
-  const seg = [["overview", "Overview", ""], ["portfolio", "Portfolio", newCount() ? '<b class="m-badge">' + newCount() + '</b>' : ""], ["reviews", "Reviews", L.reviews.length ? " <small>" + L.reviews.length + "</small>" : ""]];
+  const seg = [["overview", "Overview", ""], ["portfolio", "Portfolio", newCount() ? '<b class="m-badge">' + newCount() + '</b>' : ""], ["reviews", "Reviews", L.reviews.length ? " <small>" + L.reviews.length + "</small>" : ""], ["timeline", "Timeline", ""]];
   frame({ ...head, body:
     '<div class="m-seg" role="tablist" aria-label="' + esc(r.name) + '">' + seg.map(([k, t, extra]) => '<button type="button" role="tab" id="tab-' + k + '" data-lt="' + k + '" aria-selected="' + (lTab === k) + '">' + t + extra + '</button>').join("") + '</div>' +
     /* Overview */
@@ -559,7 +567,9 @@ async function learner(r, keep) {
         return '<button type="button" class="m-row" data-rev="' + v.id + '"><span class="m-no">' + (L.reviews.length - i) + '</span><span class="m-row-main"><b>Review ' + (L.reviews.length - i) + '</b><span class="sub">' + esc(ukDate(v.reviewed_at)) + (v.pending ? " · waiting to send" : " · signed") + '</span></span>' +
           (rag ? '<span class="pill ' + (rag === "On track" ? "good" : rag === "At risk" ? "bad" : "warn") + '">' + esc(rag) + '</span>' : "") + '<span class="m-chev">' + IC.chev + '</span></button>'; }).join("") + '</section>'
         : empty("No reviews yet", "Start the first one from Overview. Milos fills it in from Evia.")) +
-    '</div>' });
+    '</div>' +
+    /* Timeline: the learner's whole story, the same as in Paros and Symi */
+    '<div class="m-pane" data-pane="timeline"' + (lTab === "timeline" ? "" : " hidden") + '><div id="tlBox"></div></div>' });
   root.querySelector("#backBtn").onclick = goBack;
   const pfBox = root.querySelector("#pfBox");
   const badge = () => { const t = root.querySelector("#tab-portfolio"), n = newCount(); if (!t) return; const b = t.querySelector(".m-badge"); if (n && b) b.textContent = n; else if (n) t.insertAdjacentHTML("beforeend", '<b class="m-badge">' + n + '</b>'); else if (b) b.remove(); };
@@ -572,8 +582,11 @@ async function learner(r, keep) {
     });
   };
   drawPortfolio();
+  const tl = () => { const box = root.querySelector("#tlBox"); if (box && !box.dataset.on) { box.dataset.on = "1"; mountTimeline(box, { rpc, enrolment: r.enrolment_id }); } };
+  if (lTab === "timeline") tl();
   root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => {
     lTab = b.dataset.lt; hit("learner." + lTab);
+    if (lTab === "timeline") tl();
     root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
     root.querySelectorAll("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== lTab; });
   });
