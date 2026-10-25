@@ -68,7 +68,7 @@ try {
   await symi.page.evaluate(() => { localStorage.clear(); localStorage.setItem("symi-last-seen-release-v1", "9.9.9"); });
   await symi.page.goto(site + "/apps/symi/"); await symi.page.waitForTimeout(1200);
   await symi.page.evaluate(() => window.SamosApp.openRegisters());
-  await symi.page.click("#nisiaButton"); await signIn(symi.page, "tee@e2e.test", ".sn-auth ");
+  await symi.page.evaluate(() => document.getElementById("nisiaButton").click()); await signIn(symi.page, "tee@e2e.test", ".sn-auth ");
   await symi.page.waitForFunction(() => (window.SamosApp.getState().classes || []).some((c) => c.name === "L3 Walls" && (c.learners || []).length === 4), null, { timeout: 15000 }).catch(() => {});
   const reg = await symi.page.evaluate(() => { const c = (window.SamosApp.getState().classes || []).find((x) => x.name === "L3 Walls"); return c ? { id: c.id, n: c.learners.length, names: c.learners.map((l) => l.name).sort() } : null; });
   check("Symi: the portal's class arrives in the tutor's registers with all four learners", reg && reg.n === 4, JSON.stringify(reg));

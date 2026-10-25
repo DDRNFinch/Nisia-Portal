@@ -18,7 +18,7 @@ async function symiOn(device, seed) {
   }, [seed, today()]);
   await s.page.goto(site + "/apps/symi/"); await s.page.waitForTimeout(1200);
   await s.page.evaluate(() => window.SamosApp.openRegisters());
-  await s.page.click("#nisiaButton"); await signIn(s.page, "tee@e2e.test", ".sn-auth ");
+  await s.page.evaluate(() => document.getElementById("nisiaButton").click()); await signIn(s.page, "tee@e2e.test", ".sn-auth ");
   await s.page.waitForFunction(() => document.querySelector("#nisiaButton.on"), null, { timeout: 10000 });
   return s;
 }

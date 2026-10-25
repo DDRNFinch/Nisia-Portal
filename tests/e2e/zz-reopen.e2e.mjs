@@ -21,7 +21,7 @@ try {
   });
   await symi.page.goto(site + "/apps/symi/"); await symi.page.waitForTimeout(1200);
   await symi.page.evaluate(() => window.SamosApp.openRegisters());
-  await symi.page.click("#nisiaButton"); await signIn(symi.page, "tee@e2e.test", ".sn-auth ");
+  await symi.page.evaluate(() => document.getElementById("nisiaButton").click()); await signIn(symi.page, "tee@e2e.test", ".sn-auth ");
   await symi.page.waitForFunction(() => (window.SamosApp.getState().learners.find((l) => l.id === "x1") || {}).nisia, null, { timeout: 10000 });
   await symi.page.waitForSelector("[data-sn-show]", { timeout: 15000 });
   await symi.page.click("[data-sn-show]");

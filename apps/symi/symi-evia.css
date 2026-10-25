@@ -1,0 +1,113 @@
+/* Symi laid out exactly like Evia (with symi-evia.js): Evia's page header (title and avatar), cards, grouped rows,
+   buttons, segmented tabs, week strip and bottom sheets, in Symi's green. Loaded last, over Symi's older look. */
+:root{--se-bg:#faf9f6;--se-card:#fff;--se-line:#e9edf2;--se-line2:#f2f3f5;--se-ink:#172033;--se-muted:#667085;--se-soft:#f2f4f7;
+  --se-accent:#2f9e63;--se-accent-soft:#e7f6ee;--se-accent-ink:#13663c;--se-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.05)}
+html body.se-look,html body.se-look main{background:var(--se-bg)!important;background-image:none!important}
+html body.se-look main{position:relative}
+
+/* The header: no logo or buttons along the top; the page's title on the left, the avatar on the right. */
+html body.se-look.se-look.se-look .app-header,html body.se-look.se-look.se-look #samosFacePanel{display:none!important}
+.se-me{position:absolute;z-index:5;top:14px;right:16px;width:42px;height:42px;border-radius:50%;border:0;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;background:var(--se-accent-soft);color:var(--se-accent-ink);font:800 14px/1 inherit}
+.se-me b{font-weight:800;font-size:14px;letter-spacing:.02em}
+.se-eyes{display:flex;gap:5px}.se-eyes i{width:7px;height:9px;border:2px solid var(--se-accent);border-radius:50%}
+.se-dot{position:absolute;top:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#f79009;box-shadow:0 0 0 2px var(--se-bg)}
+html body.se-look.se-look .sy-hello,html body.se-look.se-look .staff-page-head.sy-top-head{grid-template-columns:1fr!important;text-align:left!important;align-items:flex-start!important;padding:0!important;margin:14px 64px 14px 4px!important;min-height:42px;display:flex!important;flex-direction:column;justify-content:center}
+html body.se-look .sy-hello h1,html body.se-look .sy-top-head h1{margin:0!important;font-size:30px!important;line-height:1.1!important;font-weight:800!important;letter-spacing:-.03em!important;color:var(--se-ink)!important}
+html body.se-look .sy-hello p,html body.se-look .sy-top-sub{margin:3px 0 0!important;font-size:13.5px!important;font-weight:600!important;color:var(--se-muted)!important}
+/* Pages further in (a register, a learner) keep their back button, in Evia's round style. */
+html body.se-look .staff-page-head:not(.sy-top-head){margin:14px 60px 14px 0!important}
+html body.se-look .staff-page-head h1{font-size:24px!important;font-weight:800!important;letter-spacing:-.02em!important;color:var(--se-ink)!important}
+html body.se-look .staff-back{width:42px;height:42px;border-radius:50%!important;background:#fff!important;border:1px solid var(--se-line)!important;color:var(--se-ink)!important;box-shadow:none!important}
+
+/* Cards: white, softly rounded, a fine line and a soft shadow. */
+html body.se-look :is(.staff-card,.sy-card){border-radius:20px!important;background:var(--se-card)!important;border:1px solid var(--se-line)!important;box-shadow:var(--se-shadow)!important;padding:16px!important;margin:0 0 12px!important}
+html body.se-look .sy-label,html body.se-look .samos-section-head h2,html body.se-look .scal-head{font-size:12px!important;font-weight:800!important;letter-spacing:.06em!important;text-transform:uppercase!important;color:var(--se-muted)!important}
+html body.se-look .sy-big{font-size:28px!important;font-weight:800!important;letter-spacing:-.02em!important;color:var(--se-ink)!important;line-height:1.15!important;margin:4px 0!important}
+html body.se-look .sy-big small{font-size:14px!important;font-weight:600!important;color:var(--se-muted)!important;letter-spacing:0!important}
+html body.se-look .sy-sub{font-size:13.5px!important;color:var(--se-muted)!important}
+
+/* Rows: Evia's list rows, edge to edge in their card, a hairline between them. */
+html body.se-look :is(.sy-row,.samos-row,.learner-row){display:flex!important;align-items:center!important;gap:12px!important;min-height:62px;padding:12px 16px!important;margin:0 -16px!important;width:calc(100% + 32px)!important;
+  border:0!important;border-top:1px solid var(--se-line2)!important;border-radius:0!important;background:none!important;box-shadow:none!important;text-align:left;color:var(--se-ink)!important;box-sizing:border-box}
+html body.se-look :is(.sy-rows,.learner-list)>:first-child{border-top:0!important}
+html body.se-look .sy-rows{margin:10px -16px -16px!important;border-top:1px solid var(--se-line2)}
+html body.se-look :is(.sy-row,.samos-row,.learner-row):active{background:#f7f8fa!important}
+html body.se-look .sy-time{min-width:52px;height:38px;border-radius:12px!important;background:var(--se-soft)!important;color:var(--se-ink)!important;font-weight:800!important;font-size:14px!important;display:flex;align-items:center;justify-content:center}
+html body.se-look .sy-row-main b,html body.se-look .learner-row strong,html body.se-look .samos-row strong{font-size:15.5px!important;font-weight:700!important;color:var(--se-ink)!important}
+html body.se-look .sy-row-main small,html body.se-look .learner-row small,html body.se-look .samos-row small{font-size:13px!important;color:var(--se-muted)!important}
+html body.se-look .sy-chev,html body.se-look .samos-row>b{color:#b0b6c0!important}
+
+/* The register: each learner a row; the card's heading like Evia's. */
+html body.se-look .clean-register-head h2{font-size:20px!important;font-weight:800!important;letter-spacing:-.02em!important;color:var(--se-ink)!important}
+html body.se-look .clean-register-head small{font-size:13px!important;color:var(--se-muted)!important}
+html body.se-look .attendance-row{border-radius:0!important;border:0!important;border-top:1px solid var(--se-line2)!important;background:none!important;box-shadow:none!important;padding:12px 0!important;margin:0!important}
+html body.se-look .attendance-list>.attendance-row:first-child{border-top:0!important}
+html body.se-look .register-compact-meta span{border-radius:8px!important;background:var(--se-soft)!important;color:var(--se-muted)!important;font-size:12px!important;font-weight:800!important;padding:4px 9px!important}
+
+/* Buttons: Evia's primary (filled) and secondary (white with a fine line). */
+html body.se-look .blue-button{min-height:46px!important;border-radius:13px!important;border:0!important;background:var(--se-accent)!important;background-image:none!important;color:#fff!important;font-size:15px!important;font-weight:700!important;box-shadow:0 6px 16px rgba(16,24,40,.08)!important}
+html body.se-look .soft-button{min-height:46px!important;border-radius:13px!important;border:1px solid var(--se-line)!important;background:#fff!important;color:var(--se-ink)!important;font-size:15px!important;font-weight:700!important;box-shadow:none!important}
+
+/* Tabs within a page (Registers / Classes, Course / College…): Evia's segmented control. */
+html body.se-look .sy-pills{display:inline-flex!important;gap:0!important;padding:3px!important;border-radius:999px!important;background:var(--se-soft)!important;margin:0 0 14px!important;flex-wrap:nowrap!important}
+html body.se-look .sy-pills button{border:0!important;background:none!important;color:var(--se-muted)!important;font-size:14px!important;font-weight:700!important;padding:8px 16px!important;border-radius:999px!important;box-shadow:none!important;min-height:36px}
+html body.se-look .sy-pills button.on{background:#fff!important;color:var(--se-ink)!important;box-shadow:0 1px 3px rgba(16,24,40,.12)!important}
+
+/* The week: Evia's strip, plain days with today in ink. */
+html body.se-look .scal-shell{background:none!important;border:0!important;backdrop-filter:none!important}
+html body.se-look .scal-day{border:0!important;background:none!important;box-shadow:none!important;border-radius:14px!important;color:var(--se-ink)!important}
+html body.se-look .scal-day small,html body.se-look .scal-day span{color:var(--se-muted)!important;font-weight:800!important}
+html body.se-look .scal-day.is-today,html body.se-look .scal-day.is-selected{background:var(--se-ink)!important;color:#fff!important;box-shadow:none!important}
+html body.se-look .scal-day.is-today *,html body.se-look .scal-day.is-selected *{color:#fff!important}
+html body.se-look .scal-day.is-today small,html body.se-look .scal-day.is-today span{color:#d0d5dd!important}
+
+/* The centre button's panel: a sheet rising from the bottom, like Evia's chat. */
+html body.se-look #samosOverlay{background:rgba(16,24,40,.32)!important;backdrop-filter:blur(2px)}
+html body.se-look #samosOverlay .evia-wizard{position:absolute!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;max-height:92vh!important;height:auto!important;min-height:0!important;width:min(760px,100%)!important;margin:0 auto!important;
+  overflow:auto!important;border-radius:28px 28px 0 0!important;background:#fff!important;box-shadow:0 -15px 40px rgba(25,36,55,.18)!important;padding-bottom:max(20px,env(safe-area-inset-bottom))!important}
+html body.se-look #samosOverlay .evia-stage{padding-top:6px!important}
+html body.se-look #samosOverlay .sy-todo-row{border-radius:16px!important;border:1px solid var(--se-line)!important;box-shadow:none!important;background:#fff!important}
+html body.se-look #samosOverlay .sy-todo-new button,html body.se-look #samosOverlay .sy-todo-new a{border-radius:16px!important;border:1px solid var(--se-line)!important;background:#fff!important;color:var(--se-ink)!important;box-shadow:none!important}
+
+/* The avatar's sheet. */
+.se-overlay{position:fixed;inset:0;z-index:80;background:rgba(16,24,40,.32);display:flex;align-items:flex-end;justify-content:center;animation:seFade .2s ease both}
+.se-overlay.se-closing{opacity:0;transition:opacity .18s ease}
+.se-sheet{width:min(760px,100%);background:#fff;border-radius:28px 28px 0 0;padding:22px 18px max(22px,env(safe-area-inset-bottom));box-shadow:0 -15px 40px rgba(25,36,55,.18);animation:seUp .28s cubic-bezier(.2,.8,.2,1) both}
+.se-sheet-head{display:flex;justify-content:space-between;align-items:flex-start;margin:0 4px 14px}
+.se-sheet-head small{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--se-muted)}
+.se-sheet-head h2{margin:2px 0 0;font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--se-ink)}
+.se-close{border:0;background:none;font-size:28px;line-height:1;color:#9ba6b5;cursor:pointer;padding:4px 8px}
+.se-group{border-radius:20px;border:1px solid var(--se-line);overflow:hidden}
+.se-row{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:12px 16px;border:0;border-top:1px solid var(--se-line2);background:none;text-align:left;font:inherit;color:var(--se-ink);cursor:pointer}
+.se-row:first-child{border-top:0}.se-row:active{background:#f7f8fa}
+.se-ic{width:38px;height:38px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--se-soft);color:#344054}
+.se-ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.se-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.se-copy strong{font-size:15.5px}.se-copy small{font-size:13px;color:var(--se-muted)}.se-copy small.se-warn{color:#b54708}
+.se-go{font-size:21px;color:#b0b6c0}
+@keyframes seFade{from{opacity:0}to{opacity:1}}
+@keyframes seUp{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.se-overlay,.se-sheet{animation:none}}
+
+/* The week's card on the home screen. */
+html body.se-look.se-look .scal-home-holder{border-radius:20px!important;background:var(--se-card)!important;border:1px solid var(--se-line)!important;box-shadow:var(--se-shadow)!important;padding:12px 10px!important;margin:0 0 12px!important;overflow:hidden}
+/* Inside the centre panel: room to breathe, and Symi's face smaller, like the head of Evia's chat. */
+html body.se-look #samosOverlay .evia-wizard{padding-left:18px!important;padding-right:18px!important}
+html body.se-look #samosOverlay .evia-stage>.evia-face{zoom:.5}
+html body.se-look #samosOverlay :is(h1,h2,#samosPrompt){font-size:24px!important;letter-spacing:-.02em!important}
+html body.se-look.se-look .scal-shell{box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0!important}
+/* The avatar sits in the page's header, on the right, and only on the four tabs' own pages. */
+html body.se-look :is(.sy-hello,.sy-top-head){position:relative!important}
+.se-acts{display:flex;align-items:center;gap:8px}
+html body.se-look :is(.sy-hello,.sy-top-head)>.se-acts{position:absolute;top:50%;right:-60px;translate:0 -50%}
+html body.se-look main>.se-acts{display:none}
+.se-acts .se-me{position:relative;top:auto;right:auto}
+.se-acts .nm-btn{box-shadow:none!important;border-color:var(--se-line)!important;color:var(--se-ink)!important}
+/* Resources' tabs: the same segmented control, scrolling sideways if they don't fit. */
+html body.se-look .sl-tabs{display:flex!important;gap:0!important;padding:3px!important;border-radius:999px!important;background:var(--se-soft)!important;flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;max-width:100%;width:max-content}
+html body.se-look .sl-tabs::-webkit-scrollbar{display:none}
+html body.se-look .sl-tabs button{flex:none;min-height:36px!important;padding:0 14px!important;border:0!important;background:none!important;color:var(--se-muted)!important;box-shadow:none!important;white-space:nowrap}
+html body.se-look .sl-tabs button.on{background:#fff!important;color:var(--se-ink)!important;box-shadow:0 1px 3px rgba(16,24,40,.12)!important}
+.se-close:focus:not(:focus-visible){outline:none}
+html body.se-look.se-look :is(.sy-hello,.sy-top-head):has(.nm-btn:not([hidden])){margin-right:114px!important}
