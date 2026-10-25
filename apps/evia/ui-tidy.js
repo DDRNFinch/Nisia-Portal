@@ -98,7 +98,7 @@
 hero+
       group(rows,nvq?"Site jobs":"Units")+
       group([row({id:"th-sup",ic:"clip",c:"p",title:"Supporting evidence",sub:"Witness statements, videos and files"}),
-        row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"Share your evidence as one PDF"})]);
+        row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"A unit’s evidence as one PDF, for Aptem"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
     /* Your course: every KSB (criterion on an NVQ), what it means and where it is. */
@@ -107,7 +107,25 @@ hero+
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     /* The first-run tour points at Supporting evidence by this. */
     const sup=document.getElementById("th-sup");if(sup)sup.setAttribute("data-supporting-evidence","");
-    on("th-share",()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio());
+    on("th-share",()=>sendWhich(us,mine));
+  }
+  /* Send to my portfolio from Topics: evidence goes to Aptem (or the college's e-portfolio) one unit at a time, so pick
+     the unit first. Only units with evidence are listed; with just one, it opens straight away. */
+  function sendWhich(us,mine){
+    const have=us.map(u=>[u[0],mine(u[0]).length]).filter(x=>x[1]);
+    if(!have.length){if(typeof showEvidenceToast==="function")showEvidenceToast("Save some evidence first, then send it from here");return}
+    if(have.length===1){window.eviaOpenSendToPortfolio(have[0][0]);return}
+    const mp=window.eviaMyPortfolio&&window.eviaMyPortfolio.read();
+    const o=document.createElement("div");o.className="th-sheet-wrap";
+    o.innerHTML='<section class="th-sheet" role="dialog" aria-modal="true" aria-labelledby="th-sw-t"><header class="th-sheet-head"><h2 id="th-sw-t">Send to my portfolio</h2><button type="button" class="th-x" aria-label="Close">×</button></header>'+
+      '<p class="th-note" style="margin:0 4px 12px">Pick a unit. Evia makes one PDF of its evidence, with the photos, ready to upload to Aptem or your e-portfolio.</p>'+
+      '<div class="th-group">'+have.map(([n,c],i)=>row({title:n,sub:c+(c===1?" piece":" pieces")+" of evidence",ic:"send",c:"b",attrs:' data-sw="'+i+'"'})).join("")+'</div>'+
+      (mp?'<div class="th-group th-quiet">'+row({id:"th-sw-mine",title:"Open "+mp.name,sub:"Sign in and upload",ic:"send",c:"g"})+'</div>':"")+'</section>';
+    const close=()=>o.remove();
+    o.querySelector(".th-x").onclick=close;o.addEventListener("click",e=>{if(e.target===o)close()});
+    o.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{close();window.eviaOpenSendToPortfolio(have[+b.dataset.sw][0])});
+    const om=o.querySelector("#th-sw-mine");if(om)om.onclick=()=>{close();window.eviaMyPortfolio.open()};
+    document.body.appendChild(o);
   }
 
   /* ---------- Shared: the hours aim ---------- */
