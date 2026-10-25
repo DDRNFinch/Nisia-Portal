@@ -21,7 +21,7 @@
      college days were first picked. */
   function startDate(){
     try{
-      const en=(window.eviaData&&window.eviaData.enrolment&&window.eviaData.enrolment())||{},pr=(window.eviaData&&window.eviaData.learner&&window.eviaData.learner())||read("evia7-profile",{})||{};
+      const en=(window.eviaData&&window.eviaData.enrolment&&window.eviaData.enrolment())||{},pr=(window.eviaData&&window.eviaData.learner&&window.eviaData.learner())||{};
       const t=Date.parse(en.start||en.startDate||pr.start||"");
       if(t&&t<=Date.now())return dkey(new Date(t));
     }catch(_){}
