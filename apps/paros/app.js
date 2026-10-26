@@ -110,10 +110,11 @@ function frame({ title, sub, backTo, body }) {
       '<div class="m-head-row"><div class="m-titles"><h1 class="m-title">' + esc(title) + '</h1>' + (sub ? '<p class="m-sub">' + sub + '</p>' : "") + '</div>' +
       '<button type="button" class="m-me" id="meBtn" aria-label="You and Paros">' + esc(initials(who && who.name)) + '</button></div></header>' +
     '<main class="m-main' + (enterKey !== shownKey ? " e-enter" : "") + '" id="main">' + body + '</main>' +
-    '<nav class="m-nav" aria-label="Paros">' + nb(TABS[0]) + nb(TABS[1]) + '<button type="button" class="m-nav-milos" id="navSync" aria-label="Update from Evia Portal">' + EYES + '</button>' + nb(TABS[2]) + nb(TABS[3]) + '</nav></div>';
+    '<nav class="m-nav" aria-label="Paros"><div class="m-side"><span class="m-side-logo">' + EYES + '</span><span class="m-side-name"><b>Paros</b><small>Employers</small></span></div>' + nb(TABS[0]) + nb(TABS[1]) + '<button type="button" class="m-nav-milos" id="navSync" aria-label="Update from Evia Portal">' + EYES + '<span class="m-side-t">Update from Evia Portal</span></button>' + nb(TABS[2]) + nb(TABS[3]) + '<button type="button" class="m-side-me" id="sideMe"><span class="m-side-k">Signed in</span><b>' + esc(who && who.name || "Employer") + '</b><small>Account and settings</small></button></nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; view = null; draw(); scrollTo(0, 0); });
   root.querySelector("#navSync").onclick = () => start(true);
   root.querySelector("#meBtn").onclick = account;
+  root.querySelector("#sideMe").onclick = account;
   shownKey = enterKey;
   root.querySelectorAll("[data-id]").forEach((b) => b.onclick = () => apprentice(rows.find((r) => r.enrolment_id === b.dataset.id)));
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => { tab = b.dataset.go; view = null; draw(); scrollTo(0, 0); });
@@ -172,9 +173,10 @@ function drawToday() {
         '<p class="e-big">' + rows.length + '<small> ' + (rows.length === 1 ? "apprentice" : "apprentices") + (need.length ? " · " + need.length + (need.length === 1 ? " thing needs you" : " things need you") : " · all up to date") + '</small></p>' +
         '<div class="e-in">' + rows.slice(0, 4).map((r) => '<button type="button" class="e-row" data-id="' + r.enrolment_id + '">' + face(r.name) + '<span class="e-copy"><b>' + esc(r.name) + '</b><small>' + esc(course(r).name) + (r.last_session ? " · college " + esc(day(r.last_session)) : "") + '</small></span>' + ring(ksbPct(r)) + '</button>').join("") + '</div>' +
         (n ? '<div class="e-btns"><button type="button" class="btn primary" data-go="hours">Check hours</button></div>' : "") + '</section>' +
-      (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "") +
+      /* On a computer: what needs you beside the week (d-cols); on a phone they stack as before. */
+      '<div class="d-cols"><div class="d-col">' + (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "") +
       (push.state() === "off" && !push.asked() ? '<section class="e-group e-quiet"><button type="button" class="e-row" id="pushCard"><span class="e-ic">' + IC.bell + '</span><span class="e-copy"><b>Turn on notifications</b><small>Your apprentices’ week on Fridays, and hours to confirm. Weekdays only.</small></span><span class="e-go">' + IC.chev + '</span></button></section>' : "") +
-      '<section class="card m-card p-week e-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section>') });
+      '</div><div class="d-col"><section class="card m-card p-week e-week" id="pWeek"><p class="label">' + (weekBack ? "Last week" : "This week") + '</p><p class="muted small">Getting the week…</p></section></div></div>') });
   const pc = document.getElementById("pushCard");
   if (pc) pc.onclick = async () => { pc.disabled = true; let ok = false; try { ok = await push.on(); } catch (_) {} toast(ok ? "Notifications on. Change this in Account." : push.state() === "blocked" ? "Notifications are blocked in your settings" : "Not turned on. You can do it later in Account."); draw(); };
   fillWeek();

@@ -1,0 +1,54 @@
+/* Evia on a computer (1024 px and wider), laid out like Evia Portal: a sidebar with Evia's name, each page and your
+   profile; Ask Evia as the first row; the page wide and organised, with its summary card in a panel on the right
+   (desktop.js). Phones and tablets are unchanged. */
+.ev-side,.ev-side-me,.ev-side-ask{display:none}
+@media(min-width:1024px){
+  html body #app{padding-bottom:0}
+  html body #app .bottom-nav{position:fixed;inset:0 auto 0 0;left:0;right:auto;bottom:0;top:0;width:248px;height:auto;transform:none;display:flex;flex-direction:column;align-items:stretch;gap:2px;
+    padding:150px 14px 18px;border-radius:0;border:0;border-right:1px solid #e9edf2;background:#fff;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;z-index:30;opacity:1;pointer-events:auto}
+  html body #app .bottom-nav>div:not(.ev-side){display:none}
+  html body #app .bottom-nav .ev-side{display:flex;align-items:center;gap:10px;position:absolute;top:22px;left:22px;right:14px}
+  html body .ev-side-face{width:38px;height:38px;border-radius:50%;border:3px solid var(--yellow,#e7b900);display:flex;align-items:center;justify-content:center;gap:4px;background:#fff;flex:none}
+  html body .ev-side-face i{width:6px;height:9px;border:2px solid var(--yellow,#e7b900);border-radius:50%}
+  html body .ev-side-name{display:flex;flex-direction:column;line-height:1.15}
+  html body .ev-side-name b{font-size:19px;font-weight:800;letter-spacing:-.02em;color:#172033}
+  html body .ev-side-name small{font-size:12.5px;color:#667085}
+  html body #app .bottom-nav>button{width:100%;height:44px;min-height:0;margin:0;padding:0 12px;border-radius:12px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;
+    font-size:15px;font-weight:600;color:#667085;background:none;box-shadow:none;position:relative;transform:none}
+  html body #app .bottom-nav>button:hover{background:#f2f4f7;color:#172033}
+  html body #app .bottom-nav>button.active,html body #app .bottom-nav>button[aria-current="page"]{background:color-mix(in srgb,var(--yellow,#e7b900) 16%,transparent);color:#172033}
+  html body #app .bottom-nav>button .nav-icon,html body #app .bottom-nav>button .nav-icon svg{width:20px;height:20px;margin:0}
+  html body #app .bottom-nav>button>span:not(.nav-icon){font-size:15px;line-height:1}
+  html body #app .bottom-nav>button::before,html body #app .bottom-nav>button::after{display:none}
+  html body #app .bottom-nav .nav-badge{position:static;margin-left:auto;transform:none}
+  html body #app .bottom-nav>button.ev-side-me{margin-top:auto;height:auto;flex-direction:column;align-items:flex-start;gap:1px;padding:12px 14px;border-radius:14px;background:#f2f4f7;color:#172033}
+  html body .ev-side-k{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#667085}
+  html body .ev-side-me b{font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  html body .ev-side-me small{font-size:12.5px;color:var(--yellow-ink,#6e5c00);font-weight:600}
+  /* Ask Evia: the first row of the sidebar (it opens Evia, as the face does on a phone; the face itself is hidden). */
+  html body #app .evia-fab:not(.chat-active){display:none!important}
+  html body #app .evia-fab.chat-active{left:24px!important;bottom:24px!important;transform:none!important}
+  html body #app .bottom-nav>button.ev-side-ask{position:absolute;top:84px;left:14px;right:14px;width:auto;height:48px;background:var(--soft,#fff7d6);color:#172033;font-weight:700}
+  html body #app .bottom-nav>button.ev-side-ask:hover{background:#fdeeb0}
+  html body .ev-side-face.sm{width:28px;height:28px;border-width:2.5px}
+  html body .ev-side-face.sm i{width:4.5px;height:7px;border-width:1.5px}
+  html body .th-head .th-me{display:none}
+  /* The page: beside the sidebar, wide, and organised. */
+  html body #app .topbar{margin-left:248px}
+  html body #screen,html body #screen.screen{margin:0 0 0 248px;width:auto;max-width:none;padding:32px 40px 48px}
+  html body #screen>*{max-width:1120px;margin-left:auto;margin-right:auto}
+  html body #screen .d-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start;max-width:1120px}
+  html body #screen .d-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+  html body #screen .d-main>*{margin-top:0;margin-bottom:0}
+  html body #screen .d-side{position:sticky;top:24px}
+  html body #screen .d-side>.th-hero{margin:0}
+  html body .th-head{margin-bottom:18px}
+  html body .th-head h1,html body .th-head .th-title{font-size:34px}
+  html body .th-head .th-av,html body .th-head [data-th-avatar],html body .th-head .ui-avatar{display:none}
+  html body .tm,html body .tm-path{max-width:1120px}
+  /* Evia's chat: a window in the middle of the page, not the full width. */
+  html body .overlay:has(.chat-sheet){display:flex;align-items:center;justify-content:center;padding:32px 32px 32px 280px}
+  html body .overlay .sheet.chat-sheet,html body .chat-sheet{position:relative;inset:auto;bottom:auto;left:auto;right:auto;width:min(760px,100%);max-width:760px;height:min(calc(100vh - 96px),760px);margin:0 auto;border-radius:24px;transform-origin:50% 50%}
+  html body .chat-sheet::after,html body .chat-sheet::before{display:none}
+  html body #app .evia-fab.chat-active{display:none!important}
+}

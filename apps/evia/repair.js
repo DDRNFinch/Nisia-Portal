@@ -8,10 +8,13 @@
   style.textContent=`
     :root{--evia-nav-bottom:max(14px,env(safe-area-inset-bottom));--evia-nav-height:72px;--evia-fab-size:48px}
     @media(max-width:520px){:root{--evia-nav-height:70px}}
+    /* Phones and tablets: the bar at the bottom with Evia in the middle. (On a computer it's a sidebar: desktop.css.) */
+    @media(max-width:1023px){
     .bottom-nav{position:fixed!important;bottom:var(--evia-nav-bottom)!important;transform:none!important}
     /* Wide screens: the bar is a fixed width, centred with margins (it can't use a transform, which is held at none above). */
     @media(min-width:800px){.bottom-nav{left:0!important;right:0!important;width:min(680px,calc(100% - 32px))!important;max-width:680px!important;margin:0 auto!important}}
     .evia-fab{position:fixed!important;bottom:calc(var(--evia-nav-bottom) + (var(--evia-nav-height) - var(--evia-fab-size))/2)!important;width:var(--evia-fab-size)!important;height:var(--evia-fab-size)!important;transform:translateX(-50%)!important}
+    }
     body.evia-keyboard-editing .bottom-nav{transform:none!important;opacity:1!important;pointer-events:auto!important}
     body.evia-keyboard-editing .evia-fab{transform:translateX(-50%)!important;opacity:1!important}
     .bottom-nav,.evia-fab{-webkit-backface-visibility:hidden;backface-visibility:hidden}
