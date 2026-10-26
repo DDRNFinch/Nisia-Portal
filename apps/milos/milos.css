@@ -561,7 +561,7 @@ html body .m-app .m-seg button{font-size:13.5px;padding:0 4px}
 /* ---------- On a computer: Evia Portal's layout ----------
    A sidebar instead of the bottom bar (the app's name, then each page; the face button becomes a row), and the page
    wider and organised, with sections side by side where it helps (d-cols). Phones and tablets are unchanged. */
-html body .m-app .m-side,html body .m-app .m-side-t,html body .m-app .m-side-me{display:none}
+@media (max-width:1023px){html body .m-app .m-side,html body .m-app .m-side-t,html body .m-app .m-side-me,html body .m-app .m-nav>button.m-side-me{display:none!important}}
 .d-cols,.d-col{display:contents}
 @media(min-width:1024px){
   html body .m-app{display:block;padding:0 0 40px 260px;min-height:100vh}
