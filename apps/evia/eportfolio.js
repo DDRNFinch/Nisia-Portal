@@ -229,6 +229,9 @@
       .eport-mine-err{margin:6px 0 0;font-size:12.5px;color:#b42318;min-height:0}
       .eport-mine-err:empty{display:none}
       .eport-mine-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+      .eport-mine-next{margin-top:12px;padding:12px 14px;border-radius:14px;background:#f2f7ff;border:1px solid #d6e4ff;display:grid;gap:8px}
+      .eport-mine-next strong{font-size:13px}
+      .eport-mine-open:disabled{opacity:.6}
       .eport-steps{margin:0;padding-left:18px;font-size:12px;line-height:1.6;color:#475467}
     `;
     document.head.appendChild(style);
@@ -245,15 +248,35 @@
     try{const x=new URL(u);return /\./.test(x.hostname)&&x.protocol==="https:"?x.href:""}catch(_){return ""}
   }
   const nameFor=u=>{const k=KNOWN_PORTFOLIOS.find(([re])=>re.test(u));if(k)return k[1];try{return new URL(u).hostname.replace(/^www\./,"")}catch(_){return "My e-portfolio"}};
+  /* What "Save and open" saves: this unit's PDF and KSB codes, once they're ready. */
+  let ready=null;
   /* In a new tab (or the browser, from the installed app), so Evia stays where it was. */
   function openMine(){const m=readMine();if(!m)return false;const w=window.open(m.url,"_blank");if(w){try{w.opener=null}catch(_){}}else{const a=document.createElement("a");a.href=m.url;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}return true}
   function drawMine(box,editing){
     if(!box)return;
     const m=readMine();
     if(m&&!editing){
-      box.innerHTML='<div class="section-title">MY E-PORTFOLIO</div><button type="button" class="primary eport-mine-open" id="eport-mine-open">Open '+escHtml(m.name)+'</button>'+
+      const r=ready&&ready.pdf?ready:null,file=r?r.pdf.name:"";
+      box.innerHTML='<div class="section-title">MY E-PORTFOLIO</div>'+
+        (ready&&!r?'<p class="eport-mine-why">Evia couldn’t make the PDF, so there’s nothing to save. You can still open '+escHtml(m.name)+'.</p>':"")+
+        '<button type="button" class="primary eport-mine-open" id="eport-mine-go"'+(ready?"":" disabled")+'>'+(!ready?"Getting your PDF ready…":r?"Save and open "+escHtml(m.name):"Open "+escHtml(m.name))+'</button>'+
+        (r?'<p class="eport-mine-why" style="margin:8px 0 0">Saves <b>'+escHtml(file)+'</b> to your phone'+(r.ksbs.length?', copies your KSB codes':"")+' and opens '+escHtml(m.name)+'.</p>':"")+
+        '<div id="eport-mine-next"></div>'+
         '<p class="eport-mine-url">'+escHtml(m.url.replace(/^https:\/\//,"").replace(/\/$/,""))+'</p><button type="button" class="eport-copy" id="eport-mine-edit">Change</button>';
-      box.querySelector("#eport-mine-open").onclick=openMine;
+      box.querySelector("#eport-mine-go").onclick=()=>{
+        /* All in the tap itself, so the phone allows the copy, the save and the new tab. */
+        if(r){
+          if(r.ksbs.length){try{navigator.clipboard.writeText(r.ksbs.join(", ")).catch(()=>{})}catch(_){}}
+          saveFile(r.pdf);markSent(r.unitName,r.entries);
+        }
+        openMine();
+        if(r)box.querySelector("#eport-mine-next").innerHTML='<div class="eport-mine-next" role="status"><strong>Now in '+escHtml(m.name)+'</strong><ol class="eport-steps">'+
+          '<li>Sign in and add new evidence for <b>'+escHtml(r.unitName)+'</b>.</li>'+
+          '<li>Upload, and pick <b>'+escHtml(file)+'</b> from your Downloads.</li>'+
+          (r.ksbs.length?'<li>Paste your KSB codes (already copied): '+escHtml(r.ksbs.join(", "))+'</li>':"")+'</ol>'+
+          '<button type="button" class="eport-copy" id="eport-mine-again">Save the PDF again</button></div>';
+        const ag=box.querySelector("#eport-mine-again");if(ag)ag.onclick=()=>saveFile(r.pdf);
+      };
       box.querySelector("#eport-mine-edit").onclick=()=>drawMine(box,true);
       return;
     }
@@ -276,6 +299,7 @@
   /* entryId: share just one saved pack (from its tile on the unit page). */
   async function openSendToPortfolio(unitName,entryId){
     injectStyles();
+    ready=null;
     const profileBtn=document.getElementById("profile-btn");if(profileBtn)profileBtn.style.display="none";
     const unitIndex=data().u.findIndex(u=>u[0]===unitName);
     const entries=evidence.filter(e=>e.c===course&&e.u===unitName&&(entryId==null||String(e.id)===String(entryId))).sort((a,b)=>entryTime(a)-entryTime(b));
@@ -351,10 +375,12 @@
     if(unreadable)problems.push(unreadable+" photo"+(unreadable===1?"":"s")+" couldn’t be read on this phone and "+(unreadable===1?"was":"were")+" left out. If this evidence came from a backup, restore the backup again from your profile.");
     const list=$("#eport-files");
     if(!files.length){
+      ready={unitName,entries,ksbs,pdf:null};drawMine($("#eport-mine"));
       if(list)list.innerHTML='<div class="card"><p>Evia couldn’t prepare the files. '+(problems.join(" ")||"Please try again.")+'</p></div>';
       return;
     }
     if(!document.getElementById("eport-files"))return; // learner navigated away
+    ready={unitName,entries,ksbs,pdf:(files.find(f=>f.kind==="pdf")||{}).file||null};drawMine($("#eport-mine"));
     /* The PDF is the main download, with a preview of its first page; the zip (PDF plus every photo) is there just in case. */
     const pdf=files.find(f=>f.kind==="pdf"),photos=files.filter(f=>f.kind==="photo"),recs=files.filter(f=>f.kind==="video"||f.kind==="audio");
     /* Everything together is the main download: a zip to save, or all the files at once to share (phones won't share a
