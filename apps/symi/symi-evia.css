@@ -218,4 +218,6 @@ html body.se-look.se-detail #staffApp>.staff-page-head,html body.se-look #staffA
   html body.se-look main>*{max-width:1120px;margin-left:auto;margin-right:auto}
   html body.se-look .se-head h1{font-size:34px}
   html body.se-look .se-head .se-me{display:none}
+  /* Out of the way while Symi's menu, a dialog, check-in or the classroom player is open, as on a phone. */
+  html body.se-look.evia-open .sy-nav,html body.se-look:has(dialog[open]) .sy-nav,html body.se-look:has(.sn-checkin) .sy-nav,html body.se-look:has(.classroom-player[aria-hidden="false"]) .sy-nav{display:none!important}
 }
