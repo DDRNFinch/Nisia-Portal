@@ -187,7 +187,7 @@ html body.se-look.se-detail #staffApp>.staff-page-head,html body.se-look #staffA
 /* ---------- On a computer: Evia Portal's layout ----------
    The bar becomes a sidebar (Symi's name, each page, Symi's menu as a row, the tutor at the bottom) and the page is
    wide beside it. Phones and tablets are unchanged. */
-.sy-side,.sy-side-me,.sy-side-t{display:none}
+@media (max-width:1023px){html body .sy-nav>.sy-side,html body .sy-nav>button.sy-side-me,html body .sy-nav .sy-side-t,.sy-side,.sy-side-me,.sy-side-t{display:none!important}}
 @media(min-width:1024px){
   html body.se-look .sy-nav{left:0!important;top:0!important;bottom:0!important;transform:none!important;width:248px!important;height:auto!important;display:flex!important;flex-direction:column!important;
     align-items:stretch!important;gap:2px!important;padding:150px 14px 18px!important;border-radius:0!important;border:0!important;border-right:1px solid #e9edf2!important;background:#fff!important;

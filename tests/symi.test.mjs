@@ -102,6 +102,11 @@ try {
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200);
   look.finishClear = await page.evaluate(async () => { window.scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => setTimeout(r, 200));
     const f = document.querySelector("[data-finish-register]"), n = document.querySelector(".sy-nav"); return !!f && f.getBoundingClientRect().bottom <= n.getBoundingClientRect().top; });
+  /* The computer's sidebar pieces (Symi's name, You) never show in the phone bar, and every tab sits in one row inside it. */
+  look.phoneBar = await page.evaluate(() => { const n = document.querySelector(".sy-nav").getBoundingClientRect(), side = [...document.querySelectorAll(".sy-side,.sy-side-me")].some((x) => x.offsetParent);
+    const tabs = [...document.querySelectorAll(".sy-nav>button")].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect());
+    return !side && tabs.length >= 4 && tabs.every((r) => r.top >= n.top - 1 && r.bottom <= n.bottom + 1); });
+  await page.screenshot({ path: new URL("../shots/symi-phone-bar.png", import.meta.url).pathname }).catch(() => {});
   await page.setViewportSize({ width: 1280, height: 800 }); await page.evaluate(() => window.scrollTo(0, 0));
   check("Symi looks like Evia: the bar (Registers, Learners, Resources, Timetable) goes to each screen, classes sit with registers, Resources has its Course/College/Community/My resources tabs, the face opens what needs doing, and nothing is hidden behind the bar on a phone", Object.values(look).every(Boolean), JSON.stringify(look));
 
