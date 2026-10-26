@@ -181,15 +181,15 @@ try {
   await page.screenshot({ path: shots + "/symi-library-mine.png", fullPage: true });
   check("My resources: the tutor's own slides stay, the old blank ones Symi made are cleared (kept in a backup), and each can be shared with the college",
     /My cavity wall slides/.test(mineView.text) && !/Week 1 · K1/.test(mineView.text) && !/Official courses/.test(mineView.text) && mineView.kept === "old1,old2,old3" && mineView.left === "mine1" && mineView.share, JSON.stringify(mineView).slice(0, 400));
-  await page.click('[data-sl-tab="community"]'); await page.waitForSelector(".sl-soon");
-  check("Community: coming soon, saying how it will work", /Coming soon/.test(await page.textContent(".sl-soon")) && /checked/.test(await page.textContent(".sl-soon")));
+  /* Community isn't offered yet: in Evia's layout its tab is hidden, so tutors only see what works today. */
+  check("Community (not ready yet) isn't shown as a tab", await page.evaluate(() => { const b = document.querySelector('[data-sl-tab="community"]'); return !b || getComputedStyle(b).display === "none"; }));
   await page.click('[data-sl-tab="college"]'); await page.waitForSelector(".sl-body .sl-empty");
   const signedOut = await page.textContent(".sl-body");
   await page.evaluate(() => { const C = window.__college = { shared: [] }; window.SymiNisia = Object.assign(window.SymiNisia || {}, { live: () => false, college: () => ({ organisation: "Walsall College", organisation_id: "O1" }),
     resources: async () => [{ id: "R1", kind: "slides", title: "Brick bonds deck", course_code: "bricklayer", unit: "Build solid walling", content: { slides: [{ title: "English bond", text: "Alternate courses of headers and stretchers." }, { title: "Flemish bond", text: "Headers and stretchers in every course." }] }, shared_by: "Priya Shah", can_remove: true },
       { id: "R2", kind: "link", title: "Cavity walls PowerPoint", course_code: "bricklayer", url: "https://example.com/c.pptx", shared_by: "Sarah Mitchell", can_remove: false }],
     share: async (kind, title, opts) => { C.shared.push({ kind, title, opts }); return "R9"; }, unshare: async () => {} }); });
-  await page.click('[data-sl-tab="community"]'); await page.click('[data-sl-tab="college"]'); await page.waitForSelector(".sl-list .sl-row");
+  await page.click('[data-sl-tab="mine"]'); await page.click('[data-sl-tab="college"]'); await page.waitForSelector(".sl-list .sl-row");
   const college = await page.textContent(".sl-list");
   await page.screenshot({ path: shots + "/symi-library-college.png", fullPage: true });
   await page.click('.sl-row[data-rid="R1"] [data-c="use"]'); await page.waitForFunction(() => !!(document.querySelector(".sl-sheet select[name=date]") || {}).value);
