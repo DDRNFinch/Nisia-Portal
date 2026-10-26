@@ -59,6 +59,7 @@
   function drawMe() {
     const n = name(), i = n ? n.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() : "";
     me.innerHTML = (i ? "<b>" + esc(i) + "</b>" : '<span class="se-eyes" aria-hidden="true"><i></i><i></i></span>') + (connected() ? "" : '<em class="se-dot" aria-hidden="true"></em>');
+    const side = document.querySelector(".sy-side-me b"); if (side) side.textContent = n || "Your profile";
     const msg = document.getElementById("nm-btn");
     if (msg && msg.parentNode !== acts) acts.insertBefore(msg, me);
   }
@@ -105,7 +106,7 @@
       '<section class="se-hero"><span class="se-k">Today · ' + esc(label) + "</span>" +
         (today.length
           ? '<strong class="se-big">' + today.length + "<small> " + (today.length === 1 ? "class" : "classes") + '</small></strong><div class="se-in">' + today.map(classRow).join("") + "</div>"
-          : '<strong class="se-big se-big-s">Nothing on today</strong><small class="se-note">' + (regs().length ? "Your week is below." : "Make a register from Symi’s button in the middle.") + "</small>") +
+          : '<strong class="se-big se-big-s">Nothing on today</strong><small class="se-note">' + (regs().length ? "Your week is below." : "Make a register from Symi’s menu.") + "</small>") +
       "</section>" +
       '<h2 class="se-h2">This week</h2><div class="se-group"><div class="se-strip">' + week.map((d) => { const k = key(d), has = onDay(d).length;
         return '<button type="button" class="se-day' + (k === pick ? " on" : "") + (k === key(now) ? " today" : "") + '" data-se-day="' + k + '" aria-pressed="' + (k === pick) + '"><small>' + d.toLocaleDateString("en-GB", { weekday: "short" }) + "</small><b>" + d.getDate() + "</b><i" + (has ? ' class="has"' : "") + "></i></button>"; }).join("") + "</div>" +

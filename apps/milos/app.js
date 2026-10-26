@@ -105,12 +105,13 @@ function frame({ title, sub, back, body }) {
       '<button type="button" class="m-me" id="meBtn" aria-label="You and Milos">' + esc(initials(who && who.name)) + '</button></div>' +
       '<div class="m-sync" id="syncbar"></div></header>' +
     '<main class="m-main' + (enterKey !== shownKey ? " e-enter" : "") + '" id="main">' + body + '</main>' +
-    '<nav class="m-nav" aria-label="Milos">' + navBtn(TABS[0]) + navBtn(TABS[1]) +
-      '<button type="button" class="m-nav-milos' + (tab === "today" && view === "home" ? " on" : "") + '" id="navTodo" aria-label="What needs doing">' + EYES + '</button>' +
-      navBtn(TABS[2]) + navBtn(TABS[3]) + '</nav></div>';
+    '<nav class="m-nav" aria-label="Milos"><div class="m-side"><span class="m-side-logo">' + EYES + '</span><span class="m-side-name"><b>Milos</b><small>Assessors</small></span></div>' + navBtn(TABS[0]) + navBtn(TABS[1]) +
+      '<button type="button" class="m-nav-milos' + (tab === "today" && view === "home" ? " on" : "") + '" id="navTodo" aria-label="What needs doing">' + EYES + '<span class="m-side-t">Today</span></button>' +
+      navBtn(TABS[2]) + navBtn(TABS[3]) + '<button type="button" class="m-side-me" id="sideMe"><span class="m-side-k">Signed in</span><b>' + esc(who && who.name || "Assessor") + '</b><small>Account and settings</small></button></nav></div>';
   root.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; home(); scrollTo(0, 0); });
   root.querySelector("#navTodo").onclick = () => { tab = "today"; home(); scrollTo(0, 0); };
   root.querySelector("#meBtn").onclick = account;
+  root.querySelector("#sideMe").onclick = account;
   shownKey = enterKey;
   drawSync(status());
 }
@@ -323,8 +324,9 @@ function drawToday(X) {
         /* Visits today (or this week) in the card, each opening to start the observation. */
         (soonV.length ? '<p class="e-sub">' + (todayV.length ? "Visits today" : "Visits this week") + '</p><div class="e-in e-visits">' + (todayV.length ? todayV : soonV.slice(0, 4)).map((v) => visitRow(v, !todayV.length)).join("") + '</div>' : "") +
         (fresh.length ? '<div class="e-btns"><button type="button" class="btn primary" data-go="assess">Start assessing</button></div>' : "") + '</section>' +
-      (need.length ? '<p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section>' : "")) +
-    (extra.length ? '<section class="e-group e-quiet">' + extra.join("") + '</section>' : "") });
+      /* On a computer the two sit side by side (d-cols); on a phone they stack as before. */
+      '<div class="d-cols">' + (need.length ? '<div class="d-col"><p class="e-h2">Needs you</p><section class="e-group">' + need.map(erow).join("") + '</section></div>' : "")) +
+    (extra.length ? '<div class="d-col"><p class="e-h2">Set up</p><section class="e-group e-quiet">' + extra.join("") + '</section></div>' : "") + (rows.length ? '</div>' : "") });
   bindVisits();
   if (Date.now() - visitsAt > 60000 && navigator.onLine) loadVisits().then(() => { if (view === "home" && tab === "today") drawTab(); });
   const ic = root.querySelector("#installCard"); if (ic) ic.onclick = install;

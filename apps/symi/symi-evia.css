@@ -183,3 +183,41 @@ html body.se-look.se-detail #staffApp>.staff-page-head,html body.se-look #staffA
 /* Patterns worth a word: a small tag by the name on the register. */
 .se-flag{display:inline-block;margin-left:8px;vertical-align:middle;font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:7px;letter-spacing:0}
 .se-flag.r{background:#fee4e2;color:#b42318}.se-flag.y{background:#fef0c7;color:#93370d}
+
+/* ---------- On a computer: Evia Portal's layout ----------
+   The bar becomes a sidebar (Symi's name, each page, Symi's menu as a row, the tutor at the bottom) and the page is
+   wide beside it. Phones and tablets are unchanged. */
+.sy-side,.sy-side-me,.sy-side-t{display:none}
+@media(min-width:1024px){
+  html body.se-look .sy-nav{left:0!important;top:0!important;bottom:0!important;transform:none!important;width:248px!important;height:auto!important;display:flex!important;flex-direction:column!important;
+    align-items:stretch!important;gap:2px!important;padding:150px 14px 18px!important;border-radius:0!important;border:0!important;border-right:1px solid #e9edf2!important;background:#fff!important;
+    box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  html body.se-look .sy-nav .sy-side{display:flex;align-items:center;gap:10px;position:absolute;top:22px;left:22px;right:14px}
+  html body.se-look .sy-nav .sy-side .sy-av{width:36px!important;height:36px!important;border-width:3px!important;box-shadow:none;animation:none}
+  html body.se-look .sy-nav .sy-side .sy-av i{width:6px!important;height:8px!important;border-width:2px!important;margin:0 1.5px!important}
+  html body.se-look .sy-side-name{display:flex;flex-direction:column;line-height:1.15}
+  html body.se-look .sy-side-name b{font-size:19px;font-weight:800;letter-spacing:-.02em;color:#172033}
+  html body.se-look .sy-side-name small{font-size:12.5px;color:#667085}
+  html body.se-look .sy-nav>button{width:100%!important;height:44px!important;padding:0 12px!important;border-radius:12px!important;display:flex!important;flex-direction:row!important;align-items:center!important;
+    justify-content:flex-start!important;gap:12px!important;font:600 15px/1 "Inter",-apple-system,sans-serif!important;color:#667085!important;background:none!important}
+  html body.se-look .sy-nav>button:hover{background:#f2f4f7!important;color:#172033!important}
+  html body.se-look .sy-nav>button.on{background:color-mix(in srgb,var(--se-accent) 12%,transparent)!important;color:var(--se-accent)!important}
+  html body.se-look .sy-nav>button svg{width:20px!important;height:20px!important}
+  html body.se-look .sy-nav .sy-nav-face{position:absolute!important;top:84px;left:14px;right:14px;width:auto!important;height:48px!important;margin:0!important;border-radius:14px!important;
+    background:color-mix(in srgb,var(--se-accent) 10%,#fff)!important;color:#172033!important;font-weight:700!important}
+  html body.se-look .sy-nav .sy-nav-face:before{display:none}
+  html body.se-look .sy-nav .sy-nav-face .sy-av{width:28px!important;height:28px!important;border-width:2.5px!important;box-shadow:none;animation:none}
+  html body.se-look .sy-nav .sy-nav-face .sy-av i{width:4.5px!important;height:7px!important;border-width:1.5px!important;margin:0 1px!important}
+  html body.se-look .sy-nav .sy-side-t{display:inline}
+  html body.se-look .sy-nav>button.sy-side-me{margin-top:auto!important;height:auto!important;flex-direction:column!important;align-items:flex-start!important;gap:1px!important;padding:12px 14px!important;
+    border-radius:14px!important;background:#f2f4f7!important;color:#172033!important;line-height:1.3!important}
+  html body.se-look .sy-side-k{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#667085}
+  html body.se-look .sy-side-me b{font-size:15px}
+  html body.se-look .sy-side-me small{font-size:12.5px;color:var(--se-accent);font-weight:600}
+  html body.se-look main{width:auto!important;max-width:none!important;margin:0 0 0 248px!important;padding:24px 40px 48px!important;box-sizing:border-box}
+  html body.se-look main>*{max-width:1120px;margin-left:auto;margin-right:auto}
+  html body.se-look .se-head h1{font-size:34px}
+  html body.se-look .se-head .se-me{display:none}
+  /* Out of the way while Symi's menu, a dialog, check-in or the classroom player is open, as on a phone. */
+  html body.se-look.evia-open .sy-nav,html body.se-look:has(dialog[open]) .sy-nav,html body.se-look:has(.sn-checkin) .sy-nav,html body.se-look:has(.classroom-player[aria-hidden="false"]) .sy-nav{display:none!important}
+}

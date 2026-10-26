@@ -557,3 +557,49 @@ html body .m-app .m-seg button{font-size:13.5px;padding:0 4px}
 .m-pace{position:relative;display:block;height:6px;margin:8px 0 2px;border-radius:9px;background:#eef0f3;overflow:visible}
 .m-pace i{display:block;height:100%;border-radius:9px;background:var(--accent)}
 .m-pace em{position:absolute;top:-3px;width:2px;height:12px;margin-left:-1px;border-radius:2px;background:var(--e-ink,#172033)}
+
+/* ---------- On a computer: Evia Portal's layout ----------
+   A sidebar instead of the bottom bar (the app's name, then each page; the face button becomes a row), and the page
+   wider and organised, with sections side by side where it helps (d-cols). Phones and tablets are unchanged. */
+html body .m-app .m-side,html body .m-app .m-side-t,html body .m-app .m-side-me{display:none}
+.d-cols,.d-col{display:contents}
+@media(min-width:1024px){
+  html body .m-app{display:block;padding:0 0 40px 260px;min-height:100vh}
+  html body .m-app .m-nav{position:fixed;inset:0 auto 0 0;transform:none;width:248px;height:auto;display:flex;flex-direction:column;align-items:stretch;gap:2px;
+    padding:22px 14px;border-radius:0;border:0;border-right:1px solid var(--e-line);background:#fff;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;z-index:40}
+  html body .m-app .m-side{display:flex;align-items:center;gap:10px;padding:0 8px 18px;margin-bottom:6px}
+  html body .m-app .m-side-logo{flex:none;display:flex}
+  html body .m-app .m-side-logo .av{width:36px;height:36px;border-width:3px}
+  html body .m-app .m-side-logo .av i{width:6px;height:8px;border-width:2px;margin:0 1.5px}
+  html body .m-app .m-side-name{display:flex;flex-direction:column;line-height:1.15}
+  html body .m-app .m-side-name b{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--e-ink)}
+  html body .m-app .m-side-name small{font-size:12.5px;color:var(--e-muted)}
+  html body .m-app .m-nav>button,html body .m-app .m-nav>button.m-nav-milos,html body .m-app .m-nav .m-nav-milos.on{width:100%;height:44px;margin:0;padding:0 12px;border-radius:12px;
+    display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;font-size:15px;font-weight:600;color:var(--e-muted);background:none;box-shadow:none;position:relative}
+  html body .m-app .m-nav>button:hover{background:var(--e-soft);color:var(--e-ink)}
+  html body .m-app .m-nav>button.on,html body .m-app .m-nav>button.m-nav-milos.on{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+  html body .m-app .m-nav>button svg{width:20px;height:20px}
+  html body .m-app .m-nav .m-nav-milos:before{display:none}
+  html body .m-app .m-nav .m-nav-milos .av{width:24px;height:24px;border-width:2px;box-shadow:none;animation:none}
+  html body .m-app .m-nav .m-nav-milos .av i{width:4px;height:6px;border-width:1.5px;margin:0 1px}
+  html body .m-app .m-nav .m-nav-milos.busy .av{animation:m-spin 1.1s linear infinite}
+  html body .m-app .m-nav .m-side-t{display:inline}
+  html body .m-app .m-nav .m-badge{position:static;margin-left:auto}
+  body.milos .m-app .m-nav #navTodo{order:-1}
+  html body .m-app .m-nav .m-side{order:-2}
+  html body .m-app .m-nav #navSync{order:9;margin-top:auto}
+  html body .m-app .m-head,html body .m-app .m-main{max-width:1120px;margin:0 auto;padding-left:40px;padding-right:40px}
+  html body .m-app .m-head{padding-top:32px}
+  html body .m-app .m-title{font-size:34px}
+  html body .m-app .d-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:start}
+  html body .m-app .d-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+  html body .m-app .d-col:only-child{grid-column:1/-1}
+  html body .m-app .d-col>.e-h2:first-child{margin-top:4px}
+  html body .m-app .m-nav>button.m-side-me{order:10;margin-top:auto;height:auto;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:12px 14px;border-radius:14px;background:var(--e-soft);color:var(--e-ink)}
+  html body .m-app .m-nav #navSync~.m-side-me{margin-top:8px}
+  html body .m-app .m-side-k{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--e-muted)}
+  html body .m-app .m-side-me b{font-size:15px}
+  html body .m-app .m-side-me small{font-size:12.5px;color:var(--accent);font-weight:600}
+  html body .m-app .m-head .m-me{display:none}
+  .toast{left:calc(50% + 130px)}
+}

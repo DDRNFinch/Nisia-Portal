@@ -30,10 +30,14 @@
   nav.className = "sy-nav"; nav.setAttribute("aria-label", "Symi");
   nav.innerHTML = TABS.map((t, i) => t
     ? '<button type="button" data-sy-tab="' + t[0] + '">' + IC[t[0]] + "<span>" + t[1] + "</span></button>"
-    : '<button type="button" class="sy-nav-face" data-sy-face aria-label="Open Symi’s menu"><span class="sy-av" aria-hidden="true"><i></i><i></i></span></button>').join("");
+    : '<button type="button" class="sy-nav-face" data-sy-face aria-label="Open Symi’s menu"><span class="sy-av" aria-hidden="true"><i></i><i></i></span><span class="sy-side-t">Symi’s menu</span></button>').join("") +
+    /* On a computer the bar is a sidebar (symi-evia.css): Symi's name at the top, the tutor at the bottom. */
+    '<div class="sy-side" aria-hidden="true"><span class="sy-av"><i></i><i></i></span><span class="sy-side-name"><b>Symi</b><small>Tutors, in the classroom</small></span></div>' +
+    '<button type="button" class="sy-side-me" data-sy-me><span class="sy-side-k">You</span><b>Your profile</b><small>Profile, Evia Portal and help</small></button>';
   nav.addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-sy-face")) return S.openAssistantMenu();
+    if (b.hasAttribute("data-sy-me")) { const m = document.querySelector(".se-me"); if (m) m.click(); return; }
     const t = TABS.find((x) => x && x[0] === b.dataset.syTab); if (t) { t[2](); window.scrollTo({ top: 0 }); }
   });
   document.body.appendChild(nav);
