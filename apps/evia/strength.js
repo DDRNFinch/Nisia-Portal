@@ -53,6 +53,7 @@
     joiner:{job:"a mortice and tenon joint",weak:"I made a joint for a frame. It fits.",strong:"I marked out the mortice and tenon from the cutting list with a mortice gauge set to the chisel width. I cut the tenon shoulders with a tenon saw, chopped the mortice, then dry fitted and glued and cramped the frame square, checking the diagonals.",terms:["marked out","mortice gauge","tenon saw","chopped","dry fitted","cramped","square"]},
     site:{job:"hanging a door",weak:"I hung a door. It shuts okay.",strong:"I checked the door for the right hand and trimmed it to leave a 2 to 3 mm gap. I marked the hinges 150 mm down and 225 mm up, cut the recesses with a chisel, screwed it on and fitted the latch so it closes against the stop.",terms:["hand","gap","hinges","recesses","chisel","latch","stop"]}
   };
+  EXAMPLES.pmo={job:"a dripping tap",weak:"I fixed a tap at a flat. It doesn’t drip now.",strong:"I put the plug in and protected the basin, then isolated the supply at the service valve and opened the tap to drain it. I found a worn ceramic cartridge, fitted a matching one, turned the water back on slowly and checked for leaks. I told the resident what I’d done and recorded the job on the job sheet.",terms:["protected","isolated","service valve","drain","cartridge","checked for leaks","job sheet"]};
   EXAMPLES.trowel3=EXAMPLES.bricklayer;
   const marked=(text,terms)=>{let h=esc(text);terms.forEach(t=>{h=h.replace(new RegExp("\\b("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","i"),'<mark>$1</mark>')});return h};
 
@@ -63,6 +64,7 @@
     const WEEKS={
       bricklayer:[["Cavity walling","Construct Cavity Walling"],["Mixing mortar","Mixing mortar"],["A repair","Repair brick walling"],["Back to cavity walling","Construct Cavity Walling"],["An opening","Cavity opening"],["Pointing","Jointing Styles"]],
       site:[["Hanging doors","Internal and external doors"],["Skirting","Skirting boards and architrave"],["A stud wall","Timber/metal partition walls"],["More doors","Internal and external doors"],["Floor joists","Floor joists (and coverings)"],["Kitchen units","Wall and floor units"]],
+      pmo:[["A plumbing repair","Plumbing repairs"],["Making safe","Safe working and planning"],["A door repair","Windows, doors and glazing"],["Patching plaster","Plastering repairs"],["Decorating","Painting and decorating"],["A drain","Drainage"]],
       joiner:[["A door frame","Door frames and linings"],["Joints","Basic woodworking joints"],["Mouldings","Timber mouldings"],["Another frame","Door frames and linings"],["A timber door","Timber doors"],["Ironmongery","Ironmongery"]]
     };
     const weeks=WEEKS[typeof course!=="undefined"?course:""]||WEEKS.bricklayer;

@@ -19,7 +19,7 @@
   function types(){
     const g=G.group(),L=(()=>{try{return window.eviaData.learner()||{}}catch(_){return{}}})();
     const t=["fire","ppe","coshh","sign","plan","site","edi"];
-    if(g==="brick")t.push("mix","brick");else t.push("wood");
+    if(g==="brick")t.push("mix","brick");else if(g==="maint")t.push("maint");else t.push("wood");
     if(L.mathsEnabled)t.push("maths");
     if(L.englishEnabled)t.push("english");
     return t;
@@ -124,7 +124,7 @@
       '<path d="M40 86l-8 18 22-16" fill="#f472b6" stroke="'+INK+'" stroke-width="3" stroke-linejoin="round"/>'+eyes(62,58,1,boss)+mouth(62,72,7,boss);
   }
   const ART={fire:(v,b)=>fire(v,b),ppe:(v,b)=>hazard(v,b),site:(v,b)=>v==="cloud"?cloud(b):hazard(v,b),coshh:(v,b)=>drum(b),sign:(v,b)=>sign(v,b),plan:(v,b)=>plan(b),mix:(v,b)=>tub(b),
-    brick:(v,b)=>wall(b),wood:(v,b)=>plank(b),maths:(v,b)=>calc(b),english:(v,b)=>book(b),edi:(v,b)=>cloud(b)};
+    brick:(v,b)=>wall(b),wood:(v,b)=>plank(b),maint:(v,b)=>hazard(v,b),maths:(v,b)=>calc(b),english:(v,b)=>book(b),edi:(v,b)=>cloud(b)};
   const BOSSART={elec:b=>fire("elec",b),wood:b=>fire("wood",b),oil:b=>fire("oil",b),hazard:b=>hazard("drop",b),dust:b=>hazard("dust",b),drop:b=>hazard("drop",b)};
   const svg=(inner,boss)=>'<svg viewBox="0 0 120 120" aria-hidden="true" class="'+(boss?"sd-boss-art":"")+'">'+inner+'</svg>';
   const HEART='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.4 2.9 4 7 4c2.2 0 3.8 1.2 5 3 1.2-1.8 2.8-3 5-3 4.1 0 6.2 4.4 4.6 7.8C19.5 16.4 12 21 12 21z"/></svg>';

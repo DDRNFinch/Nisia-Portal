@@ -38,7 +38,9 @@
     /* People together, a heart and a shield. */
     edi:D('<circle cx="54" cy="70" r="9"/><circle cx="84" cy="62" r="10"/><circle cx="114" cy="70" r="9"/><path d="M38 110c2-14 9-22 16-22s14 8 16 22M66 110c2-18 9-28 18-28s16 10 18 28M98 110c2-14 9-22 16-22s14 8 16 22"/><path d="M84 36c-6-10-20-6-18 4 2 8 18 16 18 16s16-8 18-16c2-10-12-14-18-4z"/><path d="M140 14l14 6v12c0 10-6 16-14 20-8-4-14-10-14-20V20z"/><path d="M134 32l5 5 9-9"/>')
   };
-  const doodleFor=id=>id==="course"?(["site","joiner"].includes(course)?DOODLE.timber:DOODLE.brick):DOODLE[id]||"";
+  /* A house with a spanner and a paint roller: property maintenance. */
+  DOODLE.home=D('<path d="M30 64 80 26l50 38"/><path d="M42 56v54h76V56"/><rect x="70" y="80" width="20" height="30" rx="2"/><rect x="52" y="66" width="14" height="12" rx="2"/><path d="M128 84l-16 16"/><circle cx="133" cy="79" r="7"/><path d="M14 92h20v10H14zM24 102v14"/>');
+  const doodleFor=id=>id==="course"?(["site","joiner"].includes(course)?DOODLE.timber:course==="pmo"?DOODLE.home:DOODLE.brick):DOODLE[id]||"";
   const PLAY='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
   function teachPage(){
     const T=window.eviaTeach,E=window.EVIA_TEACH||{fs:[]},R=window.eviaRewards,I=(E.ui&&E.ui.ICON)||{};

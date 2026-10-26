@@ -17,6 +17,8 @@
       ic:'<svg viewBox="0 0 24 24"><path d="M2.5 12 12 4l9.5 8"/><path d="M5.5 10v9.5h13V10"/><path d="M12 4v15.5M5.5 14.5 12 9l6.5 5.5"/></svg>'},
     {key:"joiner",label:"Bench Joiner",sub:"Joinery in the workshop",
       ic:'<svg viewBox="0 0 24 24"><path d="M3.5 15.5h17v3.5h-17z"/><path d="M6 15.5l2-5h8l2 5"/><path d="M13 10.5c0-2.5 1.5-4.5 4-5"/></svg>'},
+    {key:"pmo",label:"Property Maintenance Operative",sub:"Repairs and upkeep of homes and buildings",
+      ic:'<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M14.5 13.5l-4 4M13 12a2.2 2.2 0 1 0 3.1 3.1"/></svg>'},
     {key:"trowel3",label:"Trowel Occupations L3",sub:"NVQ Level 3 Diploma · City & Guilds",
       ic:'<svg viewBox="0 0 24 24"><path d="M11 13 4 20"/><path d="M11 13l3-9 7 7-9 3z"/></svg>'}
   ];
