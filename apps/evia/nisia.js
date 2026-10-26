@@ -177,13 +177,27 @@
      saved data goes to Evia Portal too, key by key, exactly as it's stored ("store" records). Connecting a new device puts it
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
-  const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
-  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs|lb-queue|lb-daily)/;
+  const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch",PULLED_KEY="evia7-nisia-store-pulled";
+  /* Records deleted on any device ({key: [ids]}), kept and shared like the rest, so a deletion on one device isn't
+     undone by another that still has the record. STORE_IDS_KEY: the ids in each list as last sent, to spot them. */
+  const GONE_KEY="evia7-sync-deleted",STORE_IDS_KEY="evia7-nisia-store-ids";
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|store-pulled|store-ids|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs|lb-queue|lb-daily)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
     for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
   const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+"."+s.length};
+  /* Which records have gone from each list since it was last sent: those were deleted here. */
+  function noteDeletions(){
+    const last=readJson(STORE_IDS_KEY,{})||{},gone=readJson(GONE_KEY,{})||{};let more=false;
+    backupKeys().forEach(k=>{if(k===GONE_KEY)return;let a;try{a=JSON.parse(localStorage.getItem(k)||"null")}catch(_){return}
+      if(!Array.isArray(a)||!a.length&&!last[k]||!a.every(x=>x&&x.id!=null))return;
+      const now=a.map(x=>String(x.id)),have=new Set(now),lost=(last[k]||[]).filter(x=>!have.has(x));
+      if(lost.length){gone[k]=[...new Set((gone[k]||[]).concat(lost))];more=true}
+      last[k]=now});
+    if(more)writeJson(GONE_KEY,gone);writeJson(STORE_IDS_KEY,last);
+  }
   async function sendStore(c,e){
+    noteDeletions();
     const sent=readJson(STORE_SENT_KEY,{})||{},now={},rows=[],base={organisation_id:e.organisationId,enrolment_id:e.enrolmentId,learner_member_id:e.memberId,collection:"store"};
     backupKeys().forEach(k=>{const raw=localStorage.getItem(k);if(raw==null||raw.length>4e6)return;now[k]=hash(raw);if(sent[k]!==now[k])rows.push(Object.assign({},base,{record_id:k,data:{raw},deleted_at:null}))});
     Object.keys(sent).forEach(k=>{if(!(k in now))rows.push(Object.assign({},base,{record_id:k,data:{raw:null},deleted_at:new Date().toISOString()}))});
@@ -210,6 +224,55 @@
     if(!Object.keys(sent).length)return false;
     writeJson(STORE_SENT_KEY,sent);writeJson(RESTORED_KEY,new Date().toISOString());writeJson(FETCH_KEY,{});
     return true;
+  }
+  /* Every device, all the time: what the learner's other devices saved since this one last looked comes down and is
+     merged in, so their phone and their computer show the same work. A key this device hasn't changed takes the other
+     device's copy; one changed on both is merged when it's a list of records with ids (nothing from either is lost),
+     and otherwise this device's copy stands and goes up next. Returns true when anything here changed (Evia then
+     reloads to show it, at a quiet moment). */
+  async function pullStore(c,e){
+    const since=readJson(PULLED_KEY,null);
+    let q=c.from("evia_records").select("record_id,data,updated_at,deleted_at").eq("enrolment_id",e.enrolmentId).eq("collection","store").order("updated_at",{ascending:true}).limit(2000);
+    if(since)q=q.gt("updated_at",since);
+    const {data,error}=await q;if(error)throw error;
+    if(!data||!data.length){if(!since)writeJson(PULLED_KEY,new Date(Date.now()-60000).toISOString());return false}
+    const sent=readJson(STORE_SENT_KEY,{})||{};let changed=false,latest=since;
+    /* What's been deleted on any device first, so nothing deleted comes back. */
+    data.sort((a,b)=>(b.record_id===GONE_KEY)-(a.record_id===GONE_KEY));
+    data.forEach(r=>{
+      /* Only what's newer than last time (anything older was here already). */
+      if(!r.updated_at||since&&r.updated_at<=since)return;
+      if(!latest||r.updated_at>latest)latest=r.updated_at;
+      const k=r.record_id;if(!/^evia7-/.test(k)||NOT_BACKED_UP.test(k))return;
+      const raw=r.data&&r.data.raw,here=localStorage.getItem(k),mine=here==null||sent[k]===hash(here);
+      /* Changed here and not sent yet: this device's copy goes up first, and is merged next time. */
+      if(!mine)return;
+      if(r.deleted_at||typeof raw!=="string"){if(here!=null){try{localStorage.removeItem(k)}catch(_){}delete sent[k];changed=true}return}
+      if(here===raw){sent[k]=hash(raw);return}
+      let v=raw;
+      try{const a=here==null?null:JSON.parse(here),b=JSON.parse(raw);
+        if(k===GONE_KEY&&a){const m=Object.assign({},a);Object.keys(b).forEach(x=>{m[x]=[...new Set((m[x]||[]).concat(b[x]||[]))]});v=JSON.stringify(m)}
+        else if(Array.isArray(a)&&Array.isArray(b)&&a.concat(b).every(x=>x&&x.id!=null)){
+          /* A list of records: the other device's, plus anything only here (an older copy can never wipe out work). */
+          const gone=new Set(((readJson(GONE_KEY,{})||{})[k]||[]).map(String)),ids=new Set(b.map(x=>String(x.id)));
+          v=JSON.stringify(b.concat(a.filter(x=>!ids.has(String(x.id)))).filter(x=>!gone.has(String(x.id))));
+        }
+        else if(k===IDS_KEY&&a)v=JSON.stringify(Object.assign({},a,b));
+      }catch(_){}
+      if(v===here){sent[k]=hash(raw);return}
+      try{localStorage.setItem(k,v);sent[k]=hash(raw);changed=true}catch(err){console.warn("Evia: pull",k,err&&err.message)}
+    });
+    writeJson(STORE_SENT_KEY,sent);if(latest)writeJson(PULLED_KEY,latest);
+    return changed;
+  }
+  /* Reload to show what came from the other device, but never in the middle of something: not while a sheet, a lesson
+     or a chat is open, or something is being typed. It waits for the next quiet moment instead. */
+  let reloadWanted=false;
+  const busy=()=>!!document.querySelector(".overlay,.th-sheet-wrap,.tm,.sheet,dialog[open],.eg-wrap,.er-wrap")||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))||!!document.querySelector("#modal-root>*");
+  async function reloadForSync(){
+    reloadWanted=true;if(busy())return;
+    try{sessionStorage.setItem("evia7-sync-screen",typeof screen==="string"?screen:"");if(window.eviaStorage)await window.eviaStorage.flush()}catch(_){}
+    location.reload();
   }
   /* After the restart: what came back is already in Evia Portal, so it isn't sent again. */
   function afterRestore(){
@@ -551,6 +614,9 @@
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
       if(c)await sendStore(c,e);
+      /* Then what the other devices saved (after sending, so nothing done here is overwritten). */
+      let pulled=false;if(c)try{pulled=await pullStore(c,e)}catch(err){console.warn("Evia: Evia Portal pull",err&&err.message)}
+      if(pulled){try{await sendStore(c,e)}catch(_){}setTimeout(reloadForSync,0)}
       /* Media: only on WiFi, both ways. */
       const sent=readJson(MEDIA_KEY,{})||{};
       if(onWifi()){
@@ -589,6 +655,8 @@
   if(navigator.connection&&navigator.connection.addEventListener)navigator.connection.addEventListener("change",soon);
   addEventListener("load",()=>{
     afterRestore();
+    /* After reloading for the other device's work: back on the same screen. */
+    try{const sc=sessionStorage.getItem("evia7-sync-screen");if(sc!=null){sessionStorage.removeItem("evia7-sync-screen");if(sc&&typeof nav==="function")setTimeout(()=>{try{nav(sc)}catch(_){}},300)}}catch(_){}
     let back=false;try{back=sessionStorage.getItem("evia7-welcome-back")==="1";sessionStorage.removeItem("evia7-welcome-back")}catch(_){}
     if(back)setTimeout(()=>{if(typeof showEvidenceToast==="function")showEvidenceToast("Welcome back. Your work is here, and photos follow on WiFi.")},800);
     if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",soon);setTimeout(soon,back?500:1200);setInterval(soon,5*60000)});
@@ -695,7 +763,10 @@
     pulling=(async()=>{try{const c=await sb(),{data}=await c.auth.getSession();if(!data.session)return lostSignIn(false);
       /* A guest: see straight away if their demo was ended early (on opening, coming back, and every 30 seconds). */
       if(wasGuest()||demoEnds())await checkDemo(c);
-      await sendKept();const w=await fetchRegisters();
+      await sendKept();
+      /* What the learner did on their other devices (their phone, their computer). */
+      try{if(await pullStore(c,joined())||reloadWanted)await reloadForSync()}catch(err){console.warn("Evia: Evia Portal pull",err&&err.message)}
+      const w=await fetchRegisters();
       try{if(Array.isArray(w.feedback))await fetchFeedback(w.feedback)}catch(_){}}catch(err){console.warn("Evia: Evia Portal registers",err&&err.message)}finally{pulling=null}})();
     return pulling;
   }
