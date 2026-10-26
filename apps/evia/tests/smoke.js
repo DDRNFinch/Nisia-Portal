@@ -45,9 +45,13 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
         return {left:Math.round(n.left),w:Math.round(n.width),tall:n.height>600,ask:a.width>150&&a.left<n.right,page:Math.round(s.left)}});
       await page.setViewportSize({width:900,height:800});await page.waitForTimeout(350);
       const t=await page.evaluate(()=>{const n=document.querySelector(".bottom-nav").getBoundingClientRect(),f=document.querySelector(".evia-fab").getBoundingClientRect();return {l:Math.round(n.left),r:Math.round(innerWidth-n.right),fab:Math.round(f.left+f.width/2-innerWidth/2)}});
-      await page.setViewportSize(vp);await page.waitForTimeout(250);
-      check("On a computer the bar is a sidebar with Ask Evia and the page beside it; on a tablet it’s centred at the bottom with Evia in the middle",
-        m.left===0&&m.w===248&&m.tall&&m.ask&&m.page>=248&&Math.abs(t.l-t.r)<=2&&t.l>0&&Math.abs(t.fab)<=2,JSON.stringify({m,t}));}
+      /* The computer's sidebar pieces never show in the bar on a tablet or phone, and every tab sits in one row inside it. */
+      const bar=()=>page.evaluate(()=>{const n=document.querySelector(".bottom-nav").getBoundingClientRect(),side=[...document.querySelectorAll(".ev-side,.ev-side-ask,.ev-side-me")].some(x=>x.offsetParent),
+        tabs=[...document.querySelectorAll(".bottom-nav [data-nav]")].filter(b=>b.offsetParent).map(b=>b.getBoundingClientRect());
+        return !side&&tabs.length>=4&&tabs.every(r=>r.top>=n.top-1&&r.bottom<=n.bottom+1&&Math.abs(r.top-tabs[0].top)<2)});
+      t.oneRow=await bar();await page.setViewportSize(vp);await page.waitForTimeout(250);t.phone=await bar();
+      check("On a computer the bar is a sidebar with Ask Evia and the page beside it; on a tablet and phone it’s the bar at the bottom, every tab in one row, Evia in the middle",
+        m.left===0&&m.w===248&&m.tall&&m.ask&&m.page>=248&&Math.abs(t.l-t.r)<=2&&t.l>0&&Math.abs(t.fab)<=2&&t.oneRow&&t.phone,JSON.stringify({m,t}));}
     /* The tester's tidy layout (ui-tidy.js) has its own Progress page: these checks are for the classic one. */
     if(await page.evaluate(()=>!!document.getElementById("pv-review"))){
     check("My progress starts with the progress review, and each section has its way in",await page.evaluate(()=>{const first=document.querySelector(".pv-grid .pv-card");return first&&first.id==="pv-review"&&!document.querySelector(".pv-grid .pv-act")}));

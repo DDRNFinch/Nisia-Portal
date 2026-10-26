@@ -5,6 +5,7 @@
   const readJson=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v??f}catch(_){return f}};
   const slug=s=>String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,60)||"Evidence";
   const isoDate=d=>{const x=new Date(d);return isNaN(x)?new Date().toISOString().slice(0,10):x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")};
+  const ukTime=d=>{const x=new Date(d);return isNaN(x)?"":x.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})};
   const ukDate=d=>{const x=new Date(d);return isNaN(x)?String(d||""):x.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})};
   const formatBytes=n=>n<1024*1024?Math.max(1,Math.round(n/1024))+" KB":(n/1024/1024).toFixed(1)+" MB";
   const canShareFiles=files=>{try{return !!(navigator.canShare&&navigator.share&&navigator.canShare({files}))}catch(_){return false}};
@@ -55,6 +56,9 @@
     const details=[["Learner",learner],["Course",data().name],["Standard",data().std],["Evidence entries",String(entries.length)]];
     if(profile.start)details.push(["Start date",ukDate(profile.start)]);
     if(profile.end)details.push(["End date",ukDate(profile.end)]);
+    /* The dates that matter are when the work was submitted in Evia, not when this PDF was made. */
+    const times=entries.map(e=>entryTime(e)).filter(Boolean).sort((a,b)=>a-b);
+    if(times.length)details.push(["Evidence submitted",ukDate(times[0])===ukDate(times[times.length-1])?ukDate(times[0]):ukDate(times[0])+" to "+ukDate(times[times.length-1])]);
     details.push(["PDF created",ukDate(Date.now())]);
     doc.setFontSize(9);
     details.forEach((d,i)=>{const x=M+(i%2)*(CW/2),yy=y+Math.floor(i/2)*5.2;doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(pdfText(d[0])+":",x,yy+3.5);const lw=doc.getTextWidth(pdfText(d[0])+": ");doc.setFont("helvetica","normal");doc.setTextColor(71,84,103);doc.text(pdfText(d[1]),x+lw,yy+3.5)});
@@ -69,7 +73,16 @@
       if(i>0){doc.addPage();y=M} /* each evidence occasion starts on its own page */
       starts.push(doc.getNumberOfPages());
       need(20);
-      label("Evidence "+(i+1)+" of "+entries.length+" · "+ukDate(entryTime(e)||e.d),M,y+3);y+=7;
+      label("Evidence "+(i+1)+" of "+entries.length+" · "+ukDate(entryTime(e)||e.d),M,y+3);y+=5;
+      /* When it happened, as Evia recorded it: submitted to the portfolio, the photos taken, and any change since. */
+      {const at=entryTime(e),shot=(e.photoTimes||[]).map(t=>typeof t==="number"?t:Date.parse(t||"")).filter(t=>t&&!isNaN(t)).sort((a,b)=>a-b),
+        ed=Date.parse(e.updatedAt||""),facts=[];
+        if(at)facts.push("Submitted to portfolio: "+ukDate(at)+(ukTime(at)?" at "+ukTime(at):""));
+        if(shot.length)facts.push("Photo"+(shot.length===1?"":"s")+" taken: "+(ukDate(shot[0])===ukDate(shot[shot.length-1])?ukDate(shot[0]):ukDate(shot[0])+" to "+ukDate(shot[shot.length-1])));
+        if(!isNaN(ed)&&at&&ed-at>60000)facts.push("Edited: "+ukDate(ed)+(ukTime(ed)?" at "+ukTime(ed):""));
+        if(facts.length){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...muted);
+          doc.splitTextToSize(pdfText(facts.join("   ·   ")),CW).forEach(l=>{doc.text(l,M,y+3);y+=4.2});}
+        y+=2.5}
       // Photos: four square tiles per row, each cropped from the centre to fill its tile.
       const cols=4,gap=3,tile=(CW-gap*(cols-1))/cols;
       for(let p=0;p<photos.length;p+=cols){
