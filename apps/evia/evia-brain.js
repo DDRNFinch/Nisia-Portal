@@ -13,6 +13,8 @@
   const K=()=>window.eviaChatKit;
   const trade=()=>typeof course!=="undefined"?course:"bricklayer";
   const timber=()=>["site","joiner"].includes(trade());
+  /* Which trade's terms to offer: "t" timber, "m" property maintenance, "b" brick (and the NVQ). */
+  const tag=()=>timber()?"t":trade()==="pmo"?"m":"b";
   const nf=(n,dp)=>Number(n).toLocaleString("en-GB",{maximumFractionDigits:dp==null?2:dp,minimumFractionDigits:0});
   const pick=a=>a[Math.floor(Math.random()*a.length)];
   const ICON={
@@ -201,9 +203,50 @@
     ["Housekeeping",["good housekeeping","tidy site"],"Keeping the work area tidy: clear walkways, waste in skips, materials stacked safely. Most slips and trips come from poor housekeeping.","area","*"],
     ["Waste",["recycling","skips"],"Separate waste into the right skips so it can be recycled, and never burn or bury it on site.","area","*"],
     ["Drawings",["plans","elevations","sections"],"Scaled drawings of the building: plans look down from above, elevations show the faces, sections cut through it. Read the scale and dimensions, never measure off the drawing.","write","*"],
+    ["Planned preventative maintenance", ["ppm", "planned maintenance", "cyclical maintenance"], "Maintenance done on a schedule to stop things going wrong, like servicing, testing and checks, rather than waiting for a fault.", "write", "m"],
+    ["Reactive maintenance", ["responsive repair", "responsive maintenance", "reactive repair"], "Repairs done after something breaks or a resident reports a fault. Emergencies come first, then urgent, then routine.", "write", "m"],
+    ["Job sheet", ["works order", "job ticket", "repair order"], "The details of a repair: address, fault, priority, access arrangements and any notes about the resident. Read it before you go.", "write", "m"],
+    ["Safe isolation", ["isolation", "lock off", "lock-off", "prove dead"], "Switching off a circuit, locking it off with your own lock and label, then proving it dead with a tested voltage indicator before you touch it.", "signs", "m"],
+    ["Voltage indicator", ["voltage tester", "two pole tester", "test lamp"], "A two-pole tester that shows if a circuit is live. Prove it works on a proving unit before and after testing (prove, test, prove).", "tools", "m"],
+    ["Consumer unit", ["fuse box", "fuseboard", "distribution board"], "Where the electricity supply is split into circuits, each protected by an MCB or RCBO, usually with an RCD.", "signs", "m"],
+    ["MCB", ["circuit breaker", "miniature circuit breaker", "breaker", "trip switch"], "A switch in the consumer unit that trips off a circuit if it’s overloaded or short-circuited.", "signs", "m"],
+    ["RCD", ["residual current device", "rcbo", "earth leakage"], "Trips the power in a fraction of a second if current leaks to earth, for example through a person. Test it with its test button.", "signs", "m"],
+    ["Emergency lighting", ["emergency lights", "maintained light", "non-maintained light"], "Lights that come on in a power cut to light escape routes. Test monthly with a short flick test and once a year for the full duration.", "signs4", "m"],
+    ["Fire door", ["fd30", "fd60", "fire doors"], "A door that holds back fire and smoke for a set time (FD30 is 30 minutes). It must close fully onto its latch and never be wedged open.", "doors", "m"],
+    ["Intumescent strip", ["intumescent seal", "smoke seal"], "A strip in the edge of a fire door or frame that swells in heat to seal the gap. Smoke seals stop cold smoke.", "doors", "m"],
+    ["Service valve", ["isolation valve", "isolating valve", "quarter turn valve"], "A small valve on the pipe to a tap or appliance. A screwdriver slot turned a quarter turn shuts off just that outlet.", "tools", "m"],
+    ["Stop tap", ["stopcock", "main stop valve"], "The valve that turns off the cold water to the whole property, often under the kitchen sink.", "tools", "m"],
+    ["Drain down", ["draining down", "drain-down"], "Emptying water from pipes after isolating, by opening taps or a drain-off cock, before taking anything apart.", "tools", "m"],
+    ["Tap washer", ["washer", "jumper"], "A rubber disc in a traditional tap that seals against the seat. A worn washer makes the tap drip.", "tools", "m"],
+    ["Ceramic cartridge", ["ceramic disc", "quarter turn cartridge", "tap cartridge"], "The valve inside a quarter-turn tap. Replace it with the matching cartridge if the tap drips.", "tools", "m"],
+    ["Trap", ["p trap", "s trap", "bottle trap", "u bend"], "The bend under a sink, bath or toilet that holds water to stop drain smells coming back up.", "drain", "m"],
+    ["Legionella", ["legionnaires", "legionnaires disease"], "Bacteria that grow in stagnant water between about 20°C and 45°C. Control it by keeping hot water at 60°C or above, cold below 20°C, and flushing little-used outlets.", "drain", "m"],
+    ["Gully", ["drain gully", "yard gully", "trapped gully"], "An outside drain with a grate that collects water from downpipes, sinks and yards. Clear leaves and silt from the pot.", "drain", "m"],
+    ["Inspection chamber", ["manhole", "access chamber", "chamber"], "An opening into the drain with a cover, for inspecting and rodding. Guard it whenever the cover is off.", "drain", "m"],
+    ["Drain rods", ["rods", "rodding"], "Flexible rods screwed together to clear drains. Always turn them clockwise so they don’t unscrew in the drain.", "drain", "m"],
+    ["Thermostatic radiator valve", ["trv", "radiator valve"], "A valve on a radiator that controls that room’s temperature by opening and closing as the room warms.", "tools", "m"],
+    ["Lockshield valve", ["lockshield", "balancing valve"], "The valve at the other end of a radiator, set with a key or spanner to balance the flow round the system.", "tools", "m"],
+    ["Bleed a radiator", ["bleeding", "radiator key", "airlock"], "Letting trapped air out with a radiator key until water comes out, so the radiator heats evenly. Check the boiler pressure afterwards.", "tools", "m"],
+    ["Extractor fan", ["extract fan", "ventilation fan"], "Removes moist air from kitchens and bathrooms to stop condensation and mould. Isolate it before cleaning or replacing it.", "tools", "m"],
+    ["Condensation", ["mould", "black mould"], "Water from moist air settling on cold surfaces. Ventilation, heating and extractor fans help prevent it and the mould it causes.", "defects", "m"],
+    ["Rising damp", ["damp", "penetrating damp"], "Moisture rising from the ground through walls, usually because the DPC has failed or been bridged. Penetrating damp comes through walls from outside.", "dpc150", "m"],
+    ["Sealed unit", ["double glazed unit", "dgu", "glazing unit"], "Two or three panes sealed together with a gap. Mist between the panes means the seal has failed.", "window", "m"],
+    ["Safety glass", ["toughened glass", "laminated glass"], "Glass that breaks safely. Building regulations require it in critical locations, such as low glazing and in and near doors.", "window", "m"],
+    ["Backing plaster", ["bonding", "browning", "hardwall"], "The first coat of plaster that builds up the thickness. Finish plaster goes on top.", "tools", "m"],
+    ["Finish plaster", ["multi-finish", "skim", "skim coat"], "The thin final coat of plaster, trowelled smooth ready to decorate.", "tools", "m"],
+    ["Scrim tape", ["scrim", "joint tape"], "Mesh tape over plasterboard joints and cracks to stop them cracking through the plaster.", "tools", "m"],
+    ["Mist coat", ["mist-coat"], "A first coat of watered-down emulsion on new plaster, which is very absorbent, so the next coats stick.", "tools", "m"],
+    ["Sealant", ["silicone", "mastic", "caulk", "decorators caulk"], "A flexible filler run with a sealant gun round baths, sinks and frames. Silicone for wet areas, decorator’s caulk for painting over.", "tools", "m"],
+    ["Grout", ["tile grout"], "The filler between tiles. Rake it out with a grout rake to remove a broken tile.", "tools", "m"],
+    ["Tile adhesive", ["tile cement"], "The adhesive that fixes tiles. Poor coverage leaves hollow tiles that crack or come loose.", "tools", "m"],
+    ["Expansion gap", ["expansion joint"], "A gap left round the edge of laminate or wood floors so they can expand without lifting. Hidden by the skirting or a beading.", "tools", "m"],
+    ["Repointing", ["pointing", "raking out"], "Raking out old mortar joints and refilling them. Use mortar no stronger than the bricks, and match the joint finish.", "repoint", "m"],
+    ["Tingle", ["slate tingle", "lead tingle", "copper tingle"], "A strip of lead, copper or stainless steel nailed to the batten to hold a replacement slate in place.", "cutroof", "m"],
+    ["Gravel board", ["kick board"], "A board at the bottom of a fence that keeps the panel off the ground so it doesn’t rot.", "posts", "m"],
+    ["Gas Safe", ["gas safe register", "gas engineer"], "Only Gas Safe registered engineers can legally work on gas appliances and pipework. A maintenance operative must not.", "signs", "m"],
     ["Specification",["spec"],"The written document that says which materials, standards and workmanship must be used.","write","*"]
   ];
-  const glossary=()=>G.filter(g=>g[4]==="*"||(g[4]==="t")===timber()||(trade()==="trowel3"&&g[4]==="b"));
+  const glossary=()=>G.filter(g=>g[4]==="*"||g[4]===tag()||(trade()==="trowel3"&&g[4]==="b"));
   const norm=s=>String(s||"").toLowerCase().replace(/[’']/g,"").replace(/[^a-z0-9.\s-]/g," ").replace(/\s+/g," ").trim();
   const stem=w=>w.replace(/(ies)$/,"y").replace(/(ing|es|s)$/,"");
   /* "What's a bolster for?" -> "bolster". */
@@ -219,7 +262,7 @@
         if(n===q)s=100;
         else if(q.includes(n)&&n.length>=3)s=60+n.length;
         else{const hit=ns.filter(w=>qs.includes(w)).length;if(hit===ns.length)s=40+hit*5;else if(hit)s=hit*12}
-        if(g[4]!=="*"&&(g[4]==="t")!==timber())s-=8;
+        if(g[4]!=="*"&&g[4]!==tag())s-=8;
         if(s>score){score=s;best=g}
       }
     }

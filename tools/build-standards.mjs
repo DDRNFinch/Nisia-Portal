@@ -41,14 +41,18 @@ const trowel = { code: N.qual, kind: "qualification", title: N.title, awarding_b
   source_note: "City & Guilds qualification handbook, July 2025, v1.1: units, learning outcomes and assessment criteria, word for word, as in Evia.",
   requirements: nvqReq };
 
+const pmo = { code: "ST0171", kind: "standard", title: "Property maintenance operative", level: 2, version: "1.1",
+  source_note: "Apprenticeship standard ST0171 v1.1. KSBs word for word, as in Evia.",
+  requirements: Object.keys(K.pmo).sort(order).map((c) => ksb(c, K.pmo[c])) };
+
 /* Which Evia course follows which version (and option). */
 const links = [["bricklayer", "ST0095", "1.2", null], ["ST0095-v1.2-4bf187b9", "ST0095", "1.2", null], ["site", "ST0264", "1.4", "site_carpenter"],
-  ["joiner", "ST0264", "1.4", "architectural_joiner"], ["trowel3", N.qual, "1.1", null]];
+  ["joiner", "ST0264", "1.4", "architectural_joiner"], ["pmo", "ST0171", "1.1", null], ["trowel3", N.qual, "1.1", null]];
 
 const tag = (s) => { let t = "std"; while (s.includes("$" + t + "$")) t += "x"; return "$" + t + "$"; };
 let sql = "-- The standards library's starting point, built by tools/build-standards.mjs from Evia's data. Run after standards.sql.\n" +
   "-- Safe to run again: a version already in the library is left as it is.\n";
-for (const s of [bricklayer, carpentry, trowel]) {
+for (const s of [bricklayer, carpentry, pmo, trowel]) {
   const j = JSON.stringify(s), t = tag(j);
   sql += `do $seed$ declare v uuid; begin
   if not exists (select 1 from public.qualification_versions v join public.qualifications q on q.id = v.qualification_id where q.code = '${s.code}' and v.version = '${s.version}') then

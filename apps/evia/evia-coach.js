@@ -410,7 +410,7 @@
   }
 
   /* ---------- EPA mocks: the chat goes dark grey, like the real thing ---------- */
-  const EPA_KEYS={bricklayer:"bricklaying",site:"siteCarpentry",joiner:"benchJoinery"};
+  const EPA_KEYS={bricklayer:"bricklaying",site:"siteCarpentry",joiner:"benchJoinery",pmo:"propertyMaintenance"};
   const discussions=()=>{const key=EPA_KEYS[course]||"bricklaying";let bank=[];try{bank=EPA_DISCUSSIONS[key]||[]}catch(_){}const g=(window.EVIA_EPA_GUIDE||{})[key]||[];return bank.map((q,i)=>Object.assign({},q,g[i]||{}))};
   const epaMode=on=>document.body.classList.toggle("evia-epa",!!on);
   function epa(){

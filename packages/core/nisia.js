@@ -91,6 +91,7 @@ export const COURSES = [
   { id: "bricklayer", name: "Bricklayer (ST0095)" },
   { id: "site", name: "Site Carpenter (ST0264)" },
   { id: "joiner", name: "Architectural Joiner (ST0264)" },
+  { id: "pmo", name: "Property Maintenance Operative (ST0171)" },
   { id: "trowel3", name: "Trowel Occupations L3 (6570-05)" },
 ];
 export const courseName = (id) => (COURSES.find((c) => c.id === id) || {}).name || id || "";

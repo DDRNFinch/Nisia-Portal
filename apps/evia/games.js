@@ -13,7 +13,7 @@
   const R=()=>window.eviaRewards;
   const coinSvg=()=>R()&&R().coin?R().coin():"";
   const pick=a=>a[Math.floor(Math.random()*a.length)];
-  const group=()=>{const c=typeof course!=="undefined"?course:"";return c==="joiner"?"bench":c==="site"?"site":"brick"};
+  const group=()=>{const c=typeof course!=="undefined"?course:"";return c==="joiner"?"bench":c==="site"?"site":c==="pmo"?"maint":"brick"};
 
   const ICONS={
     brickle:'<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="5.5" height="6" rx="1.2"/><rect x="9.25" y="5" width="5.5" height="6" rx="1.2"/><rect x="16" y="5" width="5.5" height="6" rx="1.2"/><rect x="2.5" y="13" width="5.5" height="6" rx="1.2"/><rect x="9.25" y="13" width="5.5" height="6" rx="1.2"/><rect x="16" y="13" width="5.5" height="6" rx="1.2"/></svg>',
@@ -160,7 +160,8 @@
       ["TWIST","A warp where timber turns like a propeller. Spot it with winding strips."]
     ]
   };
-  const TOPIC={brick:"a bricklaying word",site:"a site carpentry word",bench:"a joinery word"};
+  WORDS.maint=[["VALVE", "A service valve turns the water off to one tap or appliance so you can work on it."], ["DRAIN", "Draining down: emptying the water from pipes after isolating, before you take anything apart."], ["GULLY", "An outside drain with a grid that collects water from downpipes and sinks."], ["GROUT", "The filler between tiles. It keeps water out and the tiles even."], ["LATCH", "The part of a lock that clicks into the keep to hold a door shut."], ["HINGE", "Fixes a door to its frame. Loose hinge screws are the first thing to check on a sticking door."], ["FLUSH", "Running little-used outlets regularly so the water doesn’t stagnate and grow legionella."], ["PAINT", "Prepare first: most paint failures come from poor preparation or damp."], ["SLATE", "A thin roofing stone. A slipped slate is refixed with a metal strip called a tingle."], ["FENCE", "Panels between posts, kept off the ground by a gravel board so they don’t rot."], ["FLOAT", "A plasterer’s tool for flattening and finishing plaster."], ["LEVEL", "A spirit level checks a surface is flat and, upright, that it’s plumb."], ["TILES", "Replace a cracked tile by raking out the grout and breaking it out from the middle."], ["WASTE", "Separate it to reuse, recycle or dispose of it properly. Never pour chemicals down a drain."]];
+  const TOPIC={brick:"a bricklaying word",site:"a site carpentry word",bench:"a joinery word",maint:"a property maintenance word"};
   const dayNo=()=>{const d=new Date();return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)};
   let brickleRound=0,lastWord="";
   /* Colours for a guess: right place, in the word, or not in it (repeated letters handled like Wordle). */
@@ -265,6 +266,7 @@
       ["CLADDING","Boards fixed to the outside of a wall to weather it"],["BATTEN","A thin strip of timber that tiles or cladding are fixed to"],
       ["SPAN","How far a joist reaches between supports"],["PITCH","The angle of a roof"]
     ],
+    maint:[["ISOLATE", "Turn off and secure a supply before working on it"], ["WASHER", "A rubber disc inside an old-style tap that stops it dripping"], ["TRAP", "The bend under a sink that holds water to stop drain smells"], ["GULLY", "An outside drain with a grid that collects water"], ["GROUT", "The filler between tiles"], ["HINGE", "Fixes a door to its frame so it can swing"], ["LATCH", "Clicks into the keep to hold a door shut"], ["SEALANT", "Flexible filler run with a gun around baths and frames"], ["PRIMER", "The first coat that seals a bare surface"], ["SLATE", "A thin roofing stone"], ["TINGLE", "A metal strip used to refix a slipped slate"], ["POINTING", "The mortar finish in the joints of brickwork"], ["FLUSH", "Run little-used taps so the water doesn’t stagnate"], ["RADIATOR", "Bleed it with a key to let trapped air out"], ["FUSE", "Melts to break a circuit if too much current flows"]],
     bench:[
       ["TENON","The tongue on the end of a rail that fits into a mortice"],["MORTICE","A rectangular hole cut to take a tenon"],
       ["DOWEL","A round wooden pin glued into holes to join two pieces"],["STILE","An upright side piece of a door or frame"],
@@ -454,6 +456,7 @@
       ["A door lining can be a little out of plumb without problems.",false,"The door will swing open or shut on its own."],
       ["Joist hangers need every nail hole filled with the right nails.",true,"Fewer nails means less strength."]
     ],
+    maint:[["Prove your voltage tester works before and after testing a circuit is dead.", true, "Prove, test, prove: so a faulty tester can’t fool you."], ["Stored hot water should be kept at 60°C or above.", true, "That stops legionella bacteria growing."], ["A leaning ladder should be set one out for every four up.", true, "That’s about 75°."], ["If you find suspected asbestos, wet it down and carry on carefully.", false, "Stop, leave it undisturbed and report it."], ["Fire doors can be wedged open in hot weather.", false, "Never. A wedged fire door can’t stop fire and smoke."], ["Turn drain rods clockwise.", true, "Anticlockwise can unscrew the joints and lose a rod in the drain."]],
     bench:[
       ["Use a push stick to feed short pieces through a saw bench.",true,"It keeps your hands away from the blade."],
       ["It’s OK to take a guard off to see the cut better.",false,"Guards must be in place and set right."],

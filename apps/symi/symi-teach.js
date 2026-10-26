@@ -12,7 +12,7 @@
 const App = () => window.SamosApp;
 const V = window.SYMI_BUILD || "";
 const EVIA = "../evia/";
-const TEACH_FILES = { bricklayer: "teach-bricklayer.js", joiner: "teach-joiner.js", site: "teach-site.js", trowel3: "teach-trowel3.js" };
+const TEACH_FILES = { bricklayer: "teach-bricklayer.js", joiner: "teach-joiner.js", site: "teach-site.js", pmo: "teach-pmo.js", trowel3: "teach-trowel3.js" };
 const NOTES = "symi.teach.notes.v1";
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const md = (s) => esc(s).replace(/\*([^*]+)\*/g, "<b>$1</b>");

@@ -221,14 +221,85 @@
       .eport-zip strong{font-size:13.5px;color:#172033}
       .eport-zip small{font-size:11.5px;color:#667085}
       .eport-zip:disabled{opacity:.6}
+      .eport-mine-open{width:100%;margin-top:4px}
+      .eport-mine-url{margin:8px 0 6px;font-size:12px;color:#667085;word-break:break-all}
+      .eport-mine-why{margin:0 0 10px;font-size:13px;line-height:1.5;color:#475467}
+      .eport-mine-label{display:block;font-size:12px;font-weight:700;color:#344054;margin-bottom:6px}
+      .eport-mine-in{width:100%;box-sizing:border-box;min-height:46px;border:1px solid #d0d5dd;border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
+      .eport-mine-err{margin:6px 0 0;font-size:12.5px;color:#b42318;min-height:0}
+      .eport-mine-err:empty{display:none}
+      .eport-mine-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+      .eport-mine-next{margin-top:12px;padding:12px 14px;border-radius:14px;background:#f2f7ff;border:1px solid #d6e4ff;display:grid;gap:8px}
+      .eport-mine-next strong{font-size:13px}
+      .eport-mine-open:disabled{opacity:.6}
       .eport-steps{margin:0;padding-left:18px;font-size:12px;line-height:1.6;color:#475467}
     `;
     document.head.appendChild(style);
   }
 
+  /* My e-portfolio: the web address of the learner's own e-portfolio (Aptem, Smart Assessor, OneFile, eTrack…), saved
+     on this phone. Tapping it opens their e-portfolio, where they sign in as usual and upload what Evia made. */
+  const MINE="evia7-my-eportfolio";
+  const KNOWN_PORTFOLIOS=[[/aptem/i,"Aptem"],[/smartassessor/i,"Smart Assessor"],[/onefile/i,"OneFile"],[/etrack/i,"eTrack"],[/bud\.co|budsystems/i,"Bud"],[/pellcomp|picsweb/i,"PICSWeb"],[/learningassistant/i,"Learning Assistant"]];
+  function readMine(){try{const m=JSON.parse(localStorage.getItem(MINE)||"null");return m&&m.url?m:null}catch(_){return null}}
+  function tidyUrl(v){
+    let u=String(v||"").trim();if(!u)return "";
+    if(!/^https?:\/\//i.test(u))u="https://"+u;
+    try{const x=new URL(u);return /\./.test(x.hostname)&&x.protocol==="https:"?x.href:""}catch(_){return ""}
+  }
+  const nameFor=u=>{const k=KNOWN_PORTFOLIOS.find(([re])=>re.test(u));if(k)return k[1];try{return new URL(u).hostname.replace(/^www\./,"")}catch(_){return "My e-portfolio"}};
+  /* What "Save and open" saves: this unit's PDF and KSB codes, once they're ready. */
+  let ready=null;
+  /* In a new tab (or the browser, from the installed app), so Evia stays where it was. */
+  function openMine(){const m=readMine();if(!m)return false;const w=window.open(m.url,"_blank");if(w){try{w.opener=null}catch(_){}}else{const a=document.createElement("a");a.href=m.url;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}return true}
+  function drawMine(box,editing){
+    if(!box)return;
+    const m=readMine();
+    if(m&&!editing){
+      const r=ready&&ready.pdf?ready:null,file=r?r.pdf.name:"";
+      box.innerHTML='<div class="section-title">MY E-PORTFOLIO</div>'+
+        (ready&&!r?'<p class="eport-mine-why">Evia couldn’t make the PDF, so there’s nothing to save. You can still open '+escHtml(m.name)+'.</p>':"")+
+        '<button type="button" class="primary eport-mine-open" id="eport-mine-go"'+(ready?"":" disabled")+'>'+(!ready?"Getting your PDF ready…":r?"Save and open "+escHtml(m.name):"Open "+escHtml(m.name))+'</button>'+
+        (r?'<p class="eport-mine-why" style="margin:8px 0 0">Saves <b>'+escHtml(file)+'</b> to your phone'+(r.ksbs.length?', copies your KSB codes':"")+' and opens '+escHtml(m.name)+'.</p>':"")+
+        '<div id="eport-mine-next"></div>'+
+        '<p class="eport-mine-url">'+escHtml(m.url.replace(/^https:\/\//,"").replace(/\/$/,""))+'</p><button type="button" class="eport-copy" id="eport-mine-edit">Change</button>';
+      box.querySelector("#eport-mine-go").onclick=()=>{
+        /* All in the tap itself, so the phone allows the copy, the save and the new tab. */
+        if(r){
+          if(r.ksbs.length){try{navigator.clipboard.writeText(r.ksbs.join(", ")).catch(()=>{})}catch(_){}}
+          saveFile(r.pdf);markSent(r.unitName,r.entries);
+        }
+        openMine();
+        if(r)box.querySelector("#eport-mine-next").innerHTML='<div class="eport-mine-next" role="status"><strong>Now in '+escHtml(m.name)+'</strong><ol class="eport-steps">'+
+          '<li>Sign in and add new evidence for <b>'+escHtml(r.unitName)+'</b>.</li>'+
+          '<li>Upload, and pick <b>'+escHtml(file)+'</b> from your Downloads.</li>'+
+          (r.ksbs.length?'<li>Paste your KSB codes (already copied): '+escHtml(r.ksbs.join(", "))+'</li>':"")+'</ol>'+
+          '<button type="button" class="eport-copy" id="eport-mine-again">Save the PDF again</button></div>';
+        const ag=box.querySelector("#eport-mine-again");if(ag)ag.onclick=()=>saveFile(r.pdf);
+      };
+      box.querySelector("#eport-mine-edit").onclick=()=>drawMine(box,true);
+      return;
+    }
+    box.innerHTML='<div class="section-title">MY E-PORTFOLIO</div><p class="eport-mine-why">Save the web address you use for Aptem, Smart Assessor or your college’s e-portfolio. Then one tap opens it, ready to sign in and upload.</p>'+
+      '<label class="eport-mine-label" for="eport-mine-url">Web address</label><input id="eport-mine-url" class="eport-mine-in" type="url" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="e.g. yourcollege.aptem.co.uk" value="'+escHtml(m?m.url:"")+'">'+
+      '<p class="eport-mine-err" id="eport-mine-err" role="alert"></p><div class="eport-mine-btns"><button type="button" class="primary" id="eport-mine-save">Save</button>'+(m?'<button type="button" class="eport-copy" id="eport-mine-cancel">Cancel</button><button type="button" class="eport-copy" id="eport-mine-clear">Remove</button>':"")+'</div>';
+    const inp=box.querySelector("#eport-mine-url"),err=box.querySelector("#eport-mine-err");
+    box.querySelector("#eport-mine-save").onclick=()=>{
+      const u=tidyUrl(inp.value);
+      if(!u){err.textContent="That doesn’t look like a web address. Copy it from your browser when you’re signed in to your e-portfolio.";inp.focus();return}
+      try{localStorage.setItem(MINE,JSON.stringify({url:u,name:nameFor(u),savedAt:new Date().toISOString()}))}catch(_){}
+      if(typeof showEvidenceToast==="function")showEvidenceToast(nameFor(u)+" saved");
+      drawMine(box);
+    };
+    const c=box.querySelector("#eport-mine-cancel");if(c)c.onclick=()=>drawMine(box);
+    const x=box.querySelector("#eport-mine-clear");if(x)x.onclick=()=>{try{localStorage.removeItem(MINE)}catch(_){}drawMine(box)};
+  }
+  window.eviaMyPortfolio={read:readMine,open:openMine,draw:drawMine};
+
   /* entryId: share just one saved pack (from its tile on the unit page). */
   async function openSendToPortfolio(unitName,entryId){
     injectStyles();
+    ready=null;
     const profileBtn=document.getElementById("profile-btn");if(profileBtn)profileBtn.style.display="none";
     const unitIndex=data().u.findIndex(u=>u[0]===unitName);
     const entries=evidence.filter(e=>e.c===course&&e.u===unitName&&(entryId==null||String(e.id)===String(entryId))).sort((a,b)=>entryTime(a)-entryTime(b));
@@ -254,9 +325,11 @@
         '<div class="card eport-intro"><div class="section-title">SEND TO E-PORTFOLIO</div><h2>'+escHtml(unitName)+'</h2><p>'+escHtml(introText)+'</p><span class="eport-sent" id="eport-sent">'+(sent?"Last sent "+escHtml(ukDate(sent)):"")+'</span>'+(allLink?'<div>'+allLink+'</div>':"")+'</div>'+
         '<div class="card"><div class="section-title">KSBS COVERED</div><div class="eport-ksbs">'+ksbs.map(k=>'<span>'+escHtml(k)+'</span>').join("")+'</div><button type="button" class="eport-copy" id="eport-copy">Copy KSB codes</button></div>'+
         '<div class="eport-files" id="eport-files"><div class="card eport-pdf"><div class="eport-sheet is-loading" aria-hidden="true"><span></span><span></span><span></span></div><p class="eport-status">Preparing your evidence PDF…</p></div></div>'+
-        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share all</strong> to send everything to email or another app, or <strong>Save .zip</strong> to keep it all in one file.</li><li>In Aptem (or your e-portfolio), add new evidence and upload the zip, or the PDF and any recordings.</li><li>Tag the KSBs listed above.</li></ol></div>'+
+        '<div class="card" id="eport-mine"></div>'+
+        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share all</strong> to send everything to email or another app, or <strong>Save .zip</strong> to keep it all in one file.</li><li>In '+escHtml((readMine()||{}).name||"Aptem (or your e-portfolio)")+', add new evidence and upload the zip, or the PDF and any recordings.</li><li>Tag the KSBs listed above.</li></ol></div>'+
       '</div>';
     $("#eport-back").onclick=goBack;
+    drawMine($("#eport-mine"));
     const allBtn=$("#eport-all");if(allBtn)allBtn.onclick=()=>openSendToPortfolio(unitName);
     $("#eport-copy").onclick=async()=>{
       const text=ksbs.join(", ");
@@ -302,10 +375,12 @@
     if(unreadable)problems.push(unreadable+" photo"+(unreadable===1?"":"s")+" couldn’t be read on this phone and "+(unreadable===1?"was":"were")+" left out. If this evidence came from a backup, restore the backup again from your profile.");
     const list=$("#eport-files");
     if(!files.length){
+      ready={unitName,entries,ksbs,pdf:null};drawMine($("#eport-mine"));
       if(list)list.innerHTML='<div class="card"><p>Evia couldn’t prepare the files. '+(problems.join(" ")||"Please try again.")+'</p></div>';
       return;
     }
     if(!document.getElementById("eport-files"))return; // learner navigated away
+    ready={unitName,entries,ksbs,pdf:(files.find(f=>f.kind==="pdf")||{}).file||null};drawMine($("#eport-mine"));
     /* The PDF is the main download, with a preview of its first page; the zip (PDF plus every photo) is there just in case. */
     const pdf=files.find(f=>f.kind==="pdf"),photos=files.filter(f=>f.kind==="photo"),recs=files.filter(f=>f.kind==="video"||f.kind==="audio");
     /* Everything together is the main download: a zip to save, or all the files at once to share (phones won't share a

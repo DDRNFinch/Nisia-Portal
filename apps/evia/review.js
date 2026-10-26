@@ -2,7 +2,7 @@
 (function(){
   /* Learner data is read and written through eviaData (data.js). */
   const D=()=>window.eviaData;
-  const courseMap={bricklayer:"bricklaying",site:"siteCarpentry",joiner:"benchJoinery"};
+  const courseMap={bricklayer:"bricklaying",site:"siteCarpentry",joiner:"benchJoinery",pmo:"propertyMaintenance"};
   const academicEnabled=subject=>{
     return !!D().learner()[subject+"Enabled"];
   };
