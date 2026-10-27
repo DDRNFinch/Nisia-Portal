@@ -37,14 +37,21 @@
      blank screen, so the learner can show it to their tutor. */
   const blank=()=>{const sc=document.getElementById("screen"),app=document.getElementById("app");
     return sc&&app&&!app.classList.contains("welcome-app-hidden")&&!document.getElementById("welcome-screen")&&!sc.textContent.trim()&&!sc.querySelector("img,svg,canvas")};
-  let checks=0;const watch=setInterval(()=>{
+  /* What Evia was trying to show, for the screenshot: the page, the course, the pack and its topics. */
+  const state=()=>{const g=(f)=>{try{return f()}catch(e){return "?"}};
+    return ["page: "+g(()=>typeof screen!=="undefined"?screen:"none")+(g(()=>typeof unit!=="undefined"&&unit>=0?" "+unit:"")),
+      "course: "+g(()=>typeof course!=="undefined"?course:"none")+" · enrolled on "+g(()=>(window.eviaData.enrolment()||{}).course||"none"),
+      "pack: "+g(()=>{const f=window.eviaPacks&&window.eviaPacks.followingPack(course);return f?f.title+" ("+f.topics+" topics)":"Evia's own"})+" · topics shown: "+g(()=>data().u.length)].join("\n")};
+  let checks=0,tried=false;const watch=setInterval(()=>{
     if(++checks>15)return clearInterval(watch);
     if(checks<3||!blank())return;
+    /* First, Topics: most often that's all it takes. Only if that doesn't show either, say so. */
+    if(!tried){tried=true;log("Empty page on opening; went to Topics",{kind:"blank",where:state().replace(/\n/g," | ")});try{if(typeof nav==="function")nav("course")}catch(err){log("Topics: "+(err&&err.message),{stack:err&&err.stack})}return}
     clearInterval(watch);
     const recent=read().slice(-3).reverse(),esc=t=>String(t).replace(/[<&>]/g,c=>({"<":"&lt;","&":"&amp;",">":"&gt;"}[c]));
     document.getElementById("screen").innerHTML='<div class="card" style="margin:16px"><h2 style="margin:0 0 8px">Evia didn’t start properly</h2><p style="margin:0 0 12px">Your work is safe. Tap Try again. If this keeps happening, send a screenshot of this to your tutor.</p>'+
       '<button type="button" class="primary" style="width:100%" onclick="location.reload()">Try again</button>'+
-      '<pre style="white-space:pre-wrap;font-size:12px;margin:14px 0 0;color:#667085">'+esc(version()+"\n"+(recent.map(x=>x.message+(x.where?"\n  at "+x.where:"")+"\n  "+String(x.stack||"").split("\n").slice(1,4).map(l=>l.trim().replace(/https?:\/\/[^)\s]*\//g,"")).join(" < ")).join("\n\n")||"No error was recorded."))+'</pre></div>';
+      '<pre style="white-space:pre-wrap;font-size:12px;margin:14px 0 0;color:#667085">'+esc(version()+"\n"+state()+"\n"+(recent.map(x=>x.message+(x.where?"\n  at "+x.where:"")+"\n  "+String(x.stack||"").split("\n").slice(1,4).map(l=>l.trim().replace(/https?:\/\/[^)\s]*\//g,"")).join(" < ")).join("\n\n")||"No error was recorded."))+'</pre></div>';
   },1000);
   window.addEventListener("unhandledrejection",ev=>{const r=ev.reason;log(r&&r.message||String(r),{stack:r&&r.stack,kind:"promise"})});
   /* Problems Evia catches and reports itself. */
@@ -55,5 +62,11 @@
     log(args.map(a=>a instanceof Error?a.message:typeof a==="string"?a:(()=>{try{return JSON.stringify(a)}catch(_){return String(a)}})()).join(" "),{stack:err&&err.stack,kind:"reported"});
   };
 
+  /* Evia's own warnings ("Evia: …") too: they're often why something didn't show. */
+  const warn=console.warn.bind(console);
+  console.warn=function(...args){
+    warn(...args);
+    if(typeof args[0]==="string"&&/^Evia\b/.test(args[0]))try{log(args.map(a=>a instanceof Error?a.message:typeof a==="string"?a:String(a)).join(" "),{kind:"warning"})}catch(_){}
+  };
   window.eviaErrors={list:read,log,text,clear(){write([])}};
 })();

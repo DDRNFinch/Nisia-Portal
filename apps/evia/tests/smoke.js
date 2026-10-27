@@ -918,7 +918,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       ob.synced=await p2.evaluate(async()=>{await window.eviaNisia.sync();const s=window.eviaNisia.status();return s.joined&&!s.changes&&!s.media&&!!s.lastSync});
       await p2.waitForTimeout(800);
       ob.tourCountsAsSeen=await p2.evaluate(()=>{const s=JSON.parse(localStorage.getItem("evia7-tips-seen")||"[]");return ["course","supporting","unit","learning","teach","calendar","evia","profile"].every(k=>s.includes(k))&&!document.querySelector(".ev-tip")});
-      ob.noErrors=!e2.length&&await p2.evaluate(()=>!window.eviaErrors.list().filter(x=>x.kind!=="reported").length);
+      ob.noErrors=!e2.length&&await p2.evaluate(()=>!window.eviaErrors.list().filter(x=>x.kind!=="reported"&&x.kind!=="warning").length);
       check("First run: connect to the college with the assessor's code, confirm the details Evia Portal sends, a Teach me style welcome, the PPE induction in the real guided mode saved to Supporting evidence (ticking K2 and S2), then a short tap-through tour",Object.values(ob).every(Boolean),JSON.stringify(ob)+" "+e2.join(" | "));
       await c2.close();
     }
@@ -1106,7 +1106,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       lv.backToYours=back.t0==="Mixing mortar"&&back.n===10&&back.ev.every(u=>u==="Mixing mortar")&&!back.lessons&&!back.following;
       if(!lv.backToYours)console.log("BACK",JSON.stringify(back));
       lv.noCoinsForBack=await p6.evaluate(b=>{window.eviaRewards.sync();return window.eviaData.list("rewards")[0].state.bank===b},bank0);
-      lv.noErrors=!e6.length;
+      lv.noErrors=!e6.length;if(e6.length)console.log("   e6:",e6.join(" | ").slice(0,600));
       check("Live Evia Portal: the assessor's code signs Evia in, every record, learning hours, evidence and photos go to the college, and name, safeguarding lead and review date come back",Object.values(lv).every(Boolean),JSON.stringify(lv)+" "+e6.join(" | "));
 
       // A second device (a computer) connects to the same learner: their saved work comes back, then the photos on WiFi.
