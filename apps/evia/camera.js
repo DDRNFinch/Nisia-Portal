@@ -99,7 +99,10 @@
 
   /* ---------- Video and voice recorder ---------- */
   const LIMIT=120; /* seconds */
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  /* Writing down what's said as it's recorded: on computers only. On phones the speech service beeps each time it stops
+     and starts again in a pause (every few seconds on Android), which sounds like the recording has stopped. */
+  const PHONE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"")||(/Macintosh/.test(navigator.userAgent||"")&&navigator.maxTouchPoints>1);
+  const SR=PHONE?null:window.SpeechRecognition||window.webkitSpeechRecognition;
   /* A true MP4 recording (H.264 picture, AAC sound) put together on the phone with WebCodecs, so it plays with sound in
      every phone gallery and PC player, the old Windows Media Player included. It behaves like a MediaRecorder
      (start, stop, onstop, ondataavailable). Resolves to null where the browser can't do it, and MediaRecorder is used. */
@@ -128,7 +131,12 @@
       if(!(await AudioEncoder.isConfigSupported(aConf)).supported){if(fv)fv.close();drop();return null}
       let vConf=null,width=0,height=0;
       if(video){
-        width=fv.displayWidth&~1;height=fv.displayHeight&~1;fv.close();
+        /* A phone camera often starts at one size and settles on another a moment later (or changes when the phone is
+           turned), so the picture size is taken once it has settled, at most 1280 on the long side. */
+        let last=fv;const until=Date.now()+700;
+        while(Date.now()<until){const x=await first(vr);if(!x)break;last.close();last=x}
+        const sc=Math.min(1,1280/Math.max(last.displayWidth,last.displayHeight));
+        width=Math.round(last.displayWidth*sc)&~1;height=Math.round(last.displayHeight*sc)&~1;last.close();
         for(const codec of ["avc1.42E028","avc1.4D4028","avc1.640028","avc1.42E032","avc1.42001f"]){
           const c={codec,width,height,bitrate:VIDEO_BPS,framerate:24,latencyMode:"realtime",avc:{format:"avc"}};
           try{if((await VideoEncoder.isConfigSupported(c)).supported){vConf=c;break}}catch(_){}
@@ -142,14 +150,25 @@
       const add=(fn,chunk,meta)=>{try{fn.call(muxer,chunk,meta)}catch(e){fail(e)}};
       const aEnc=new AudioEncoder({output:(c,m)=>add(muxer.addAudioChunk,c,m),error:fail});aEnc.configure(aConf);
       const vEnc=video?new VideoEncoder({output:(c,m)=>add(muxer.addVideoChunk,c,m),error:fail}):null;if(vEnc)vEnc.configure(vConf);
-      const rec={mimeType:video?"video/mp4;codecs=avc1,mp4a.40.2":"audio/mp4;codecs=mp4a.40.2",state:"inactive",onstop:null,ondataavailable:null};
+      const rec={mimeType:video?"video/mp4;codecs=avc1,mp4a.40.2":"audio/mp4;codecs=mp4a.40.2",state:"inactive",onstop:null,ondataavailable:null,frames:0};
       let lastKey=-1e12;
       const pump=async(r,fn)=>{for(;;){let x;try{x=await r.read()}catch(_){break}if(x.done)break;const f=x.value;
         if(rec.state!=="recording"||failed){f.close();continue}try{fn(f)}catch(e){fail(e)}f.close()}};
       const pa=pump(ar,d=>{if(aEnc.state==="configured")aEnc.encode(d)});
+      /* Every frame is kept: one of a different size (the camera changing, or the phone turned) is fitted into the
+         video's size, with bars where the shape differs, rather than dropped (that froze the picture). */
+      let fitCanvas=null,fitCtx=null;
+      const fit=f=>{
+        if(!fitCanvas){fitCanvas=new OffscreenCanvas(width,height);fitCtx=fitCanvas.getContext("2d",{alpha:false})}
+        const k=Math.min(width/f.displayWidth,height/f.displayHeight),w=f.displayWidth*k,h=f.displayHeight*k;
+        fitCtx.fillStyle="#000";fitCtx.fillRect(0,0,width,height);fitCtx.drawImage(f,(width-w)/2,(height-h)/2,w,h);
+        return new VideoFrame(fitCanvas,{timestamp:f.timestamp,duration:f.duration||undefined});
+      };
       const pv=vr?pump(vr,f=>{
-        if(vEnc.state!=="configured"||(f.displayWidth&~1)!==width||(f.displayHeight&~1)!==height||vEnc.encodeQueueSize>4)return;
-        const key=f.timestamp-lastKey>=2e6;if(key)lastKey=f.timestamp;vEnc.encode(f,{keyFrame:key});
+        if(vEnc.state!=="configured"||vEnc.encodeQueueSize>4)return;
+        const same=f.displayWidth===width&&f.displayHeight===height,g=same?f:fit(f);
+        const key=f.timestamp-lastKey>=2e6;if(key)lastKey=f.timestamp;
+        try{vEnc.encode(g,{keyFrame:key});rec.frames++}finally{if(g!==f)g.close()}
       }):Promise.resolve();
       rec.start=()=>{rec.state="recording"};
       rec.stop=async()=>{
