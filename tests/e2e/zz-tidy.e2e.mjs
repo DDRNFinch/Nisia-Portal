@@ -44,10 +44,10 @@ try {
   const pdf = await ev.page.evaluate(async () => { const b = await window.eviaPrepPack.pdf(); const r = new FileReader(); return await new Promise((ok) => { r.onload = () => ok(r.result.split(",")[1]); r.readAsDataURL(b); }); });
   (await import("node:fs")).writeFileSync(new URL("../shots/tidy-review.pdf", import.meta.url).pathname, Buffer.from(pdf, "base64"));
   res.pdf = pdf.length > 5000;
-  /* Let Evia guide you: the photo list. */
+  /* Skills: the skills to show and the things to capture. */
   await ev.page.evaluate(() => nav("course")); await ev.page.waitForTimeout(800); await ev.page.click("[data-u='0']"); await ev.page.waitForTimeout(1500);
-  await ev.page.click("#eg-start"); await ev.page.waitForTimeout(800);
-  res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-shots li").length > 2);
+  await ev.page.click("#sk-start"); await ev.page.waitForTimeout(800);
+  res.shots = await ev.page.evaluate(() => document.querySelectorAll(".eg-sheet .cx-crit li").length > 1);
   await ev.page.screenshot({ path: out("shots") });
   res.label = await ev.page.evaluate(() => document.getElementById("nav-college").textContent);
   console.log("tops", await ev.page.evaluate(() => { nav("teach"); const h = document.querySelector(".th-head"); let e = h, out = []; while (e && e !== document.body) { const cs = getComputedStyle(e); out.push(e.tagName + "#" + e.id + "." + e.className + " pt=" + cs.paddingTop + " mt=" + cs.marginTop + " top=" + Math.round(e.getBoundingClientRect().top)); e = e.parentElement; } return out.join(" | "); }));

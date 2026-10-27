@@ -134,24 +134,19 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const st=Object.assign({},window.eviaData.list("rewards")[0].state);st.bank-=5000;window.eviaData.put("rewards",{state:st});
       return mid-before===5000&&after===mid});
     check("A coin gift from Evia Portal is added once",gift);
-    // Free range: the unit offers Evia's guide or free range; free range is all the photos, then the write-up.
+    // Skills and Knowledge: the unit offers the two (no guide or free range); Knowledge is the write-up, in Evia's sheet.
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar")));await page.waitForTimeout(900);
-    const fr={choice:await page.evaluate(()=>!!document.getElementById("eg-start")&&!!document.getElementById("fr-start")&&!document.getElementById("write")&&!document.getElementById("evidence-camera"))};
-    const egBtn=async re=>{await page.evaluate(src=>{const b=[...document.querySelectorAll(".eg-sheet button")].find(b=>new RegExp(src).test(b.textContent.trim()));if(b)b.click()},re);await page.waitForTimeout(350)};
-    await page.click("#fr-start");await page.waitForTimeout(400);
-    fr.intro=await page.evaluate(()=>{const sh=document.querySelector(".eg-sheet");return !!sh&&/^FREE RANGE$/.test(sh.querySelector(".chat-kicker").textContent)&&!!sh.querySelector(".ra-free .evia-mini")&&/Photos/.test(sh.textContent)});
-    fr.oneButton=await page.evaluate(()=>[...document.querySelectorAll(".eg-sheet .eg-actions button")].map(b=>b.textContent.trim()).join()==="Get started");
-    await page.evaluate(()=>document.getElementById("eg-close").click());await page.waitForTimeout(500);
-    await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar"),"write"));await page.waitForTimeout(900);
-    fr.write=await page.evaluate(()=>{const sh=document.querySelector(".eg-sheet");return !!sh&&!!sh.querySelector("#write")&&/THINGS TO MENTION/.test(sh.querySelector(".fr-mention").textContent)&&!sh.querySelector(".eg-pill")&&sh.querySelector(".eg-actions .primary").disabled});
+    const fr={choice:await page.evaluate(()=>!!document.getElementById("sk-start")&&!!document.getElementById("kn-start")&&!document.getElementById("eg-start")&&!document.getElementById("fr-start")&&!document.getElementById("write"))};
+    await page.click("#kn-start");await page.waitForTimeout(400);
+    fr.write=await page.evaluate(()=>{const sh=document.querySelector(".eg-sheet");return !!sh&&/^KNOWLEDGE/.test(sh.querySelector(".chat-kicker").textContent)&&!!sh.querySelector(".ra-knowledge .ra-mic")&&!!sh.querySelector("#write")&&/THINGS TO MENTION/.test(sh.querySelector(".fr-mention").textContent)&&sh.querySelector(".eg-actions .primary").disabled});
     await page.fill("#write","Mixed a batch of mortar at 1 to 5.");await page.waitForTimeout(300);
     await page.click("#eg-close");await page.waitForTimeout(700);
-    fr.progress=await page.evaluate(()=>/IN PROGRESS/.test(document.getElementById("screen").textContent)&&/Mixed a batch/.test(document.querySelector(".fr-progress-text").textContent)&&!document.getElementById("submit-evidence").disabled);
+    fr.progress=await page.evaluate(()=>/KNOWLEDGE IN PROGRESS/.test(document.getElementById("screen").textContent)&&/Mixed a batch/.test(document.querySelector(".fr-progress-text").textContent)&&!document.getElementById("submit-knowledge").disabled&&!document.getElementById("submit-skills"));
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar"),"write"));await page.waitForTimeout(900);
     fr.openAt=await page.evaluate(()=>document.getElementById("write").value==="Mixed a batch of mortar at 1 to 5.");
     await page.evaluate(()=>{const w=document.getElementById("write");w.value="";w.dispatchEvent(new Event("input"));document.getElementById("eg-close").click()});await page.waitForTimeout(600);
     fr.cleared=await page.evaluate(()=>!document.querySelector(".fr-progress"));
-    check("Free range mode: in Evia's sheets like the guide, with every prompt listed at once; work in progress shows on the unit page",Object.values(fr).every(Boolean),JSON.stringify(fr));
+    check("Skills and Knowledge: the unit offers the two; Knowledge is in Evia's sheet with everything to mention, and work in progress shows on the unit page",Object.values(fr).every(Boolean),JSON.stringify(fr));
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar"),"write"));await page.waitForTimeout(900);
     check("The evidence pack has no Continue later button and no Check my writing button (the phone's UK spellcheck is on)",await page.evaluate(()=>{const w=document.getElementById("write");return !document.getElementById("continue-later")&&!document.querySelector(".wc-btn,.wc-panel")&&w.spellcheck&&w.getAttribute("lang")==="en-GB"}));
     await page.evaluate(()=>{nav("course")});await page.waitForTimeout(450);await page.evaluate(()=>openUnit(3,"write"));await page.waitForTimeout(900);
@@ -218,7 +213,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.waitForFunction(()=>[...document.querySelectorAll("#chat .ui-replies button")].length>=1,null,{timeout:15000});
     await page.evaluate(()=>document.querySelector("#chat .ui-replies button").click());
     await page.waitForFunction(()=>!!document.querySelector("#chat .ev-check")&&[...document.querySelectorAll("#chat .ui-replies button")].some(b=>/Add photos/.test(b.textContent)),null,{timeout:15000});
-    check("Evidence check rates a piece of evidence, lists what's still to mention and offers ways to fix it",await page.evaluate(()=>{const t=[...document.querySelectorAll("#chat .ui-replies button")].map(b=>b.textContent);return /Weak|Good|Strong/.test(document.querySelector("#chat .ev-check").textContent)&&["Add photos","Improve my write-up","Let Evia guide me","Check another"].every(x=>t.includes(x))}));
+    check("Evidence check rates a piece of evidence, lists what's still to mention and offers ways to fix it",await page.evaluate(()=>{const t=[...document.querySelectorAll("#chat .ui-replies button")].map(b=>b.textContent);return /Weak|Good|Strong/.test(document.querySelector("#chat .ev-check").textContent)&&["Add photos or a video","Explain what I know","Check another"].every(x=>t.includes(x))}));
     check("Replies never offer Something else: a small link goes back to Evia's list",await page.evaluate(()=>![...document.querySelectorAll("#chat .ui-replies .chat-pill")].some(b=>b.textContent==="Something else")&&/Back to my list/.test(document.querySelector("#chat .ui-replies .ui-pill-back").textContent)));
     /* A review more than 4 weeks off: nothing to get ready yet, just how it's looking. */
     const farOff=await page.evaluate(async()=>{const o=window.eviaReviewDue;window.__rd=o;window.eviaReviewDue=()=>{const r=o();return r&&Object.assign({},r,{days:60})};
@@ -487,6 +482,13 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
 
     // Guided evidence: Evia asks a question for each thing to mention and puts the answers together as the statement.
     await page.evaluate(()=>{course="bricklayer";persist();openUnit(data().u.findIndex(u=>u[0]==="Cavity opening"))});await page.waitForTimeout(700);
+    /* The tester has Skills and Knowledge instead of the guide (tests/capture.js checks them in full). */
+    if(!(await page.evaluate(()=>!!document.getElementById("eg-start")))){
+      await page.evaluate(()=>document.getElementById("sk-start").click());await page.waitForTimeout(400);
+      check("Skills (tester): the photos-and-videos sheet lists the topic's S criteria only, with a way to add photos",await page.evaluate(()=>{const c=[...document.querySelectorAll(".eg-sheet .cx-crit li b")].map(x=>x.textContent);
+        return c.length>0&&c.every(x=>/^S/.test(x))&&[...document.querySelectorAll(".eg-sheet .eg-actions button")].some(b=>/photos/i.test(b.textContent))}));
+      await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";if(window._camSupported)window.eviaCamera.supported=window._camSupported});await page.waitForTimeout(300);
+    }else{
     await page.evaluate(()=>document.getElementById("eg-start").click());await page.waitForTimeout(300);
     // The first sheet has one full-width Get started; with no camera it goes straight to the questions.
     const photoFirst=await page.evaluate(()=>/photo/i.test((document.getElementById("modal-root")||{}).textContent||""));
@@ -517,6 +519,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     }else{
       check("Guided evidence (tester): it starts as a photo checklist (Take photos)",photoFirst);
       await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";document.querySelectorAll(".cam-photo").forEach(x=>x.remove());if(window._camSupported)window.eviaCamera.supported=window._camSupported});await page.waitForTimeout(300);
+    }
     }
     await page.evaluate(()=>{const w=document.getElementById("write");if(w){w.value="";w.dispatchEvent(new Event("input"))}});
 
@@ -1042,22 +1045,21 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const coinsBefore=await p6.evaluate(()=>window.eviaRewards.balance());
       await p6.evaluate(async()=>{document.getElementById("modal-root").innerHTML="";await window.eviaNisia.sync();await window.eviaNisia.sync()});await p6.waitForTimeout(500);
       lv.lbPrize=await p6.evaluate(b=>window.eviaRewards.balance()===b+100&&window.eviaLeaderboard.unseenWins().length===1&&window.eviaStats.nudges(window.eviaStats.compute()).some(n=>/^lb-/.test(n.id)&&/1st/.test(n.text)&&/\+100 coins/.test(n.text)),coinsBefore);
-      /* The four ways in: catch up shows once the assessor wants more; a voice note is kept with what Evia wrote down, and goes to Evia Portal. */
+      /* The ways in: catch up shows once the assessor wants more, then Skills and Knowledge; a voice note in Knowledge is
+         kept with what Evia wrote down, and goes to Evia Portal. */
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
-      lv.noRecordings=await p6.evaluate(()=>!document.getElementById("rec-start")&&!!document.getElementById("cu-start")&&!!document.getElementById("eg-start")&&!!document.getElementById("fr-start"));
-      /* Recordings are switched off for now (storage); the rest of this switches them on to keep the code working for later. */
-      await p6.evaluate(()=>{window.eviaRecordings=true;document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
-      lv.fourRoutes=await p6.evaluate(()=>["cu-start","eg-start","fr-start","rec-start"].every(id=>document.getElementById(id))&&!!document.querySelector("#cu-start .ra-catch")&&!!document.querySelector("#eg-start .ra-guide")&&!!document.querySelector("#fr-start .ra-free")&&!!document.querySelector("#rec-start .ra-record")&&
-        new Set(["cu-start","eg-start","fr-start","rec-start"].map(id=>Math.round(document.getElementById(id).getBoundingClientRect().height))).size===1);
+      lv.routes=await p6.evaluate(()=>["cu-start","sk-start","kn-start"].every(id=>document.getElementById(id))&&!document.getElementById("eg-start")&&!document.getElementById("fr-start")&&
+        !!document.querySelector("#cu-start .ra-catch")&&!!document.querySelector("#sk-start .ra-skills")&&!!document.querySelector("#kn-start .ra-knowledge"));
       await p6.evaluate(()=>document.getElementById("cu-start").click());await p6.waitForTimeout(400);
       lv.catchUp=await p6.evaluate(()=>{const t=document.querySelector(".eg-sheet").textContent;return /CATCH UP/.test(t)&&/a bit more/.test(t)&&window.eviaMoreRequired().filter(x=>x.unit===data().u[0][0]).every(x=>t.includes(x.code))&&!!document.querySelector(".eg-sheet .ra-catch")});
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(500);
       await p6.evaluate(()=>{window.eviaRecorder={supported:()=>true,open:o=>{window.__recOpts=o;setTimeout(()=>o.onDone(new Blob(["voice"],{type:"audio/webm"}),"audio/webm",{secs:42,transcript:"I mixed the mortar to the right ratio with a gauging box and put the safety signage out."}),50)}}});
-      await p6.evaluate(()=>document.getElementById("rec-start").click());await p6.waitForTimeout(300);await p6.evaluate(()=>document.querySelector('[data-rec="audio"]').click());await p6.waitForTimeout(700);
-      lv.recorded=await p6.evaluate(()=>window.__recOpts.type==="audio"&&window.__recOpts.limit===300&&window.__recOpts.transcribe&&window.__recOpts.prompts.length>0&&/Saved: your voice note \(0:42\)/.test(document.querySelector(".eg-sheet").textContent)&&/You mentioned [1-9]/.test(document.querySelector(".eg-sheet").textContent));
+      await p6.evaluate(()=>document.getElementById("kn-start").click());await p6.waitForTimeout(300);
+      await p6.evaluate(()=>[...document.querySelectorAll(".eg-sheet .eg-actions button")].find(b=>/Voice note/.test(b.textContent)).click());await p6.waitForTimeout(700);
+      lv.recorded=await p6.evaluate(()=>window.__recOpts.type==="audio"&&window.__recOpts.limit===300&&window.__recOpts.transcribe&&window.__recOpts.prompts.length>0&&/0:42/.test(document.querySelector(".eg-sheet .ev-media-chip.audio").textContent));
       const before=calls.length;
-      await p6.evaluate(()=>{[...document.querySelectorAll(".eg-sheet button")].find(b=>/Submit to Portfolio/.test(b.textContent)).click()});await p6.waitForTimeout(900);
-      lv.recordingSaved=await p6.evaluate(()=>{const e=window.eviaData.list("evidence").pop();return e.media.length===1&&e.media[0].kind==="audio"&&/gauging box/.test(e.transcript)&&!e.text});
+      await p6.evaluate(()=>{[...document.querySelectorAll(".eg-sheet button")].find(b=>/Submit to portfolio/.test(b.textContent)).click()});await p6.waitForTimeout(900);
+      lv.recordingSaved=await p6.evaluate(()=>{const e=window.eviaData.list("evidence").pop();return e.media.length===1&&e.media[0].kind==="audio"&&/gauging box/.test(e.transcript)&&!e.text&&e.ksbs.length&&e.ksbs.every(c=>/^[KB]/.test(c))});
       await p6.evaluate(()=>window.eviaNisia.sync());await p6.waitForTimeout(700);
       lv.recordingSynced=calls.slice(before).some(x=>x.p==="/rest/v1/evidence"&&/"evidence_type":"audio"/.test(x.body)&&/gauging box/.test(x.body))&&calls.slice(before).some(x=>x.p.startsWith("/storage/v1/object/evidence/O1/")&&/media/.test(x.p));
       /* Signed-off evidence turns green in its tile (no big assessor box), and the download takes the recording. */

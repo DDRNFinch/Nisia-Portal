@@ -252,9 +252,8 @@
       '</div></div>');
     if(c.missing.length)k.say("Add the things still to mention to your write-up, in your own words.");
     k.replies([
-      {label:"Add photos",primary:c.photos<5,run:()=>openUnitAt(u,"#evidence-photos")},
-      {label:"Improve my write-up",primary:c.photos>=5,run:()=>openUnitAt(u,"#write","focus")},
-      {label:"Let Evia guide me",run:()=>openUnitAt(u,"#eg-start","click")},
+      {label:"Add photos or a video",primary:c.photos<5,run:()=>openUnitAt(u,"#sk-start","click")},
+      {label:"Explain what I know",primary:c.photos>=5,run:()=>openUnitAt(u,"#kn-start","click")},
       {label:"Check another",run:evidenceCheck},
       {label:"Something else",run:k.somethingElse}
     ]);

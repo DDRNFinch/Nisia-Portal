@@ -193,6 +193,7 @@
         if(r.photoTakenAt)legacy.photoTimes=r.photoTakenAt.slice();
         if(r.guidedAreas)legacy.guidedAreas=r.guidedAreas.slice();
         if(r.induction)legacy.induction=true;
+        if(r.kind==="skills"||r.kind==="knowledge")legacy.kind=r.kind;   /* how it was gathered: Skills or Knowledge */
         arr.push(legacy);save();return legacy.id;
       },
       /* Deleting a saved pack: the record, then its photos. (Evia Portal keeps anything the assessor has already accepted.) */

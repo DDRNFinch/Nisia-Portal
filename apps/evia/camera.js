@@ -8,6 +8,8 @@
    written down as it's recorded, and each thing to mention lights up once it's been said. info={secs,transcript}. */
 (function(){
   const escHtml=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
+  /* Video at 0.9 Mbit/s: about 7 MB a minute at 720p. A voice note is under 0.4 MB a minute. */
+  const VIDEO_BPS=900000;
   const supported=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
   const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(_){}};
   const stamp=()=>new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
@@ -121,13 +123,14 @@
       const fa=await first(ar),fv=vr?await first(vr):null;
       if(!fa||(video&&!fv)){if(fa)fa.close();if(fv)fv.close();drop();return null}
       const sampleRate=fa.sampleRate,numberOfChannels=Math.min(2,fa.numberOfChannels||1);fa.close();
-      const aConf={codec:"mp4a.40.2",sampleRate,numberOfChannels,bitrate:video?96000:128000};
+      /* Kept small: speech sounds clear at these rates (mono, AAC). */
+      const aConf={codec:"mp4a.40.2",sampleRate,numberOfChannels,bitrate:video?64000:48000};
       if(!(await AudioEncoder.isConfigSupported(aConf)).supported){if(fv)fv.close();drop();return null}
       let vConf=null,width=0,height=0;
       if(video){
         width=fv.displayWidth&~1;height=fv.displayHeight&~1;fv.close();
         for(const codec of ["avc1.42E028","avc1.4D4028","avc1.640028","avc1.42E032","avc1.42001f"]){
-          const c={codec,width,height,bitrate:1500000,framerate:30,latencyMode:"realtime",avc:{format:"avc"}};
+          const c={codec,width,height,bitrate:VIDEO_BPS,framerate:24,latencyMode:"realtime",avc:{format:"avc"}};
           try{if((await VideoEncoder.isConfigSupported(c)).supported){vConf=c;break}}catch(_){}
         }
         if(!vConf){drop();return null}
@@ -210,7 +213,9 @@
     const setState=s=>{el.dataset.state=s;rec.setAttribute("aria-label",s==="recording"?"Stop recording":"Start recording")};
     const getStream=async()=>{
       if(stream)return stream;
-      stream=await navigator.mediaDevices.getUserMedia(video?{video:{facingMode:{ideal:"environment"},width:{ideal:1080},height:{ideal:1080}},audio:true}:{audio:true});
+      /* 720p at 24 frames a second, one sound channel: sharp enough to see the work, a fraction of the size. */
+      const voice={channelCount:{ideal:1},echoCancellation:true,noiseSuppression:true};
+      stream=await navigator.mediaDevices.getUserMedia(video?{video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:24,max:30}},audio:voice}:{audio:voice});
       if(live){live.srcObject=stream;live.play().catch(()=>{})}
       meter();return stream;
     };
@@ -220,7 +225,7 @@
       rec.disabled=true;recorder=await mp4Recorder(stream,video);rec.disabled=false;
       if(!recorder){
         const chosen=pickMime(),o={};if(chosen)o.mimeType=chosen;
-        if(video){o.videoBitsPerSecond=1500000;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=128000;
+        if(video){o.videoBitsPerSecond=VIDEO_BPS;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=32000;
         try{recorder=new MediaRecorder(stream,o)}catch(_){recorder=new MediaRecorder(stream)}
       }
       mime=recorder.mimeType||(video?"video/webm":"audio/webm");chunks=[];
@@ -246,14 +251,14 @@
     retake.onclick=()=>{review.innerHTML="";blob=null;heard="";interim="";tick();badge.textContent="0:00";keepBtn.hidden=true;retake.hidden=true;el.classList.remove("cam-ending");if(ring)ring.style.strokeDashoffset="0";setState("ready");hint.textContent="Tap the red button to start again."};
     const cleanup=()=>{clearInterval(timer);deaf();if(raf)cancelAnimationFrame(raf);if(audioCtx)audioCtx.close().catch(()=>{});closeOverlay(el,stream)};
     keepBtn.onclick=()=>{const b=blob,m=mime,info={secs,transcript:transcript()};cleanup();if(b&&opts.onDone)opts.onDone(b,m,info)};
-    el.querySelector("[data-cam-close]").onclick=()=>{if(el.dataset.state==="recording"&&!confirm("Stop and discard this recording?"))return;if(recorder&&recorder.state!=="inactive"){recorder.onstop=null;recorder.stop()}cleanup()};
+    el.querySelector("[data-cam-close]").onclick=()=>{if(el.dataset.state==="recording"&&!confirm("Stop and discard this recording?"))return;if(recorder&&recorder.state!=="inactive"){recorder.onstop=null;recorder.stop()}cleanup();if(opts.onClose)opts.onClose()};
     setState("ready");
     if(video)getStream().catch(err=>{console.error("Evia recorder failed",err);denied(el,err,"camera and microphone");rec.disabled=true});
   }
 
   function fmtLimit(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   window.eviaCamera={open:openCamera,supported};
-  /* Videos and voice notes are switched off for now: they take up too much storage. true brings them all back. */
-  window.eviaRecordings=false;
+  /* Videos and voice notes: on, now they are kept small (720p video, low-rate mono sound). false switches them off. */
+  window.eviaRecordings=true;
   window.eviaRecorder={open:openRecorder,supported:()=>window.eviaRecordings&&supported()&&!!window.MediaRecorder};
 })();

@@ -137,22 +137,33 @@
     }
     const nv=media.filter(x=>x.kind==="video").length,na=media.filter(x=>x.kind==="audio").length;
     const mediaSum=[nv?nv+" video"+(nv===1?"":"s"):"",na?na+" voice note"+(na===1?"":"s"):""].filter(Boolean).join(" · ");
+    /* Two ways in, chosen by the learner: Skills (photos and videos, the topic's S criteria) and Knowledge (written or
+       out loud, its K and B criteria). Each part is submitted on its own, mapped to just its criteria. */
+    const G=window.eviaGuide,Sc=u[1].map(code).filter(c=>/^S/i.test(c)),KBc=u[1].map(code).filter(c=>/^[KB]/i.test(c));
+    const vids=media.filter(x=>x.kind==="video"),notes=media.filter(x=>x.kind==="audio");
+    const plural=(n,w)=>n+" "+w+(n===1?"":"s"),skillsN=photos.length+vids.length,knowN=(text?1:0)+notes.length;
+    const vidSum=vids.length?plural(vids.length,"video"):"",noteSum=notes.length?plural(notes.length,"voice note"):"";
+    const chip=m=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")+'<button type="button" data-remove-media="'+media.indexOf(m)+'" aria-label="Remove recording">×</button></span>';
+    const skillsCard=G&&Sc.length?card("sk-start","skills",skillsN?"Carry on with skills":"Skills",skillsN?[photos.length?plural(photos.length,"photo"):"",vidSum].filter(Boolean).join(" · ")+" so far":"Photos and videos of you doing the job · "+Sc.length+" skill"+(Sc.length===1?"":"s"),"cx-skills"):"";
+    const knowCard=G&&KBc.length?card("kn-start","knowledge",knowN?"Carry on with knowledge":"Knowledge",knowN?[text?plural(text.split(/\s+/).length,"word"):"",noteSum].filter(Boolean).join(" · ")+" so far":"Write it or say it in a voice note · "+KBc.length+" to explain","cx-know"):"";
     $("#page-title").textContent=u[0];
     $("#screen").innerHTML='<div class="evidence-pack-page">'+
-      '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
+      '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Choose how you show it. <strong>Skills</strong>: photos and videos of you doing the job. <strong>Knowledge</strong>: what you know, written or said out loud.</p></div>'+
         '<div class="ev-modes">'+
         (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up",(assessor?"Just what your assessor still needs: ":"Just what this topic still needs: ")+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
-        (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"A list of photos to take, in any order"):"")+
-        card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Drop in as much or as little as you like, any day. Saved as one pack.","fr-start")+
-        (window.eviaRecordings&&window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
+        skillsCard+knowCard+
         '</div>'+
-      (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
+      /* What's in progress for each part, each with its own Submit. */
+      (skillsN?'<section class="evidence-section fr-progress cx-progress"><div class="evidence-section-title">SKILLS IN PROGRESS</div>'+
         '<div class="evidence-thumbs" id="evidence-photos"></div>'+
-        (media.length?'<div class="ev-media-chips">'+media.map((m,i)=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")+'<button type="button" data-remove-media="'+i+'" aria-label="Remove recording">×</button></span>').join("")+'</div>':"")+
-        '<p class="fr-progress-sum">'+[photos.length+' photo'+(photos.length===1?"":"s"),mediaSum,text?text.split(/\s+/).length+' words written':(media.length?"":'no write-up yet')].filter(Boolean).join(" · ")+'</p>'+
+        (vids.length?'<div class="ev-media-chips">'+vids.map(m=>chip(m)).join("")+'</div>':"")+
+        '<p class="fr-progress-sum">'+[photos.length?photos.length+' photo'+(photos.length===1?"":"s"):"",vidSum].filter(Boolean).join(" · ")+(Sc.length?' · '+esc(Sc.join(", ")):"")+'</p>'+
+        '<div class="pack-actions fr-actions"><button class="primary" id="submit-skills">Submit skills to portfolio</button></div></section>':"")+
+      (knowN?'<section class="evidence-section fr-progress cx-progress"><div class="evidence-section-title">KNOWLEDGE IN PROGRESS</div>'+
+        (notes.length?'<div class="ev-media-chips">'+notes.map(m=>chip(m)).join("")+'</div>':"")+
+        '<p class="fr-progress-sum">'+[text?text.split(/\s+/).length+' words written':"",noteSum].filter(Boolean).join(" · ")+(KBc.length?' · '+esc(KBc.join(", ")):"")+'</p>'+
         (text?'<p class="fr-progress-text">'+esc(text.length>220?text.slice(0,220).replace(/\s+\S*$/,"")+"…":text)+'</p>':"")+
-        '<div class="pack-actions fr-actions"><button class="primary" id="submit-evidence" '+(ready?"":"disabled")+'>Submit to Portfolio</button></div>'+
-        '<p class="submit-hint">'+(ready?"Ready to submit. Photos, a write-up, or both: whatever shows the job.":"Add a photo or a write-up to submit.")+'</p></section>':"")+
+        '<div class="pack-actions fr-actions"><button class="primary" id="submit-knowledge">Submit knowledge to portfolio</button></div></section>':"")+
       (window.eviaStrength?'<button type="button" class="st-how" id="st-how">How to build a strong portfolio ›</button>':"")+
       '</div>';
 
@@ -175,31 +186,26 @@
     };
     const photoSrc=async p=>{try{const rec=p&&p.id?await idbGet(p.id):null;return rec?URL.createObjectURL(rec.blob):(p&&p.src)||""}catch(_){return ""}};
     const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,addMedia,photoSrc,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
-    const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}})));
-    const fr=$("#fr-start");if(fr)fr.onclick=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}window.eviaGuide.free(ctx)};
-    const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
+    ctx.submitPart=async part=>{try{await submitPart(pack,part)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}};
+    const clearCatch=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}};
+    const sk=$("#sk-start");if(sk)sk.onclick=()=>{clearCatch();G.skills(ctx)};
+    const kn=$("#kn-start");if(kn)kn.onclick=()=>{clearCatch();G.knowledge(ctx)};
     /* Catch up on an empty pack makes a pack just for the missing KSBs; added to a pack in progress, the pack keeps the unit's. */
     const cu=$("#cu-start");if(cu)cu.onclick=()=>{const empty=!photos.length&&!text&&!media.length;if(empty)pack.onlyKsbs=missing.map(x=>x.code);savePack(pack);
       window.eviaGuide.catchUp(Object.assign({},ctx,{missing,assessor,done:()=>renderPack(pack)}))};
     document.querySelectorAll("[data-remove-media]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.removeMedia,m=(pack.media||[])[i];if(!m||!confirm("Remove this recording?"))return;await idbDelete(m.id);pack.media.splice(i,1);await savePack(pack);renderPack(pack)});
     const how=$("#st-how");if(how)how.onclick=()=>window.eviaStrength.guide();
     let submitting=false;
-    if($("#submit-evidence"))$("#submit-evidence").onclick=async()=>{
-      if(submitting)return;
-      submitting=true;
-      const btn=$("#submit-evidence");
-      if(btn){btn.disabled=true;btn.textContent="Saving to Portfolio…";}
-      try{await submitPack(pack)}
-      catch(err){
-        console.error("Evia evidence submission failed",err);
-        submitting=false;
-        if(btn){btn.disabled=false;btn.textContent="Submit to Portfolio";}
-        alert("Evia could not save this evidence to your portfolio. Please try again.");
-      }
-    };
-    if(started)renderPhotos(pack);
+    ["skills","knowledge"].forEach(part=>{const btn=$("#submit-"+part);if(!btn)return;const label=btn.textContent;
+      btn.onclick=async()=>{
+        if(submitting)return;submitting=true;btn.disabled=true;btn.textContent="Saving to Portfolio…";
+        try{await submitPart(pack,part)}
+        catch(err){console.error("Evia evidence submission failed",err);submitting=false;btn.disabled=false;btn.textContent=label;alert("Evia could not save this evidence to your portfolio. Please try again.")}
+      }});
+    if(photos.length)renderPhotos(pack);
     if(window.eviaSavedTiles)window.eviaSavedTiles(u[0],document.querySelector(".evidence-pack-page"));
-    if(openAt){const at=openAt;openAt=null;window.eviaGuide.free(ctx,at)}
+    /* Evia's coach: "photos" opens Skills, "write" opens Knowledge. */
+    if(openAt){const at=openAt;openAt=null;if(at==="photos"&&Sc.length)G.skills(ctx);else G.knowledge(ctx)}
   }
 
   async function migrateSubmittedEvidence(){
@@ -274,6 +280,30 @@
     /* Back to the same unit: the new pack shows as the first saved tile. */
     window.openUnit(unit);
     if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Evidence saved"),300);
+    return true;
+  }
+
+  /* One part of the pack to the portfolio: Skills (photos and videos, mapped to the topic's S criteria) or Knowledge
+     (the write-up and voice notes, mapped to its K and B criteria). The other part stays in progress. */
+  async function submitPart(pack,part){
+    const u=data().u[unit],skills=part==="skills",mine=m=>skills?m.kind==="video":m.kind==="audio";
+    const photos=skills?(pack.photos||[]).filter(p=>p&&p.id):[],media=(pack.media||[]).filter(mine),text=skills?"":String(pack.write||"").trim();
+    if(!photos.length&&!media.length&&!text)return false;
+    const copy=async(id,prefix)=>{const rec=await idbGet(id);if(!rec||!rec.blob)throw new Error("Evidence file could not be loaded");
+      const permanentId=prefix+Date.now()+"-"+Math.random().toString(36).slice(2);await idbPut({id:permanentId,blob:rec.blob,addedAt:rec.addedAt||new Date().toISOString()});return permanentId};
+    const photoIds=[];for(const p of photos)photoIds.push(await copy(p.id,"submitted-"));
+    const out=[];for(const m of media)out.push({id:await copy(m.id,"submitted-media-"),kind:m.kind,mime:m.mime,secs:m.secs||0,transcript:m.transcript||""});
+    const want=c=>skills?/^S/i.test(c):/^[KB]/i.test(c);
+    const ksbs=[...new Set(u[1].map(code).concat(pack.extraKsbs||[]).filter(want))];
+    window.eviaData.put("evidence",{id:Date.now()+"-"+Math.random().toString(36).slice(2,8),course,unit:u[0],kind:part,text,ksbs,photoIds,media:out,
+      photoTakenAt:photos.map(p=>p.takenAt||null),guidedAreas:[]});
+    /* What was sent leaves the pack; the other part carries on. */
+    for(const p of photos)await idbDelete(p.id);for(const m of media)await idbDelete(m.id);
+    if(skills)pack.photos=[];else pack.write="";
+    pack.media=(pack.media||[]).filter(m=>!mine(m));
+    if(!(pack.photos||[]).length&&!(pack.media||[]).length&&!String(pack.write||"").trim())await removePack();else await savePack(pack);
+    window.openUnit(unit);
+    if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast((skills?"Skills":"Knowledge")+" evidence saved"),300);
     return true;
   }
 

@@ -73,7 +73,7 @@
       if(i>0){doc.addPage();y=M} /* each evidence occasion starts on its own page */
       starts.push(doc.getNumberOfPages());
       need(20);
-      label("Evidence "+(i+1)+" of "+entries.length+" · "+ukDate(entryTime(e)||e.d),M,y+3);y+=5;
+      label("Evidence "+(i+1)+" of "+entries.length+(e.kind?" · "+(e.kind==="skills"?"Skills":"Knowledge"):"")+" · "+ukDate(entryTime(e)||e.d),M,y+3);y+=5;
       /* When it happened, as Evia recorded it: submitted to the portfolio, the photos taken, and any change since. */
       {const at=entryTime(e),shot=(e.photoTimes||[]).map(t=>typeof t==="number"?t:Date.parse(t||"")).filter(t=>t&&!isNaN(t)).sort((a,b)=>a-b),
         ed=Date.parse(e.updatedAt||""),facts=[];
