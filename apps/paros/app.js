@@ -410,16 +410,20 @@ async function reasons(r) {
   (marks || []).forEach((m) => { if (m.here || !m.reason) return; const p = root.querySelector('[data-att="' + m.id + '"] .pill.bad'); if (p) { p.textContent = "Off · " + m.reason; p.className = "pill warn"; } });
 }
 
-/* The same account shows the same thing on every device: what changed (hours confirmed elsewhere, a day off booked
-   or cancelled) comes in when Paros is come back to and every minute while it's on screen, but never under the
-   employer's fingers: with a sheet open or something being typed, it waits. */
-let refreshedAt = Date.now();
-function refresh(gap) {
-  if (!who || document.hidden || !navigator.onLine || Date.now() - refreshedAt < gap) return;
-  if (document.querySelector(".sheet, dialog[open]") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) return;
-  refreshedAt = Date.now(); start(false);
+/* Nothing ever reloads. What changes elsewhere (hours logged in Evia, a day off booked, the college's changes) shows
+   by itself: Paros checks quietly every minute, and on coming back to it, and redraws only if something has actually
+   changed, keeping its place. Never while it's being used: not with a sheet open or something being typed. Then it
+   waits, and shows it as soon as that's done. */
+let checking = false, waiting = false;
+const untouched = () => !document.querySelector(".sheet, dialog[open]") && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+async function quietCheck() {
+  if (checking || !who || document.hidden || !navigator.onLine) return;
+  checking = true;
+  try { const now = await rpc("paros_learners"); if (JSON.stringify(now) !== JSON.stringify(rows)) { rows = now; details = {}; write("paros-cache", { who, rows, at: new Date().toISOString() }); waiting = true; } }
+  catch (_) { /* try again next time */ } finally { checking = false; }
+  showWaiting();
 }
-const comeBack = () => refresh(15000);
-document.addEventListener("visibilitychange", comeBack); addEventListener("focus", comeBack); addEventListener("pageshow", (e) => { if (e.persisted) comeBack(); });
-setInterval(() => refresh(55000), 60000);
+function showWaiting() { if (!waiting || !untouched()) return; waiting = false; const y = window.scrollY; draw(); requestAnimationFrame(() => window.scrollTo(0, y)); }
+setInterval(quietCheck, 60000); setInterval(showWaiting, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) quietCheck(); });
 boot().catch((e) => { root.innerHTML = '<div class="auth"><p class="err">' + esc(e.message) + '</p></div>'; });

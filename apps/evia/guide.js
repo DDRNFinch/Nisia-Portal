@@ -279,23 +279,23 @@
   }
 
   /* ---------- The photo list ----------
-     Evia lists what's worth a photo; the learner takes them in any order, as many as they like, and finishes when they
-     want. They can write it up whenever they like (Evia's questions, as before). If they finish with no write-up,
-     Evia shows each photo in turn and asks what it shows, with what to mention, and the answers become the write-up.
-     Captions are kept in the pack (pack.guide.captions, by photo id). */
+     Evia lists what's worth a photo; the learner takes them in any order, as many as they like. Then Complete
+     write-ups: Evia shows each photo in turn and asks what it shows, with what to mention and the topic's KSBs, and
+     the answers become the write-up, numbered to match the photos. Captions are kept in the pack (pack.guide.captions,
+     by photo id) and go with the evidence, so the PDF shows each photo with its words beside it. */
   function shots(ctx){
     cur="guide";
     const P=plan(ctx),g=load(ctx.pack,"guide"),n=(ctx.pack.photos||[]).length,w=words(ctx.pack.write)+answeredIn(g,P.asks);
     const canCam=window.eviaCamera&&window.eviaCamera.supported();
     const list=P.photos.map(p=>'<li><strong>'+esc(p.say)+'</strong>'+(p.hint?'<small>'+esc(p.hint)+'</small>':"")+'</li>').join("");
-    const el=sheet('<p class="eg-say">'+(n?"You’ve got <strong>"+plural(n,"photo")+"</strong> so far. Add more, or finish whenever you’re ready.":"Here’s what’s worth a photo. Take them in any order, as many as you like, and finish whenever you want.")+'</p>'+
+    /* Take the photos first, then Complete write-ups: Evia goes through them one at a time and asks what each shows. */
+    const el=sheet('<p class="eg-say">'+(n?"You’ve got <strong>"+plural(n,"photo")+"</strong>. Take more, or press <strong>Complete write-ups</strong> and I’ll go through them with you, one at a time.":"Here’s what’s worth a photo. Take them in any order, as many as you like. Then I’ll go through each photo with you and you say what it shows.")+'</p>'+
       '<ul class="eg-shots">'+list+'</ul>'+
       (n?'<div class="eg-thumbs" id="eg-thumbs"></div>':"")+
-      '<p class="eg-small">Everything saves as you go. You can write it up now, or I’ll help you at the end.</p>',
-      [{label:canCam?"Take photos":"Add photos",primary:!n,run:()=>canCam?shotCamera(ctx,P):gallery(ctx,()=>shots(ctx))},
+      '<p class="eg-small">Everything saves as you go, so you can stop and carry on later.</p>',
+      [{label:canCam?(n?"Take more photos":"Take photos"):"Add photos",primary:!n,run:()=>canCam?shotCamera(ctx,P):gallery(ctx,()=>shots(ctx))},
        canCam?{label:"Add from gallery",run:()=>gallery(ctx,()=>shots(ctx))}:null,
-       n||w?{label:w?"Carry on writing":"Write it up now",run:()=>ask(ctx,P,firstGap(P,g))}:null,
-       n||w?{label:"I’m finished",primary:true,run:()=>finish(ctx,P)}:null].filter(Boolean),
+       n?{label:"Complete write-ups",primary:true,run:()=>describe(ctx,P,0)}:null].filter(Boolean),
       {kicker:"EVIA · PHOTO LIST",title:ctx.unitName,wide:true});
     closeRefreshes(ctx);
     if(n&&ctx.photoSrc){const box=el.querySelector("#eg-thumbs");Promise.all((ctx.pack.photos||[]).slice(-8).map(ctx.photoSrc)).then(srcs=>{if(box)box.innerHTML=srcs.filter(Boolean).map(s=>'<img src="'+s+'" alt="">').join("")})}
@@ -307,13 +307,6 @@
       setTimeout(()=>shots(ctx),60);
     }});
   }
-  /* Finished: a write-up already (theirs or from Evia's questions)? Use it. If not, describe each photo. */
-  function finish(ctx,P){
-    const g=ctx.pack.guide,text=compile(ctx,P);
-    if(text){ctx.pack.write=text;g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();return}
-    if(!(ctx.pack.photos||[]).length){close();ctx.done();return}
-    describe(ctx,P,0);
-  }
   function describe(ctx,P,i){
     const g=ctx.pack.guide;g.captions=g.captions||{};
     const ph=ctx.pack.photos||[],n=ph.length;
@@ -321,24 +314,35 @@
     const p=ph[i],terms=split(ctx.prompts&&ctx.prompts.writeup).slice(0,8);
     const el=sheet('<div class="eg-progress" aria-hidden="true"><i style="width:'+Math.round((i+1)/n*100)+'%"></i></div>'+
       '<div class="eg-photo" id="eg-photo"></div>'+
-      '<p class="eg-say eg-q">What does this photo show?</p>'+
+      '<p class="eg-say eg-q">Photo '+(i+1)+': what does it show?</p>'+
       '<p class="eg-small">What you were doing, how, and why. A sentence or two is fine.</p>'+
+      ksbBox(ctx)+
       (terms.length?'<div class="eg-mention"><span class="eg-mention-h">Things to mention</span>'+terms.map(t=>'<span class="eg-chip" data-t="'+esc(cap(t))+'">'+esc(cap(t))+'</span>').join("")+'</div>':"")+
       '<textarea class="eg-text" id="eg-text" data-otj="'+esc(ctx.unitName)+'" rows="4" placeholder="This photo shows…" aria-label="What this photo shows">'+esc(g.captions[p.id]||"")+'</textarea>',
       [{label:i===n-1?"Done":"Next photo",primary:true,run:()=>{save();describe(ctx,P,i+1)}}],
-      {kicker:"EVIA · PHOTO "+(i+1)+" OF "+n,title:"Your photos",back:i>0?()=>{save();describe(ctx,P,i-1)}:()=>{save();shots(ctx)},keep:true,full:true,compact:true});
+      {kicker:"EVIA · PHOTO "+(i+1)+" OF "+n,title:"Write-ups",back:i>0?()=>{save();describe(ctx,P,i-1)}:()=>{save();shots(ctx)},keep:true,full:true,compact:true});
     if(ctx.photoSrc)ctx.photoSrc(p).then(src=>{const b=el.querySelector("#eg-photo");if(b&&src)b.innerHTML='<img src="'+src+'" alt="Photo '+(i+1)+'">'});
     const box=el.querySelector("#eg-text"),chips=[...el.querySelectorAll(".eg-chip")];
     const light=()=>{const t=box.value.toLowerCase();chips.forEach(c=>c.classList.toggle("on",!!(window.eviaTermMatched?window.eviaTermMatched(c.dataset.t,t):t.includes(c.dataset.t.toLowerCase()))))};
     function save(){g.captions[p.id]=box.value.trim();ctx.save()}
     let t=null;box.oninput=()=>{light();clearTimeout(t);t=setTimeout(save,400)};light();
   }
+  /* The topic's KSBs, in plain words, to prompt what each photo could show. */
+  function ksbBox(ctx){
+    const items=(ctx.ksbs||[]).map(k=>{const c=String(k).split("|")[0].trim(),t=String(k).split("|").slice(1).join("|");
+      const line=/^K/i.test(c)?cap(kLine(t)):(skillLine(k)||cap(String(t).split(/[.:]/)[0]));return line?'<li><b>'+esc(c)+'</b> '+esc(line)+'</li>':""}).filter(Boolean);
+    return items.length?'<details class="eg-ksbs"><summary>KSBs this topic covers</summary><ul>'+items.join("")+'</ul></details>':"";
+  }
+  /* Each photo's words, numbered to match the photos on the PDF ("Photo 1: …"). */
+  const numbered=(ctx,g)=>(ctx.pack.photos||[]).map((p,i)=>{const t=String(g.captions[p.id]||"").trim();return t?"Photo "+(i+1)+": "+t:""}).filter(Boolean).join("\n\n");
   function describeDone(ctx,P){
-    const g=ctx.pack.guide,text=(ctx.pack.photos||[]).map(p=>String(g.captions[p.id]||"").trim()).filter(Boolean).join("\n\n");
+    const g=ctx.pack.guide,text=numbered(ctx,g);
     if(!text){sheet('<p class="eg-say">No descriptions yet, so there’s no write-up. Your photos are saved: you can come back to me any time.</p>',[{label:"Close",primary:true,run:()=>{close();ctx.done()}}],{kicker:"EVIA · PHOTO LIST",title:ctx.unitName});return}
-    const el=sheet('<p class="eg-say">Here’s your write-up, from what you said about your photos. Change anything you like.</p>'+
+    const el=sheet('<p class="eg-say">Here’s your write-up, numbered to match your photos. Each photo goes on the PDF with what you said beside it.</p>'+
       '<textarea class="eg-text eg-final" id="eg-final" rows="12" aria-label="Your write-up">'+esc(text)+'</textarea>',
-      [{label:"Use this write-up",primary:true,run:()=>{ctx.pack.write=el.querySelector("#eg-final").value.trim();g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();
+      [{label:"Use this write-up",primary:true,run:()=>{const v=el.querySelector("#eg-final").value.trim();ctx.pack.write=v;
+        /* Changed by hand: the PDF shows it as written, not photo by photo. */
+        g.captionsEdited=v!==text;g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();
         if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Write-up added"),250)}}],
       {kicker:"EVIA · PHOTO LIST",title:"Your write-up",back:()=>describe(ctx,P,(ctx.pack.photos||[]).length-1),keep:true,full:true,compact:true});
   }

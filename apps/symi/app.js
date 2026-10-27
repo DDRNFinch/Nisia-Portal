@@ -1597,8 +1597,12 @@
   document.addEventListener('fullscreenchange',updateFullscreenButton);
   document.addEventListener('webkitfullscreenchange',updateFullscreenButton);
 
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){reconcileEndedSessions();render();}});
-  window.addEventListener('focus',()=>{reconcileEndedSessions();if(state.view==='registers')render();});
+  /* Coming back to Symi brings the screen up to date, but never over what the tutor is part-way through: not with
+     something open, being typed, or filled in and not yet saved. */
+  const untouched=()=>!document.querySelector('dialog[open],[role="dialog"],.samos-modal,.sy-sheet')&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))&&
+    ![...document.querySelectorAll('main input,main textarea,main select,#samosContent input,#samosContent textarea')].some(x=>x.type==='checkbox'||x.type==='radio'?x.checked!==x.defaultChecked:x.tagName==='SELECT'?[...x.options].some(o=>o.selected!==o.defaultSelected):x.value!==x.defaultValue);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){reconcileEndedSessions();if(untouched())render();}});
+  window.addEventListener('focus',()=>{reconcileEndedSessions();if(state.view==='registers'&&untouched())render();});
 
 
   /* PWA update/cache reset on every build. */

@@ -83,9 +83,25 @@
         if(facts.length){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...muted);
           doc.splitTextToSize(pdfText(facts.join("   ·   ")),CW).forEach(l=>{doc.text(l,M,y+3);y+=4.2});}
         y+=2.5}
+      /* Written up photo by photo (Complete write-ups): each photo on the left, numbered, with what the learner said about
+         it on the right, so the two are read together. */
+      const caps=Array.isArray(e.captions)&&e.captions.some(Boolean)?e.captions:null;
+      if(caps)for(let k=0;k<photos.length;k++){
+        const tile=58,colX=M+tile+6,colW=CW-tile-6,size=10,lh=size*.3528*1.45;
+        doc.setFont("helvetica","normal");doc.setFontSize(size);
+        const lines=doc.splitTextToSize(pdfText(caps[k]||""),colW);
+        need(Math.max(tile,6+lines.length*lh)+5);
+        const t=await squareTile(photos[k]);
+        if(t)try{doc.addImage(t,"JPEG",M,y,tile,tile,undefined,"FAST");doc.setDrawColor(234,236,240);doc.setLineWidth(.25);doc.roundedRect(M,y,tile,tile,2.5,2.5,"S")}catch(err){console.warn("Evia PDF photo skipped",err)}
+        label("Photo "+(k+1),colX,y+3.5);
+        doc.setFont("helvetica","normal");doc.setFontSize(size);doc.setTextColor(52,64,84);
+        let ty=y+9;lines.forEach(l=>{if(ty>BOTTOM){doc.addPage();ty=M+4}doc.text(l,colX,ty);ty+=lh});
+        y=Math.max(y+tile,ty)+6;
+        if(k<photos.length-1){doc.setDrawColor(238,240,243);doc.setLineWidth(.3);doc.line(M,y-3,W-M,y-3)}
+      }
       // Photos: four square tiles per row, each cropped from the centre to fill its tile.
       const cols=4,gap=3,tile=(CW-gap*(cols-1))/cols;
-      for(let p=0;p<photos.length;p+=cols){
+      for(let p=0;p<(caps?0:photos.length);p+=cols){
         const row=[];
         for(const src of photos.slice(p,p+cols)){const t=await squareTile(src);if(t)row.push(t)}
         if(!row.length)continue;
@@ -99,7 +115,7 @@
       y+=1;
       /* The write-up, then what was said in any recordings (the files themselves stay in Evia and Evia Portal). */
       const recs=(e.media||[]),recNote=recs.length?recs.map(m=>(m.kind==="video"?"Video":"Voice note")+(m.secs?" "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")).join(", "):"";
-      const blocks=[e.w?[e.wTitle||"Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
+      const blocks=[e.w&&!caps?[e.wTitle||"Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
       for(const [title,body] of blocks){
         /* The write-up sits in a tile with a light grey outline; a long one carries on in a new tile on the next page. */
         need(14);label(title,M,y+3);y+=5.5;

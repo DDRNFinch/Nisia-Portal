@@ -3361,3 +3361,10 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .er-wrap .th-btns{display:flex;flex-direction:column;gap:8px}
 .er-plain{min-height:44px;border:0;background:none;font:inherit;font-weight:700;font-size:14.5px;color:var(--ui-muted,#475467);cursor:pointer}
 .er-plain:disabled{opacity:.5}
+
+/* Complete write-ups: the topic's KSBs, folded away under each photo's question */
+.eg-ksbs{margin:6px 0 10px;border:1px solid var(--ui-line,#e9edf2);border-radius:12px;padding:8px 12px;background:#fff}
+.eg-ksbs summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ui-muted,#667085)}
+.eg-ksbs ul{list-style:none;margin:8px 0 2px;padding:0;display:grid;gap:5px}
+.eg-ksbs li{font-size:13px;line-height:1.45;color:var(--ui-text,#344054)}
+.eg-ksbs li b{display:inline-block;min-width:28px;margin-right:6px;padding:0 6px;border-radius:999px;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-size:11px;text-align:center}

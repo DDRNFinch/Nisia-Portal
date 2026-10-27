@@ -1322,6 +1322,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p9.goto(url);await p9.waitForTimeout(2500);
       await p9.evaluate(()=>{document.getElementById("app").classList.remove("welcome-app-hidden");const w=document.getElementById("welcome-screen");if(w)w.remove()});
       const cv={};
+      /* Evia now learns about the class as it opens, so its check-in pop-up and the class quiz may already be up: closed, as a learner would. */
+      await p9.waitForTimeout(1500);await p9.evaluate(()=>{const pop=document.getElementById("hp-checkin");if(pop)pop.querySelector("[data-no]").click();const x=document.querySelector("#cq-view .cq-x");if(x)x.click()});await p9.waitForTimeout(400);
       await p9.evaluate(()=>window.chat());await p9.waitForTimeout(5000);
       cv.first=await p9.evaluate(()=>!!document.querySelector('.chat-sheet .ui-dock [data-quick="checkin"]'));
       if(d9)await p9.locator(".ui-dock").screenshot({path:d9+"/checkin-action.png"}).catch(()=>{});

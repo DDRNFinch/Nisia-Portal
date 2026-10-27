@@ -1,6 +1,6 @@
 /* A connected learner on two devices (a phone and a computer) sees the same work on both: what one saves comes down
-   to the other when it's opened or brought back to the front, merged so nothing from either is lost, and the screen
-   reloads to show it (back on the same page). Evia Portal's evia_records is stood in for here (the test server has no
+   to the other by itself (on opening, coming back, and every 30 seconds), merged so nothing from either is lost, and
+   is shown where the learner is, without Evia ever reloading. Evia Portal's evia_records is stood in for here (the test server has no
    tables), shared by both devices.   Run: node tests/e2e/two-devices.e2e.mjs */
 import { check, site, LEE, errors, app, finish, session } from "./harness.mjs";
 const ENR = "0e2e0000-0000-0000-0000-0000000000e1";
@@ -38,7 +38,7 @@ const pack = (id, unit) => ({ id, c: "bricklayer", u: unit, w: "Did the job", k:
 const count = (pg) => pg.evaluate(() => evidence.filter((e) => e.c === "bricklayer").length);
 const ids = (pg) => pg.evaluate(() => evidence.map((e) => e.id).sort().join());
 const stored = () => { const r = rows.get(ENR + "|store|evia7-evidence"); return r ? JSON.parse(r.data.raw).map((e) => e.id).sort().join() : ""; };
-const until = async (fn, ms = 20000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 400)); } return false; };
+const until = async (fn, ms = 20000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await Promise.resolve().then(fn).catch(() => false)) return true; await new Promise((r) => setTimeout(r, 400)); } return false; };
 try {
   /* The computer was connected earlier, with one piece of evidence. */
   const laptop = await device("laptop", [pack("A", "Mixing mortar")]);
@@ -48,50 +48,47 @@ try {
   const phone = await device("phone", [pack("A", "Mixing mortar"), pack("BB", "Jointing Styles")]);
   const up2 = await until(() => stored() === "A,BB");
   check("The phone's newer work goes up, merged with what's there (nothing lost)", up2, stored());
-  /* Back on the computer, on the Review page: it picks the phone's work up, reloads and stays on Review. */
+  /* Neither device ever reloads: a mark left on each page must still be there at the end. */
+  await laptop.evaluate(() => { window.__still = 1; }); await phone.evaluate(() => { window.__still = 1; });
+  const nav = (pg) => pg.evaluate(() => { dispatchEvent(new Event("focus")); });
+  /* The computer, on Review: the phone's work arrives and Review shows it, without a reload. */
   await laptop.evaluate(() => nav("learning")); await laptop.waitForTimeout(400);
-  await laptop.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const got = await until(async () => { try { return (await count(laptop)) === 2; } catch (_) { return false; } });
-  await laptop.waitForTimeout(1200);
-  const where = await laptop.evaluate(() => screen).catch(() => "");
-  check("Opening the computer again brings the phone's work down: the same evidence on both, back on the same page", got && (await ids(laptop)) === "A,BB" && where === "learning", JSON.stringify({ ids: await ids(laptop).catch(() => ""), where }));
-  /* The computer adds a piece; the phone gets it when it's opened. */
-  await laptop.evaluate(() => { const D = window.eviaData; D.put("evidence", { id: "CCC", course: "bricklayer", unit: "Repair brick walling", text: "Replaced a brick" }); });
+  await nav(laptop);
+  const got = await until(async () => (await count(laptop)) === 2);
+  const where = await laptop.evaluate(() => screen);
+  check("The phone's work shows on the computer by itself, without reloading, on the same page", got && (await ids(laptop)) === "A,BB" && where === "learning" && await laptop.evaluate(() => window.__still === 1), JSON.stringify({ ids: await ids(laptop), where }));
+  /* The other way, on the 30-second check while the phone is just being looked at. */
+  await laptop.evaluate(() => { window.eviaData.put("evidence", { id: "CCC", course: "bricklayer", unit: "Repair brick walling", text: "Replaced a brick" }); });
   const up3 = await until(() => stored() === "A,BB,CCC");
-  await phone.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const got2 = await until(async () => { try { return (await count(phone)) === 3; } catch (_) { return false; } });
-  check("…and the other way: what's added on the computer appears on the phone", up3 && got2, JSON.stringify({ stored: stored(), phone: await ids(phone).catch(() => "") }));
-  /* Not in the middle of something: with a sheet open, it waits. */
-  await phone.evaluate(() => { const o = document.createElement("div"); o.className = "th-sheet-wrap"; o.id = "busy"; document.body.appendChild(o); });
+  const got2 = await until(async () => (await count(phone)) === 3, 40000);
+  check("…and the computer's work shows on the phone by itself (the 30-second check), without reloading", up3 && got2 && await phone.evaluate(() => window.__still === 1), JSON.stringify({ up3, got2, phone: await ids(phone) }));
+  /* With a sheet open: the work is kept, and the screen is redrawn once it's closed, never under the learner's fingers. */
+  await phone.evaluate(() => { nav("learning"); const o = document.createElement("div"); o.className = "th-sheet-wrap"; o.id = "busy"; document.body.appendChild(o); window.__drawn = 0; const r = render; window.render = render = function () { window.__drawn++; window.__why = (window.__why || "") + " || " + new Error().stack.split("\n").slice(2, 5).join(" < "); return r.apply(this, arguments); }; });
+  await phone.waitForTimeout(1200); await phone.evaluate(() => { window.__drawn = 0; window.__why = ""; });
   await laptop.evaluate(() => { window.eviaData.put("evidence", { id: "DDDD", course: "bricklayer", unit: "Basic Brick wall", text: "A wall" }); });
   await until(() => stored().includes("DDDD"));
-  await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(2500);
-  const waited = await phone.evaluate(() => !!document.getElementById("busy")).catch(() => false);
-  await phone.evaluate(() => { document.getElementById("busy").remove(); window.__t = 1; });
-  await phone.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const after = await until(async () => { try { return (await count(phone)) === 4; } catch (_) { return false; } }, 15000);
-  check("It never reloads in the middle of something (a sheet open): it waits, then shows the new work", waited && after, JSON.stringify({ waited, after }));
-  /* While the learner is looking at Evia, it never reloads: not for the other device's counters (usage, minutes, the
-     college's data it fetches itself), and not for new work arriving on the 30-second check either. That waits until
-     they come back to Evia. */
-  await phone.evaluate(() => { window.__still = 1; });
+  await nav(phone); await until(async () => (await count(phone)) === 4); await phone.waitForTimeout(2000);
+  const held = await phone.evaluate(() => ({ kept: evidence.length === 4, drawn: window.__drawn, sheet: !!document.getElementById("busy"), why: window.__why }));
+  await phone.evaluate(() => document.getElementById("busy").remove()); await phone.waitForTimeout(2500);
+  const drawnAfter = await phone.evaluate(() => window.__drawn);
+  check("With something open, the work is kept straight away but the screen waits, and is redrawn once it's closed", held.kept && held.drawn === 0 && held.sheet && drawnAfter >= 1, JSON.stringify({ held, drawnAfter }));
+  /* The other device's counters and the college's data it fetched never come down. */
   await laptop.evaluate(() => { localStorage.setItem("evia7-usage", JSON.stringify({ n: Date.now() })); localStorage.setItem("evia7-nisia-attendance", JSON.stringify([{ id: "x", at: Date.now() }])); return window.eviaNisia.sync(); });
-  await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(3000);
-  const noise = await phone.evaluate(() => window.__still === 1 && !/"n"/.test(localStorage.getItem("evia7-usage") || ""));
-  await laptop.evaluate(() => { window.eviaData.put("evidence", { id: "EEEEE", course: "bricklayer", unit: "Basic Brick wall", text: "Another wall" }); });
-  await until(() => stored().includes("EEEEE"));
-  await phone.waitForTimeout(32000);
-  const stayed = await phone.evaluate(() => window.__still === 1).catch(() => false);
-  await phone.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const shown = await until(async () => { try { return (await count(phone)) === 5; } catch (_) { return false; } }, 15000);
-  check("It never reloads while you're looking at it: the other device's counters don't come down at all, and new work waits until you come back to Evia", noise && stayed && shown, JSON.stringify({ noise, stayed, shown }));
+  await laptop.waitForTimeout(1500); await nav(phone); await phone.waitForTimeout(3000);
+  const noise = await phone.evaluate(() => !/"n"/.test(localStorage.getItem("evia7-usage") || "") && !/"x"/.test(localStorage.getItem("evia7-nisia-attendance") || ""));
+  check("The other device's counters and college data never come down", noise, String(noise));
   /* Deleted on one device: it goes from the other too, and doesn't come back. */
   await phone.evaluate(() => { window.eviaData.remove ? window.eviaData.remove("evidence", "BB") : (evidence.splice(evidence.findIndex((e) => e.id === "BB"), 1), persist()); });
   await until(() => !stored().includes("BB"));
-  await laptop.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const gone = await until(async () => { try { return (await ids(laptop)) === "A,CCC,DDDD,EEEEE"; } catch (_) { return false; } });
-  await laptop.waitForTimeout(1500); await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(2500);
-  check("Deleting a piece on one device removes it from the other, and it stays deleted", gone && stored() === "A,CCC,DDDD,EEEEE" && (await ids(phone)) === "A,CCC,DDDD,EEEEE", JSON.stringify({ stored: stored(), laptop: await ids(laptop).catch(() => ""), phone: await ids(phone).catch(() => "") }));
+  await nav(laptop);
+  const gone = await until(async () => (await ids(laptop)) === "A,CCC,DDDD");
+  await laptop.waitForTimeout(1500); await nav(phone); await phone.waitForTimeout(2500);
+  check("Deleting a piece on one device removes it from the other, and it stays deleted", gone && stored() === "A,CCC,DDDD" && (await ids(phone)) === "A,CCC,DDDD", JSON.stringify({ stored: stored(), laptop: await ids(laptop), phone: await ids(phone) }));
+  /* A save on the computer after the phone's work arrived keeps it (Evia's memory was brought up to date too). */
+  await laptop.evaluate(() => { window.eviaData.put("hours", { minutes: 30, description: "Reading" }); });
+  await laptop.waitForTimeout(2500);
+  check("Saving on a device after the other's work arrived keeps that work (nothing is overwritten)", stored() === "A,CCC,DDDD" && (await ids(laptop)) === "A,CCC,DDDD", stored());
+  check("Neither device ever reloaded", await laptop.evaluate(() => window.__still === 1) && await phone.evaluate(() => window.__still === 1));
   check("No script errors", !errors.length, errors.join(" | "));
 } catch (e) { check("The test ran to the end", false, e.stack + "\nERRORS: " + errors.join(" | ")); }
 await finish();

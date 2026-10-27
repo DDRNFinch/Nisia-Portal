@@ -146,16 +146,27 @@ function openApp(name) {
     linkBox(link) +
     '<a class="btn primary wide" href="' + esc(link) + '" target="_blank" rel="noopener">Open ' + esc(name) + ' on this computer</a></div>');
 }
-/* The same account shows the same thing on every device: coming back to the tab brings the page up to date, and it
-   keeps itself up to date every minute while it's on screen. Never under someone's fingers: not with a window open
-   over it or while something's being typed. */
-const refreshPage = (gap) => {
-  if (document.hidden || !S.org || !S.data || Date.now() - S.data.at < gap || document.getElementById("modal")) return;
-  if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
-  S.data.at = 0; render();
-};
-document.addEventListener("visibilitychange", () => refreshPage(15000)); addEventListener("focus", () => refreshPage(15000));
-setInterval(() => refreshPage(55000), 60000);
+/* Nothing ever reloads. What someone does elsewhere (in Evia, Symi, Milos, Paros or another portal) shows by itself:
+   the portal checks quietly every minute, and on coming back to it, and redraws only if something has actually changed,
+   keeping its place on the page. Never while it's being used: not with a window open, something being typed, or a box
+   filled in and not yet saved. Then it waits, and shows it as soon as that's done. */
+const untouched = () => !document.getElementById("modal") && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) &&
+  ![...document.querySelectorAll("#main input, #main textarea, #main select")].some((x) => x.type === "checkbox" || x.type === "radio" ? x.checked !== x.defaultChecked
+    : x.tagName === "SELECT" ? [...x.options].some((o) => o.selected !== o.defaultSelected) : x.value !== x.defaultValue);
+const same = (a, b) => JSON.stringify(a, (k, v) => k === "at" ? undefined : v) === JSON.stringify(b, (k, v) => k === "at" ? undefined : v);
+let checking = false, waiting = false;
+async function quietCheck() {
+  if (checking || document.hidden || !S.org || !S.data || !navigator.onLine) return;
+  checking = true;
+  try { const was = S.data; await loadCollege(); if (!same(was, S.data)) waiting = true; } catch (_) { /* try again next time */ } finally { checking = false; }
+  showWaiting();
+}
+function showWaiting() {
+  if (!waiting || !untouched()) return;
+  waiting = false; const y = window.scrollY; render().then(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+}
+setInterval(quietCheck, 60000); setInterval(showWaiting, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) quietCheck(); });
 startUsage("portal", new URL(import.meta.url).searchParams.get("v") || "");
 function go(page, extra) {
   hit("page." + page);

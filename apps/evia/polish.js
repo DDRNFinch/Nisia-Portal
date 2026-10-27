@@ -175,7 +175,7 @@
     };
     const photoSrc=async p=>{try{const rec=p&&p.id?await idbGet(p.id):null;return rec?URL.createObjectURL(rec.blob):(p&&p.src)||""}catch(_){return ""}};
     const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,addMedia,photoSrc,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
-    const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}})));
+    const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>renderPack(pack)})));
     const fr=$("#fr-start");if(fr)fr.onclick=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}window.eviaGuide.free(ctx)};
     const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
     /* Catch up on an empty pack makes a pack just for the missing KSBs; added to a pack in progress, the pack keeps the unit's. */
@@ -266,7 +266,9 @@
       media.push({id:permanentId,kind:m.kind,mime:m.mime||rec.blob.type,secs:m.secs||0,transcript:m.transcript||""});
     }
     /* The unit's KSBs, plus any the learner is aiming for that they ticked as shown by this job. */
-    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,ksbs:[...new Set((pack.onlyKsbs&&pack.onlyKsbs.length?pack.onlyKsbs:u[1].map(code)).concat(pack.extraKsbs||[]))],photoIds,media,
+    /* Each photo's words from Complete write-ups, in photo order (the PDF puts them side by side). */
+    const g=pack.guide||{},caps=g.captions&&!g.captionsEdited?(pack.photos||[]).filter(p=>p&&p.id).map(p=>String(g.captions[p.id]||"").trim()):[];
+    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,captions:caps.some(Boolean)?caps:undefined,ksbs:[...new Set((pack.onlyKsbs&&pack.onlyKsbs.length?pack.onlyKsbs:u[1].map(code)).concat(pack.extraKsbs||[]))],photoIds,media,
       photoTakenAt:(pack.photos||[]).filter(p=>p&&p.id).map(p=>p.takenAt||null),
       /* Areas answered with guided Evia count in full towards the unit's strength (strength.js). */
       guidedAreas:window.eviaStrength?window.eviaStrength.guidedAreas(pack):[]});
