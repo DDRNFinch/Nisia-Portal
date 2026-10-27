@@ -63,7 +63,7 @@ function openSignIn() {
       if (!tutorOrgs().length) { layer.remove(); await signOut(); who = null; write(K.who, null); toast("That Evia Portal account isn’t a tutor"); return chip(); }
       layer.remove(); signedIn = true; chip();
       write(BACKUP_AT, null); await syncBackup();
-      await pullLearners(true); await pullClasses(); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
+      await pullLearners(true); await pullClasses(); pullEarlier().catch(() => {}); sendFinished(); pullAbsences().catch(() => {}); prepareAhead();
     } catch (e) { layer.remove(); toast("Couldn’t reach your college: " + e.message); }
   } }).catch((e) => { layer.querySelector(".sn-auth-root").innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
 }
@@ -97,6 +97,38 @@ function chip() {
   b.innerHTML = '<i aria-hidden="true"></i>' + (signedIn ? "Evia Portal" : "Connect to Evia Portal");
   b.onclick = () => (signedIn ? account() : openSignIn());
 }
+
+/* ---------- Earlier attendance (from before Evia Portal) ----------
+   One copy, in Evia Portal: Symi shows what's there (typed in on the portal, or brought forward in Symi on any
+   device), and Bring forward saves to it. Kept in Symi's own list of brought-forward figures, by Symi learner, with
+   the college OTJ hours Symi keeps for itself. */
+const BASELINE_KEY = "symi.migration.baselines.v1";
+async function pullEarlier() {
+  if (!signedIn || !navigator.onLine || !App()) return;
+  const byE = Object.fromEntries((App().getState().learners || []).filter((l) => l.nisia && l.nisia.enrolmentId).map((l) => [l.nisia.enrolmentId, l.id]));
+  const all = read(BASELINE_KEY, {}); let changed = false;
+  for (const o of tutorOrgs()) {
+    let rows; try { rows = await rpc("nisia_attendance_whole", { p_org: o.organisation_id }); } catch (e) { console.warn("Symi: earlier attendance", e.message); continue; }
+    for (const r of rows || []) {
+      const id = byE[r.enrolment_id]; if (!id) continue;
+      const had = all[id] || null;
+      if (!r.earlier_up_to) { if (had && had.fromPortal) { delete all[id]; changed = true; } continue; }
+      const next = { ...(had || {}), id: (had && had.id) || "portal-" + r.enrolment_id, date: r.earlier_up_to, expectedMinutes: r.earlier_expected_minutes, attendedMinutes: r.earlier_attended_minutes,
+        attendancePercent: Math.round(r.earlier_attended_minutes / r.earlier_expected_minutes * 100), otjMinutes: (had && had.otjMinutes) || 0, fromPortal: true };
+      if (JSON.stringify(next) !== JSON.stringify(had)) { all[id] = next; changed = true; }
+    }
+  }
+  if (changed) write(BASELINE_KEY, all);
+}
+/* Bring forward in Symi: the attendance goes to Evia Portal too (it needs the hours expected to make one percentage). */
+window.SymiEarlier = async (learnerId, b) => {
+  const l = App() && (App().getState().learners || []).find((x) => x.id === learnerId);
+  if (!l || !l.nisia || !l.nisia.enrolmentId || !signedIn) return { saved: false, why: "not linked" };
+  if (!(b.expectedMinutes > 0)) return { saved: false, why: "no hours" };
+  await rpc("nisia_set_attendance_baseline", { p_enrolment: l.nisia.enrolmentId, p_up_to: b.date, p_attended_hours: Math.round(b.attendedMinutes / 6) / 10, p_expected_hours: Math.round(b.expectedMinutes / 6) / 10, p_note: "Brought forward in Symi" });
+  const all = read(BASELINE_KEY, {}); if (all[learnerId]) { all[learnerId].fromPortal = true; write(BASELINE_KEY, all); }
+  return { saved: true };
+};
 
 /* ---------- Learners from Evia Portal ---------- */
 async function pullLearners(say) {
@@ -827,7 +859,7 @@ setInterval(() => { if (signedIn && !document.hidden) pullAbsences().catch(() =>
 (async () => {
   chip();
   if (inviteCode() || resetCode() || /[?&]reset=email/.test(location.search)) return openSignIn();
-  if (await checkSession()) { decorate(); await syncBackup(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); } catch (_) {} await flush(); sendFinished(); syncLive(); prepareAhead(); }
+  if (await checkSession()) { decorate(); await syncBackup(); try { await pullLearners(false); await pullClasses(); await pullAbsences(); await pullEarlier(); } catch (_) {} await flush(); sendFinished(); syncLive(); prepareAhead(); }
 })();
 
 /* ---------- The class quiz on learners' phones (symi-teach.js runs it) ----------

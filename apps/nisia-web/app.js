@@ -7,7 +7,7 @@ import { db, call, rpc, me, signOut, COURSES, courseName, esc, ukDate, qrSvg, pa
 import { auth, MARK } from "../../packages/core/signin.js";
 import { startUsage, hit } from "../../packages/core/usage.js";
 import { reviewHtml, reviewPdf } from "../../packages/core/reviewdoc.js";
-import { coursePack, loadPacks, topicFor, packsLike } from "../../packages/core/packs.js";
+import { coursePack, loadPacks, topicFor, packsLike, packIdOf } from "../../packages/core/packs.js";
 import { unitStrength, strengthBars } from "../../packages/core/strength.js";
 import { standardsPage } from "./standards.js";
 import { collegePacksPage } from "./college-packs.js";
@@ -196,7 +196,8 @@ async function render() {
   } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
   ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, today: () => todayPage(), classes: classesPage, resources: resourcesPage, careers: careersPage, staff: staffPage, licence: licencePage, impact: impactPage, attendance: attendancePage, registers: registersPage, messages: messagesPage,
     assistants: () => assistantsPage({ shell, esc, modal, closeModal, toast, hit, ukDate, summary: () => S.data.summary }),
-    packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc), collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
+    packs: () => collegePacksPage({ shell, rpc, esc, modal, closeModal, busy, toast, hit, org: () => S.org, refreshPacks: () => loadPacks(rpc),
+      learners: () => ((S.data && S.data.learners) || []).filter((l) => l.status !== "ended" && l.status !== "withdrawn"), packsLike, packIdOf, collegeName: () => (S.data && S.data.summary && S.data.summary.name) || mine(S.org).organisation }) }[S.page] || overview)();
 }
 
 /* ---------- College data, and each learner's status ---------- */
@@ -997,12 +998,78 @@ async function impactPage() {
   root.querySelector("#print").onclick = () => { hit("impact.pdf"); window.print(); };
 }
 
+/* ---------- Attendance over the whole course ----------
+   Each learner's earlier attendance (their totals from the college's old registers or forms, typed in once, up to a
+   date) plus the registers finished in Symi since, as one percentage in hours. Their tutor, assessor or the college's
+   admins add or change the earlier figures here (Symi's Bring forward saves the same figures). */
+async function attendanceWhole() {
+  const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation;
+  shell('<p class="loading">Working out attendance…</p>');
+  let rows, set;
+  try {
+    [rows, set] = await Promise.all([rpc("nisia_attendance_whole", { p_org: S.org }),
+      db.from("attendance_settings").select("target_pct").eq("organisation_id", S.org).maybeSingle().then((r) => { if (r.error) throw new Error(r.error.message); return r.data; })]);
+  } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
+  const target = (set && set.target_pct) || 90, h = (m) => { const x = Math.round((m || 0) / 6) / 10; return (x % 1 ? x.toFixed(1) : x) + "h"; };
+  const byE = Object.fromEntries((D.learners || []).map((l) => [l.enrolment_id, l]));
+  rows = rows.map((r) => Object.assign({ l: byE[r.enrolment_id] || {} }, r)).sort((a, b) => (b.below_target - a.below_target) || String(a.l.name || "").localeCompare(String(b.l.name || "")));
+  const att = rows.reduce((n, r) => n + (r.earlier_attended_minutes || 0) + r.since_attended_minutes, 0), exp = rows.reduce((n, r) => n + (r.earlier_expected_minutes || 0) + r.since_expected_minutes, 0);
+  const pct = exp ? Math.round(att / exp * 100) : null, below = rows.filter((r) => r.below_target), withEarlier = rows.filter((r) => r.earlier_up_to);
+  const stat = (label, big, sub, cls) => '<div class="stat"><span class="label">' + label + '</span><span class="big num' + (cls ? " " + cls : "") + '">' + big + '</span><span class="small muted">' + sub + '</span></div>';
+  shell(
+    '<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Attendance</h1><p class="small muted print-only">The whole course, to ' + esc(ukDate(iso(Date.now()))) + '</p></div>' +
+      '<div class="actions no-print"><div class="seg" role="group" aria-label="Period">' + ATT_PERIODS.map(([id, t]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (id === "whole") + '">' + t + '</button>').join("") + '</div>' +
+      '<button class="btn" type="button" id="print">Download PDF</button></div></div>' +
+    '<section class="stats att-stats">' +
+      stat("Attendance", pct != null ? pct + "%" : "–", "in hours, the whole course · target " + target + "%", pct != null && pct < target ? "bad" : "") +
+      stat("Below target", below.length, below.length === 1 ? "learner" : "learners", below.length ? "bad" : "") +
+      stat("Hours attended", h(att), "of " + h(exp) + " expected") +
+      stat("Earlier records", withEarlier.length, "of " + rows.length + " learners brought forward") +
+    '</section>' +
+    '<div class="table-wrap"><table class="att-table"><thead><tr><th>Learner</th><th>Earlier records</th><th>Registers since</th><th>Whole course</th><th class="no-print"></th></tr></thead><tbody>' +
+    (rows.length ? rows.map((r) => '<tr class="static' + (r.below_target ? " att-below" : "") + '"><td><div class="person">' + avatar(r.l.name || "") + '<div><b>' + esc(r.l.name || "") + '</b><span class="small muted">' + esc(r.l.course_title || "") + '</span></div></div></td>' +
+      '<td class="small">' + (r.earlier_up_to ? '<b>' + h(r.earlier_attended_minutes) + '</b> of ' + h(r.earlier_expected_minutes) + '<br><span class="muted">up to ' + esc(ukDate(r.earlier_up_to)) + (r.earlier_note ? " · " + esc(r.earlier_note) : "") + '</span>' : '<span class="muted">None</span>') + '</td>' +
+      '<td class="small">' + (r.since_sessions ? '<b>' + h(r.since_attended_minutes) + '</b> of ' + h(r.since_expected_minutes) + '<br><span class="muted">' + r.since_sessions + (r.since_sessions === 1 ? " register" : " registers") + '</span>' : '<span class="muted">None yet</span>') + '</td>' +
+      '<td style="min-width:150px">' + (r.pct != null ? pbar(r.pct, target) : '<span class="small muted">No attendance yet</span>') + '</td>' +
+      '<td class="no-print" style="text-align:right"><button class="btn small" type="button" data-earlier="' + esc(r.enrolment_id) + '">' + (r.earlier_up_to ? "Change earlier" : "Add earlier") + '</button></td></tr>').join("")
+      : '<tr class="static"><td colspan="5" class="empty">No learners yet.</td></tr>') +
+    '</tbody></table></div>' +
+    '<p class="small muted">Earlier records are each learner’s attendance from before Evia Portal (from the college’s old registers or forms), up to a date. Registers finished in Symi after that date are added, in hours, so one percentage covers the whole course.</p>');
+  root.querySelectorAll("[data-period]").forEach((b) => b.onclick = () => { S.attPeriod = b.dataset.period; attendancePage(); });
+  root.querySelector("#print").onclick = () => { hit("attendance.pdf"); window.print(); };
+  root.querySelectorAll("[data-earlier]").forEach((b) => b.onclick = () => earlierAttendance(rows.find((r) => r.enrolment_id === b.dataset.earlier)));
+}
+/* A learner's earlier attendance: the date the figures go up to, hours attended and hours expected. */
+function earlierAttendance(r) {
+  const first = String(r.l.name || "this learner").split(" ")[0], hrs = (m) => m == null ? "" : String(Math.round(m / 6) / 10);
+  const m = modal("Earlier attendance · " + (r.l.name || ""), '<p class="muted small" style="margin-top:-4px">' + esc(first) + '’s attendance from before Evia Portal, from the college’s old registers or forms. Registers in Symi after the date are added to it.</p>' +
+    '<form id="eaF" class="form-grid">' +
+      '<label class="field">Up to<input class="input" type="date" name="up_to" required max="' + iso(Date.now()) + '" value="' + esc(r.earlier_up_to || "") + '"></label>' +
+      '<label class="field">Hours attended<input class="input num" type="number" name="att" required min="0" step="0.5" value="' + hrs(r.earlier_attended_minutes) + '"></label>' +
+      '<label class="field">Hours expected<input class="input num" type="number" name="exp" required min="0.5" step="0.5" value="' + hrs(r.earlier_expected_minutes) + '"></label>' +
+      '<label class="field" style="grid-column:1/-1">Where from (optional)<input class="input" name="note" maxlength="120" placeholder="e.g. Old paper registers, Sept to Dec" value="' + esc(r.earlier_note || "") + '"></label>' +
+      '<p class="small muted" id="eaPct" style="grid-column:1/-1;margin:0"></p>' +
+      '<p class="err" hidden style="grid-column:1/-1"></p>' +
+      '<div class="row-actions" style="grid-column:1/-1">' + (r.earlier_up_to ? '<button class="btn" type="button" id="eaRm">Remove</button>' : "") + '<button class="btn primary" type="submit">Save</button></div></form>');
+  const f = m.querySelector("#eaF"), err = m.querySelector(".err"), out = m.querySelector("#eaPct");
+  const show = () => { const a = +f.att.value, x = +f.exp.value; out.textContent = x > 0 && a >= 0 ? "That’s " + Math.round(a / x * 100) + "% before Evia Portal." : ""; };
+  f.att.oninput = f.exp.oninput = show; show();
+  const save = (args, label) => busy(f.querySelector("[type=submit]"), label, async () => {
+    try { await rpc("nisia_set_attendance_baseline", Object.assign({ p_enrolment: r.enrolment_id }, args)); hit("attendance.earlier"); closeModal(); toast(first + "’s earlier attendance is saved."); attendanceWhole(); }
+    catch (x) { err.textContent = x.message; err.hidden = false; }
+  });
+  f.onsubmit = (e) => { e.preventDefault(); save({ p_up_to: f.up_to.value, p_attended_hours: +f.att.value, p_expected_hours: +f.exp.value, p_note: f.note.value }, "Saving…"); };
+  const rm = m.querySelector("#eaRm"); if (rm) rm.onclick = () => { if (confirm("Remove " + first + "’s earlier attendance? Their whole-course figure goes back to Symi’s registers alone.")) save({ p_up_to: null, p_attended_hours: null, p_expected_hours: null, p_note: null }, "Removing…"); };
+}
+
 /* ---------- Attendance: Symi's registers, learner by learner ----------
    Each learner over a period: sessions, here, late, absent with a reason, absent with none, and their attendance
    against the college's target; those below it first, with how many unexplained absences in a row. Admins set the
    college's own rules here: when a learner counts as late, the target, and how many unexplained absences in a row
    tell the admins (Evia Portal tells the learner, their tutor, assessor and employer about each one the same day). */
+const ATT_PERIODS = [["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"], ["whole", "Whole course"]];
 async function attendancePage() {
+  if (S.attPeriod === "whole") return attendanceWhole();
   const D = S.data, name = D.summary ? D.summary.name : mine(S.org).organisation, k = S.attPeriod || "30", P = periodDates(k);
   shell('<p class="loading">Working out attendance…</p>');
   let rows, set;
@@ -1018,7 +1085,7 @@ async function attendancePage() {
   const stat = (label, big, sub, cls) => '<div class="stat"><span class="label">' + label + '</span><span class="big num' + (cls ? " " + cls : "") + '">' + big + '</span><span class="small muted">' + sub + '</span></div>';
   shell(
     '<div class="topbar"><div><div class="label">' + esc(name || "College") + '</div><h1>Attendance</h1><p class="small muted print-only">' + esc(ukDate(P.from)) + ' to ' + esc(ukDate(iso(Date.parse(P.to) - DAY))) + '</p></div>' +
-      '<div class="actions no-print"><div class="seg" role="group" aria-label="Period">' + [["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 3 months"], ["year", "This academic year"]].map(([id, t]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (k === id) + '">' + t + '</button>').join("") + '</div>' +
+      '<div class="actions no-print"><div class="seg" role="group" aria-label="Period">' + ATT_PERIODS.map(([id, t]) => '<button type="button" data-period="' + id + '" aria-pressed="' + (k === id) + '">' + t + '</button>').join("") + '</div>' +
       '<button class="btn" type="button" id="print">Download PDF</button></div></div>' +
     '<section class="stats att-stats">' +
       stat("Attendance", pct != null ? pct + "%" : "–", "college target " + set.target_pct + "%", pct != null && pct < set.target_pct ? "bad" : "") +

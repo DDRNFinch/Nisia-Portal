@@ -80,7 +80,7 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/rpc/nisia_add_to_class") { S.calls.push({ t: "add_to_class", body }); return json(null); }
     if (p === "/rest/v1/rpc/nisia_set_safeguarding") { S.dsl = body; return json(null); }
     if (p === "/rest/v1/rpc/nisia_college_staff") return json(S.staff);
-    if (p === "/rest/v1/rpc/nisia_admin_usage") { S.usageDays = body.p_days; return json({ from: "2026-09-01",
+    if (p === "/rest/v1/rpc/nisia_admin_usage" || p === "/rest/v1/rpc/nisia_admin_usage_by") { S.usageDays = body.p_days; return json({ from: "2026-09-01",
       apps: [{ app: "evia", device_days: 120, connected: 90 }, { app: "milos", device_days: 30, connected: 30 }],
       features: [{ app: "evia", feature: "saved.evidence", uses: 60, device_days: 48 }, { app: "evia", feature: "teach.lesson", uses: 140, device_days: 70 }, { app: "evia", feature: "evidence.guide", uses: 40, device_days: 36 }, { app: "milos", feature: "tab.assess", uses: 50, device_days: 25 }],
       weeks: [0, 1, 2, 3, 4, 5].map((i) => ({ week: new Date(Date.UTC(2026, 7, 17 + i * 7)).toISOString().slice(0, 10), app: "evia", device_days: 10 + i * 4 })),
@@ -101,6 +101,11 @@ function fakeSupabase(persona) {
     if (p === "/rest/v1/evidence_files") return json([{ storage_path: "o1/ev1/a.jpeg", mime_type: "image/jpeg" }]);
     if (p === "/storage/v1/object/sign/evidence") return json(body.paths.map((x) => ({ path: x, signedURL: "/object/sign/evidence/" + x + "?token=t", error: null })));
     if (p.startsWith("/storage/v1/object/sign/evidence/")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#c96'/></svg>" });
+    if (p === "/rest/v1/rpc/nisia_attendance_whole") return json([
+      { enrolment_id: "e0", earlier_up_to: S.earlier ? S.earlier.p_up_to : null, earlier_attended_minutes: S.earlier ? Math.round(S.earlier.p_attended_hours * 60) : null, earlier_expected_minutes: S.earlier ? Math.round(S.earlier.p_expected_hours * 60) : null,
+        earlier_note: S.earlier ? S.earlier.p_note : null, since_attended_minutes: 1260, since_expected_minutes: 1800, since_sessions: 10, pct: S.earlier ? 88 : 70, below_target: true },
+      { enrolment_id: "e9", earlier_up_to: null, earlier_attended_minutes: null, earlier_expected_minutes: null, earlier_note: null, since_attended_minutes: 1800, since_expected_minutes: 1800, since_sessions: 10, pct: 100, below_target: false }]);
+    if (p === "/rest/v1/rpc/nisia_set_attendance_baseline") { S.earlier = body; return json(null); }
     if (p === "/rest/v1/rpc/nisia_attendance_report") { S.attReport = body; return json([
       { enrolment_id: "e0", name: "Callum J Hughes", course: "Bricklayer", employer: "Build Co", sessions: 10, present: 7, late: 2, with_reason: 1, no_reason: 2, pct: 70, below_target: true, run: 2, last_absent: "2026-09-29" },
       { enrolment_id: "e9", name: "Amira Khan", course: "Bricklayer", employer: "", sessions: 10, present: 10, late: 0, with_reason: 0, no_reason: 0, pct: 100, below_target: false, run: 0, last_absent: null }]); }
@@ -212,7 +217,7 @@ try {
     const pk = { topics: await page.$$eval(".modal .std-unit", (u) => u.length), first: await page.textContent(".modal .std-unit summary") };
     await page.click(".modal .std-unit summary"); pk.ksb = await page.textContent(".modal .std-unit[open] .std-row"); await page.screenshot({ path: shots + "/5g-pack.png" });
     check("…and the packs: yours, each built on its standard (and option), with its topics and their KSBs in the topic's own words",
-      (packsText.match(/Yours(?! come)/g) || []).length === 4 && /Bricklayer[\s\S]*ST0095 v1\.2/.test(packsText) && /ST0264 v1\.4\s*· Site carpenter/.test(packsText) && pk.topics === 10 && /Mixing mortar/.test(pk.first) && /S14\s*Gauge and hand mix mortar to ratio\./.test(pk.ksb),
+      (packsText.match(/Yours(?! come)/g) || []).length >= 4 && /Bricklayer[\s\S]*ST0095 v1\.2/.test(packsText) && /ST0264 v1\.4\s*· Site carpenter/.test(packsText) && pk.topics === 10 && /Mixing mortar/.test(pk.first) && /S14\s*Gauge and hand mix mortar to ratio\./.test(pk.ksb),
       JSON.stringify(pk).slice(0, 300) + " | " + packsText.slice(0, 300));
     await page.click(".modal .x");
     /* A new standard from its PDF: Evia Portal reads it, says what to check, it's saved as a draft, then published. */
@@ -404,6 +409,19 @@ try {
     check("Attendance: each learner against the college's target, those below it first, with unexplained absences in a row", /70%/.test(att) && /2 in a row/.test(att) && !!(await page.$("tr.att-below")) && /85%/.test(await page.textContent(".att-stats")) && !!fake.S.attReport, att.slice(0, 500));
     await page.fill("#rules [name=late_minutes]", "15"); await page.fill("#rules [name=target_pct]", "95"); await page.click("#rules button[type=submit]"); await page.waitForSelector("#rules [name=late_minutes]");
     check("…the college sets its own rules (late after, target, when admins hear)", fake.S.attSet && fake.S.attSet.late_minutes === 15 && fake.S.attSet.target_pct === 95 && fake.S.attSet.alert_after === 2 && fake.S.attSet.organisation_id, JSON.stringify(fake.S.attSet));
+    /* The whole course: earlier attendance from the college's old forms, typed in once, plus Symi's registers since. */
+    await page.click("[data-period=whole]"); await page.waitForSelector("[data-earlier]");
+    const w0 = await page.textContent("#main");
+    await page.click("[data-earlier=e0]"); await page.waitForSelector("#eaF");
+    await page.fill("#eaF [name=up_to]", "2026-09-30"); await page.fill("#eaF [name=att]", "90"); await page.fill("#eaF [name=exp]", "100"); await page.fill("#eaF [name=note]", "Old paper registers");
+    const preview = await page.textContent("#eaPct");
+    await page.click("#eaF [type=submit]"); await page.waitForFunction(() => !document.querySelector("#eaF"));
+    await page.waitForFunction(() => /up to 30 Sept 2026/.test(document.querySelector("#main").textContent));
+    const w1 = await page.textContent("#main"); await page.screenshot({ path: shots + "/12f-attendance-whole.png", fullPage: true });
+    check("Attendance, whole course: each learner's earlier records (typed in once from the old forms) plus Symi's registers since, as one percentage in hours",
+      /Whole course/.test(w0) && /None/.test(w0) && /That’s 90% before Evia Portal/.test(preview) && fake.S.earlier && fake.S.earlier.p_enrolment === "e0" && fake.S.earlier.p_up_to === "2026-09-30" && fake.S.earlier.p_attended_hours === 90 && fake.S.earlier.p_expected_hours === 100 &&
+      /90h of 100h/.test(w1) && /Old paper registers/.test(w1) && /21h of 30h/.test(w1) && /88%/.test(w1), JSON.stringify({ preview, earlier: fake.S.earlier, w1: w1.slice(0, 400) }));
+    await page.click("[data-period='30']"); await page.waitForSelector(".att-table");
     /* The college's own pack: a copy of yours, changed in the builder (coverage shown as it goes), published, given to
        the course, and one learner moved back onto yours. Your pack is never changed. */
     { const okAll = (d) => d.accept(); page.on("dialog", okAll);
@@ -427,6 +445,14 @@ try {
       await page.selectOption("select[data-course=cb]", "kc"); await page.waitForFunction(() => /uses/.test((document.querySelector(".toast") || {}).textContent || ""));
       check("…published, and given to the college's Bricklayer course (your pack stays as it was)", STD.S.collegePublished === "kcv1" && STD.S.courseSet3 && STD.S.courseSet3.p_pack === "kc" &&
         JSON.stringify(STD.S.packs.find((k) => k.id === "k0").content.topics[0].name) === JSON.stringify("Mixing mortar"));
+      /* On the pack itself: Learners lists everyone on the standard, ticked if on this pack; changing a tick moves them. */
+      await page.click("[data-learners=kc]"); await page.waitForSelector("#plF");
+      const pl = await page.evaluate(() => [...document.querySelectorAll("#plF label")].map((l) => ({ t: l.textContent.trim(), on: l.querySelector("input").checked })));
+      await page.click("#plNone"); await page.click("#plF [type=submit]"); await page.waitForFunction(() => !document.querySelector("#plF"));
+      const off = STD.S.enrolPack; STD.S.enrolPack = null;
+      await page.waitForSelector("[data-learners=kc]"); await page.click("[data-learners=kc]"); await page.waitForSelector("#plF"); await page.click("#plAll"); await page.click("#plF [type=submit]"); await page.waitForFunction(() => !document.querySelector("#plF"));
+      check("…the pack's Learners button lists the college's learners on that standard, ticked if on it, and ticking or unticking moves them",
+        pl.length >= 1 && pl.every((x) => x.on) && off && off.p_enrolment === "e0" && off.p_pack === "k0" && STD.S.enrolPack && STD.S.enrolPack.p_pack === "kc", JSON.stringify({ pl, off, on: STD.S.enrolPack }));
       await page.click("nav [data-go=learners]"); await page.click("tr[data-learner]"); await page.waitForSelector("#packL");
       const tag = await page.textContent(".lmeta"); await page.click("#packL"); await page.check(".modal input[value=k0]"); await page.click("#pkF [type=submit]");
       await page.waitForFunction(() => !document.querySelector(".modal"));

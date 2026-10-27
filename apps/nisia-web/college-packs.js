@@ -39,7 +39,8 @@ export async function collegePacksPage(helpers) {
           '</td><td>v' + esc(v.version || "") + ' ' + (v.status === "draft" ? '<span class="pill warn">Draft</span>' : '<span class="pill good">Published</span>') + '</td><td class="num">' + (v.topics || 0) + '</td><td class="num">' + k.learners +
           '</td><td style="text-align:right;white-space:nowrap"><button class="btn small" type="button" data-open="' + v.id + '">Open</button>' +
           (P.admin && k.kind === "standard" ? (k.mine ? ' <button class="btn small" type="button" data-edit="' + k.id + '">Edit</button>' : "") + ' <button class="btn small" type="button" data-copy="' + (pub || v).id + '">Copy</button>' : "") +
-          (P.admin && k.mine && v.status === "draft" ? ' <button class="btn small primary" type="button" data-publish="' + v.id + '">Publish</button>' : "") + '</td></tr>'; }).join("") +
+          (P.admin && k.mine && v.status === "draft" ? ' <button class="btn small primary" type="button" data-publish="' + v.id + '">Publish</button>' : "") +
+          (P.admin && pub && ui.learners ? ' <button class="btn small" type="button" data-learners="' + k.id + '">Learners</button>' : "") + '</td></tr>'; }).join("") +
       '</tbody></table></div></section>');
   const root = document.getElementById("main");
   const nb = root.querySelector("#cpNew"); if (nb) nb.onclick = () => startBlank();
@@ -47,12 +48,48 @@ export async function collegePacksPage(helpers) {
   root.querySelectorAll("[data-copy]").forEach((b) => b.onclick = () => copyFrom(b.dataset.copy));
   root.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => { const k = byId[b.dataset.edit]; edit(k, k.versions[0].id); });
   root.querySelectorAll("[data-publish]").forEach((b) => b.onclick = () => publish(b.dataset.publish, b));
+  root.querySelectorAll("[data-learners]").forEach((b) => b.onclick = () => chooseLearners(byId[b.dataset.learners]));
   root.querySelectorAll("select[data-course]").forEach((sel) => sel.onchange = async () => {
     const c = P.courses.find((x) => x.id === sel.dataset.course), k = byId[sel.value];
     if (!confirm("Move " + c.title + " onto “" + k.title + "”? Learners on the course follow it (except any on a pack of their own). Their evidence and sign-offs are kept by KSB, so nothing is lost.")) { sel.value = c.pack || c.yours; return; }
     try { await rpc("college_set_course_pack", { p_org: org(), p_course: c.id, p_pack: k.mine ? k.id : null }); ui.hit("packs.course"); ui.toast(c.title + " uses “" + k.title + "” now."); collegePacksPage(ui); }
     catch (x) { ui.toast(x.message); sel.value = c.pack || c.yours; }
   });
+}
+
+/* Which learners are on a pack: everyone at the college on the same standard (and option), ticked if they're on it.
+   Ticking puts a learner on this pack; unticking puts them back on their course's pack. Evidence and sign-offs are kept
+   by KSB, so moving never loses anything. */
+function chooseLearners(k) {
+  const { modal, closeModal, rpc, esc, busy, toast, hit } = ui;
+  const list = ui.learners().filter((l) => ui.packsLike(l.course_code, l.enrolment_id).some((x) => x.id === k.id))
+    .map((l) => { const cur = ui.packIdOf(l.course_code, l.enrolment_id), other = ui.packsLike(l.course_code, l.enrolment_id).find((x) => x.id === cur);
+      return { l, on: cur === k.id, now: other ? other.title : "" }; })
+    .sort((a, b) => String(a.l.name).localeCompare(String(b.l.name)));
+  const m = modal("Learners on “" + k.title + "”", list.length
+    ? '<p class="muted small" style="margin-top:-4px">Everyone on ' + esc(k.standard) + (k.option_title ? " · " + esc(k.option_title) : "") + '. Tick the learners who use this pack. Unticked, a learner uses their course’s pack (or yours, if their course uses this one). Nothing is lost by moving: evidence and sign-offs are kept by KSB.</p>' +
+      '<div class="row-actions" style="justify-content:flex-start;margin:6px 0 10px"><button class="btn small" type="button" id="plAll">Tick all</button><button class="btn small" type="button" id="plNone">Untick all</button></div>' +
+      '<form id="plF" style="display:grid;gap:6px;max-height:55vh;overflow:auto">' + list.map((x, i) => '<label class="check" style="border-radius:12px"><input type="checkbox" name="l" value="' + i + '"' + (x.on ? " checked" : "") + '> <span><b>' + esc(x.l.name || "") + '</b> <span class="small muted">' + esc(x.l.course_title || "") + (x.on ? "" : x.now ? " · now on “" + esc(x.now) + "”" : "") + '</span></span></label>').join("") +
+      '<p class="err" hidden></p><div class="row-actions"><button class="btn primary" type="submit">Save</button></div></form>'
+    : '<p class="muted">No learners at the college are on ' + esc(k.standard) + ' yet.</p>');
+  if (!list.length) return;
+  const boxes = () => [...m.querySelectorAll("input[name=l]")];
+  m.querySelector("#plAll").onclick = () => boxes().forEach((b) => { b.checked = true; });
+  m.querySelector("#plNone").onclick = () => boxes().forEach((b) => { b.checked = false; });
+  m.querySelector("#plF").onsubmit = (e) => { e.preventDefault(); const err = m.querySelector(".err");
+    const changes = boxes().map((b) => ({ x: list[+b.value], on: b.checked })).filter((c) => c.on !== c.x.on);
+    if (!changes.length) { closeModal(); return; }
+    busy(e.target.querySelector("[type=submit]"), "Saving…", async () => {
+      try {
+        /* Off this pack: back to their course's pack, or, if their course uses this one, to yours for the standard. */
+        const course = (l) => (S.P.courses || []).find((c) => c.code === l.course_code) || {};
+        for (const c of changes) { const cs = course(c.x.l); await rpc("set_enrolment_pack", { p_enrolment: c.x.l.enrolment_id, p_pack: c.on ? k.id : (cs.pack || cs.yours) === k.id ? cs.yours || null : null }); }
+        hit("packs.learners"); closeModal();
+        const n = changes.filter((c) => c.on).length, off = changes.length - n;
+        toast([n ? n + " moved onto “" + k.title + "”" : "", off ? off + " back on their course’s pack" : ""].filter(Boolean).join(", ") + ". Evia follows on its next sync.");
+        collegePacksPage(ui);
+      } catch (x) { err.textContent = x.message; err.hidden = false; }
+    }); };
 }
 
 async function publish(id, btn) {
