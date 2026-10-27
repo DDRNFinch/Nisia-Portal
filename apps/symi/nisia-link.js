@@ -118,7 +118,7 @@ async function pullEarlier() {
       if (JSON.stringify(next) !== JSON.stringify(had)) { all[id] = next; changed = true; }
     }
   }
-  if (changed) write(BASELINE_KEY, all);
+  if (changed) { write(BASELINE_KEY, all); try { App().mutate(() => {}); } catch (_) {} }
 }
 /* Bring forward in Symi: the attendance goes to Evia Portal too (it needs the hours expected to make one percentage). */
 window.SymiEarlier = async (learnerId, b) => {

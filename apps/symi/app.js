@@ -411,11 +411,15 @@
     return 0;
   }
 
+  /* A learner's earlier attendance (Bring forward, or Evia Portal's earlier records), with the hours expected: the
+     whole-course figure is it plus the registers after its date (those on or before it are already in it). */
+  function earlierOf(id){try{const b=(JSON.parse(localStorage.getItem('symi.migration.baselines.v1')||'{}')||{})[id];return b&&Number(b.expectedMinutes)>0&&b.date?b:null}catch{return null}}
   function learnerAttendanceStats(id,sourceState=state){
-    let expected=0,actual=0,sessions=0;
+    let expected=0,actual=0,sessions=0;const early=earlierOf(id);
     for(const h of sourceState.history||[]){
       const rec=h?.data?.[id];
       if(!rec)continue;
+      if(early&&String(h.date||'')<=early.date)continue;
       const reg=(sourceState.classes||[]).find(c=>c.id===h.classId);
       const exp=Number(rec.expectedMs)||Number(h.scheduledMs)||(reg?scheduledMs(reg,h.date):0);
       if(exp<=0)continue;
@@ -423,7 +427,9 @@
       actual+=legacyActualMs(h,rec,exp);
       sessions++;
     }
-    return{sessions,expectedMs:expected,attendedMs:actual,percentage:expected?Math.min(100,Math.round(actual/expected*100)):0};
+    const earlier=early?{date:early.date,expectedMs:Number(early.expectedMinutes)*60000,attendedMs:Math.min(Number(early.attendedMinutes)||0,Number(early.expectedMinutes))*60000}:null;
+    if(earlier){expected+=earlier.expectedMs;actual+=earlier.attendedMs}
+    return{sessions,expectedMs:expected,attendedMs:actual,percentage:expected?Math.min(100,Math.round(actual/expected*100)):0,earlier};
   }
 
   function refreshLearnerAttendanceSummaries(target=state){
@@ -534,7 +540,7 @@
   function renderLearnerProfile(){
     setHomeMode(false);const l=state.learners.find(x=>x.id===state.selectedLearnerId);if(!l){state.view='learners';return renderLearnersPage();}
     const a=learnerAttendanceStats(l.id),assigned=state.classes.filter(c=>(c.learners||[]).some(x=>x.id===l.id)),groups=state.teachingClasses.filter(c=>(c.learnerIds||[]).includes(l.id));
-    app.innerHTML=`${breadcrumb(l.name,'LEARNER PROFILE')}<section class="learner-hero samos-attendance-hero"><div><small>ATTENDANCE</small><strong>${a.percentage}%</strong><span>${formatDuration(a.attendedMs)} / ${formatDuration(a.expectedMs)}</span></div></section><div class="profile-attendance-grid"><div><strong>${a.sessions}</strong><span>Sessions</span></div><div><strong>${formatDuration(a.attendedMs)}</strong><span>Attended</span></div><div><strong>${formatDuration(a.expectedMs)}</strong><span>Scheduled</span></div></div><section class="staff-card"><div class="samos-section-head"><h2>Classes</h2><small>${groups.length}</small></div>${groups.length?groups.map(c=>`<button class="samos-row" type="button" data-open-teaching-class="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(classDaysText(c))}</small></span><b>›</b></button>`).join(''):'<div class="samos-empty compact-empty"><strong>No class assigned</strong></div>'}</section><section class="staff-card"><div class="samos-section-head"><h2>Attendance history</h2><small>${a.sessions}</small></div>${learnerHistoryHtml(l.id)}</section><div class="danger-zone"><button type="button" data-delete-learner="${attr(l.id)}">Delete learner</button></div>`;
+    app.innerHTML=`${breadcrumb(l.name,'LEARNER PROFILE')}<section class="learner-hero samos-attendance-hero"><div><small>ATTENDANCE</small><strong>${a.percentage}%</strong><span>${formatDuration(a.attendedMs)} / ${formatDuration(a.expectedMs)}</span>${a.earlier?`<span>Includes ${formatDuration(a.earlier.attendedMs)} / ${formatDuration(a.earlier.expectedMs)} brought forward, up to ${esc(prettyDateKey(a.earlier.date))}</span>`:''}</div></section><div class="profile-attendance-grid"><div><strong>${a.sessions}</strong><span>Sessions</span></div><div><strong>${formatDuration(a.attendedMs)}</strong><span>Attended</span></div><div><strong>${formatDuration(a.expectedMs)}</strong><span>Scheduled</span></div></div><section class="staff-card"><div class="samos-section-head"><h2>Classes</h2><small>${groups.length}</small></div>${groups.length?groups.map(c=>`<button class="samos-row" type="button" data-open-teaching-class="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(classDaysText(c))}</small></span><b>›</b></button>`).join(''):'<div class="samos-empty compact-empty"><strong>No class assigned</strong></div>'}</section><section class="staff-card"><div class="samos-section-head"><h2>Attendance history</h2><small>${a.sessions}</small></div>${learnerHistoryHtml(l.id)}</section><div class="danger-zone"><button type="button" data-delete-learner="${attr(l.id)}">Delete learner</button></div>`;
   }
 
   function deleteLearner(id){
@@ -647,7 +653,9 @@
   function classAttendanceStats(c){
     const ids=new Set(classRegisterRows(c).map(r=>r.id));let expected=0,actual=0,sessions=0;
     for(const h of state.history||[]){if(!ids.has(h.classId))continue;sessions++;for(const rec of Object.values(h.data||{})){const e=Number(rec?.expectedMs)||Number(h.scheduledMs)||0;expected+=e;actual+=legacyActualMs(h,rec,e);}}
-    return{sessions,expectedMs:expected,attendedMs:actual,percentage:expected?Math.min(100,Math.round(actual/expected*100)):0};
+    const earlier=early?{date:early.date,expectedMs:Number(early.expectedMinutes)*60000,attendedMs:Math.min(Number(early.attendedMinutes)||0,Number(early.expectedMinutes))*60000}:null;
+    if(earlier){expected+=earlier.expectedMs;actual+=earlier.attendedMs}
+    return{sessions,expectedMs:expected,attendedMs:actual,percentage:expected?Math.min(100,Math.round(actual/expected*100)):0,earlier};
   }
 
   function renderTeachingClassesPage(){
