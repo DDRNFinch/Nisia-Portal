@@ -379,7 +379,10 @@
       try{
         const blob=window.eviaGetEvidencePhoto?await window.eviaGetEvidencePhoto(m.id):null;if(!blob)throw new Error("missing");
         r++;const mp4=/mp4|m4a|aac/i.test(m.mime||blob.type),ext=m.kind==="video"?(mp4?"mp4":"webm"):(mp4?"m4a":"webm");
-        files.push({kind:m.kind,title:(m.kind==="video"?"Video ":"Voice note ")+r,file:new File([blob],base+"_"+(m.kind==="video"?"video":"voice-note")+"-"+String(r).padStart(2,"0")+"."+ext,{type:blob.type||m.mime||"application/octet-stream"})});
+        /* Labelled with the types phones accept for sharing: Chrome on Android refuses the whole share if one file is
+           labelled outside its list (a voice note as "audio/mp4" rather than "audio/x-m4a", or with its codecs). */
+        const type=m.kind==="video"?(mp4?"video/mp4":"video/webm"):(mp4?"audio/x-m4a":"audio/webm");
+        files.push({kind:m.kind,title:(m.kind==="video"?"Video ":"Voice note ")+r,file:new File([blob],base+"_"+(m.kind==="video"?"video":"voice-note")+"-"+String(r).padStart(2,"0")+"."+ext,{type})});
       }catch(err){recMissing++}
     }
     const said=entries.flatMap(e=>(e.media||[]).map(m=>String(m.transcript||"").trim()).filter(Boolean));

@@ -78,6 +78,22 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     /* The PDF says which it is. */
     const pdf=await page.evaluate(async()=>{const u=data().u[0][0];const blob=await window.eviaBuildUnitPdf(u,evidence.slice(),[[],[]]);const t=new Uint8Array(await blob.arrayBuffer());let s="";t.forEach(c=>s+=String.fromCharCode(c));return s.length});
     check("The unit PDF still builds with both",pdf>1000,String(pdf));
+    /* Share all: every file labelled with a type and name Chrome on Android shares (it refuses the whole share if one
+       isn't), including a voice note and a video as an Android phone makes them (MP4). */
+    const CHROME_TYPES=["application/pdf","audio/flac","audio/mp3","audio/mpeg","audio/ogg","audio/wav","audio/webm","audio/x-m4a","image/avif","image/bmp","image/gif","image/jpeg","image/png","image/svg+xml","image/tiff","image/webp","image/x-icon","image/x-ms-bmp","image/x-xbitmap","text/comma-separated-values","text/css","text/csv","text/html","text/plain","video/mp4","video/mpeg","video/ogg","video/webm"];
+    const CHROME_EXT=["avif","bmp","css","csv","flac","gif","htm","html","ico","jfif","jpeg","jpg","m4a","m4v","mp3","mp4","mpeg","mpg","oga","ogg","ogv","opus","pdf","pjp","pjpeg","png","svg","svgz","text","tif","tiff","txt","wav","weba","webm","webp","xbm"];
+    const shared=await page.evaluate(async()=>{
+      const put=async(type)=>{const id=await window.eviaStoreEvidencePhoto(new Blob([new Uint8Array(200)],{type}));return id};
+      const v=await put("video/mp4"),a=await put("audio/mp4");const u=data().u[0][0];
+      window.eviaData.put("evidence",{course,unit:u,kind:"skills",text:"",ksbs:["S14"],photoIds:[],media:[{id:v,kind:"video",mime:"video/mp4",secs:5}]});
+      window.eviaData.put("evidence",{course,unit:u,kind:"knowledge",text:"",ksbs:["K20"],photoIds:[],media:[{id:a,kind:"audio",mime:"audio/mp4",secs:5,transcript:"Gauging box"}]});
+      let got=null;navigator.canShare=()=>true;navigator.share=async d=>{got=d.files.map(f=>({name:f.name,type:f.type}))};
+      window.eviaOpenSendToPortfolio(u);
+      for(let i=0;i<80&&!document.getElementById("eport-share-all");i++)await new Promise(r=>setTimeout(r,250));
+      const b=document.getElementById("eport-share-all");if(!b)return null;b.click();await new Promise(r=>setTimeout(r,500));return got});
+    const bad=(shared||[]).filter(f=>!CHROME_TYPES.includes(f.type)||!CHROME_EXT.includes(f.name.split(".").pop().toLowerCase()));
+    check("Share all: every file (PDF, photos, videos, voice notes, what was said) has a type and name Chrome on Android will share",
+      shared&&shared.length>=5&&!bad.length&&shared.some(f=>f.type==="audio/x-m4a")&&shared.some(f=>f.type==="video/mp4"),JSON.stringify({bad,shared}));
     await page.screenshot({path:path.join(__dirname,"..","shots","capture-topic.png")}).catch(()=>{});
     check("No script errors",!errors.length,errors.join(" | "));
   }catch(e){check("The test ran to the end",false,e.stack+" | "+errors.join(" | "))}
