@@ -26,5 +26,34 @@
 <script type="module" src="app.js"></script>
 <script src="../../packages/core/install-chip.js" data-icon="icons/icon-192.png" data-app="Evia Portal" data-color="#6D5BD0"></script>
 <script>if ("serviceWorker" in navigator && location.protocol !== "file:") addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
+<script>
+/* Update available: a new version downloads in the background (checked on opening, on coming back, and every 15
+   minutes) and waits. A button at the top says so; tapping it saves anything in progress and switches to the new
+   version. Nothing updates by itself while the app is open; left alone, the new version is used next time it opens. */
+(function(){
+  if(!("serviceWorker" in navigator))return;
+  var bar=null,waiting=null,going=false,had=!!navigator.serviceWorker.controller;
+  function go(){if(go.done)return;go.done=true;Promise.resolve(window.eviaStorage&&window.eviaStorage.flush?window.eviaStorage.flush():0).catch(function(){}).then(function(){location.reload()})}
+  function show(){
+    if(bar||going)return;
+    var st=document.createElement("style");st.textContent=".app-update{position:fixed;z-index:2147483000;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border:0;border-radius:999px;background:#172033;color:#fff;font:700 14px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.28);cursor:pointer;animation:app-update-in .35s ease-out}.app-update i{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}@keyframes app-update-in{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}@media print{.app-update{display:none}}";document.head.appendChild(st);
+    bar=document.createElement("button");bar.type="button";bar.className="app-update";bar.setAttribute("aria-live","polite");bar.innerHTML="<i aria-hidden=\"true\"></i><span>Update available</span>";
+    bar.onclick=function(){
+      if(going)return;going=true;bar.querySelector("span").textContent="Updating…";
+      if(waiting){navigator.serviceWorker.addEventListener("controllerchange",go);try{waiting.postMessage({type:"SKIP_WAITING"});waiting.postMessage("update")}catch(_){go()}setTimeout(go,5000)}else go();
+    };
+    document.body.appendChild(bar);
+  }
+  /* A version that took over without being asked (an older one): the page is still the old one, so offer it. */
+  navigator.serviceWorker.addEventListener("controllerchange",function(){if(had&&!going)show();had=true});
+  navigator.serviceWorker.ready.then(function(reg){
+    var watch=function(w){if(w)w.addEventListener("statechange",function(){if(w.state==="installed"&&navigator.serviceWorker.controller){waiting=reg.waiting||w;show()}})};
+    if(reg.waiting&&navigator.serviceWorker.controller){waiting=reg.waiting;show()}
+    watch(reg.installing);reg.addEventListener("updatefound",function(){watch(reg.installing)});
+    var check=function(){reg.update().catch(function(){})};check();
+    setInterval(check,15*60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)check()});
+  }).catch(function(){});
+})();
+</script>
 </body>
 </html>

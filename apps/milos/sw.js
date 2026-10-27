@@ -11,9 +11,9 @@ const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.w
   "../../packages/vendor/supabase-2.45.4.js", "../../packages/vendor/qrcode-generator-1.4.4.js", "../../packages/vendor/jspdf-2.umd.min.js"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) =>
-  Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); })))).then(() => self.skipWaiting())));
+  Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); }))))));
 /* A new version takes over as soon as it's downloaded (the page's "Update" button still works too). */
-self.addEventListener("message", (e) => { if (e.data === "update") self.skipWaiting(); });
+self.addEventListener("message", (e) => { if (e.data === "update" || (e.data && e.data.type === "SKIP_WAITING")) self.skipWaiting(); });
 self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("milos-") && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);

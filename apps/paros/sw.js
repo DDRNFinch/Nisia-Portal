@@ -8,7 +8,7 @@ const FILES = ["./", "index.html", "paros.css", "app.js", "push.js", "manifest.w
   "../../packages/core/nisia.js", "../../packages/core/signin.js", "../../packages/core/usage.js", "../../packages/core/courses.js", "../../packages/core/packs.js", "../../packages/core/absences.js", "../../packages/core/timeline.js", "../../packages/core/nisia-actions.js", "../../packages/core/install-chip.js", "../../packages/core/messages-ui.js", "../../packages/ui/nisia.css", "../../packages/vendor/supabase-2.45.4.js"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) =>
   Promise.all(FILES.map((f) => fetch(new Request(f, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return c.put(f, r); }))))));
-self.addEventListener("message", (e) => { if (e.data === "update") self.skipWaiting(); });
+self.addEventListener("message", (e) => { if (e.data === "update" || (e.data && e.data.type === "SKIP_WAITING")) self.skipWaiting(); });
 self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("paros-") && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);

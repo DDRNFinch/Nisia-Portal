@@ -148,7 +148,7 @@ function openApp(name) {
 }
 /* Nothing ever reloads. What someone does elsewhere (in Evia, Symi, Milos, Paros or another portal) shows by itself:
    the portal checks quietly every minute, and on coming back to it, and redraws only if something has actually changed,
-   keeping its place on the page. Never while it's being used: not with a window open, something being typed, or a box
+   keeping its place on the page, and only on pages that show information (LIVE_PAGES). Never while it's being used: not with a window open, something being typed, or a box
    filled in and not yet saved. Then it waits, and shows it as soon as that's done. */
 const untouched = () => !document.getElementById("modal") && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) &&
   ![...document.querySelectorAll("#main input, #main textarea, #main select")].some((x) => x.type === "checkbox" || x.type === "radio" ? x.checked !== x.defaultChecked
@@ -161,8 +161,11 @@ async function quietCheck() {
   try { const was = S.data; await loadCollege(); if (!same(was, S.data)) waiting = true; } catch (_) { /* try again next time */ } finally { checking = false; }
   showWaiting();
 }
+/* Only pages that show information are ever brought up to date in place. Pages where something is made or edited
+   (a pack, a learner's page, resources, standards…) are never touched: they hold work that isn't saved yet. */
+const LIVE_PAGES = ["overview", "learners", "today", "reviews", "impact"];
 function showWaiting() {
-  if (!waiting || !untouched()) return;
+  if (!waiting || !LIVE_PAGES.includes(S.page) || !untouched()) return;
   waiting = false; const y = window.scrollY; render().then(() => requestAnimationFrame(() => window.scrollTo(0, y)));
 }
 setInterval(quietCheck, 60000); setInterval(showWaiting, 2000);
