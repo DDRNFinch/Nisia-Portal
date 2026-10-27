@@ -68,16 +68,30 @@ try {
   await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(2500);
   const waited = await phone.evaluate(() => !!document.getElementById("busy")).catch(() => false);
   await phone.evaluate(() => { document.getElementById("busy").remove(); window.__t = 1; });
-  await phone.waitForTimeout(31000);
+  await phone.evaluate(() => { dispatchEvent(new Event("focus")); });
   const after = await until(async () => { try { return (await count(phone)) === 4; } catch (_) { return false; } }, 15000);
   check("It never reloads in the middle of something (a sheet open): it waits, then shows the new work", waited && after, JSON.stringify({ waited, after }));
+  /* While the learner is looking at Evia, it never reloads: not for the other device's counters (usage, minutes, the
+     college's data it fetches itself), and not for new work arriving on the 30-second check either. That waits until
+     they come back to Evia. */
+  await phone.evaluate(() => { window.__still = 1; });
+  await laptop.evaluate(() => { localStorage.setItem("evia7-usage", JSON.stringify({ n: Date.now() })); localStorage.setItem("evia7-nisia-attendance", JSON.stringify([{ id: "x", at: Date.now() }])); return window.eviaNisia.sync(); });
+  await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(3000);
+  const noise = await phone.evaluate(() => window.__still === 1 && !/"n"/.test(localStorage.getItem("evia7-usage") || ""));
+  await laptop.evaluate(() => { window.eviaData.put("evidence", { id: "EEEEE", course: "bricklayer", unit: "Basic Brick wall", text: "Another wall" }); });
+  await until(() => stored().includes("EEEEE"));
+  await phone.waitForTimeout(32000);
+  const stayed = await phone.evaluate(() => window.__still === 1).catch(() => false);
+  await phone.evaluate(() => { dispatchEvent(new Event("focus")); });
+  const shown = await until(async () => { try { return (await count(phone)) === 5; } catch (_) { return false; } }, 15000);
+  check("It never reloads while you're looking at it: the other device's counters don't come down at all, and new work waits until you come back to Evia", noise && stayed && shown, JSON.stringify({ noise, stayed, shown }));
   /* Deleted on one device: it goes from the other too, and doesn't come back. */
   await phone.evaluate(() => { window.eviaData.remove ? window.eviaData.remove("evidence", "BB") : (evidence.splice(evidence.findIndex((e) => e.id === "BB"), 1), persist()); });
   await until(() => !stored().includes("BB"));
   await laptop.evaluate(() => { dispatchEvent(new Event("focus")); });
-  const gone = await until(async () => { try { return (await ids(laptop)) === "A,CCC,DDDD"; } catch (_) { return false; } });
+  const gone = await until(async () => { try { return (await ids(laptop)) === "A,CCC,DDDD,EEEEE"; } catch (_) { return false; } });
   await laptop.waitForTimeout(1500); await phone.evaluate(() => { dispatchEvent(new Event("focus")); }); await phone.waitForTimeout(2500);
-  check("Deleting a piece on one device removes it from the other, and it stays deleted", gone && stored() === "A,CCC,DDDD" && (await ids(phone)) === "A,CCC,DDDD", JSON.stringify({ stored: stored(), laptop: await ids(laptop).catch(() => ""), phone: await ids(phone).catch(() => "") }));
+  check("Deleting a piece on one device removes it from the other, and it stays deleted", gone && stored() === "A,CCC,DDDD,EEEEE" && (await ids(phone)) === "A,CCC,DDDD,EEEEE", JSON.stringify({ stored: stored(), laptop: await ids(laptop).catch(() => ""), phone: await ids(phone).catch(() => "") }));
   check("No script errors", !errors.length, errors.join(" | "));
 } catch (e) { check("The test ran to the end", false, e.stack + "\nERRORS: " + errors.join(" | ")); }
 await finish();

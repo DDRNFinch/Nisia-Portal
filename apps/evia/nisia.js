@@ -181,6 +181,11 @@
   /* Records deleted on any device ({key: [ids]}), kept and shared like the rest, so a deletion on one device isn't
      undone by another that still has the record. STORE_IDS_KEY: the ids in each list as last sent, to spot them. */
   const GONE_KEY="evia7-sync-deleted",STORE_IDS_KEY="evia7-nisia-store-ids";
+  /* What comes down from the other devices. Each device keeps its own counters and fetches the college's side itself,
+     so those never come down (they change every few minutes, and pulling them made Evia reload all the time). Only the
+     learner's work is worth refreshing the screen for; anything else is taken quietly. */
+  const PULL_SKIP=/^evia7-(nisia-(?!ids$)|usage$|active-mins$|days$|push$|home-tip$|messages-unread$|college-days-since$)/;
+  const PULL_WORK=/^evia7-(evidence|hours|supporting-evidence|working-evidence-packs|profile|otj-pending|own-attendance|sync-deleted)$/;
   const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|store-pulled|store-ids|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs|lb-queue|lb-daily)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
@@ -228,8 +233,8 @@
   /* Every device, all the time: what the learner's other devices saved since this one last looked comes down and is
      merged in, so their phone and their computer show the same work. A key this device hasn't changed takes the other
      device's copy; one changed on both is merged when it's a list of records with ids (nothing from either is lost),
-     and otherwise this device's copy stands and goes up next. Returns true when anything here changed (Evia then
-     reloads to show it, at a quiet moment). */
+     and otherwise this device's copy stands and goes up next. Returns true when the learner's work here changed (Evia
+     then shows it the next time the learner comes back to it). */
   async function pullStore(c,e){
     const since=readJson(PULLED_KEY,null);
     let q=c.from("evia_records").select("record_id,data,updated_at,deleted_at").eq("enrolment_id",e.enrolmentId).eq("collection","store").order("updated_at",{ascending:true}).limit(2000);
@@ -243,11 +248,11 @@
       /* Only what's newer than last time (anything older was here already). */
       if(!r.updated_at||since&&r.updated_at<=since)return;
       if(!latest||r.updated_at>latest)latest=r.updated_at;
-      const k=r.record_id;if(!/^evia7-/.test(k)||NOT_BACKED_UP.test(k))return;
+      const k=r.record_id;if(!/^evia7-/.test(k)||NOT_BACKED_UP.test(k)||PULL_SKIP.test(k))return;
       const raw=r.data&&r.data.raw,here=localStorage.getItem(k),mine=here==null||sent[k]===hash(here);
       /* Changed here and not sent yet: this device's copy goes up first, and is merged next time. */
       if(!mine)return;
-      if(r.deleted_at||typeof raw!=="string"){if(here!=null){try{localStorage.removeItem(k)}catch(_){}delete sent[k];changed=true}return}
+      if(r.deleted_at||typeof raw!=="string"){if(here!=null){try{localStorage.removeItem(k)}catch(_){}delete sent[k];if(PULL_WORK.test(k))changed=true}return}
       if(here===raw){sent[k]=hash(raw);return}
       let v=raw;
       try{const a=here==null?null:JSON.parse(here),b=JSON.parse(raw);
@@ -260,7 +265,7 @@
         else if(k===IDS_KEY&&a)v=JSON.stringify(Object.assign({},a,b));
       }catch(_){}
       if(v===here){sent[k]=hash(raw);return}
-      try{localStorage.setItem(k,v);sent[k]=hash(raw);changed=true}catch(err){console.warn("Evia: pull",k,err&&err.message)}
+      try{localStorage.setItem(k,v);sent[k]=hash(raw);if(PULL_WORK.test(k))changed=true}catch(err){console.warn("Evia: pull",k,err&&err.message)}
     });
     writeJson(STORE_SENT_KEY,sent);if(latest)writeJson(PULLED_KEY,latest);
     return changed;
@@ -616,7 +621,7 @@
       if(c)await sendStore(c,e);
       /* Then what the other devices saved (after sending, so nothing done here is overwritten). */
       let pulled=false;if(c)try{pulled=await pullStore(c,e)}catch(err){console.warn("Evia: Evia Portal pull",err&&err.message)}
-      if(pulled){try{await sendStore(c,e)}catch(_){}setTimeout(reloadForSync,0)}
+      if(pulled){try{await sendStore(c,e)}catch(_){}reloadWanted=true}
       /* Media: only on WiFi, both ways. */
       const sent=readJson(MEDIA_KEY,{})||{};
       if(onWifi()){
@@ -765,7 +770,8 @@
       if(wasGuest()||demoEnds())await checkDemo(c);
       await sendKept();
       /* What the learner did on their other devices (their phone, their computer). */
-      try{if(await pullStore(c,joined())||reloadWanted)await reloadForSync()}catch(err){console.warn("Evia: Evia Portal pull",err&&err.message)}
+      /* Shown by reloading, but never while the learner is looking at Evia: only as they open it or come back to it. */
+      try{if(await pullStore(c,joined()))reloadWanted=true;if(reloadWanted&&force)await reloadForSync()}catch(err){console.warn("Evia: Evia Portal pull",err&&err.message)}
       const w=await fetchRegisters();
       try{if(Array.isArray(w.feedback))await fetchFeedback(w.feedback)}catch(_){}}catch(err){console.warn("Evia: Evia Portal registers",err&&err.message)}finally{pulling=null}})();
     return pulling;
