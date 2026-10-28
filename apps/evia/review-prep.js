@@ -111,6 +111,15 @@
     };
   }
 
+  /* The latest confidence check, skill by skill (least confident first), with the change since the one before. */
+  const LEVELS=["Need more training","Know the basics","Quite confident","Mastered"];
+  function confResults(){
+    let list=[];try{list=window.eviaData.list("confidence").filter(x=>x&&x.course===course&&Array.isArray(x.scores)&&x.scores.length)}catch(_){}
+    if(!list.length)return null;
+    const last=list[list.length-1],prev=list.length>1?list[list.length-2].scores:[];
+    const rows=last.scores.map(x=>{const p=prev.find(s=>s.area===x.area);return {area:x.area,score:x.score,level:LEVELS[x.score-1]||"",ch:p?x.score-p.score:0}}).sort((a,b)=>a.score-b.score);
+    return {at:Date.parse(last.takenAt||"")||null,count:list.length,rows};
+  }
   /* ---------- The checklist: everything for the review, each done or not since the last one ----------
      state: ok (done), todo (something the learner can do now), info (the college or employer fills it in). */
   const inChat=fn=>()=>{close();if(window.chat)window.chat({quiet:true});setTimeout(()=>{const C=window.eviaCoachFlows||{};if(C[fn])C[fn]()},160)};
@@ -163,8 +172,17 @@
 .rp-opt{font-weight:400;color:var(--ui-muted,#667085)}
 .rp-chips{display:flex;gap:8px}.rp-chip{flex:1;border:1.5px solid #e4e7ec;background:#fff;border-radius:12px;padding:11px;font:inherit;font-weight:700;cursor:pointer;color:#172033}
 .rp-chip.on{border-color:var(--yellow,#e7b900);background:var(--soft,#fff7d6)}
+.rp-list li.has-conf{flex-wrap:wrap}
+.rp-conf{display:block;flex-basis:100%;box-sizing:border-box;margin:2px 0 0 34px;border:1px solid var(--ui-line,#eef0f3);border-radius:12px;padding:6px 10px}
+.rp-conf-when{display:block;font-size:12px;color:var(--ui-muted,#667085);padding:2px 0 4px}
+.rp-conf-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--ui-line,#eef0f3);font-size:13.5px}
+.rp-conf-row b{font-weight:700;text-align:right;white-space:nowrap}.rp-conf-row.low b{color:#b54708}
+.rp-conf-row i{font-style:normal}.rp-conf-row i.up{color:#067647}.rp-conf-row i.down{color:#b42318}
 .rp-in{width:100%;box-sizing:border-box;margin-top:8px;border:1px solid #d0d5dd;border-radius:12px;padding:11px 12px;font:inherit;font-size:15px}`;
   const style=()=>{if(!document.getElementById("rp-style")){const s=document.createElement("style");s.id="rp-style";s.textContent=STYLE;document.head.appendChild(s)}};
+  const confHtml=()=>{const R=confResults();if(!R)return "";
+    return '<span class="rp-conf"><span class="rp-conf-when">Your last check'+(R.at?", "+esc(new Date(R.at).toLocaleDateString("en-GB",{day:"numeric",month:"long"})):"")+(R.count>1?" (arrows show the change since the one before)":"")+'</span>'+
+      R.rows.map(r=>'<span class="rp-conf-row'+(r.score<=2?" low":"")+'"><span>'+esc(r.area)+'</span><b>'+(r.ch>0?'<i class="up">↑</i> ':r.ch<0?'<i class="down">↓</i> ':"")+esc(r.level)+'</b></span>').join("")+'</span>'};
   function close(){const r=document.getElementById("modal-root");if(r)r.innerHTML=""}
   function open(){
     style();
@@ -177,8 +195,8 @@
       '<div class="rp-hero"><span class="rp-ring" style="--p:'+R.pct+'"><b>'+R.pct+'%</b></span><p><strong>'+(!left?"You’re ready.":R.pct>=60?"Nearly there.":"Let’s get you ready.")+'</strong> '+esc(due)+(left?" "+(left===1?"1 thing":left+" things")+" you can do now.":"")+'</p></div>'+
       (college?'<p class="rp-since">Since your last review, '+esc(new Date(P.from).toLocaleDateString("en-GB",{day:"numeric",month:"long"}))+'</p>'
         :'<label class="rp-since">Your last review <input type="date" id="rp-last" value="'+iso(P.from)+'" max="'+iso(Date.now())+'"></label>')+
-      '<ul class="rp-list">'+L.map((x,i)=>'<li class="'+x.state+'"><span class="rp-ic" aria-hidden="true">'+(x.state==="ok"?"✓":x.state==="todo"?"!":"–")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span>'+
-        (x.action&&x.action.label&&(x.state==="todo"||x.id==="answers")?'<button type="button" class="rp-do" data-do="'+i+'">'+esc(x.state==="todo"&&x.id!=="answers"?"Do it now":x.action.label)+'</button>':"")+'</li>').join("")+'</ul>'+
+      '<ul class="rp-list">'+L.map((x,i)=>'<li class="'+x.state+(x.id==="conf"&&confResults()?" has-conf":"")+'"><span class="rp-ic" aria-hidden="true">'+(x.state==="ok"?"✓":x.state==="todo"?"!":"–")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span>'+
+        (x.action&&x.action.label&&(x.state==="todo"||x.id==="answers"||x.id==="conf")?'<button type="button" class="rp-do" data-do="'+i+'">'+esc(x.id==="conf"?(confResults()?"Rate again":"Do it now"):x.state==="todo"&&x.id!=="answers"?"Do it now":x.action.label)+'</button>':"")+(x.id==="conf"?confHtml():"")+'</li>').join("")+'</ul>'+
       '<div class="rp-acts"><button type="button" class="rp-btn'+(college?"":" primary")+'" id="rp-share">'+(college?"Share as a PDF":"Share my review prep (PDF)")+'</button></div>'+
       '<p class="pv-note"><span aria-hidden="true">💡</span><span>'+(college?"Your assessor sees all of this in Milos. There’s nothing to send.":"Send the PDF to your assessor and employer before your review. The parts for them are left blank to fill in on the day.")+'</span></p>'+
       '</div></section></div>';
@@ -227,6 +245,10 @@
       doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(...(x.state==="ok"?[6,118,71]:[181,71,8]));doc.text(mark,W-M,y+3.5,{align:"right"});y+=4.6;
       para(x.text,{grey:true,size:9});y+=1.5;doc.setDrawColor(...soft);doc.setLineWidth(.2);doc.line(M,y,W-M,y);y+=2});
     if(S){y+=1;para("Learning hours: "+P.hours.since+" h since the last review, "+P.hours.total+" h in total"+(P.hours.planned?" of "+P.hours.planned+" h planned":"")+". KSBs with evidence: "+P.ksb.met+" of "+P.ksb.total+" ("+P.ksb.pct+"%), "+P.ksb.timePct+"% of the way through the course.",{size:9.5})}
+    const CR=confResults();
+    if(CR){y+=2;label("Confidence check"+(CR.at?", "+dt(CR.at):"")+(CR.count>1?" (change since the one before)":""));
+      CR.rows.forEach(r=>{need(6);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(...ink);doc.text(txt(r.area),M,y+3.5);
+        doc.setFont("helvetica","bold");doc.setTextColor(...(r.score<=2?[181,71,8]:ink));doc.text(txt(r.level+" ("+r.score+"/4)"+(r.ch>0?"  up "+r.ch:r.ch<0?"  down "+(-r.ch):"")),W-M,y+3.5,{align:"right"});y+=5.2})}
     // 2. Targets
     head("2. Targets from the last review");
     if(T.length)T.forEach(t=>{let pr="";try{pr=window.eviaTargets.progress(t,window.eviaTargets.stats?window.eviaTargets.stats():S).text||""}catch(_){}
