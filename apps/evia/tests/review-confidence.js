@@ -35,6 +35,14 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
       /20 October/.test(t)&&t.indexOf("Cutting bricks")<t.indexOf("Lintels")&&/Cutting bricks\s+Need more training/.test(t)&&(t.match(/↑/g)||[]).length===8&&/Lintels\s+↑ Mastered/.test(t),t);
     check("…with Rate again beside it",await page.evaluate(()=>/Rate again/.test(document.querySelector(".has-conf").textContent)));
     if(process.argv[2]){await page.evaluate(()=>document.querySelector(".rp-conf").scrollIntoView({block:"center"}));await page.waitForTimeout(300);await page.screenshot({path:process.argv[2]})}
+    /* The Review tab: tapping Confidence check shows the results, with the check itself a tap away. */
+    await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";nav("learning")});await page.waitForSelector('[data-check="conf"]');
+    const row=await page.textContent('[data-check="conf"]');
+    await page.click('[data-check="conf"]');await page.waitForSelector("#modal-root .pv-sheet .pv-rows",{timeout:5000}).catch(()=>{});
+    const res=await page.evaluate(()=>{const s=document.querySelector("#modal-root .pv-sheet");return s?s.innerText:"NO RESULTS: "+document.body.innerText.slice(0,300)});
+    check("On the Review tab, tapping Confidence check shows the results, each skill and the change since last time, with Confidence check there to rate again",
+      /Done 20 Oct · 5 skills to practise/i.test(row)&&/Cutting bricks/.test(res)&&/Lintels/.test(res)&&/Need more training/.test(res)&&/Last time/.test(res)&&/Confidence check/.test(res),row+" | "+res);
+    if(process.argv[3])await page.screenshot({path:process.argv[3]});
     const size=await page.evaluate(async()=>(await window.eviaPrepPack.pdf()).size);
     check("The review PDF is made with the results in it",size>5000,size);
     check("No script errors",!errors.length,errors.join(" | "));
