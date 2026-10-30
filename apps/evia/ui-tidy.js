@@ -156,7 +156,9 @@ hero+
       {id:"hours",title:"Learning hours on track",ok:!!(otj&&otj.ok),sub:otj?otj.text:"",run:()=>nav("calendar")},
       /* Only when there are targets: none set isn't something to tick. */
       tg.length?{id:"targets",title:"Targets met",ok:tdone===tg.length,sub:tdone+" of "+tg.length+" done",run:()=>window.eviaProgressDeep&&window.eviaProgressDeep("targets")}:null,
-      {id:"conf",title:"Confidence check",ok:confNew,sub:confNew?"Done "+new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Two minutes: rate your skills",run:()=>window.eviaPractice&&window.eviaPractice.openConfidence?window.eviaPractice.openConfidence():go(()=>window.eviaCoachFlows.confidence())()},
+      /* Once they've done one, a tap shows the results (each skill, now and last time), with the check itself a tap away there. */
+      {id:"conf",title:"Confidence check",ok:confNew,sub:(confNew?"Done ":conf&&conf.last?"Last done ":"")+(conf&&conf.last?new Date(conf.last).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+(conf.practise.length?" · "+conf.practise.length+" skill"+(conf.practise.length===1?"":"s")+" to practise":"")+(confNew?"":": rate again before your review"):"Two minutes: rate your skills"),
+        run:()=>conf&&conf.sessions&&conf.scores.length>=3&&window.eviaProgressDeep?window.eviaProgressDeep("conf"):window.eviaPractice&&window.eviaPractice.openConfidence?window.eviaPractice.openConfidence():go(()=>window.eviaCoachFlows.confidence())()},
       live()?{id:"employer",title:"Employer feedback",ok:emNew,sub:emNew?(EM.who||"Your employer")+" rated you "+new Date(rated.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"Not yet since "+fromTxt+": ask your employer",run:()=>emNew?window.eviaProgressDeep("employer"):window.eviaMessages&&window.eviaMessages.open()}:null,
       prep&&prep.rd&&(prep.rd.college||live())?{id:"comments",title:"Your comments",ok:!!prep.commentsDone,sub:prep.commentsDone?"Done: your assessor can read them":"How it’s going, any help you need",run:comments}:null
     ].filter(Boolean);

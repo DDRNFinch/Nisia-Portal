@@ -1,4 +1,4 @@
-const VERSION = "2026-10-27-evia7-v306";
+const VERSION = "2026-10-28-evia7-v309";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -75,12 +75,12 @@ const APP_SHELL = [
 
 /* Offline-first: the app always opens from the copy saved on the phone, so it loads instantly with or without
    signal. Each release bumps VERSION; the browser then downloads the whole new version in the background, and
-   it is used from the next time Evia opens. */
+   it is used once the learner taps Update available, or from the next time Evia opens. */
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(APP_SHELL.map(url => new Request(url, { cache: "reload" })));
-    await self.skipWaiting();
+    /* Then it waits: the Update available button (SKIP_WAITING below) or the next launch switches to it. */
   })());
 });
 

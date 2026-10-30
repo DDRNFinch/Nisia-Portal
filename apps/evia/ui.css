@@ -2249,36 +2249,11 @@ html[data-a11y-motion="reduce"] .ui-action-pulse{box-shadow:0 0 0 3px color-mix(
 @keyframes ra-catch{0%{opacity:0;transform:translate(-6px,-6px) rotate(0)}20%{opacity:1}40%{transform:translate(-2px,2px) rotate(90deg)}55%{opacity:1;transform:translate(0,9px) rotate(160deg) scale(.85)}62%{opacity:0;transform:translate(0,11px) scale(.6)}100%{opacity:0}}
 .ra-catch>.evia-mini{left:0;animation:ra-lean 2.6s ease-in-out infinite}
 @keyframes ra-lean{0%,35%{transform:rotate(-4deg)}55%{transform:rotate(6deg) translateY(-1px)}70%,100%{transform:rotate(-4deg)}}
-/* Skills: Evia strikes a pose (left, then right), the camera flashes, and she blinks at the flash */
-.ra-skills>.evia-mini{left:0;animation:ra-pose 2.8s ease-in-out infinite}
-@keyframes ra-pose{0%,8%{transform:rotate(0) translateY(0)}16%,40%{transform:rotate(-13deg) translateY(-2px) scale(1.04)}50%,58%{transform:rotate(0) translateY(0)}66%,90%{transform:rotate(12deg) translateY(-3px) scale(1.04)}100%{transform:rotate(0) translateY(0)}}
-.ra-skills .evia-face i{animation:ra-blink 2.8s linear infinite}
-@keyframes ra-blink{0%,30%,34%,80%,84%,100%{transform:scaleY(1)}31%,33%,81%,83%{transform:scaleY(.15)}}
-.ra-cam{position:absolute;right:-10px;bottom:-2px;width:28px;height:23px;z-index:2;overflow:visible;filter:drop-shadow(0 2px 3px rgba(16,24,40,.18));transform-origin:50% 100%;animation:ra-snap 1.4s ease-in-out infinite}
-.ra-cam-body{fill:#1f2733}.ra-cam-lens{fill:#3a4556;stroke:#fff;stroke-width:1.4}.ra-cam-glass{fill:#8fb4ff;opacity:.85}
-.ra-cam-bulb{fill:#fff;animation:ra-bulb 1.4s linear infinite}
-@keyframes ra-snap{0%,22%,100%{transform:translateY(0)}27%{transform:translateY(1px) scale(.97)}34%{transform:translateY(0)}}
-@keyframes ra-bulb{0%,24%,40%,100%{fill:#fff}27%,33%{fill:var(--yellow)}}
-.ra-flash{position:absolute;right:-12px;bottom:6px;width:34px;height:34px;border-radius:50%;z-index:1;pointer-events:none;opacity:0;
-  background:radial-gradient(circle,rgba(255,255,255,1) 0,rgba(255,236,150,.85) 35%,rgba(255,236,150,0) 70%);animation:ra-flash 1.4s ease-out infinite}
-@keyframes ra-flash{0%,24%{opacity:0;transform:scale(.4)}28%{opacity:1;transform:scale(1.15)}45%,100%{opacity:0;transform:scale(1.4)}}
-/* Knowledge: Evia talking into a microphone, her mouth moving, the sound rippling out */
-.ra-knowledge>.evia-mini{left:0;animation:ra-talk 1.6s ease-in-out infinite}
-@keyframes ra-talk{0%,100%{transform:rotate(-3deg) translateY(0)}25%{transform:rotate(0) translateY(-1.5px)}50%{transform:rotate(3deg) translateY(0)}75%{transform:rotate(0) translateY(-1px)}}
-.ra-mouth{position:absolute;left:50%;bottom:17%;width:7px;height:2.5px;margin-left:-3.5px;border-radius:3px;background:var(--yellow);z-index:2;animation:ra-mouth .9s ease-in-out infinite}
-@keyframes ra-mouth{0%,100%{height:2.5px;bottom:17%}20%{height:5px;bottom:14%}40%{height:3px;bottom:16%}60%{height:6px;bottom:13%}80%{height:2px;bottom:17%}}
-.ra-knowledge .evia-face{transform:translateY(-3px)}
-.ra-mic{position:absolute;right:-9px;bottom:-4px;width:17px;height:26px;z-index:2;overflow:visible;transform-origin:50% 100%;transform:rotate(-14deg);filter:drop-shadow(0 2px 3px rgba(16,24,40,.18))}
-.ra-mic-head{fill:#1f2733}.ra-mic-grille{stroke:#8a96a8;stroke-width:1;stroke-linecap:round}.ra-mic-stand{stroke:#1f2733;stroke-width:2;stroke-linecap:round;fill:none}
-.ra-wave{position:absolute;right:-13px;top:2px;width:16px;height:16px;border-radius:50%;border:2px solid var(--yellow);border-left-color:transparent;border-bottom-color:transparent;transform:rotate(45deg);opacity:0;animation:ra-wave 1.6s ease-out infinite}
-.ra-wave.w2{right:-19px;top:-3px;width:26px;height:26px;animation-delay:.4s}
-@keyframes ra-wave{0%{opacity:0;transform:rotate(45deg) scale(.6)}25%{opacity:1}100%{opacity:0;transform:rotate(45deg) scale(1.15)}}
 /* Reduced motion: still pictures that show the idea */
-@media (prefers-reduced-motion:reduce){.ra *{animation:none!important}.ra-bubble b:first-child,.ra-note.n2{opacity:1}.ra-net-catch{opacity:1;transform:translate(0,9px) scale(.85)}.ra-skills>.evia-mini{transform:rotate(-12deg)}.ra-flash{opacity:.9}.ra-wave{opacity:1}.ra-mouth{height:5px}}
+@media (prefers-reduced-motion:reduce){.ra *{animation:none!important}.ra-bubble b:first-child,.ra-note.n2{opacity:1}.ra-net-catch{opacity:1;transform:translate(0,9px) scale(.85)}}
 html[data-a11y-motion="reduce"] .ra *{animation:none!important}
 html[data-a11y-motion="reduce"] .ra-bubble b:first-child,html[data-a11y-motion="reduce"] .ra-note.n2{opacity:1}
 html[data-a11y-motion="reduce"] .ra-net-catch{opacity:1;transform:translate(0,9px) scale(.85)}
-html[data-a11y-motion="reduce"] .ra-skills>.evia-mini{transform:rotate(-12deg)}html[data-a11y-motion="reduce"] .ra-flash,html[data-a11y-motion="reduce"] .ra-wave{opacity:1}html[data-a11y-motion="reduce"] .ra-mouth{height:5px}
 /* The four ways in, all the same size */
 .ev-modes{display:flex;flex-direction:column;gap:10px;margin:4px 0 14px}
 .ev-modes .eg-start{margin:0;min-height:74px;padding:10px 14px 10px 10px}
@@ -2309,17 +2284,6 @@ html[data-a11y-motion="reduce"] .ra-skills>.evia-mini{transform:rotate(-12deg)}h
 .ev-modes .ra-clap{right:-4px}
 .ev-modes .ra-bubble{right:4px}
 .ev-modes .ra-note.n2{right:8px}.ev-modes .ra-note.n3{right:14px}
-.ev-modes .ra-cam{right:-2px}.ev-modes .ra-flash{right:-4px}.ev-modes .ra-mic{right:-1px}.ev-modes .ra-wave{right:-5px}.ev-modes .ra-wave.w2{right:-11px}
-/* Skills and Knowledge: the two ways in, bigger, side by side on wider screens */
-.ev-modes .eg-start.cx-skills,.ev-modes .eg-start.cx-know{min-height:88px}
-.ev-modes .cx-skills strong,.ev-modes .cx-know strong{font-size:17px}
-@media(min-width:560px){.ev-modes:has(.cx-skills):has(.cx-know){display:grid;grid-template-columns:1fr 1fr}.ev-modes .eg-start.catch{grid-column:1/-1}}
-/* The criteria each part shows: the code, then plain words */
-.cx-crit{margin:10px 0 12px}
-.cx-crit ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
-.cx-crit li{display:flex;gap:9px;align-items:baseline;font-size:13.5px;line-height:1.45;color:var(--ui-text)}
-.cx-crit li b{flex:0 0 auto;min-width:30px;padding:1px 7px;border-radius:999px;background:var(--soft);border:1px solid var(--yellow-line);color:var(--yellow-ink);font-size:11.5px;font-weight:800;text-align:center}
-.cx-progress .evidence-section-title{margin-bottom:4px}
 
 /* ---------- Site Showdown (showdown.js) ---------- */
 .gm-showdown .gm-body{padding:0;overflow:hidden;display:flex;flex-direction:column}
@@ -3397,3 +3361,10 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .er-wrap .th-btns{display:flex;flex-direction:column;gap:8px}
 .er-plain{min-height:44px;border:0;background:none;font:inherit;font-weight:700;font-size:14.5px;color:var(--ui-muted,#475467);cursor:pointer}
 .er-plain:disabled{opacity:.5}
+
+/* Complete write-ups: the topic's KSBs, folded away under each photo's question */
+.eg-ksbs{margin:6px 0 10px;border:1px solid var(--ui-line,#e9edf2);border-radius:12px;padding:8px 12px;background:#fff}
+.eg-ksbs summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ui-muted,#667085)}
+.eg-ksbs ul{list-style:none;margin:8px 0 2px;padding:0;display:grid;gap:5px}
+.eg-ksbs li{font-size:13px;line-height:1.45;color:var(--ui-text,#344054)}
+.eg-ksbs li b{display:inline-block;min-width:28px;margin-right:6px;padding:0 6px;border-radius:999px;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-size:11px;text-align:center}

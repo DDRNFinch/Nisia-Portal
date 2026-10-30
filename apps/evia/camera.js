@@ -8,8 +8,6 @@
    written down as it's recorded, and each thing to mention lights up once it's been said. info={secs,transcript}. */
 (function(){
   const escHtml=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
-  /* Video at 0.9 Mbit/s: about 7 MB a minute (720 x 720). A voice note is under 0.4 MB a minute. */
-  const VIDEO_BPS=900000;
   const supported=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
   const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(_){}};
   const stamp=()=>new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
@@ -99,10 +97,7 @@
 
   /* ---------- Video and voice recorder ---------- */
   const LIMIT=120; /* seconds */
-  /* Writing down what's said as it's recorded: on computers only. On phones the speech service beeps each time it stops
-     and starts again in a pause (every few seconds on Android), which sounds like the recording has stopped. */
-  const PHONE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"")||(/Macintosh/.test(navigator.userAgent||"")&&navigator.maxTouchPoints>1);
-  const SR=PHONE?null:window.SpeechRecognition||window.webkitSpeechRecognition;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   /* A true MP4 recording (H.264 picture, AAC sound) put together on the phone with WebCodecs, so it plays with sound in
      every phone gallery and PC player, the old Windows Media Player included. It behaves like a MediaRecorder
      (start, stop, onstop, ondataavailable). Resolves to null where the browser can't do it, and MediaRecorder is used. */
@@ -113,54 +108,49 @@
     s.onerror=()=>{muxP=null;rej(new Error("MP4 muxer unavailable"))};document.head.appendChild(s);
   }));
   let mp4Broken=false;
-  /* video: the square canvas the camera is drawn into (openRecorder), with sq.onDraw called after each new picture.
-     The picture is made from that canvas with Evia's own timing, and the sound and the picture each start at zero, so a
-     phone that times them with different clocks can't leave the picture behind (which played as a still picture). */
-  async function mp4Recorder(stream,sq){
-    const W=window,video=!!sq;if(mp4Broken||!W.AudioEncoder||!W.MediaStreamTrackProcessor||(video&&!(W.VideoEncoder&&W.VideoFrame)))return null;
-    const a0=stream.getAudioTracks()[0];if(!a0)return null;
+  async function mp4Recorder(stream,video){
+    const W=window;if(mp4Broken||!W.AudioEncoder||!W.MediaStreamTrackProcessor||(video&&!W.VideoEncoder))return null;
+    const a0=stream.getAudioTracks()[0],v0=video?stream.getVideoTracks()[0]:null;if(!a0||(video&&!v0))return null;
     const tracks=[],readers=[];
-    const drop=()=>{readers.forEach(r=>r.cancel().catch(()=>{}));tracks.forEach(t=>t.stop());if(sq)sq.onDraw=null};
+    const drop=()=>{readers.forEach(r=>r.cancel().catch(()=>{}));tracks.forEach(t=>t.stop())};
     try{
       const Mux=await loadMux();
       const reader=t=>{const c=t.clone();tracks.push(c);const r=new MediaStreamTrackProcessor({track:c}).readable.getReader();readers.push(r);return r};
       const first=r=>Promise.race([r.read().then(x=>x.value),new Promise(res=>setTimeout(()=>res(null),3000))]);
-      const ar=reader(a0),fa=await first(ar);
-      if(!fa){drop();return null}
+      const ar=reader(a0),vr=video?reader(v0):null;
+      const fa=await first(ar),fv=vr?await first(vr):null;
+      if(!fa||(video&&!fv)){if(fa)fa.close();if(fv)fv.close();drop();return null}
       const sampleRate=fa.sampleRate,numberOfChannels=Math.min(2,fa.numberOfChannels||1);fa.close();
-      /* Kept small: speech sounds clear at these rates (mono, AAC). */
-      const aConf={codec:"mp4a.40.2",sampleRate,numberOfChannels,bitrate:video?64000:48000};
-      if(!(await AudioEncoder.isConfigSupported(aConf)).supported){drop();return null}
-      let vConf=null;const width=video?sq.width:0,height=video?sq.height:0;
+      const aConf={codec:"mp4a.40.2",sampleRate,numberOfChannels,bitrate:video?96000:128000};
+      if(!(await AudioEncoder.isConfigSupported(aConf)).supported){if(fv)fv.close();drop();return null}
+      let vConf=null,width=0,height=0;
       if(video){
-        for(const codec of ["avc1.42E01F","avc1.42E028","avc1.4D4028","avc1.640028","avc1.42001f"]){
-          const c={codec,width,height,bitrate:VIDEO_BPS,framerate:30,latencyMode:"realtime",avc:{format:"avc"}};
+        width=fv.displayWidth&~1;height=fv.displayHeight&~1;fv.close();
+        for(const codec of ["avc1.42E028","avc1.4D4028","avc1.640028","avc1.42E032","avc1.42001f"]){
+          const c={codec,width,height,bitrate:1500000,framerate:30,latencyMode:"realtime",avc:{format:"avc"}};
           try{if((await VideoEncoder.isConfigSupported(c)).supported){vConf=c;break}}catch(_){}
         }
         if(!vConf){drop();return null}
       }
       const target=new Mux.ArrayBufferTarget();
-      const muxer=new Mux.Muxer({target,fastStart:"in-memory",firstTimestampBehavior:"offset",
+      const muxer=new Mux.Muxer({target,fastStart:"in-memory",firstTimestampBehavior:"cross-track-offset",
         audio:{codec:"aac",sampleRate,numberOfChannels},...(video?{video:{codec:"avc",width,height}}:{})});
       let failed=null;const fail=e=>{failed=failed||e;mp4Broken=true;console.error("Evia MP4 recorder",e)};
       const add=(fn,chunk,meta)=>{try{fn.call(muxer,chunk,meta)}catch(e){fail(e)}};
       const aEnc=new AudioEncoder({output:(c,m)=>add(muxer.addAudioChunk,c,m),error:fail});aEnc.configure(aConf);
       const vEnc=video?new VideoEncoder({output:(c,m)=>add(muxer.addVideoChunk,c,m),error:fail}):null;if(vEnc)vEnc.configure(vConf);
-      const rec={mimeType:video?"video/mp4;codecs=avc1,mp4a.40.2":"audio/mp4;codecs=mp4a.40.2",state:"inactive",onstop:null,ondataavailable:null,frames:0};
+      const rec={mimeType:video?"video/mp4;codecs=avc1,mp4a.40.2":"audio/mp4;codecs=mp4a.40.2",state:"inactive",onstop:null,ondataavailable:null};
+      let lastKey=-1e12;
       const pump=async(r,fn)=>{for(;;){let x;try{x=await r.read()}catch(_){break}if(x.done)break;const f=x.value;
         if(rec.state!=="recording"||failed){f.close();continue}try{fn(f)}catch(e){fail(e)}f.close()}};
       const pa=pump(ar,d=>{if(aEnc.state==="configured")aEnc.encode(d)});
-      /* The picture: each new frame drawn into the square, up to 30 a second, timed from when recording started. */
-      let t0=0,lastT=-1e9,lastKey=-1e12;
-      if(video)sq.onDraw=()=>{
-        if(rec.state!=="recording"||failed||vEnc.state!=="configured"||vEnc.encodeQueueSize>4)return;
-        const now=performance.now();if(now-lastT<30)return;lastT=now;
-        const ts=Math.round((now-t0)*1000),fr=new VideoFrame(sq,{timestamp:ts}),key=ts-lastKey>=2e6;if(key)lastKey=ts;
-        try{vEnc.encode(fr,{keyFrame:key});rec.frames++}catch(e){fail(e)}finally{fr.close()}
-      };
-      rec.start=()=>{t0=performance.now();rec.state="recording"};
+      const pv=vr?pump(vr,f=>{
+        if(vEnc.state!=="configured"||(f.displayWidth&~1)!==width||(f.displayHeight&~1)!==height||vEnc.encodeQueueSize>4)return;
+        const key=f.timestamp-lastKey>=2e6;if(key)lastKey=f.timestamp;vEnc.encode(f,{keyFrame:key});
+      }):Promise.resolve();
+      rec.start=()=>{rec.state="recording"};
       rec.stop=async()=>{
-        if(rec.state==="inactive")return;rec.state="inactive";drop();await pa;
+        if(rec.state==="inactive")return;rec.state="inactive";drop();await Promise.all([pa,pv]);
         let blob=null;
         try{await aEnc.flush();if(vEnc)await vEnc.flush();if(failed)throw failed;muxer.finalize();blob=new Blob([target.buffer],{type:rec.mimeType.split(";")[0]})}catch(e){fail(e)}
         try{aEnc.close();if(vEnc)vEnc.close()}catch(_){}
@@ -218,37 +208,20 @@
       }catch(_){}
     };
     const setState=s=>{el.dataset.state=s;rec.setAttribute("aria-label",s==="recording"?"Stop recording":"Start recording")};
-    /* Videos are square, like the photos: what the camera shows is drawn into a 720 x 720 square, cropped from the
-       middle just as the preview shows it, and the video is made from that. */
-    const SQ=720;let sq=null;
-    const square=()=>{
-      if(sq)return sq;sq=document.createElement("canvas");sq.width=sq.height=SQ;const g=sq.getContext("2d",{alpha:false});
-      const tick=()=>{if(!sq||!live)return;const w=live.videoWidth,h=live.videoHeight;
-        if(w&&h){const m=Math.min(w,h);g.drawImage(live,(w-m)/2,(h-m)/2,m,m,0,0,SQ,SQ);if(sq.onDraw)sq.onDraw()}
-        if(live.requestVideoFrameCallback)live.requestVideoFrameCallback(tick);else requestAnimationFrame(tick)};
-      tick();return sq;
-    };
     const getStream=async()=>{
       if(stream)return stream;
-      /* 720p, one sound channel: sharp enough to see the work, a fraction of the size (the video is the square from the middle). */
-      const voice={channelCount:{ideal:1},echoCancellation:true,noiseSuppression:true};
-      stream=await navigator.mediaDevices.getUserMedia(video?{video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:24,max:30}},audio:voice}:{audio:voice});
+      stream=await navigator.mediaDevices.getUserMedia(video?{video:{facingMode:{ideal:"environment"},width:{ideal:1080},height:{ideal:1080}},audio:true}:{audio:true});
       if(live){live.srcObject=stream;live.play().catch(()=>{})}
       meter();return stream;
     };
     const stop=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop();clearInterval(timer);deaf()};
     const start=async()=>{
       try{await getStream()}catch(err){console.error("Evia recorder failed",err);denied(el,err,video?"camera and microphone":"microphone");rec.disabled=true;return}
-      /* Video: the browser's own MP4 recorder (H.264 picture, AAC sound) where it has one, as newer phones do; then
-         Evia's MP4 recorder; then WebM. */
-      const native=video?["video/mp4;codecs=avc1.42E01F,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2"].find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x)):null;
-      rec.disabled=true;recorder=native?null:await mp4Recorder(stream,video?square():null);rec.disabled=false;
+      rec.disabled=true;recorder=await mp4Recorder(stream,video);rec.disabled=false;
       if(!recorder){
-        const chosen=native||pickMime(),o={};if(chosen)o.mimeType=chosen;
-        if(video){o.videoBitsPerSecond=VIDEO_BPS;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=32000;
-        /* The square picture, with the microphone's sound. */
-        const src=video?new MediaStream([...square().captureStream(30).getVideoTracks(),...stream.getAudioTracks()]):stream;
-        try{recorder=new MediaRecorder(src,o)}catch(_){recorder=new MediaRecorder(src)}
+        const chosen=pickMime(),o={};if(chosen)o.mimeType=chosen;
+        if(video){o.videoBitsPerSecond=1500000;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=128000;
+        try{recorder=new MediaRecorder(stream,o)}catch(_){recorder=new MediaRecorder(stream)}
       }
       mime=recorder.mimeType||(video?"video/webm":"audio/webm");chunks=[];
       recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
@@ -271,16 +244,16 @@
     };
     rec.onclick=()=>{if(el.dataset.state==="recording")stop();else if(el.dataset.state!=="review")start()};
     retake.onclick=()=>{review.innerHTML="";blob=null;heard="";interim="";tick();badge.textContent="0:00";keepBtn.hidden=true;retake.hidden=true;el.classList.remove("cam-ending");if(ring)ring.style.strokeDashoffset="0";setState("ready");hint.textContent="Tap the red button to start again."};
-    const cleanup=()=>{clearInterval(timer);deaf();if(sq){sq.onDraw=null;sq=null}if(raf)cancelAnimationFrame(raf);if(audioCtx)audioCtx.close().catch(()=>{});closeOverlay(el,stream)};
+    const cleanup=()=>{clearInterval(timer);deaf();if(raf)cancelAnimationFrame(raf);if(audioCtx)audioCtx.close().catch(()=>{});closeOverlay(el,stream)};
     keepBtn.onclick=()=>{const b=blob,m=mime,info={secs,transcript:transcript()};cleanup();if(b&&opts.onDone)opts.onDone(b,m,info)};
-    el.querySelector("[data-cam-close]").onclick=()=>{if(el.dataset.state==="recording"&&!confirm("Stop and discard this recording?"))return;if(recorder&&recorder.state!=="inactive"){recorder.onstop=null;recorder.stop()}cleanup();if(opts.onClose)opts.onClose()};
+    el.querySelector("[data-cam-close]").onclick=()=>{if(el.dataset.state==="recording"&&!confirm("Stop and discard this recording?"))return;if(recorder&&recorder.state!=="inactive"){recorder.onstop=null;recorder.stop()}cleanup()};
     setState("ready");
     if(video)getStream().catch(err=>{console.error("Evia recorder failed",err);denied(el,err,"camera and microphone");rec.disabled=true});
   }
 
   function fmtLimit(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   window.eviaCamera={open:openCamera,supported};
-  /* Videos and voice notes: on, now they are kept small (720p video, low-rate mono sound). false switches them off. */
-  window.eviaRecordings=true;
+  /* Videos and voice notes are switched off for now: they take up too much storage. true brings them all back. */
+  window.eviaRecordings=false;
   window.eviaRecorder={open:openRecorder,supported:()=>window.eviaRecordings&&supported()&&!!window.MediaRecorder};
 })();

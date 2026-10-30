@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="evia-version" content="evia7-v306">
+<meta name="evia-version" content="evia7-v309">
 <meta name="theme-color" content="#fffdfa">
 <meta name="description" content="Evia apprenticeship tracking">
 <meta name="evia-build-policy" content="network-first-v1">
@@ -82,28 +82,20 @@ html.evia-booting body{visibility:hidden}
 </nav>
 </div>
 <div id="modal-root"></div>
-<script src="errors.js?v=errors-v5"></script>
+<script src="errors.js?v=errors-v6"></script>
 <script src="install.js?v=install-v4"></script>
 <script src="blank-guard.js?v=blank-v1"></script>
-<script src="packs.js?v=packs-v5"></script>
-<script src="storage.js?v=storage-v8" data-app-scripts="data.js?v=data-v17 nisia-actions.js?v=actions-5 nisia.js?v=nisia-v26 checkin.js?v=checkin-v3 @course-pack-early ksb-official.js?v=ksb-v3 app.js polish.js theme.js?v=evia-theme-v12 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v31 profile.js?v=profile-v15 eportfolio.js?v=eport-v99 test-banks.js?v=banks-v2 review.js?v=tests-v15 repair.js?v=repair-v4 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v3 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v4 guide.js?v=guide-v11 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v17 practice.js?v=practice-v11 reviews.js?v=reviews-v17 ui.js?v=ui-v49 progress.js?v=pv-v19 epa-guide.js?v=guide-v2 discussion.js?v=disc-v6 evia-coach.js?v=coach-v30 evia-brain.js?v=brain-v9 evia-todo.js?v=todo-v10 camera.js?v=camera-v10 photo-tips.js?v=tips-v2 writing.js?v=writing-v4 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v21 calendar.js?v=cal-v9 games.js?v=games-v8 showdown-data.js?v=sd-v4 showdown.js?v=sd-v3 leaderboard.js?v=lb-v4 rewards.js?v=rw-v23 orbs.js?v=orbs-v2 tips.js?v=tips-v3 usage.js?v=usage-v2 class-quiz.js?v=cq-v2 mic-hint.js?v=mh-v2 battle.js?v=bt-v4 messages-ui.js?v=msg-v1 evia-messages.js?v=em-v1 future.js?v=fu-v2 review-prep.js?v=rp-v3 goodbye.js?v=gb-v1 ui-tidy.js?v=tidy-v12 helper.js?v=hp-v8 journey-pack.js?v=jp-v4 own-attendance.js?v=oa-v6 feedback.js?v=fb-v1 desktop.js?v=dk-v1"></script>
+<script src="packs.js?v=packs-v6"></script>
+<script src="storage.js?v=storage-v8" data-app-scripts="data.js?v=data-v17 nisia-actions.js?v=actions-5 nisia.js?v=nisia-v28 checkin.js?v=checkin-v3 @course-pack-early ksb-official.js?v=ksb-v3 app.js polish.js theme.js?v=evia-theme-v12 accessibility.js?v=a11y-v1 onboarding.js?v=onboarding-v31 profile.js?v=profile-v15 eportfolio.js?v=eport-v23 test-banks.js?v=banks-v2 review.js?v=tests-v15 repair.js?v=repair-v4 provider.js?v=provider-v2 practice-tasks.js?v=tasks-v3 otj-auto.js?v=otj-v2 teach-kit.js?v=tk-v3 teach-pics.js?v=tp-v8 teach-play.js?v=tg-v3 teach-maths.js?v=tm-v2 teach-english.js?v=te-v2 teach-edi.js?v=edi-v2 @course-pack strength.js?v=strength-v4 guide.js?v=guide-v11 teach.js?v=teach-v17 exam.js?v=exam-v2 stats.js?v=stats-v17 practice.js?v=practice-v11 reviews.js?v=reviews-v17 ui.js?v=ui-v49 progress.js?v=pv-v19 epa-guide.js?v=guide-v2 discussion.js?v=disc-v6 evia-coach.js?v=coach-v29 evia-brain.js?v=brain-v9 evia-todo.js?v=todo-v10 camera.js?v=camera-v7 photo-tips.js?v=tips-v2 writing.js?v=writing-v4 evia-alive.js?v=alive-v3 tabs.js?v=tabs-v21 calendar.js?v=cal-v9 games.js?v=games-v8 showdown-data.js?v=sd-v4 showdown.js?v=sd-v3 leaderboard.js?v=lb-v4 rewards.js?v=rw-v23 orbs.js?v=orbs-v2 tips.js?v=tips-v3 usage.js?v=usage-v2 class-quiz.js?v=cq-v2 mic-hint.js?v=mh-v2 battle.js?v=bt-v4 messages-ui.js?v=msg-v1 evia-messages.js?v=em-v1 future.js?v=fu-v2 review-prep.js?v=rp-v4 goodbye.js?v=gb-v1 ui-tidy.js?v=tidy-v13 helper.js?v=hp-v8 journey-pack.js?v=jp-v4 own-attendance.js?v=oa-v6 feedback.js?v=fb-v1 desktop.js?v=dk-v1"></script>
 <script>
 (function(){
   if (!("serviceWorker" in navigator)) return;
-  /* A new version is used straight away only if it arrives while Evia is still opening; otherwise it waits for the
-     next launch, so nobody loses what they're typing. The very first install never reloads. */
-  let reloading=false;const openedAt=Date.now(),hadController=!!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloading||!hadController||Date.now()-openedAt>8000)return;reloading=true;window.location.reload();});
+  /* A new version waits to be used: the Update available button (below) switches to it, or Evia's next launch does.
+     Evia never reloads by itself. */
   window.addEventListener("load", async function(){
     try {
-      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v306",{updateViaCache:"none"});
+      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v309",{updateViaCache:"none"});
       await registration.update().catch(()=>{}); /* fails harmlessly with no signal */
-      const activateWaiting=worker=>{if(!worker)return;worker.postMessage({type:"SKIP_WAITING"});};
-      if(registration.waiting) activateWaiting(registration.waiting);
-      registration.addEventListener("updatefound",()=>{
-        const worker=registration.installing;if(!worker)return;
-        worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller)activateWaiting(worker);});
-      });
       /* Tell the learner once, when everything is saved on the phone, that Evia now works without signal. */
       await navigator.serviceWorker.ready;
       const tellOnce=async()=>{
@@ -117,6 +109,35 @@ html.evia-booting body{visibility:hidden}
       setTimeout(tellOnce,1500);
     } catch(e) {console.warn("Evia update service unavailable",e);}
   });
+})();
+</script>
+<script>
+/* Update available: a new version downloads in the background (checked on opening, on coming back, and every 15
+   minutes) and waits. A button at the top says so; tapping it saves anything in progress and switches to the new
+   version. Nothing updates by itself while the app is open; left alone, the new version is used next time it opens. */
+(function(){
+  if(!("serviceWorker" in navigator))return;
+  var bar=null,waiting=null,going=false,had=!!navigator.serviceWorker.controller;
+  function go(){if(go.done)return;go.done=true;Promise.resolve(window.eviaStorage&&window.eviaStorage.flush?window.eviaStorage.flush():0).catch(function(){}).then(function(){location.reload()})}
+  function show(){
+    if(bar||going)return;
+    var st=document.createElement("style");st.textContent=".app-update{position:fixed;z-index:2147483000;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:10px 18px;border:0;border-radius:999px;background:#172033;color:#fff;font:700 14px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.28);cursor:pointer;animation:app-update-in .35s ease-out}.app-update i{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}@keyframes app-update-in{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}@media print{.app-update{display:none}}";document.head.appendChild(st);
+    bar=document.createElement("button");bar.type="button";bar.className="app-update";bar.setAttribute("aria-live","polite");bar.innerHTML="<i aria-hidden=\"true\"></i><span>Update available</span>";
+    bar.onclick=function(){
+      if(going)return;going=true;bar.querySelector("span").textContent="Updating…";
+      if(waiting){navigator.serviceWorker.addEventListener("controllerchange",go);try{waiting.postMessage({type:"SKIP_WAITING"});waiting.postMessage("update")}catch(_){go()}setTimeout(go,5000)}else go();
+    };
+    document.body.appendChild(bar);
+  }
+  /* A version that took over without being asked (an older one): the page is still the old one, so offer it. */
+  navigator.serviceWorker.addEventListener("controllerchange",function(){if(had&&!going)show();had=true});
+  navigator.serviceWorker.ready.then(function(reg){
+    var watch=function(w){if(w)w.addEventListener("statechange",function(){if(w.state==="installed"&&navigator.serviceWorker.controller){waiting=reg.waiting||w;show()}})};
+    if(reg.waiting&&navigator.serviceWorker.controller){waiting=reg.waiting;show()}
+    watch(reg.installing);reg.addEventListener("updatefound",function(){watch(reg.installing)});
+    var check=function(){reg.update().catch(function(){})};check();
+    setInterval(check,15*60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)check()});
+  }).catch(function(){});
 })();
 </script>
 </body>

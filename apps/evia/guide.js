@@ -32,17 +32,7 @@
       '<path d="M24.5 19.5c-1 7 4.5 12.5 11 11 3.2-3.6 4.8-8.4 4.2-12.8" class="ra-net-bag"/>'+
       '<path d="M27 22.6l9-9.2M29.8 26.6l8.4-11.4M26 18.4l12.6 5.6M25.4 23.4l13 3.2M31.5 29.6l2.4-16.4" class="ra-net-mesh"/>'+
       '<ellipse cx="32.3" cy="15.4" rx="9.4" ry="5.2" transform="rotate(-32 32.3 15.4)" class="ra-net-hoop"/></g>'+
-      '<g class="ra-net-catch"><path d="M34 1.5l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.7 1.4.5-3-2.2-2.1 3-.4z" class="ra-net-star"/></g></svg>',
-    /* Skills: Evia strikes a pose, the camera flashes, she blinks, and poses again. */
-    skills:'<span class="ra-flash"></span><span class="evia-mini"><span class="evia-face"><i></i><i></i></span></span>'+
-      '<svg class="ra-cam" viewBox="0 0 30 24" aria-hidden="true"><rect x="7" y="2.5" width="9" height="4.5" rx="1.4" class="ra-cam-body"/>'+
-      '<rect x="1.5" y="5.5" width="27" height="17" rx="3.4" class="ra-cam-body"/><circle cx="15" cy="14" r="5.6" class="ra-cam-lens"/><circle cx="15" cy="14" r="2.6" class="ra-cam-glass"/>'+
-      '<rect x="21.5" y="8" width="4" height="2.6" rx=".8" class="ra-cam-bulb"/></svg>',
-    /* Knowledge: Evia talking into a microphone, her mouth moving, with sound rippling out. */
-    knowledge:'<span class="evia-mini"><span class="evia-face"><i></i><i></i></span><b class="ra-mouth"></b></span>'+
-      '<i class="ra-wave w1"></i><i class="ra-wave w2"></i>'+
-      '<svg class="ra-mic" viewBox="0 0 20 30" aria-hidden="true"><path d="M10 19v8M5.5 28h9" class="ra-mic-stand"/>'+
-      '<rect x="5" y="2" width="10" height="15" rx="5" class="ra-mic-head"/><path d="M5.5 7.5h9M5.5 11h9M5.5 14.5h9" class="ra-mic-grille"/></svg>'
+      '<g class="ra-net-catch"><path d="M34 1.5l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.7 1.4.5-3-2.2-2.1 3-.4z" class="ra-net-star"/></g></svg>'
   };
   const routeAvatar=kind=>'<span class="ra ra-'+kind+'" aria-hidden="true">'+(RA[kind]||MINI)+'</span>';
   window.eviaRouteAvatar=routeAvatar;
@@ -289,23 +279,23 @@
   }
 
   /* ---------- The photo list ----------
-     Evia lists what's worth a photo; the learner takes them in any order, as many as they like, and finishes when they
-     want. They can write it up whenever they like (Evia's questions, as before). If they finish with no write-up,
-     Evia shows each photo in turn and asks what it shows, with what to mention, and the answers become the write-up.
-     Captions are kept in the pack (pack.guide.captions, by photo id). */
+     Evia lists what's worth a photo; the learner takes them in any order, as many as they like. Then Complete
+     write-ups: Evia shows each photo in turn and asks what it shows, with what to mention and the topic's KSBs, and
+     the answers become the write-up, numbered to match the photos. Captions are kept in the pack (pack.guide.captions,
+     by photo id) and go with the evidence, so the PDF shows each photo with its words beside it. */
   function shots(ctx){
     cur="guide";
     const P=plan(ctx),g=load(ctx.pack,"guide"),n=(ctx.pack.photos||[]).length,w=words(ctx.pack.write)+answeredIn(g,P.asks);
     const canCam=window.eviaCamera&&window.eviaCamera.supported();
     const list=P.photos.map(p=>'<li><strong>'+esc(p.say)+'</strong>'+(p.hint?'<small>'+esc(p.hint)+'</small>':"")+'</li>').join("");
-    const el=sheet('<p class="eg-say">'+(n?"You’ve got <strong>"+plural(n,"photo")+"</strong> so far. Add more, or finish whenever you’re ready.":"Here’s what’s worth a photo. Take them in any order, as many as you like, and finish whenever you want.")+'</p>'+
+    /* Take the photos first, then Complete write-ups: Evia goes through them one at a time and asks what each shows. */
+    const el=sheet('<p class="eg-say">'+(n?"You’ve got <strong>"+plural(n,"photo")+"</strong>. Take more, or press <strong>Complete write-ups</strong> and I’ll go through them with you, one at a time.":"Here’s what’s worth a photo. Take them in any order, as many as you like. Then I’ll go through each photo with you and you say what it shows.")+'</p>'+
       '<ul class="eg-shots">'+list+'</ul>'+
       (n?'<div class="eg-thumbs" id="eg-thumbs"></div>':"")+
-      '<p class="eg-small">Everything saves as you go. You can write it up now, or I’ll help you at the end.</p>',
-      [{label:canCam?"Take photos":"Add photos",primary:!n,run:()=>canCam?shotCamera(ctx,P):gallery(ctx,()=>shots(ctx))},
+      '<p class="eg-small">Everything saves as you go, so you can stop and carry on later.</p>',
+      [{label:canCam?(n?"Take more photos":"Take photos"):"Add photos",primary:!n,run:()=>canCam?shotCamera(ctx,P):gallery(ctx,()=>shots(ctx))},
        canCam?{label:"Add from gallery",run:()=>gallery(ctx,()=>shots(ctx))}:null,
-       n||w?{label:w?"Carry on writing":"Write it up now",run:()=>ask(ctx,P,firstGap(P,g))}:null,
-       n||w?{label:"I’m finished",primary:true,run:()=>finish(ctx,P)}:null].filter(Boolean),
+       n?{label:"Complete write-ups",primary:true,run:()=>describe(ctx,P,0)}:null].filter(Boolean),
       {kicker:"EVIA · PHOTO LIST",title:ctx.unitName,wide:true});
     closeRefreshes(ctx);
     if(n&&ctx.photoSrc){const box=el.querySelector("#eg-thumbs");Promise.all((ctx.pack.photos||[]).slice(-8).map(ctx.photoSrc)).then(srcs=>{if(box)box.innerHTML=srcs.filter(Boolean).map(s=>'<img src="'+s+'" alt="">').join("")})}
@@ -317,13 +307,6 @@
       setTimeout(()=>shots(ctx),60);
     }});
   }
-  /* Finished: a write-up already (theirs or from Evia's questions)? Use it. If not, describe each photo. */
-  function finish(ctx,P){
-    const g=ctx.pack.guide,text=compile(ctx,P);
-    if(text){ctx.pack.write=text;g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();return}
-    if(!(ctx.pack.photos||[]).length){close();ctx.done();return}
-    describe(ctx,P,0);
-  }
   function describe(ctx,P,i){
     const g=ctx.pack.guide;g.captions=g.captions||{};
     const ph=ctx.pack.photos||[],n=ph.length;
@@ -331,24 +314,35 @@
     const p=ph[i],terms=split(ctx.prompts&&ctx.prompts.writeup).slice(0,8);
     const el=sheet('<div class="eg-progress" aria-hidden="true"><i style="width:'+Math.round((i+1)/n*100)+'%"></i></div>'+
       '<div class="eg-photo" id="eg-photo"></div>'+
-      '<p class="eg-say eg-q">What does this photo show?</p>'+
+      '<p class="eg-say eg-q">Photo '+(i+1)+': what does it show?</p>'+
       '<p class="eg-small">What you were doing, how, and why. A sentence or two is fine.</p>'+
+      ksbBox(ctx)+
       (terms.length?'<div class="eg-mention"><span class="eg-mention-h">Things to mention</span>'+terms.map(t=>'<span class="eg-chip" data-t="'+esc(cap(t))+'">'+esc(cap(t))+'</span>').join("")+'</div>':"")+
       '<textarea class="eg-text" id="eg-text" data-otj="'+esc(ctx.unitName)+'" rows="4" placeholder="This photo shows…" aria-label="What this photo shows">'+esc(g.captions[p.id]||"")+'</textarea>',
       [{label:i===n-1?"Done":"Next photo",primary:true,run:()=>{save();describe(ctx,P,i+1)}}],
-      {kicker:"EVIA · PHOTO "+(i+1)+" OF "+n,title:"Your photos",back:i>0?()=>{save();describe(ctx,P,i-1)}:()=>{save();shots(ctx)},keep:true,full:true,compact:true});
+      {kicker:"EVIA · PHOTO "+(i+1)+" OF "+n,title:"Write-ups",back:i>0?()=>{save();describe(ctx,P,i-1)}:()=>{save();shots(ctx)},keep:true,full:true,compact:true});
     if(ctx.photoSrc)ctx.photoSrc(p).then(src=>{const b=el.querySelector("#eg-photo");if(b&&src)b.innerHTML='<img src="'+src+'" alt="Photo '+(i+1)+'">'});
     const box=el.querySelector("#eg-text"),chips=[...el.querySelectorAll(".eg-chip")];
     const light=()=>{const t=box.value.toLowerCase();chips.forEach(c=>c.classList.toggle("on",!!(window.eviaTermMatched?window.eviaTermMatched(c.dataset.t,t):t.includes(c.dataset.t.toLowerCase()))))};
     function save(){g.captions[p.id]=box.value.trim();ctx.save()}
     let t=null;box.oninput=()=>{light();clearTimeout(t);t=setTimeout(save,400)};light();
   }
+  /* The topic's KSBs, in plain words, to prompt what each photo could show. */
+  function ksbBox(ctx){
+    const items=(ctx.ksbs||[]).map(k=>{const c=String(k).split("|")[0].trim(),t=String(k).split("|").slice(1).join("|");
+      const line=/^K/i.test(c)?cap(kLine(t)):(skillLine(k)||cap(String(t).split(/[.:]/)[0]));return line?'<li><b>'+esc(c)+'</b> '+esc(line)+'</li>':""}).filter(Boolean);
+    return items.length?'<details class="eg-ksbs"><summary>KSBs this topic covers</summary><ul>'+items.join("")+'</ul></details>':"";
+  }
+  /* Each photo's words, numbered to match the photos on the PDF ("Photo 1: …"). */
+  const numbered=(ctx,g)=>(ctx.pack.photos||[]).map((p,i)=>{const t=String(g.captions[p.id]||"").trim();return t?"Photo "+(i+1)+": "+t:""}).filter(Boolean).join("\n\n");
   function describeDone(ctx,P){
-    const g=ctx.pack.guide,text=(ctx.pack.photos||[]).map(p=>String(g.captions[p.id]||"").trim()).filter(Boolean).join("\n\n");
+    const g=ctx.pack.guide,text=numbered(ctx,g);
     if(!text){sheet('<p class="eg-say">No descriptions yet, so there’s no write-up. Your photos are saved: you can come back to me any time.</p>',[{label:"Close",primary:true,run:()=>{close();ctx.done()}}],{kicker:"EVIA · PHOTO LIST",title:ctx.unitName});return}
-    const el=sheet('<p class="eg-say">Here’s your write-up, from what you said about your photos. Change anything you like.</p>'+
+    const el=sheet('<p class="eg-say">Here’s your write-up, numbered to match your photos. Each photo goes on the PDF with what you said beside it.</p>'+
       '<textarea class="eg-text eg-final" id="eg-final" rows="12" aria-label="Your write-up">'+esc(text)+'</textarea>',
-      [{label:"Use this write-up",primary:true,run:()=>{ctx.pack.write=el.querySelector("#eg-final").value.trim();g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();
+      [{label:"Use this write-up",primary:true,run:()=>{const v=el.querySelector("#eg-final").value.trim();ctx.pack.write=v;
+        /* Changed by hand: the PDF shows it as written, not photo by photo. */
+        g.captionsEdited=v!==text;g.used=new Date().toISOString();g.at=null;ctx.save();close();ctx.done();
         if(typeof showEvidenceToast==="function")setTimeout(()=>showEvidenceToast("Write-up added"),250)}}],
       {kicker:"EVIA · PHOTO LIST",title:"Your write-up",back:()=>describe(ctx,P,(ctx.pack.photos||[]).length-1),keep:true,full:true,compact:true});
   }
@@ -459,8 +453,7 @@
      things to mention, lighting up as they're said). Where the phone can, what's said is written down as it's
      recorded: the transcript is kept with the pack, out of the way, and counts towards the things to mention just
      like a write-up. ctx.addMedia(blob,mime,{kind,secs,transcript}) keeps a recording in the pack. */
-  /* Videos up to 2 minutes and voice notes up to 5, kept small (camera.js). */
-  const REC_LIMIT={video:120,audio:300};
+  const REC_LIMIT={video:180,audio:300};
   const mmss=s=>Math.floor(s/60)+":"+String(Math.round(s%60)).padStart(2,"0");
   const canTranscribe=()=>!!(window.SpeechRecognition||window.webkitSpeechRecognition);
   function record(ctx){
@@ -497,77 +490,6 @@
       }});
   }
 
-  /* ---------- Skills and Knowledge ----------
-     The learner decides how to gather each topic's evidence: Skills with photos and videos (the topic's S criteria),
-     Knowledge in writing or out loud (its K and B criteria). Each is submitted on its own and mapped to just those
-     criteria. Both live in the topic's pack: photos and videos for skills, the write-up and voice notes for knowledge.
-     ctx is start()'s, plus submitPart(part) to send one part to the portfolio. */
-  const codeOf=k=>String(k).split("|")[0].trim().toUpperCase();
-  const partKsbs=(ksbs,part)=>(ksbs||[]).filter(k=>part==="skills"?/^S/.test(codeOf(k)):/^[KB]/.test(codeOf(k)));
-  const partMedia=(pack,part)=>(pack.media||[]).filter(m=>part==="skills"?m.kind==="video":m.kind==="audio");
-  const canRecord=()=>!!(window.eviaRecorder&&window.eviaRecorder.supported());
-  const mediaChips=list=>list.length?'<div class="ev-media-chips">'+list.map(m=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+mmss(m.secs):"")+'</span>').join("")+'</div>':"";
-  /* A criterion as Evia says it: the code, then plain words. */
-  const critLine=k=>{const c=codeOf(k),t=String(k).split("|").slice(1).join("|");
-    const line=/^K/.test(c)?cap(kLine(t)):(skillLine(k)||cap(String(t).split(/[.:]/)[0]));return '<li><b>'+esc(c)+'</b><span>'+esc(line)+'</span></li>'};
-  const skillsHave=pack=>(pack.photos||[]).length+partMedia(pack,"skills").length;
-  const knowHave=pack=>words(pack.write)+partMedia(pack,"knowledge").length;
-  function skills(ctx){
-    cur="skills";
-    const pack=ctx.pack,S=partKsbs(ctx.ksbs,"skills"),n=(pack.photos||[]).length,vids=partMedia(pack,"skills");
-    const canCam=window.eviaCamera&&window.eviaCamera.supported(),have=n+vids.length;
-    const caps=split(ctx.prompts&&ctx.prompts.photos);
-    const el=sheet('<p class="eg-say">'+(have?"So far: "+[n?plural(n,"photo"):"",vids.length?plural(vids.length,"video"):""].filter(Boolean).join(" and ")+". Add more, or submit when you’re ready.":
-        "Show you can do it. Take photos, or film yourself at work, whichever suits the job. Take as many as you like, over as many days as you need.")+'</p>'+
-      (S.length?'<div class="cx-crit"><span class="eg-mention-h">Skills this shows</span><ul>'+S.map(critLine).join("")+'</ul></div>':"")+
-      (caps.length?'<div class="fr-mention"><div class="evidence-section-title">THINGS TO CAPTURE</div><div class="compact-prompts">'+esc(caps.join(" · "))+'</div></div>':"")+
-      (n?'<div class="eg-thumbs" id="eg-thumbs"></div>':"")+mediaChips(vids),
-      [canCam?{label:"Take photos",primary:!have,run:()=>skillPhotos(ctx)}:null,
-       canRecord()?{label:"Film a video",primary:!have&&!canCam,run:()=>skillVideo(ctx)}:null,
-       {label:"Add photos from gallery",primary:!have&&!canCam&&!canRecord(),run:()=>gallery(ctx,()=>skills(ctx))},
-       have?{label:"Submit skills to portfolio",primary:true,run:async()=>{close(true);await ctx.submitPart("skills")}}:null].filter(Boolean),
-      {kicker:"SKILLS · PHOTOS AND VIDEOS",title:ctx.unitName,wide:true});
-    closeRefreshes(ctx);
-    if(n&&ctx.photoSrc){const box=el.querySelector("#eg-thumbs");Promise.all((pack.photos||[]).slice(-8).map(ctx.photoSrc)).then(srcs=>{if(box)box.innerHTML=srcs.filter(Boolean).map(x=>'<img src="'+x+'" alt="">').join("")})}
-  }
-  function skillPhotos(ctx){
-    close(true);
-    window.eviaCamera.open({title:ctx.unitName,prompts:split(ctx.prompts&&ctx.prompts.photos),onDone:async files=>{
-      if(files.length)await ctx.addFiles(files);setTimeout(()=>skills(ctx),60)}});
-  }
-  function skillVideo(ctx){
-    close(true);
-    window.eviaRecorder.open({type:"video",limit:REC_LIMIT.video,transcribe:true,prompts:split(ctx.prompts&&ctx.prompts.photos),promptsTitle:"Things to capture",
-      onDone:async(blob,mime,info)=>{await ctx.addMedia(blob,mime,{kind:"video",secs:info&&info.secs||0,transcript:info&&info.transcript||""});setTimeout(()=>skills(ctx),60)},
-      onClose:()=>setTimeout(()=>skills(ctx),60)});
-  }
-  function knowledge(ctx){
-    cur="knowledge";
-    const pack=ctx.pack,KB=partKsbs(ctx.ksbs,"knowledge"),notes=partMedia(pack,"knowledge"),terms=split(ctx.prompts&&ctx.prompts.writeup);
-    const ready=()=>!!(String(pack.write||"").trim()||partMedia(pack,"knowledge").length);
-    const hintText=()=>ready()?"Ready to submit.":"Write it, or record a voice note, to submit.";
-    const el=sheet(
-      '<p class="eg-ctx">Explain what you know, in your own words: write it, say it in a voice note, or both.</p>'+
-      (KB.length?'<div class="cx-crit"><span class="eg-mention-h">What to explain</span><ul>'+KB.map(critLine).join("")+'</ul></div>':"")+
-      (terms.length?'<div class="fr-mention"><div class="evidence-section-title">THINGS TO MENTION</div><div class="compact-prompts">'+esc(terms.join(" · "))+'</div></div>':"")+
-      mediaChips(notes)+
-      '<textarea class="eg-text" id="write" data-otj="'+esc(ctx.unitName)+'" rows="7" placeholder="What you know, and an example from your job…" aria-label="Your answer">'+esc(pack.write||"")+'</textarea>'+
-      '<p class="eg-small fr-hint" id="fr-hint">'+hintText()+'</p>',
-      [canRecord()?{label:notes.length?"Another voice note":"Voice note",run:()=>knowVoice(ctx)}:null,
-       {label:"Submit to portfolio",primary:true,run:async()=>{if(!ready())return;close(true);await ctx.submitPart("knowledge")}}].filter(Boolean),
-      {kicker:"KNOWLEDGE · WRITTEN AND AUDIO",title:ctx.unitName,keep:true,full:true,compact:true});
-    const box=el.querySelector("#write"),btn=el.querySelector(".eg-actions .primary"),hint=el.querySelector("#fr-hint");
-    const update=()=>{btn.disabled=!ready();hint.textContent=hintText()};
-    box.oninput=()=>{pack.write=box.value;ctx.save();update()};
-    update();closeRefreshes(ctx);
-  }
-  function knowVoice(ctx){
-    close(true);
-    window.eviaRecorder.open({type:"audio",limit:REC_LIMIT.audio,transcribe:true,prompts:split(ctx.prompts&&ctx.prompts.writeup),promptsTitle:"Things to mention",
-      onDone:async(blob,mime,info)=>{await ctx.addMedia(blob,mime,{kind:"audio",secs:info&&info.secs||0,transcript:info&&info.transcript||""});setTimeout(()=>knowledge(ctx),60)},
-      onClose:()=>setTimeout(()=>knowledge(ctx),60)});
-  }
-
   /* ---------- Catch up ----------
      After the assessor has looked at evidence for a unit (More required), or once a topic has evidence (its KSBs with
      none yet), Evia goes after just what's still needed:
@@ -590,5 +512,5 @@
       intro:(ctx.assessor===false?"This topic still has "+(n===1?"one thing":n+" things")+" with no evidence yet. ":"Your assessor needs a bit more for "+(n===1?"one thing":n+" things")+" in this unit. ")+"Let’s catch "+(n===1?"it":"them")+". Anything that shows "+(n===1?"it":"them")+" counts: a couple of photos and a few words is fine."}));
   }
 
-  window.eviaGuide={start,free,plan,plain,record,catchUp,skills,knowledge,partKsbs,skillsHave,knowHave};
+  window.eviaGuide={start,free,plan,plain,record,catchUp};
 })();

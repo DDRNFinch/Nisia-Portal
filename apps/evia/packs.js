@@ -95,6 +95,29 @@
       if(j<0){let most=0;mine.forEach((m,k)=>{const n=m.ksbs.filter(x=>t.ksbs.some(y=>y.code===x.code)).length;if(n>most){most=n;j=k}})}
       const l=j>=0&&byName[mine[j].name];return l?Object.assign({},l,{unit:t.name}):null}).filter(Boolean);
   }
+  /* The things to capture and mention go with the KSBs they're about, so a college's topics have them however the
+     college groups its KSBs. Each of Evia's own prompts belongs to the KSBs of its topic whose wording it matches (one
+     that matches none belongs to all of its topic's KSBs); a college's topic gets those of the KSBs it covers, the
+     ones shared by most of its KSBs first. A topic with the same name as one of Evia's keeps Evia's own. */
+  const ORIG_PROMPTS={};
+  function applyPrompts(course){
+    const L=window.eviaLearnerPrompts;if(!L||!L[course]&&!ORIG_PROMPTS[course])return;
+    if(!ORIG_PROMPTS[course])ORIG_PROMPTS[course]=Object.assign({},L[course]);
+    const base=ORIG_PROMPTS[course],f=following[course];
+    if(!f){L[course]=Object.assign({},base);return}
+    const match=window.eviaTermMatched||((t,x)=>String(x).toLowerCase().includes(String(t).toLowerCase()));
+    const byKsb={},add=(c,kind,t)=>{const o=byKsb[c]=byKsb[c]||{photos:new Set(),writeup:new Set()};o[kind].add(t)};
+    ownTopics(course).forEach(m=>{const p=base[m.name];if(!p)return;
+      ["photos","writeup"].forEach(kind=>String(p[kind]||"").split("·").map(x=>x.trim()).filter(Boolean).forEach(term=>{
+        const hit=m.ksbs.filter(k=>k.text&&match(term,k.text));(hit.length?hit:m.ksbs).forEach(k=>add(k.code,kind,term))}))});
+    const out=Object.assign({},base);
+    f.topics.forEach(t=>{if(base[t.name])return;
+      const o={};["photos","writeup"].forEach(kind=>{const n=new Map();
+        t.ksbs.forEach(k=>{const b=byKsb[k.code];if(b)b[kind].forEach(x=>n.set(x,(n.get(x)||0)+1))});
+        o[kind]=[...n.entries()].sort((a,b)=>b[1]-a[1]).slice(0,kind==="photos"?12:16).map(x=>x[0]).join(" · ")});
+      if(o.photos||o.writeup)out[t.name]=o});
+    L[course]=out;
+  }
   /* p: the learner's pack from Evia Portal (null: Evia's own). Returns true if Evia's topics changed. */
   function follow(p,course){
     if(typeof C==="undefined"||!course||!C[course]||course==="trowel3")return false;
@@ -122,7 +145,9 @@
       /* Coins already paid for a topic's evidence go with it to its new name, so a rename never pays twice. */
       if(Object.keys(names).length){const R=window.eviaRewards;if(R&&R.carry)R.carry(course,names);else(window.eviaRewardsCarry=window.eviaRewardsCarry||[]).push([course,names])}
     }
-    remapLessons(course);
+    remapLessons(course);applyPrompts(course);
+    /* The prompts and Evia's matching of words load after this: again once they're here. */
+    const prompts=()=>applyPrompts(course);window.addEventListener("load",prompts,{once:true});setTimeout(prompts,4000);
     /* Teach me's lessons load after Evia starts: match them to the topics once they're here. */
     if(!(window.EVIA_TEACH&&window.EVIA_TEACH.courses&&window.EVIA_TEACH.courses[course])){
       const again=()=>remapLessons(course);window.addEventListener("load",again,{once:true});setTimeout(again,4000);
@@ -136,5 +161,5 @@
     return follow(p,course);
   }
   const followingPack=course=>following[course]?{title:following[course].title,topics:following[course].topics.length}:null;
-  window.eviaPacks={VERSION,files,ensure,loaded,unitId,pack,catalogue,follow,followKept,followingPack,COURSES:Object.keys(FILES)};
+  window.eviaPacks={VERSION,files,ensure,loaded,unitId,pack,catalogue,follow,followKept,followingPack,applyPrompts,COURSES:Object.keys(FILES)};
 })();
