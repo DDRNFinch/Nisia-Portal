@@ -59,6 +59,14 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     const size=await page.evaluate(async()=>{const id=window.eviaBasic.state.pf[0].id;const r=await new Promise(res=>{const o=indexedDB.open("evia-basic",1);o.onsuccess=()=>{const g=o.result.transaction("files").objectStore("files").get(id);g.onsuccess=()=>res(g.result)}});return r&&r.blob?{size:r.blob.size,type:r.blob.type,head:await r.blob.slice(0,5).text()}:null});
     if(shots){const b64=await page.evaluate(async()=>{const id=window.eviaBasic.state.pf[0].id;const r=await new Promise(res=>{const o=indexedDB.open("evia-basic",1);o.onsuccess=()=>{const g=o.result.transaction("files").objectStore("files").get(id);g.onsuccess=()=>res(g.result)}});return await new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(r.blob)})});fs.writeFileSync(path.join(shots,"evidence.pdf"),Buffer.from(b64,"base64"))}
     check("The PDF is a real PDF with the photos in it",size&&size.head==="%PDF-"&&size.size>20000,JSON.stringify(size));
+    /* Tapping it shows the PDF on screen, with Share and a way back. */
+    await page.click(".pf-row");await page.waitForSelector(".pv canvas",{timeout:15000});await page.waitForTimeout(800);
+    const pv=await page.evaluate(()=>{const c=document.querySelector(".pv canvas"),x=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let ink=0;for(let k=0;k<x.length;k+=40)if(x[k]<200)ink++;
+      return {pages:document.querySelectorAll(".pv canvas").length,ink:ink>200,share:!!document.querySelector(".pv [data-share]"),title:document.querySelector(".pv-top strong").textContent,tabs:getComputedStyle(document.querySelector(".tabs")).display}});
+    check("Tapping a PDF in the Portfolio shows a preview of it, with Share",pv.pages===1&&pv.ink&&pv.share&&pv.title==="Mixing mortar"&&pv.tabs==="none",JSON.stringify(pv));
+    await snap("7-preview");
+    await page.click(".pv [data-x]");
+    check("Closing the preview goes back to the Portfolio",!await page.$(".pv")&&!!await page.$(".pf-row"));
     await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
     check("Back on Topics, Mixing mortar has a tick",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")));
     /* Photos waiting (taken, not written up yet) show on the tile; the topic offers More and Write up. */

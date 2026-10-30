@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="evia-version" content="evia-basic-v1">
+<meta name="evia-version" content="evia-basic-v2">
 <meta name="theme-color" content="#fffdfa">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Evia Basic">
@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=eb1">
+<link rel="stylesheet" href="style.css?v=eb2">
 </head>
 <body>
 <main id="app"></main>
@@ -19,10 +19,10 @@
   <button type="button" data-tab="topics"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg><span>Topics</span></button>
   <button type="button" data-tab="portfolio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/></svg><span>Portfolio</span><em id="pf-n" hidden></em></button>
 </nav>
-<script src="topics.js?v=eb1"></script>
-<script src="app.js?v=eb1"></script>
+<script src="topics.js?v=eb2"></script>
+<script src="app.js?v=eb2"></script>
 <script>
-if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js?v=evia-basic-v1",{updateViaCache:"none"}).catch(function(){})});
+if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js?v=evia-basic-v2",{updateViaCache:"none"}).catch(function(){})});
 </script>
 </body>
 </html>

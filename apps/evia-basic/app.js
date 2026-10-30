@@ -43,7 +43,7 @@
     topic:["Look at the list.","Take photos of these at work.","Tap Take photos."],
     camera:["Point at your work.","Tap the big white button.","Tap Save when you’re done."],
     write:["Look at each photo.","Type what it shows.","Tap Save."],
-    portfolio:["Your saved work is here.","Tap one to open or share it."]
+    portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."]
   };
   let page="topics";
   function help(which){
@@ -213,12 +213,39 @@
     wireEvia();
     app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>openPdf(S.pf.find(p=>p.id===b.dataset.pf)));
   }
+  /* Tapping a PDF shows it on screen, page by page (pdf.js, kept with the app so it works offline), with Share. */
+  const PDFJS="vendor/pdfjs-3.11.174/";
+  let pdfjsP=null;
+  const loadPdfjs=()=>window.pdfjsLib?Promise.resolve(window.pdfjsLib):pdfjsP||(pdfjsP=new Promise((res,rej)=>{
+    const s=document.createElement("script");s.src=PDFJS+"pdf.min.js";
+    s.onload=()=>{if(!window.pdfjsLib)return rej(new Error("no viewer"));window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.js";res(window.pdfjsLib)};
+    s.onerror=()=>{pdfjsP=null;rej(new Error("no viewer"))};document.head.appendChild(s)}));
+  const pdfName=p=>((T[p.topic]||{}).name||"Evidence").replace(/[\\/:*?"<>|]/g,"-")+" - "+new Date(p.at).toISOString().slice(0,10)+".pdf";
+  async function sharePdf(p,blob){
+    const name=pdfName(p),file=typeof File==="function"?new File([blob],name,{type:"application/pdf"}):null;
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e&&e.name==="AbortError")return}}
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+  }
   async function openPdf(p){
     const blob=await get(p.id);if(!blob){alert("That PDF isn’t on this phone any more.");return}
-    const name=((T[p.topic]||{}).name||"Evidence").replace(/[\\/:*?"<>|]/g,"-")+" - "+new Date(p.at).toISOString().slice(0,10)+".pdf";
-    const file=typeof File==="function"?new File([blob],name,{type:"application/pdf"}):null;
-    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e&&e.name==="AbortError")return}}
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.target="_blank";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+    const el=document.createElement("div");el.className="pv";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");
+    el.innerHTML='<header class="pv-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc((T[p.topic]||{}).name||"Evidence")+'</strong>'+
+      '<button type="button" class="pv-share" data-share>Share</button></header><div class="pv-pages"><p class="pv-wait">Opening…</p></div>';
+    document.body.appendChild(el);document.body.classList.add("pv-open");
+    let closed=false;const close=()=>{closed=true;el.remove();document.body.classList.remove("pv-open")};
+    el.querySelector("[data-x]").onclick=close;
+    el.querySelector("[data-share]").onclick=()=>sharePdf(p,blob);
+    const box=el.querySelector(".pv-pages");
+    try{
+      const lib=await loadPdfjs(),doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise;
+      box.innerHTML="";
+      const w=Math.min(box.clientWidth||window.innerWidth,900)-24,dpr=Math.min(window.devicePixelRatio||1,2.5);
+      for(let n=1;n<=doc.numPages&&!closed;n++){
+        const pg=await doc.getPage(n),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:w/v1.width*dpr});
+        const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;c.style.width=w+"px";c.style.height=(vp.height/dpr)+"px";c.setAttribute("aria-label","Page "+n);
+        box.appendChild(c);await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+      }
+    }catch(err){console.error("Evia Basic: preview",err);if(!closed)box.innerHTML='<p class="pv-wait">The preview didn’t open. Tap Share to open it in another app.</p>'}
   }
 
   document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>b.dataset.tab==="portfolio"?portfolio():topics());
