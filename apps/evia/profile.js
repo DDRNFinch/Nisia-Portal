@@ -278,6 +278,8 @@
     document.body.appendChild(root);
     requestAnimationFrame(()=>root.classList.add("visible"));
     root.querySelector(".welcome-avatar").onclick=finishWelcome;
+    /* Not tapped: Evia opens by itself after 3 seconds, fading into the app. */
+    setTimeout(finishWelcome,3000);
   }
 
   function finishWelcome(){
