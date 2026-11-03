@@ -39,24 +39,30 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     const b=await page.textContent(".bubble");
     check("Tapping Evia shows what to do on this page, in a few words",/Tap a topic/.test(b),b);
     await snap("2-help");await page.click(".bubble button");
-    /* Tapping a topic opens the camera straight away, with the first thing to capture under the picture. */
-    await page.click('.tile[data-t="0"]');await page.waitForSelector(".cam video");
-    await page.waitForFunction(()=>document.querySelector(".cam video").videoWidth>0,null,{timeout:8000});
-    const p1=await page.evaluate(()=>({n:document.querySelector(".cp-n").textContent,say:document.querySelector(".cp-say").textContent,hint:document.querySelector(".cp-hint").textContent}));
-    check("Tapping a topic opens the camera straight away, with the first thing to capture under the picture",/^1 of 6/.test(p1.n)&&p1.say==="Silos"&&/silo you used/.test(p1.hint),JSON.stringify(p1));
-    await snap("3-prompt");
-    await page.click(".shutter");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
-    await page.click("[data-next]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Gauging");
-    await page.click("[data-prev]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
-    check("Each photo moves on to the next thing to capture; Skip and back move along without one",true);
+    /* Tapping a topic shows its photos to get, each with its own camera button. */
+    await page.click('.tile[data-t="0"]');await page.waitForSelector(".shot");
+    const sh=await page.evaluate(()=>({n:document.querySelectorAll(".shot").length,first:document.querySelector(".shot").innerText.replace(/\s+/g," "),last:document.querySelector(".shot:last-child").innerText.replace(/\s+/g," "),write:document.getElementById("go-write").disabled}));
+    check("Tapping a topic shows its photos to get, each with its own camera button, plus Something else; Write up waits for a photo",sh.n===7&&/Silos/.test(sh.first)&&/silo you used/.test(sh.first)&&/Something else/.test(sh.last)&&sh.write,JSON.stringify(sh));
+    await snap("3-photos");
+    /* Silos today: one photo. */
+    await page.click('[data-k="0"]');await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0,null,{timeout:8000});
+    check("Its camera shows just that photo under the picture",await page.textContent(".cp-say")==="Silos"&&/silo you used/.test(await page.textContent(".cp-hint")));
+    await page.click(".shutter");await page.waitForFunction(()=>document.querySelectorAll(".cam-strip img").length===1);
+    await page.click(".cam-save");await page.waitForSelector(".shot.got");
+    const after=await page.evaluate(()=>({have:[...document.querySelectorAll(".shot.got strong")].map(x=>x.textContent).join(),count:document.querySelector(".shots-h b").textContent,thumbs:document.querySelectorAll(".shot-th img").length,write:document.getElementById("go-write").textContent}));
+    check("Back on the topic, that one has a tick and its photo, the count goes up, and Write up is ready",after.have==="Silos"&&after.count==="1 of 6"&&after.thumbs===1&&/Write up \(1\)/.test(after.write),JSON.stringify(after));
+    /* Gauging: two photos. */
+    await page.click('[data-k="2"]');await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
     for(let k=0;k<2;k++){await page.click(".shutter");await page.waitForTimeout(300)}
-    await page.waitForFunction(()=>document.querySelectorAll(".cam-strip img").length===3);
+    await page.waitForFunction(()=>document.querySelectorAll(".cam-strip img").length===2);
     const sq=await page.evaluate(()=>{const s=document.querySelector(".cam-stage").getBoundingClientRect();return Math.round(s.width)===Math.round(s.height)});
-    check("The camera is square, stays open for photo after photo, and counts them",sq&&await page.textContent(".cam-n")==="3 photos");
+    check("The camera is square, stays open for photo after photo, and counts them",sq&&await page.textContent(".cam-n")==="2 photos");
     await snap("4-camera");
-    await page.click(".cam-save");await page.waitForSelector(".wu-row");
+    await page.click(".cam-save");await page.waitForSelector('.shot-th[data-th="2"] img');
+    await snap("4b-photos");
+    await page.click("#go-write");await page.waitForSelector(".wu-row");
     const wu=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length,img:[...document.querySelectorAll(".wu-row img")].every(i=>i.src.startsWith("blob:")),name:!!document.getElementById("nm"),labels:[...document.querySelectorAll(".wu-row .k")].map(k=>k.textContent).join("|"),ph:document.querySelector(".wu-row textarea").placeholder}));
-    check("Save goes to the write-up: each photo, labelled with what it was for, with a box for what it shows",wu.rows===3&&wu.img&&!wu.name&&wu.labels==="PHOTO 1 · SILOS|PHOTO 2 · PRE-MIX|PHOTO 3 · GAUGING"&&/silo you used/.test(wu.ph),JSON.stringify(wu));
+    check("Save goes to the write-up: each photo, labelled with what it was for, with a box for what it shows",wu.rows===3&&wu.img&&!wu.name&&wu.labels==="PHOTO 1 · SILOS|PHOTO 2 · GAUGING|PHOTO 3 · GAUGING"&&/silo you used/.test(wu.ph),JSON.stringify(wu));
     /* Save with a box empty: it says so and goes to it. */
     const tas=await page.$$(".wu-row textarea");await tas[0].fill("Gauging the mix 1 to 4 with buckets.");await tas[1].fill("The mixer and silo, with the water feed.");
     await page.click("#save");await page.waitForSelector(".toast");
@@ -128,17 +134,15 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.click("#qd");await page.waitForSelector("#epa");
     check("The best EPA score shows on Learn",/%/.test(await page.textContent("#epa .epa-best")));
     await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
-    /* Photos waiting (taken, not written up yet) show on the tile; the topic offers More and Write up. */
-    await page.click('.tile[data-t="1"]');await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
-    await page.click(".shutter");await page.waitForTimeout(300);await page.click(".cam-save");await page.waitForSelector(".wu-row");
+    /* Photos waiting (taken, not written up yet) stay with the topic, and its tile shows it's started. */
+    await page.click('.tile[data-t="1"]');await page.waitForSelector(".shot");await page.click('[data-k="0"]');await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
+    await page.click(".shutter");await page.waitForTimeout(300);await page.click(".cam-save");await page.waitForSelector(".shot.got");
     await page.click("#back");await page.waitForSelector(".tile");
     const going=await page.evaluate(()=>document.querySelector('.tile[data-t="1"]').classList.contains("going"));
-    await page.click('.tile[data-t="1"]');await page.waitForSelector(".wu-row");
-    const again=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length}));
-    await page.click("#more");await page.waitForSelector(".cam .cp-say");
-    const nextSay=await page.textContent(".cp-say");
-    await page.click(".cam [data-x]");await page.click("#back");await page.waitForSelector(".tile");
-    check("Photos not written up yet stay with the topic: its tile shows it's started, tapping it goes to the write-up, and More picks up at the next thing to capture",going&&again.rows===1&&nextSay!=="PPE"&&nextSay.length>0,JSON.stringify({going,again,nextSay}));
+    await page.click('.tile[data-t="1"]');await page.waitForSelector(".shot");
+    const again=await page.evaluate(()=>({count:document.querySelector(".shots-h b").textContent,have:document.querySelectorAll(".shot.got").length}));
+    await page.click("#back");await page.waitForSelector(".tile");
+    check("Photos not written up yet stay with the topic for another day: its tile shows it's started, and the photo is still ticked",going&&again.count==="1 of 4"&&again.have===1,JSON.stringify({going,again}));
     /* Kept after closing the app. */
     await page.reload();await page.waitForSelector(".hello");
     check("Opening again, Evia says hi by name and then gets out of the way",/Hi Callum/.test(await page.textContent(".hello")));

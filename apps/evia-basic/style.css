@@ -251,3 +251,20 @@ button.card:active{transform:scale(.99)}
 .ask textarea{width:100%;min-height:96px;border:1.5px solid #d0d5dd;border-radius:14px;padding:10px 12px;font-size:16px;resize:vertical;background:#fff}
 .ask textarea:focus{outline:none;border-color:var(--yellow);box-shadow:0 0 0 3px var(--soft)}
 .codes-line{margin:14px 4px 0;color:var(--muted);font-size:13px;font-weight:700}
+/* A topic's photos: each thing to capture with its own camera button */
+.shots-h{display:flex;align-items:center;gap:10px;margin:0 2px 12px}.shots-h .bar{flex:1;margin:0}.shots-h b{font-size:14px;white-space:nowrap}
+.shots{display:grid;gap:10px}
+.shot{background:var(--card);border:1.5px solid var(--line);border-radius:20px;overflow:hidden}
+.shot.got{border-color:#a6f4c5;background:#f6fef9}
+.shot.extra{border-style:dashed}
+.shot-main{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;padding:12px 12px 12px 14px}
+.shot-tick{width:32px;height:32px;flex:none;border-radius:50%;background:#f2f4f7;display:grid;place-items:center;font-weight:900;font-size:14px;color:var(--muted)}
+.shot.got .shot-tick{background:#12b76a;color:#fff}.shot-tick svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.shot-copy{flex:1;min-width:0}.shot-copy strong{display:block;font-size:16.5px}.shot-copy small{display:block;color:var(--muted);font-size:13.5px;line-height:1.35;margin-top:2px}
+.shot-cam{width:48px;height:48px;flex:none;border-radius:16px;background:var(--yellow);display:grid;place-items:center;box-shadow:0 6px 14px color-mix(in srgb,var(--yellow) 35%,transparent)}
+.shot.got .shot-cam{background:#fff;border:1.5px solid var(--line);box-shadow:none}
+.shot-cam svg{width:24px;height:24px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.shot-th{display:flex;gap:6px;padding:0 14px 12px 58px;overflow-x:auto}
+.shot-th img{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none}
+.cam-prompt{justify-content:center;text-align:center}
+.big:disabled{box-shadow:none}

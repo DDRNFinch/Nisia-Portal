@@ -4,8 +4,8 @@
      Topics     the goal (every topic into the portfolio, and the next one), then the topics, 2 wide. A tick when
                 it's in the portfolio, orange when photos are waiting.
      Topics     18 of them, each a K (or a few) with the S and/or B that match it, so all 18 cover all 59 KSBs.
-                On the job: straight into the square camera, with the things to capture under the picture one at a
-                time (each photo labelled with its one); Save goes to the write-up. Talk about it: a few questions,
+                On the job: the things to capture, each with its own camera button and photos, so they can take
+                what they can that day and come back for the rest; Write up when ready. Talk about it: a few questions,
                 answered in their own words.
      Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right),
                 puts it in the Portfolio, and Evia celebrates.
@@ -61,7 +61,8 @@
   const HELP={
     topics:["Tap a topic.","Take photos of your work.","Say what they show."],
 
-    camera:["Take a photo of what it says under the picture.","Then the next one comes up.","Tap Save when you’re done."],
+    photos:["Tap a photo you can get today.","Come back for the rest another day.","Then tap Write up."],
+    camera:["Take a photo of what it says under the picture.","Take more if you like.","Tap Save when you’re done."],
     write:["Look at each photo.","Type what it shows.","Tap Save."],
     talk:["Read each question.","Answer it in your own words.","Tap Save."],
     portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."],
@@ -107,7 +108,29 @@
   }
   /* A topic: straight into the camera, or to the write-up if photos are already waiting. "Talk about it" topics ask
      their questions instead. */
-  function topic(i){if(T[i].kind==="talk")talk(i);else if(draft(i).photos.length)write(i);else camera(i)}
+  function topic(i){if(T[i].kind==="talk")talk(i);else photos(i)}
+
+  /* ---------- A topic's photos: each thing to capture with its own camera button ----------
+     Learners take whichever they can that day and come back for the rest; each keeps its photos (tick when it has
+     one). "Something else" is for anything not on the list. Write up once there's at least one. */
+  async function photos(i){
+    page="photos";tabs(null);
+    const t=T[i],d=draft(i),list=t.capture.concat([["Something else","Anything else from the job that shows your work."]]);
+    const of=k=>d.photos.filter(p=>(k===list.length-1?!t.capture.some(c=>c[0]===p.label):p.label===list[k][0]));
+    const got=t.capture.filter((c,k)=>of(k).length).length;
+    app.innerHTML=top(t.name,true)+
+      '<p class="lead">Take each photo when you can. Come back any day for the rest.</p>'+
+      '<div class="shots-h"><span class="bar"><i style="width:'+Math.round(got/t.capture.length*100)+'%"></i></span><b>'+got+' of '+t.capture.length+'</b></div>'+
+      '<div class="shots">'+list.map((c,k)=>{const n=of(k).length,extra=k===list.length-1;
+        return '<div class="shot'+(n?" got":"")+(extra?" extra":"")+'"><button type="button" class="shot-main" data-k="'+k+'"><span class="shot-tick">'+(n?ICON.tick:extra?"+":(k+1))+'</span><span class="shot-copy"><strong>'+esc(c[0])+'</strong><small>'+esc(c[1])+'</small></span><span class="shot-cam" aria-label="'+(n?"Add another":"Take photo")+'">'+ICON.cam+'</span></button>'+
+          (n?'<div class="shot-th" data-th="'+k+'"></div>':"")+'</div>'}).join("")+'</div>'+
+      dock('<button type="button" class="big" id="go-write"'+(d.photos.length?"":" disabled")+'>'+ICON.pen+'Write up'+(d.photos.length?" ("+d.photos.length+")":"")+'</button>');
+    wireEvia("photos");
+    document.getElementById("back").onclick=topics;
+    document.getElementById("go-write").onclick=()=>write(i);
+    app.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>camera(i,+b.dataset.k));
+    for(const box of app.querySelectorAll("[data-th]"))for(const p of of(+box.dataset.th)){const u=await url(p.id);if(u)box.insertAdjacentHTML("beforeend",'<img src="'+u+'" alt="">')}
+  }
 
   /* ---------- Talk about it: a few questions, answered in their own words ---------- */
   function talk(i){
@@ -139,31 +162,21 @@
   }
 
   /* ---------- Camera: square, stays open, Save when done ----------
-     The topic's things to capture show under the picture, one at a time. Each photo is labelled with the one on screen
-     and the next comes up; Skip (or the arrows) moves along without one. After the last, more photos are welcome. */
-  function camera(i){
-    const t=T[i],shots=[],list=t.capture,have=new Set(draft(i).photos.map(p=>p.label).filter(Boolean));let stream=null;
-    let step=Math.max(0,list.findIndex(c=>!have.has(c[0])));if(have.size&&list.every(c=>have.has(c[0])))step=list.length;
+     For one thing to capture (k), shown under the picture; every photo taken is labelled with it. k past the list is
+     "Something else" (no label). */
+  function camera(i,k){
+    const t=T[i],shots=[],c=t.capture[k]||null;let stream=null;
     const el=document.createElement("div");el.className="cam";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");
     el.innerHTML='<header class="cam-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc(t.name)+'</strong>'+EVIA.replace('id="evia"','id="evia-cam"')+'</header>'+
       '<div class="cam-stage"><video playsinline muted autoplay></video><span class="flash"></span><span class="cam-n" hidden></span></div>'+
-      '<div class="cam-prompt" aria-live="polite"><button type="button" class="cp-nav" data-prev aria-label="Back one">‹</button><div class="cp-mid"><small class="cp-n"></small><strong class="cp-say"></strong><span class="cp-hint"></span></div><button type="button" class="cp-nav cp-skip" data-next>Skip</button></div>'+
+      '<div class="cam-prompt"><div class="cp-mid"><strong class="cp-say">'+esc(c?c[0]:"Something else")+'</strong><span class="cp-hint">'+esc(c?c[1]:"Anything else from the job that shows your work.")+'</span></div></div>'+
       '<div class="cam-strip"></div>'+
       '<footer class="cam-bottom"><label class="cam-gal" aria-label="Add from gallery">'+ICON.gal+'<input type="file" accept="image/*" multiple hidden></label>'+
       '<button type="button" class="shutter" aria-label="Take photo"><i></i></button><button type="button" class="cam-save" disabled>Save</button></footer>';
     document.body.appendChild(el);
     const video=el.querySelector("video"),strip=el.querySelector(".cam-strip"),saveB=el.querySelector(".cam-save"),n=el.querySelector(".cam-n");
-    const prompt=()=>{
-      const c=list[step],dots=list.map((x,k)=>'<i class="'+(k===step?"now":shots.some(s=>s.label===x[0])||have.has(x[0])?"got":"")+'"></i>').join("");
-      el.querySelector(".cp-n").innerHTML=c?(step+1)+" of "+list.length+'<span class="cp-dots">'+dots+'</span>':"";
-      el.querySelector(".cp-say").textContent=c?c[0]:"That’s everything";
-      el.querySelector(".cp-hint").textContent=c?c[1]:"Take any more you like, then tap Save.";
-      el.querySelector("[data-prev]").disabled=step===0;
-      const nx=el.querySelector("[data-next]");nx.hidden=!c;nx.textContent="Skip";
-    };
-    el.querySelector("[data-prev]").onclick=()=>{if(step>0){step--;prompt()}};
-    el.querySelector("[data-next]").onclick=()=>{if(step<list.length){step++;prompt()}};
-    const refresh=()=>{prompt();saveB.disabled=!shots.length;n.hidden=!shots.length;n.textContent=shots.length+" photo"+(shots.length===1?"":"s");
+    const label=c?c[0]:"";
+    const refresh=()=>{saveB.disabled=!shots.length;n.hidden=!shots.length;n.textContent=shots.length+" photo"+(shots.length===1?"":"s");
       strip.innerHTML=shots.map((s,k)=>'<span><img src="'+s.url+'" alt=""><button type="button" data-rm="'+k+'" aria-label="Remove">×</button></span>').join("");
       strip.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const [s]=shots.splice(+b.dataset.rm,1);if(s)URL.revokeObjectURL(s.url);refresh()});
       strip.scrollLeft=strip.scrollWidth};
@@ -171,20 +184,19 @@
     /* The middle square of what the camera sees, like the preview. */
     el.querySelector(".shutter").onclick=()=>{
       if(!video.videoWidth)return;
-      const side=Math.min(video.videoWidth,video.videoHeight),px=Math.min(side,1600),c=document.createElement("canvas");c.width=c.height=px;
-      c.getContext("2d").drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,px,px);
+      const side=Math.min(video.videoWidth,video.videoHeight),px=Math.min(side,1600),cv=document.createElement("canvas");cv.width=cv.height=px;
+      cv.getContext("2d").drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,px,px);
       try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
       const f=el.querySelector(".flash");f.classList.remove("on");void f.offsetWidth;f.classList.add("on");
-      const label=list[step]?list[step][0]:"";
-      c.toBlob(b=>{if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:Date.now(),label});if(step<list.length)step++;refresh()}},"image/jpeg",.86);
+      cv.toBlob(b=>{if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:Date.now(),label});refresh()}},"image/jpeg",.86);
     };
     /* From the gallery: made square the same way. */
     const pick=el.querySelector("input");
-    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:f.lastModified||Date.now(),label:list[step]?list[step][0]:""});if(step<list.length)step++}}pick.value="";refresh()};
+    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:f.lastModified||Date.now(),label})}}pick.value="";refresh()};
     saveB.onclick=async()=>{
       const d=draft(i);
       for(const s of shots){const id=uid("p");await put(id,s.blob);urls[id]=s.url;d.photos.push({id,at:s.at,label:s.label||""})}
-      save();stop();write(i);
+      save();stop();photos(i);
     };
     el.querySelector("[data-x]").onclick=()=>{if(shots.length&&!confirm("Lose these "+shots.length+" photos?"))return;shots.forEach(s=>URL.revokeObjectURL(s.url));stop()};
     el.querySelector("#evia-cam").onclick=()=>help("camera");
@@ -203,8 +215,10 @@
   async function write(i){
     page="write";tabs(null);
     const t=T[i],d=draft(i);
-    if(!d.photos.length)return topics();
+    if(!d.photos.length)return photos(i);
     const hint=l=>{const c=t.capture.find(x=>x[0]===l);return c?c[1]:""};
+    /* In the order of the list (as they'd do the job), anything else last. */
+    const ord=p=>{const k=t.capture.findIndex(c=>c[0]===p.label);return k<0?999:k};d.photos.sort((a,b)=>ord(a)-ord(b)||a.at-b.at);
     app.innerHTML=top("Write up",true)+
       (S.name?"":'<label class="name"><span>Your name</span><input id="nm" autocomplete="name" placeholder="First and last name"></label>')+
       '<div class="wu">'+d.photos.map((p,k)=>'<div class="wu-row" data-p="'+esc(p.id)+'"><img alt="Photo '+(k+1)+'"><div><div class="k">PHOTO '+(k+1)+(p.label?' · '+esc(p.label.toUpperCase()):"")+'</div><textarea rows="4" placeholder="'+esc(p.label?"What does it show? "+hint(p.label):"What does it show?")+'">'+esc(d.notes[p.id]||"")+'</textarea><button type="button" class="rm">Remove photo</button></div></div>').join("")+'</div>'+
@@ -216,8 +230,8 @@
     app.querySelectorAll(".wu-row .rm").forEach(b=>b.onclick=async()=>{const id=b.closest(".wu-row").dataset.p;if(!confirm("Remove this photo?"))return;
       d.photos=d.photos.filter(p=>p.id!==id);delete d.notes[id];save();await del(id).catch(()=>{});write(i)});
     const nm=document.getElementById("nm");if(nm)nm.oninput=()=>{S.name=nm.value.trim();save()};
-    document.getElementById("back").onclick=topics;
-    document.getElementById("more").onclick=()=>camera(i);
+    document.getElementById("back").onclick=()=>photos(i);
+    document.getElementById("more").onclick=()=>photos(i);
     document.getElementById("save").onclick=async()=>{
       const empty=d.photos.filter(p=>!String(d.notes[p.id]||"").trim()).length;
       if(nm&&!nm.value.trim()){nm.focus();toast("Type your name first");return}
