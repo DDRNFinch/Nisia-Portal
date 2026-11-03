@@ -3,7 +3,8 @@
    under "eviab", apart from Evia's own storage on the same site).
      Topics     the goal (every topic into the portfolio, and the next one), then the 10 topics, 2 wide. A tick when
                 it's in the portfolio, orange when photos are waiting.
-     Topic      what to capture, then Take photos: a square camera that stays open for photo after photo, then Save.
+     Topic      straight into the square camera, with the topic's things to capture under the picture one at a time;
+                each photo is labelled with its one. Save goes to the write-up.
      Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right),
                 puts it in the Portfolio, and Evia celebrates.
      Progress   the KSBs with evidence (a topic's KSBs count once it's in the portfolio), how far through the course,
@@ -48,8 +49,8 @@
   /* ---------- Evia: what to do on this page ---------- */
   const HELP={
     topics:["Tap a topic.","Take photos of your work.","Say what they show."],
-    topic:["Look at the list.","Take photos of these at work.","Tap Take photos."],
-    camera:["Point at your work.","Tap the big white button.","Tap Save when you’re done."],
+
+    camera:["Take a photo of what it says under the picture.","Then the next one comes up.","Tap Save when you’re done."],
     write:["Look at each photo.","Type what it shows.","Tap Save."],
     portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."],
     progress:["The ring shows how much of your course has evidence.","Tap a KSB to see what it means."],
@@ -91,34 +92,35 @@
     app.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>topic(+b.dataset.t));
     document.getElementById("goal").onclick=()=>{if(next>=0)topic(next);else portfolio()};
   }
-  async function topic(i){
-    page="topic";tabs(null);
-    const t=T[i],d=draft(i),n=d.photos.length;
-    app.innerHTML=top(t.name,true)+
-      (n?'<p class="have">'+n+' photo'+(n===1?"":"s")+'</p><div class="thumbs" id="th"></div>':"")+
-      '<ul class="cap">'+t.capture.map(c=>'<li><span class="ic">'+ICON.cam+'</span><span><strong>'+esc(c[0])+'</strong><small>'+esc(c[1])+'</small></span></li>').join("")+'</ul>'+
-      dock(n?'<button type="button" class="big alt" id="go-cam">'+ICON.cam+'More</button><button type="button" class="big" id="go-write">'+ICON.pen+'Write up</button>'
-        :'<button type="button" class="big" id="go-cam">'+ICON.cam+'Take photos</button>');
-    wireEvia();
-    document.getElementById("back").onclick=topics;
-    document.getElementById("go-cam").onclick=()=>camera(i);
-    const w=document.getElementById("go-write");if(w)w.onclick=()=>write(i);
-    const th=document.getElementById("th");
-    if(th)for(const p of d.photos){const u=await url(p.id);if(u)th.insertAdjacentHTML("beforeend",'<img src="'+u+'" alt="">')}
-  }
+  /* A topic: straight into the camera, or to the write-up if photos are already waiting. */
+  function topic(i){if(draft(i).photos.length)write(i);else camera(i)}
 
-  /* ---------- Camera: square, stays open, Save when done ---------- */
+  /* ---------- Camera: square, stays open, Save when done ----------
+     The topic's things to capture show under the picture, one at a time. Each photo is labelled with the one on screen
+     and the next comes up; Skip (or the arrows) moves along without one. After the last, more photos are welcome. */
   function camera(i){
-    const t=T[i],shots=[];let stream=null;
+    const t=T[i],shots=[],list=t.capture,have=new Set(draft(i).photos.map(p=>p.label).filter(Boolean));let stream=null;
+    let step=Math.max(0,list.findIndex(c=>!have.has(c[0])));if(have.size&&list.every(c=>have.has(c[0])))step=list.length;
     const el=document.createElement("div");el.className="cam";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");
     el.innerHTML='<header class="cam-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc(t.name)+'</strong>'+EVIA.replace('id="evia"','id="evia-cam"')+'</header>'+
       '<div class="cam-stage"><video playsinline muted autoplay></video><span class="flash"></span><span class="cam-n" hidden></span></div>'+
+      '<div class="cam-prompt" aria-live="polite"><button type="button" class="cp-nav" data-prev aria-label="Back one">‹</button><div class="cp-mid"><small class="cp-n"></small><strong class="cp-say"></strong><span class="cp-hint"></span></div><button type="button" class="cp-nav cp-skip" data-next>Skip</button></div>'+
       '<div class="cam-strip"></div>'+
       '<footer class="cam-bottom"><label class="cam-gal" aria-label="Add from gallery">'+ICON.gal+'<input type="file" accept="image/*" multiple hidden></label>'+
       '<button type="button" class="shutter" aria-label="Take photo"><i></i></button><button type="button" class="cam-save" disabled>Save</button></footer>';
     document.body.appendChild(el);
     const video=el.querySelector("video"),strip=el.querySelector(".cam-strip"),saveB=el.querySelector(".cam-save"),n=el.querySelector(".cam-n");
-    const refresh=()=>{saveB.disabled=!shots.length;n.hidden=!shots.length;n.textContent=shots.length+" photo"+(shots.length===1?"":"s");
+    const prompt=()=>{
+      const c=list[step],dots=list.map((x,k)=>'<i class="'+(k===step?"now":shots.some(s=>s.label===x[0])||have.has(x[0])?"got":"")+'"></i>').join("");
+      el.querySelector(".cp-n").innerHTML=c?(step+1)+" of "+list.length+'<span class="cp-dots">'+dots+'</span>':"";
+      el.querySelector(".cp-say").textContent=c?c[0]:"That’s everything";
+      el.querySelector(".cp-hint").textContent=c?c[1]:"Take any more you like, then tap Save.";
+      el.querySelector("[data-prev]").disabled=step===0;
+      const nx=el.querySelector("[data-next]");nx.hidden=!c;nx.textContent="Skip";
+    };
+    el.querySelector("[data-prev]").onclick=()=>{if(step>0){step--;prompt()}};
+    el.querySelector("[data-next]").onclick=()=>{if(step<list.length){step++;prompt()}};
+    const refresh=()=>{prompt();saveB.disabled=!shots.length;n.hidden=!shots.length;n.textContent=shots.length+" photo"+(shots.length===1?"":"s");
       strip.innerHTML=shots.map((s,k)=>'<span><img src="'+s.url+'" alt=""><button type="button" data-rm="'+k+'" aria-label="Remove">×</button></span>').join("");
       strip.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const [s]=shots.splice(+b.dataset.rm,1);if(s)URL.revokeObjectURL(s.url);refresh()});
       strip.scrollLeft=strip.scrollWidth};
@@ -130,14 +132,15 @@
       c.getContext("2d").drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,px,px);
       try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
       const f=el.querySelector(".flash");f.classList.remove("on");void f.offsetWidth;f.classList.add("on");
-      c.toBlob(b=>{if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:Date.now()});refresh()}},"image/jpeg",.86);
+      const label=list[step]?list[step][0]:"";
+      c.toBlob(b=>{if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:Date.now(),label});if(step<list.length)step++;refresh()}},"image/jpeg",.86);
     };
     /* From the gallery: made square the same way. */
     const pick=el.querySelector("input");
-    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b)shots.push({blob:b,url:URL.createObjectURL(b),at:f.lastModified||Date.now()})}pick.value="";refresh()};
+    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:f.lastModified||Date.now(),label:list[step]?list[step][0]:""});if(step<list.length)step++}}pick.value="";refresh()};
     saveB.onclick=async()=>{
       const d=draft(i);
-      for(const s of shots){const id=uid("p");await put(id,s.blob);urls[id]=s.url;d.photos.push({id,at:s.at})}
+      for(const s of shots){const id=uid("p");await put(id,s.blob);urls[id]=s.url;d.photos.push({id,at:s.at,label:s.label||""})}
       save();stop();write(i);
     };
     el.querySelector("[data-x]").onclick=()=>{if(shots.length&&!confirm("Lose these "+shots.length+" photos?"))return;shots.forEach(s=>URL.revokeObjectURL(s.url));stop()};
@@ -157,10 +160,11 @@
   async function write(i){
     page="write";tabs(null);
     const t=T[i],d=draft(i);
-    if(!d.photos.length)return topic(i);
+    if(!d.photos.length)return topics();
+    const hint=l=>{const c=t.capture.find(x=>x[0]===l);return c?c[1]:""};
     app.innerHTML=top("Write up",true)+
       (S.name?"":'<label class="name"><span>Your name</span><input id="nm" autocomplete="name" placeholder="First and last name"></label>')+
-      '<div class="wu">'+d.photos.map((p,k)=>'<div class="wu-row" data-p="'+esc(p.id)+'"><img alt="Photo '+(k+1)+'"><div><div class="k">PHOTO '+(k+1)+'</div><textarea rows="4" placeholder="What does it show?">'+esc(d.notes[p.id]||"")+'</textarea><button type="button" class="rm">Remove photo</button></div></div>').join("")+'</div>'+
+      '<div class="wu">'+d.photos.map((p,k)=>'<div class="wu-row" data-p="'+esc(p.id)+'"><img alt="Photo '+(k+1)+'"><div><div class="k">PHOTO '+(k+1)+(p.label?' · '+esc(p.label.toUpperCase()):"")+'</div><textarea rows="4" placeholder="'+esc(p.label?"What does it show? "+hint(p.label):"What does it show?")+'">'+esc(d.notes[p.id]||"")+'</textarea><button type="button" class="rm">Remove photo</button></div></div>').join("")+'</div>'+
       dock('<button type="button" class="big alt" id="more">'+ICON.cam+'More</button><button type="button" class="big" id="save">'+ICON.save+'Save</button>');
     wireEvia();
     for(const row of app.querySelectorAll(".wu-row")){const u=await url(row.dataset.p);row.querySelector("img").src=u}
@@ -169,7 +173,7 @@
     app.querySelectorAll(".wu-row .rm").forEach(b=>b.onclick=async()=>{const id=b.closest(".wu-row").dataset.p;if(!confirm("Remove this photo?"))return;
       d.photos=d.photos.filter(p=>p.id!==id);delete d.notes[id];save();await del(id).catch(()=>{});write(i)});
     const nm=document.getElementById("nm");if(nm)nm.oninput=()=>{S.name=nm.value.trim();save()};
-    document.getElementById("back").onclick=()=>topic(i);
+    document.getElementById("back").onclick=topics;
     document.getElementById("more").onclick=()=>camera(i);
     document.getElementById("save").onclick=async()=>{
       const empty=d.photos.filter(p=>!String(d.notes[p.id]||"").trim()).length;
@@ -209,7 +213,7 @@
       const h=Math.max(IMG,10+lines.length*5.2);
       if(y+h>H-M-8){doc.addPage();y=M}
       doc.addImage(await dataUrl(b),"JPEG",M,y,IMG,IMG,undefined,"FAST");
-      const x=M+IMG+8;doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...ink);doc.text("Photo "+(k+1),x,y+4);
+      const x=M+IMG+8;doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...ink);doc.text(txt("Photo "+(k+1)+(p.label?": "+p.label:"")),x,y+4);
       doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...muted);doc.text("Taken "+txt(when(p.at)),x,y+8.5);
       doc.setFontSize(11);doc.setTextColor(...ink);doc.text(lines,x,y+15);
       y+=h+8;

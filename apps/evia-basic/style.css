@@ -225,3 +225,16 @@ button.card:active{transform:scale(.99)}
 .confetti{position:fixed;inset:0;z-index:90;pointer-events:none;overflow:hidden}
 .confetti i{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:fall 1.9s cubic-bezier(.25,.6,.4,1) forwards}
 @keyframes fall{to{transform:translate(var(--x),105vh) rotate(var(--r));opacity:.9}}
+/* What to capture, under the camera picture, one at a time */
+.cam-prompt{display:flex;align-items:center;gap:8px;padding:12px 10px 4px;max-width:560px;width:100%;margin:0 auto}
+.cp-mid{flex:1;min-width:0;text-align:center}
+.cp-n{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;font-weight:800;color:rgba(255,255,255,.65);margin-bottom:4px}
+.cp-dots{display:inline-flex;gap:4px}.cp-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25)}
+.cp-dots i.got{background:var(--yellow)}.cp-dots i.now{background:#fff;width:14px;border-radius:3px}
+.cp-say{display:block;font-size:22px;line-height:1.2;color:var(--yellow)}
+.cp-hint{display:block;font-size:14.5px;line-height:1.35;color:rgba(255,255,255,.85);margin-top:4px}
+.cp-nav{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:26px;line-height:1}
+.cp-nav:disabled{opacity:.25}
+.cp-skip{width:auto;padding:0 14px;border-radius:22px;font-size:14.5px;font-weight:800}
+.cp-skip[hidden]{display:block;visibility:hidden}
+.cam-strip{min-height:76px;padding:8px 14px}

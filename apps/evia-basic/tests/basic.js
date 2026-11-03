@@ -38,20 +38,24 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     const b=await page.textContent(".bubble");
     check("Tapping Evia shows what to do on this page, in a few words",/Tap a topic/.test(b),b);
     await snap("2-help");await page.click(".bubble button");
-    await page.click('.tile[data-t="0"]');await page.waitForSelector(".cap li");
-    const cap=await page.evaluate(()=>({n:document.querySelectorAll(".cap li").length,first:document.querySelector(".cap li").innerText,btn:document.getElementById("go-cam").textContent,tabs:document.body.classList.contains("no-tabs")}));
-    check("A topic shows what to capture and one Take photos button",cap.n===10&&/Silos/.test(cap.first)&&/Take photos/.test(cap.btn),JSON.stringify(cap));
-    await snap("3-topic");
-    await page.click("#go-cam");await page.waitForSelector(".cam video");
+    /* Tapping a topic opens the camera straight away, with the first thing to capture under the picture. */
+    await page.click('.tile[data-t="0"]');await page.waitForSelector(".cam video");
     await page.waitForFunction(()=>document.querySelector(".cam video").videoWidth>0,null,{timeout:8000});
-    for(let k=0;k<3;k++){await page.click(".shutter");await page.waitForTimeout(300)}
+    const p1=await page.evaluate(()=>({n:document.querySelector(".cp-n").textContent,say:document.querySelector(".cp-say").textContent,hint:document.querySelector(".cp-hint").textContent}));
+    check("Tapping a topic opens the camera straight away, with the first thing to capture under the picture",/^1 of 10/.test(p1.n)&&p1.say==="Silos"&&/silo you used/.test(p1.hint),JSON.stringify(p1));
+    await snap("3-prompt");
+    await page.click(".shutter");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
+    await page.click("[data-next]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Mortar quantity");
+    await page.click("[data-prev]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
+    check("Each photo moves on to the next thing to capture; Skip and back move along without one",true);
+    for(let k=0;k<2;k++){await page.click(".shutter");await page.waitForTimeout(300)}
     await page.waitForFunction(()=>document.querySelectorAll(".cam-strip img").length===3);
     const sq=await page.evaluate(()=>{const s=document.querySelector(".cam-stage").getBoundingClientRect();return Math.round(s.width)===Math.round(s.height)});
     check("The camera is square, stays open for photo after photo, and counts them",sq&&await page.textContent(".cam-n")==="3 photos");
     await snap("4-camera");
     await page.click(".cam-save");await page.waitForSelector(".wu-row");
-    const wu=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length,img:[...document.querySelectorAll(".wu-row img")].every(i=>i.src.startsWith("blob:")),name:!!document.getElementById("nm")}));
-    check("Save goes to the write-up: each photo with a box for what it shows",wu.rows===3&&wu.img&&!wu.name,JSON.stringify(wu));
+    const wu=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length,img:[...document.querySelectorAll(".wu-row img")].every(i=>i.src.startsWith("blob:")),name:!!document.getElementById("nm"),labels:[...document.querySelectorAll(".wu-row .k")].map(k=>k.textContent).join("|"),ph:document.querySelector(".wu-row textarea").placeholder}));
+    check("Save goes to the write-up: each photo, labelled with what it was for, with a box for what it shows",wu.rows===3&&wu.img&&!wu.name&&wu.labels==="PHOTO 1 · SILOS|PHOTO 2 · PRE-MIX|PHOTO 3 · MORTAR QUANTITY"&&/silo you used/.test(wu.ph),JSON.stringify(wu));
     /* Save with a box empty: it says so and goes to it. */
     const tas=await page.$$(".wu-row textarea");await tas[0].fill("Gauging the mix 1 to 4 with buckets.");await tas[1].fill("The mixer and silo, with the water feed.");
     await page.click("#save");await page.waitForSelector(".toast");
@@ -113,12 +117,16 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("The best EPA score shows on Learn",/%/.test(await page.textContent("#epa .epa-best")));
     await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
     /* Photos waiting (taken, not written up yet) show on the tile; the topic offers More and Write up. */
-    await page.click('.tile[data-t="1"]');await page.click("#go-cam");await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
+    await page.click('.tile[data-t="1"]');await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
     await page.click(".shutter");await page.waitForTimeout(300);await page.click(".cam-save");await page.waitForSelector(".wu-row");
-    await page.click("#back");await page.waitForSelector("#go-write");
-    const again=await page.evaluate(()=>({have:document.querySelector(".have").textContent,more:document.getElementById("go-cam").textContent,thumbs:document.querySelectorAll("#th img").length}));
     await page.click("#back");await page.waitForSelector(".tile");
-    check("Photos not written up yet stay with the topic (More or Write up), and its tile shows it's started",again.have==="1 photo"&&/More/.test(again.more)&&await page.evaluate(()=>document.querySelector('.tile[data-t="1"]').classList.contains("going")),JSON.stringify(again));
+    const going=await page.evaluate(()=>document.querySelector('.tile[data-t="1"]').classList.contains("going"));
+    await page.click('.tile[data-t="1"]');await page.waitForSelector(".wu-row");
+    const again=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length}));
+    await page.click("#more");await page.waitForSelector(".cam .cp-say");
+    const nextSay=await page.textContent(".cp-say");
+    await page.click(".cam [data-x]");await page.click("#back");await page.waitForSelector(".tile");
+    check("Photos not written up yet stay with the topic: its tile shows it's started, tapping it goes to the write-up, and More picks up at the next thing to capture",going&&again.rows===1&&nextSay!=="PPE"&&nextSay.length>0,JSON.stringify({going,again,nextSay}));
     /* Kept after closing the app. */
     await page.reload();await page.waitForSelector(".hello");
     check("Opening again, Evia says hi by name and then gets out of the way",/Hi Callum/.test(await page.textContent(".hello")));
