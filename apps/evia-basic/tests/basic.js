@@ -1,6 +1,7 @@
-/* Evia Basic: the whole journey on a phone, with a pretend camera. Topics (2 wide, 10 of them), a topic's things to
-   capture, the square camera (photo after photo, Save), the write-up (each photo, what it shows, Save), and the PDF
-   in the Portfolio. Evia's help on every page.   Run: node tests/basic.js [screenshot folder] */
+/* Evia Basic: the whole journey on a phone, with a pretend camera. Evia's hello (and the name the first time), the
+   goal, Topics (2 wide, 10 of them), a topic's things to capture, the square camera (photo after photo, Save), the
+   write-up (each photo, what it shows, Save), the celebration, the PDF in the Portfolio and its preview, Progress
+   (KSBs with evidence, course dates, Evia's colour), Learn (Teach me lessons, EPA practice). Evia's help on every page.   Run: node tests/basic.js [screenshot folder] */
 const http=require("http"),fs=require("fs"),path=require("path");
 let playwright;
 try{playwright=require("playwright")}catch(_){playwright=require(require("child_process").execSync("npm root -g").toString().trim()+"/playwright")}
@@ -20,9 +21,16 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
   const ctx=await browser.newContext({...devices["Pixel 7"],serviceWorkers:"block",permissions:["camera"]});
   const page=await ctx.newPage();
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
-  const snap=async n=>{if(shots)await page.screenshot({path:path.join(shots,n+".png")})};
+  const snap=async n=>{if(shots){await page.waitForTimeout(500);await page.screenshot({path:path.join(shots,n+".png")})}};
   try{
-    await page.goto(url);await page.waitForSelector(".tile");
+    await page.goto(url);await page.waitForSelector(".hello #hello-n");
+    const hi=await page.textContent(".hello");
+    check("The first time, Evia says hello and asks their name",/Hi, I’m Evia/.test(hi)&&/portfolio/.test(hi),hi);
+    await page.fill("#hello-n","Callum Test");await page.click("#hello-go");await page.waitForSelector(".bubble");
+    check("…then shows what to do",/Tap a topic/.test(await page.textContent(".bubble")));
+    await page.click(".bubble button");await page.waitForFunction(()=>!document.querySelector(".hello"));
+    const goal=await page.evaluate(()=>document.getElementById("goal").innerText.replace(/\s+/g," "));
+    check("Topics leads with the goal: every topic into the portfolio, and the next one",/0 of 10/.test(goal)&&/Get all 10 topics into your portfolio/.test(goal)&&/Next: Mixing mortar/.test(goal),goal);
     const grid=await page.evaluate(()=>{const t=[...document.querySelectorAll(".tile")],r=t.map(x=>x.getBoundingClientRect());return {n:t.length,cols:new Set(r.map(x=>Math.round(x.left))).size,rows:new Set(r.map(x=>Math.round(x.top))).size,first:t[0].innerText.replace(/\s+/g," "),evia:!!document.querySelector(".top .evia")}});
     check("Home shows the 10 brickwork topics, 2 wide and 5 down, with Evia in the top right",grid.n===10&&grid.cols===2&&grid.rows===5&&/1 Mixing mortar/.test(grid.first)&&grid.evia,JSON.stringify(grid));
     await snap("1-topics");
@@ -43,15 +51,18 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await snap("4-camera");
     await page.click(".cam-save");await page.waitForSelector(".wu-row");
     const wu=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length,img:[...document.querySelectorAll(".wu-row img")].every(i=>i.src.startsWith("blob:")),name:!!document.getElementById("nm")}));
-    check("Save goes to the write-up: each photo with a box for what it shows",wu.rows===3&&wu.img&&wu.name,JSON.stringify(wu));
+    check("Save goes to the write-up: each photo with a box for what it shows",wu.rows===3&&wu.img&&!wu.name,JSON.stringify(wu));
     /* Save with a box empty: it says so and goes to it. */
-    await page.fill("#nm","Callum Test");
     const tas=await page.$$(".wu-row textarea");await tas[0].fill("Gauging the mix 1 to 4 with buckets.");await tas[1].fill("The mixer and silo, with the water feed.");
     await page.click("#save");await page.waitForSelector(".toast");
     check("Saving with a photo not explained says which, and doesn't save",/Say what 1 photo shows/.test(await page.textContent(".toast"))&&!await page.$(".pf-row"));
     await tas[2].fill("The finished mortar, ready to use, with the area left clean.");
     await snap("5-write");
-    await page.click("#save");await page.waitForSelector(".pf-row",{timeout:15000});
+    await page.click("#save");await page.waitForSelector(".party",{timeout:15000});
+    const party=await page.textContent(".party");
+    check("Saving celebrates: Evia, confetti, and how many topics are in the portfolio",/Mixing mortar saved!/.test(party)&&/1 of 10 topics/.test(party)&&!!await page.$(".confetti"),party);
+    await snap("6a-saved");
+    await page.waitForSelector(".pf-row",{timeout:15000});
     const pf=await page.evaluate(async()=>{const S=window.eviaBasic.state;return {rows:document.querySelectorAll(".pf-row").length,txt:document.querySelector(".pf-row").innerText.replace(/\s+/g," "),isNew:document.querySelector(".pf-row").classList.contains("new"),badge:document.getElementById("pf-n").textContent,drafts:S.drafts[0].photos.length,name:S.name}});
     check("Save makes a PDF and it's in the Portfolio (with the count on the tab), and the topic starts fresh",pf.rows===1&&/Mixing mortar/.test(pf.txt)&&/3 photos/.test(pf.txt)&&pf.isNew&&pf.badge==="1"&&pf.drafts===0&&pf.name==="Callum Test",JSON.stringify(pf));
     await snap("6-portfolio");
@@ -68,7 +79,39 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.click(".pv [data-x]");
     check("Closing the preview goes back to the Portfolio",!await page.$(".pv")&&!!await page.$(".pf-row"));
     await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
-    check("Back on Topics, Mixing mortar has a tick",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")));
+    check("Back on Topics, Mixing mortar has a tick, and the goal moves on",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&/1 of 10/.test(document.getElementById("goal").innerText.replace(/\s+/g," "))&&/Next: Jointing Styles/.test(document.getElementById("goal").innerText)));
+    /* Progress: the KSBs in the portfolio, what each means, course dates and Evia's colour. */
+    await page.click('[data-tab="progress"]');await page.waitForSelector(".hero");
+    const pr=await page.evaluate(()=>({hero:document.querySelector(".hero").innerText.replace(/\s+/g," "),on:[...document.querySelectorAll(".chip.on")].map(c=>c.textContent).sort().join(),chips:document.querySelectorAll(".chip").length,dates:!!document.getElementById("dates")}));
+    check("Progress shows how many KSBs have evidence (Mixing mortar's 8 of 59), each one lit up",/8 of 59 KSBs/.test(pr.hero)&&/14%/.test(pr.hero)&&pr.chips===59&&pr.on==="B1,K1,K12,K20,S1,S14,S20,S6"&&pr.dates,JSON.stringify(pr));
+    await page.click('.chip[data-k="S14"]');await page.waitForSelector(".sheet");
+    check("Tapping a KSB says what it means and where it's evidenced",/Gauge and hand mix mortar to ratio/.test(await page.textContent(".sheet"))&&/In your portfolio/.test(await page.textContent(".sheet")));
+    await page.click(".sheet-ok");await page.waitForTimeout(300);
+    await page.click("#me");await page.waitForSelector("#me-s");await page.fill("#me-s","2026-04-09");await page.fill("#me-e","2028-04-08");await page.click('.sw[data-c="3"]');
+    const col=await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue("--yellow").trim());
+    await page.click(".sheet-ok");await page.waitForSelector(".hero .pill");
+    const pr2=await page.evaluate(()=>({pill:document.querySelector(".hero .pill").textContent,course:(document.querySelector(".card .bar")||{}).outerHTML||""}));
+    check("Course dates show how far through they are and whether they're on track; Evia's colour changes",col==="#2e90fa"&&/Behind|On track/.test(pr2.pill)&&/width/.test(pr2.course),JSON.stringify({col,pr2}));
+    await snap("8-progress");
+    /* Learn: Teach me and EPA practice. */
+    await page.click('[data-tab="learn"]');await page.waitForSelector(".subj",{timeout:15000});
+    const ln=await page.evaluate(()=>({subj:[...document.querySelectorAll(".subj strong")].map(x=>x.textContent).join(),teach:document.getElementById("teach").innerText.replace(/\s+/g," "),epa:document.getElementById("epa").innerText.replace(/\s+/g," ")}));
+    check("Learn has Teach me (next lesson and how many done), the four subjects and EPA practice",ln.subj==="Bricklaying,Maths,English,Safeguarding"&&/What’s in mortar/.test(ln.teach)&&/0 of \d+ lessons/.test(ln.teach)&&/EPA practice/.test(ln.epa),JSON.stringify(ln));
+    await snap("9-learn");
+    await page.click("#teach");await page.waitForSelector(".tm .tm-node.next button");
+    await page.click(".tm .tm-node.next button");await page.waitForSelector(".tm .tm-bar,.tm-explore,.tm-step",{timeout:8000}).catch(()=>{});
+    check("Teach me opens Evia's lessons, with her pictures",await page.evaluate(()=>!!document.querySelector(".tm")&&!!document.querySelector(".tm svg.tp, .tm .tp")));
+    await snap("10-lesson");
+    await page.evaluate(()=>document.querySelector(".tm").remove());await page.waitForSelector(".subj");
+    await page.click("#epa");await page.waitForSelector(".quiz .opt");
+    for(let k=0;k<10;k++){await page.click(".quiz .opt >> nth=0");await page.waitForSelector("#qn:not([hidden])");if(k===0)await snap("11-epa");await page.click("#qn")}
+    await page.waitForSelector(".quiz .ring");
+    const res=await page.evaluate(()=>({txt:document.querySelector(".quiz").innerText.replace(/\s+/g," "),tests:window.eviaBasic.state.tests.length}));
+    check("EPA practice: 10 questions, right or wrong straight away, then the score and what to look at again",/You got \d+ of 10 right/.test(res.txt)&&res.tests===1,res.txt.slice(0,200));
+    await snap("12-score");
+    await page.click("#qd");await page.waitForSelector("#epa");
+    check("The best EPA score shows on Learn",/%/.test(await page.textContent("#epa .epa-best")));
+    await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
     /* Photos waiting (taken, not written up yet) show on the tile; the topic offers More and Write up. */
     await page.click('.tile[data-t="1"]');await page.click("#go-cam");await page.waitForFunction(()=>document.querySelector(".cam video")&&document.querySelector(".cam video").videoWidth>0);
     await page.click(".shutter");await page.waitForTimeout(300);await page.click(".cam-save");await page.waitForSelector(".wu-row");
@@ -77,7 +120,9 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.click("#back");await page.waitForSelector(".tile");
     check("Photos not written up yet stay with the topic (More or Write up), and its tile shows it's started",again.have==="1 photo"&&/More/.test(again.more)&&await page.evaluate(()=>document.querySelector('.tile[data-t="1"]').classList.contains("going")),JSON.stringify(again));
     /* Kept after closing the app. */
-    await page.reload();await page.waitForSelector(".tile");
+    await page.reload();await page.waitForSelector(".hello");
+    check("Opening again, Evia says hi by name and then gets out of the way",/Hi Callum/.test(await page.textContent(".hello")));
+    await page.waitForFunction(()=>!document.querySelector(".hello"),null,{timeout:5000});
     check("Everything is still there after closing and opening again",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&document.querySelector('.tile[data-t="1"]').classList.contains("going")&&document.getElementById("pf-n").textContent==="1"));
     check("No script errors",!errors.length,errors.join(" | "));
   }catch(e){check("The test ran to the end",false,e.stack+" | "+errors.join(" | "))}

@@ -1,11 +1,17 @@
-/* Evia Basic (tester): the simplest way to collect evidence.
-     Topics     the 10 brickwork topics, 2 wide. A tick when it's in the portfolio, orange when photos are waiting.
+/* Evia Basic (tester): build your brickwork portfolio with Evia. Works on its own: nothing goes to Evia Portal,
+   Milos, Paros or Symi, and everything stays on the phone (photos and PDFs in IndexedDB, the rest in localStorage, all
+   under "eviab", apart from Evia's own storage on the same site).
+     Topics     the goal (every topic into the portfolio, and the next one), then the 10 topics, 2 wide. A tick when
+                it's in the portfolio, orange when photos are waiting.
      Topic      what to capture, then Take photos: a square camera that stays open for photo after photo, then Save.
-     Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right)
-                and puts it in the Portfolio.
-     Portfolio  the PDFs, newest first. Tap one to open or share it.
-   Evia sits in the top right of every page. Tap her and she says (and shows) what to do on that page.
-   Everything stays on the phone: photos and PDFs in IndexedDB, the rest in localStorage. */
+     Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right),
+                puts it in the Portfolio, and Evia celebrates.
+     Progress   the KSBs with evidence (a topic's KSBs count once it's in the portfolio), how far through the course,
+                and each KSB's meaning. Your details: name, course dates and Evia's colour.
+     Learn      Teach me (Evia's lessons, taken from Evia as they are) and EPA practice (10 questions at a time).
+     Portfolio  the PDFs, newest first. Tap one to see it, then Share.
+   Evia says hello when it opens, sits in the top right of every page (tap her and she shows and says what to do),
+   and celebrates when a topic goes in. */
 (function(){
   const T=window.EB_TOPICS,COURSE=window.EB_COURSE;
   const app=document.getElementById("app");
@@ -24,7 +30,9 @@
 
   /* ---------- Storage ---------- */
   const KEY="eviab";
-  const S=(()=>{try{return Object.assign({name:"",drafts:{},pf:[]},JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(_){return {name:"",drafts:{},pf:[]}}})();
+  const BLANK=()=>({name:"",drafts:{},pf:[],tests:[],start:"",end:"",colour:0});
+  const S=(()=>{try{return Object.assign(BLANK(),JSON.parse(localStorage.getItem(KEY)||"{}"))}catch(_){return BLANK()}})();
+  const V=(document.querySelector('meta[name="evia-version"]')||{}).content||"";
   const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(_){}};
   const draft=i=>S.drafts[i]||(S.drafts[i]={photos:[],notes:{}});
   let dbP=null;
@@ -43,7 +51,9 @@
     topic:["Look at the list.","Take photos of these at work.","Tap Take photos."],
     camera:["Point at your work.","Tap the big white button.","Tap Save when you’re done."],
     write:["Look at each photo.","Type what it shows.","Tap Save."],
-    portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."]
+    portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."],
+    progress:["The ring shows how much of your course has evidence.","Tap a KSB to see what it means."],
+    learn:["Tap Teach me for short lessons.","Tap EPA practice to test yourself."]
   };
   let page="topics";
   function help(which){
@@ -71,10 +81,15 @@
   const done=i=>S.pf.some(p=>p.topic===i);
   function topics(){
     page="topics";tabs("topics");
-    app.innerHTML=top("Brickwork")+'<div class="grid">'+T.map((t,i)=>{const d=done(i),g=!d&&draft(i).photos.length;
+    const n=T.filter((_,k)=>done(k)).length,next=T.findIndex((_,k)=>!done(k));
+    app.innerHTML=top("Brickwork")+
+      '<button type="button" class="card goal" id="goal">'+ring(Math.round(n/T.length*100),'<b>'+n+'</b><small>of '+T.length+'</small>')+
+        '<span><span class="card-k"><span>Your goal</span></span><strong>'+(n>=T.length?"Every topic is in your portfolio":"Get all "+T.length+" topics into your portfolio")+'</strong>'+(next>=0?'<small>Next: '+esc(T[next].name)+' ›</small>':"")+'</span></button>'+
+      '<div class="grid">'+T.map((t,i)=>{const d=done(i),g=!d&&draft(i).photos.length;
       return '<button type="button" class="tile'+(d?" done":g?" going":"")+'" data-t="'+i+'"><span class="n">'+(i+1)+'</span><strong>'+esc(t.name)+'</strong>'+(d?'<span class="st" aria-label="Done">'+ICON.tick+'</span>':g?'<span class="st" aria-label="Started">'+ICON.dots+'</span>':"")+'</button>'}).join("")+'</div>';
     wireEvia();
     app.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>topic(+b.dataset.t));
+    document.getElementById("goal").onclick=()=>{if(next>=0)topic(next);else portfolio()};
   }
   async function topic(i){
     page="topic";tabs(null);
@@ -167,7 +182,7 @@
         /* The photos are in the PDF now; the topic starts fresh for next time. */
         for(const p of d.photos){await del(p.id).catch(()=>{});if(urls[p.id]){URL.revokeObjectURL(urls[p.id]);delete urls[p.id]}}
         S.drafts[i]={photos:[],notes:{}};save();
-        b.remove();portfolio(id);toast("Saved to your portfolio");
+        b.remove();celebrate(i,()=>portfolio(id));
       }catch(err){b.remove();console.error("Evia Basic: PDF",err);alert("That didn’t save. Please try again.")}
     };
   }
@@ -248,7 +263,156 @@
     }catch(err){console.error("Evia Basic: preview",err);if(!closed)box.innerHTML='<p class="pv-wait">The preview didn’t open. Tap Share to open it in another app.</p>'}
   }
 
-  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>b.dataset.tab==="portfolio"?portfolio():topics());
-  topics();
-  window.eviaBasic={topics,topic,write,portfolio,camera,pdf,state:S,help};
+  /* ---------- Teach me and the EPA questions (taken from Evia), loaded once in the background ---------- */
+  const LEARN=["learn/shim.js","learn/teach-kit.js","learn/teach-pics.js","learn/teach-play.js","learn/teach-maths.js","learn/teach-english.js","learn/teach-edi.js","learn/teach-bricklayer.js","learn/teach.js","learn/test-bank-bricklayer.js"];
+  let learnP=null;
+  const loadLearn=()=>learnP||(learnP=(async()=>{
+    const css=document.createElement("link");css.rel="stylesheet";css.href="learn/teach.css?v="+V;document.head.appendChild(css);
+    for(const f of LEARN)await new Promise((res,rej)=>{const s=document.createElement("script");s.src=f+"?v="+V;s.onload=res;s.onerror=()=>rej(new Error(f));document.head.appendChild(s)});
+    return window.eviaTeach;
+  })().catch(err=>{learnP=null;throw err}));
+  const teachReport=()=>{try{return window.eviaTeach?window.eviaTeach.report():null}catch(_){return null}};
+  const bestTest=()=>S.tests.length?Math.max(...S.tests.map(t=>Math.round(t.score/t.total*100))):null;
+
+  /* ---------- Progress: how much of the course has evidence ---------- */
+  const ALL=Object.keys(window.EB_KSBS||{});
+  const evidenced=()=>{const s=new Set();S.pf.forEach(p=>((T[p.topic]||{}).ksbs||[]).forEach(k=>s.add(k)));return s};
+  const timePct=()=>{const a=Date.parse(S.start||""),b=Date.parse(S.end||"");return a&&b&&b>a?Math.max(0,Math.min(100,Math.round((Date.now()-a)/(b-a)*100))):null};
+  const ring=(p,inner,size)=>'<span class="ring'+(size?" "+size:"")+'" style="--p:'+Math.max(0,Math.min(100,p))+'"><span>'+inner+'</span></span>';
+  async function progress(){
+    page="progress";tabs("progress");
+    const have=evidenced(),pct=ALL.length?Math.round(have.size/ALL.length*100):0,tp=timePct(),doneN=T.filter((_,i)=>done(i)).length;
+    const R=teachReport(),best=bestTest();
+    const verdict=tp==null?"":pct>=tp-10?'<span class="pill good">On track</span>':'<span class="pill low">Behind</span>';
+    const group=(l,n)=>{const ks=ALL.filter(k=>k[0]===l);return '<section class="card"><div class="card-k"><span>'+n+'</span><b>'+ks.filter(k=>have.has(k)).length+' of '+ks.length+'</b></div><div class="chips">'+
+      ks.map(k=>'<button type="button" class="chip'+(have.has(k)?" on":"")+'" data-k="'+k+'">'+k+'</button>').join("")+'</div></section>'};
+    app.innerHTML=top("Progress")+
+      '<section class="card hero">'+ring(pct,'<b>'+pct+'%</b>',"big")+'<div><strong>'+have.size+' of '+ALL.length+' KSBs</strong><small>have evidence in your portfolio</small>'+verdict+'</div></section>'+
+      (tp!=null?'<section class="card"><div class="card-k"><span>Your course</span><b>'+tp+'% through</b></div><span class="bar"><i style="width:'+tp+'%"></i></span><small class="muted">'+esc(fmtDate(S.start))+' to '+esc(fmtDate(S.end))+'</small></section>'
+        :'<button type="button" class="card row" id="dates"><span>Add your course dates</span><small>So Evia can tell you if you’re on track</small><i>›</i></button>')+
+      '<div class="stats"><div><b>'+doneN+'<small>/'+T.length+'</small></b><span>topics</span></div><div><b>'+(R?R.done:"–")+(R?'<small>/'+R.total+'</small>':"")+'</b><span>lessons</span></div><div><b>'+(best==null?"–":best+"%")+'</b><span>best EPA</span></div></div>'+
+      group("K","Knowledge")+group("S","Skills")+group("B","Behaviours")+
+      '<button type="button" class="card row" id="me"><span>Your details</span><small>'+esc(S.name||"Name, course dates and colour")+'</small><i>›</i></button>';
+    wireEvia();
+    app.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k,where=T.filter((t,i)=>t.ksbs.includes(k)).map(t=>t.name);
+      sheet('<span class="sheet-k">'+k+'</span><p class="sheet-big">'+esc(window.EB_KSBS[k]||"")+'</p><p class="muted">'+(have.has(k)?"✓ In your portfolio":"Not in your portfolio yet")+(where.length?". Topic"+(where.length>1?"s":"")+": "+esc(where.join(", ")):"")+'</p>')});
+    const d=document.getElementById("dates");if(d)d.onclick=me;
+    document.getElementById("me").onclick=me;
+    if(!R)loadLearn().then(()=>{if(page==="progress")progress()}).catch(()=>{});
+  }
+  const fmtDate=s=>s?new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"";
+  function sheet(html,after){
+    const w=document.createElement("div");w.className="sheet-wrap";w.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'<button type="button" class="big sheet-ok">OK</button></div>';
+    const close=()=>{w.classList.add("out");setTimeout(()=>{w.remove();document.body.classList.remove("pv-open")},180);if(after)after(w)};
+    w.onclick=e=>{if(e.target===w)close()};w.querySelector(".sheet-ok").onclick=close;document.body.appendChild(w);document.body.classList.add("pv-open");return w;
+  }
+  /* Your details: name, course dates and Evia's colour. */
+  const COLOURS=[["#e7b900","#fff7d6"],["#f79009","#fef0c7"],["#12b76a","#d1fadf"],["#2e90fa","#d1e9ff"],["#7a5af8","#ebe9fe"],["#ee46bc","#fce7f6"]];
+  function paint(){const c=COLOURS[S.colour||0]||COLOURS[0];document.documentElement.style.setProperty("--yellow",c[0]);document.documentElement.style.setProperty("--soft",c[1]);const m=document.querySelector('meta[name="theme-color"]');if(m)m.content="#fffdfa"}
+  function me(){
+    const w=sheet('<span class="sheet-k">Your details</span>'+
+      '<label class="field"><span>Your name</span><input id="me-n" value="'+esc(S.name)+'" autocomplete="name"></label>'+
+      '<div class="two"><label class="field"><span>Course start</span><input type="date" id="me-s" value="'+esc(S.start||"")+'"></label><label class="field"><span>Course end</span><input type="date" id="me-e" value="'+esc(S.end||"")+'"></label></div>'+
+      '<span class="field"><span>Evia’s colour</span><span class="swatches">'+COLOURS.map((c,i)=>'<button type="button" class="sw'+((S.colour||0)===i?" on":"")+'" data-c="'+i+'" style="--c:'+c[0]+'" aria-label="Colour '+(i+1)+'"></button>').join("")+'</span></span>',
+      w=>{S.name=w.querySelector("#me-n").value.trim();S.start=w.querySelector("#me-s").value;S.end=w.querySelector("#me-e").value;save();if(page==="progress")progress()});
+    w.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{S.colour=+b.dataset.c;save();paint();w.querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x===b))});
+  }
+
+  /* ---------- Learn: Teach me lessons and EPA practice ---------- */
+  async function learn(){
+    page="learn";tabs("learn");
+    app.innerHTML=top("Learn")+'<p class="muted center">Loading…</p>';wireEvia();
+    try{await loadLearn()}catch(_){app.innerHTML=top("Learn")+'<p class="muted center">Lessons didn’t load. Check your signal and try again.</p>';wireEvia();return}
+    if(page!=="learn")return;
+    const R=teachReport()||{subjects:[],done:0,total:0},next=window.eviaTeach.summary(),best=bestTest();
+    const SUB={course:["Bricklaying","🧱"],maths:["Maths","➗"],english:["English","✏️"],edi:["Safeguarding","🛡️"]};
+    app.innerHTML=top("Learn")+
+      '<button type="button" class="card teach" id="teach">'+'<span class="evia small"><span class="face"><i></i><i></i></span></span>'+
+        '<span><span class="card-k"><span>Teach me</span></span><strong>'+esc(next.next||"Every lesson done")+'</strong><small>'+R.done+' of '+R.total+' lessons done</small></span><span class="go">'+(R.done?"Carry on":"Start")+'</span></button>'+
+      '<div class="subjects">'+R.subjects.map(s=>{const p=s.total?Math.round(s.done/s.total*100):0;return '<button type="button" class="subj" data-s="'+s.id+'"><span class="subj-ic" aria-hidden="true">'+(SUB[s.id]||["",""])[1]+'</span>'+ring(p,p+"%","small")+'<strong>'+esc((SUB[s.id]||[s.name])[0])+'</strong><small>'+s.done+' of '+s.total+' lessons</small></button>'}).join("")+'</div>'+
+      '<button type="button" class="card epa" id="epa"><span><span class="card-k"><span>End-point assessment</span></span><strong>EPA practice</strong><small>10 questions · about 5 minutes</small></span><span class="epa-best">'+(best==null?"Start":best+"%<small>best</small>")+'</span></button>';
+    wireEvia();
+    document.getElementById("teach").onclick=()=>window.eviaTeach.open();
+    app.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>window.eviaTeach.open(b.dataset.s));
+    document.getElementById("epa").onclick=epa;
+  }
+  /* Teach me closing: back to Learn with the new numbers. */
+  new MutationObserver(()=>{if(page==="learn"&&!document.querySelector(".tm")&&learn.open){learn.open=false;learn()}if(document.querySelector(".tm"))learn.open=true}).observe(document.body,{childList:true});
+
+  /* EPA practice: 10 questions from the bricklaying EPA bank, one at a time, right or wrong straight away. */
+  async function epa(){
+    await loadLearn();
+    const bank=(window.EPA_QUESTIONS||{}).bricklaying||[];if(!bank.length)return toast("No questions yet");
+    const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+    const qs=shuffle(bank).slice(0,10).map(q=>({code:q[0],q:q[1],right:q[2][0],opts:shuffle(q[2])}));
+    let i=0,score=0;const missed=[];
+    const el=document.createElement("div");el.className="quiz";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");document.body.appendChild(el);document.body.classList.add("pv-open");
+    const close=()=>{el.remove();document.body.classList.remove("pv-open");if(page==="learn")learn()};
+    const face='<span class="evia quiz-evia"><span class="face"><i></i><i></i></span></span>';
+    const show=()=>{
+      const q=qs[i];
+      el.innerHTML='<header class="quiz-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><span class="bar"><i style="width:'+Math.round(i/qs.length*100)+'%"></i></span><b>'+(i+1)+'/'+qs.length+'</b></header>'+
+        '<div class="quiz-body">'+face+'<p class="quiz-q">'+esc(q.q)+'</p><div class="quiz-opts">'+q.opts.map((o,k)=>'<button type="button" class="opt" data-o="'+k+'"><span>'+"ABCD"[k]+'</span>'+esc(o)+'</button>').join("")+'</div></div>'+
+        '<footer class="quiz-foot"><button type="button" class="big" id="qn" hidden>'+(i===qs.length-1?"See my score":"Next")+'</button></footer>';
+      el.querySelector("[data-x]").onclick=()=>{if(i&&!confirm("Stop this practice?"))return;close()};
+      el.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{
+        if(el.querySelector(".opt.right"))return;
+        const ok=q.opts[+b.dataset.o]===q.right;if(ok)score++;else missed.push(q);
+        el.querySelectorAll(".opt").forEach(x=>{if(q.opts[+x.dataset.o]===q.right)x.classList.add("right");else if(x===b)x.classList.add("wrong");x.disabled=true});
+        const e=el.querySelector(".quiz-evia");e.classList.add(ok?"happy":"oops");try{navigator.vibrate&&navigator.vibrate(ok?12:[20,40,20])}catch(_){}
+        const n=el.querySelector("#qn");n.hidden=false;n.focus();
+      });
+      el.querySelector("#qn").onclick=()=>{i++;i<qs.length?show():end()};
+    };
+    const end=()=>{
+      S.tests.push({at:Date.now(),score,total:qs.length});save();
+      const p=Math.round(score/qs.length*100),best=bestTest();
+      el.innerHTML='<header class="quiz-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><span></span></header>'+
+        '<div class="quiz-body center">'+ring(p,'<b>'+p+'%</b>',"big")+'<h2>'+(p>=80?"Brilliant!":p>=60?"Good going":"Keep practising")+'</h2><p class="muted">You got '+score+' of '+qs.length+' right'+(best===p&&S.tests.length>1?". A new best!":".")+'</p>'+
+        (missed.length?'<div class="missed"><span class="card-k"><span>Worth another look</span></span>'+missed.map(q=>'<div class="miss"><p>'+esc(q.q)+'</p><b>✓ '+esc(q.right)+'</b></div>').join("")+'</div>':"")+'</div>'+
+        '<footer class="quiz-foot two"><button type="button" class="big alt" id="qa">Again</button><button type="button" class="big" id="qd">Done</button></footer>';
+      el.querySelector("[data-x]").onclick=close;el.querySelector("#qd").onclick=close;el.querySelector("#qa").onclick=()=>{close();epa()};
+      if(p>=80)confetti();
+    };
+    show();
+  }
+
+  /* ---------- Evia's charm: hello, and a celebration when a topic goes in the portfolio ---------- */
+  function confetti(){
+    const c=document.createElement("div");c.className="confetti";c.setAttribute("aria-hidden","true");
+    const cols=["var(--yellow)","#12b76a","#2e90fa","#f79009","#ee46bc"];
+    c.innerHTML=Array.from({length:36},(_,k)=>'<i style="left:'+Math.round(Math.random()*100)+'%;background:'+cols[k%cols.length]+';animation-delay:'+(Math.random()*.4).toFixed(2)+'s;--x:'+Math.round(Math.random()*120-60)+'px;--r:'+Math.round(Math.random()*720)+'deg"></i>').join("");
+    document.body.appendChild(c);setTimeout(()=>c.remove(),2400);
+  }
+  function celebrate(i,then){
+    const n=T.filter((_,k)=>done(k)).length;
+    const w=document.createElement("div");w.className="party";
+    w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h2>'+esc(T[i].name)+' saved!</h2><p>'+(n>=T.length?"Every topic is in your portfolio. Amazing!":n+" of "+T.length+" topics in your portfolio")+'</p></div>';
+    document.body.appendChild(w);confetti();try{navigator.vibrate&&navigator.vibrate([15,60,15])}catch(_){}
+    const go=()=>{if(!w.parentNode)return;w.classList.add("out");setTimeout(()=>w.remove(),300);then()};
+    w.onclick=go;setTimeout(go,2200);
+  }
+  function welcome(){
+    const w=document.createElement("div");w.className="hello";
+    if(!S.name){
+      w.innerHTML='<div class="hello-in"><span class="evia huge"><span class="face"><i></i><i></i></span></span><h1>Hi, I’m Evia</h1><p>I’ll help you build your brickwork portfolio, one topic at a time.</p>'+
+        '<label class="field"><span>What’s your name?</span><input id="hello-n" autocomplete="name" placeholder="First and last name"></label><button type="button" class="big" id="hello-go">Let’s go</button></div>';
+      document.body.appendChild(w);
+      const n=w.querySelector("#hello-n"),go=w.querySelector("#hello-go");
+      go.onclick=()=>{if(!n.value.trim()){n.focus();return}S.name=n.value.trim();save();w.classList.add("out");setTimeout(()=>{w.remove();help("topics")},350)};
+      n.onkeydown=e=>{if(e.key==="Enter")go.click()};
+      return;
+    }
+    w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h1>Hi '+esc(S.name.split(/\s+/)[0])+'</h1></div>';
+    document.body.appendChild(w);
+    const go=()=>{if(!w.parentNode)return;w.classList.add("out");setTimeout(()=>w.remove(),450)};
+    w.onclick=go;setTimeout(go,1600);
+  }
+
+  const PAGES={topics,progress,learn,portfolio};
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>(PAGES[b.dataset.tab]||topics)());
+  paint();topics();welcome();
+  /* Lessons load quietly once the app is open, so Learn opens straight away. */
+  setTimeout(()=>loadLearn().catch(()=>{}),2500);
+  window.eviaBasic={topics,topic,write,portfolio,progress,learn,epa,camera,pdf,state:S,help,loadLearn};
 })();
