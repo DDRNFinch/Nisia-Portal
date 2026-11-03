@@ -1,20 +1,19 @@
 /* Evia Basic (tester): build your brickwork portfolio with Evia. Works on its own: nothing goes to Evia Portal,
    Milos, Paros or Symi, and everything stays on the phone (photos and PDFs in IndexedDB, the rest in localStorage, all
    under "eviab", apart from Evia's own storage on the same site).
-     Topics     the goal (every topic into the portfolio, and the next one), then the topics, 2 wide. A tick when
-                it's in the portfolio, orange when photos are waiting.
-     Topics     18 of them, each a K (or a few) with the S and/or B that match it, so all 18 cover all 59 KSBs.
-                On the job: the things to capture, each with its own camera button and photos, so they can take
-                what they can that day and come back for the rest; Write up when ready. Talk about it: a few questions,
-                answered in their own words.
-     Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right),
-                puts it in the Portfolio, and Evia celebrates.
-     Progress   the KSBs with evidence (a topic's KSBs count once it's in the portfolio), how far through the course,
-                and each KSB's meaning. Your details: name, course dates and Evia's colour.
+     Evia       the home screen. She asks what they're doing today, then floats up to show the practical activities
+                (Mixing mortar, Setting out, Labouring, Cavity, Solid and Raked walling), None of these, and See my
+                portfolio. A session not finished shows first, to carry on.
+     Activity   the areas (KSB topics, topics.js) it gets evidence for, with how many times each is in the portfolio,
+                then Begin evidence.
+     Guide      the square camera, one photo at a time in the order of the job, saying what's next (on screen and out
+                loud); Skip any, back one, Finish. Each photo is kept as it's taken.
+     Talk       for each area with photos, what to talk about, and each photo with a box for what it shows; None of
+                these also asks its questions. Save makes one PDF for the day, and Evia says they're done for today.
+     Progress   the KSBs with evidence, how far through the course, and each KSB's meaning. Your details.
      Learn      Teach me (Evia's lessons, taken from Evia as they are) and EPA practice (10 questions at a time).
      Portfolio  the PDFs, newest first. Tap one to see it, then Share.
-   Evia says hello when it opens, sits in the top right of every page (tap her and she shows and says what to do),
-   and celebrates when a topic goes in. */
+   Evia sits in the top right of the other pages: tap her and she shows and says what to do. */
 (function(){
   const T=window.EB_TOPICS,COURSE=window.EB_COURSE;
   const app=document.getElementById("app");
@@ -59,17 +58,15 @@
 
   /* ---------- Evia: what to do on this page ---------- */
   const HELP={
-    topics:["Tap a topic.","Take photos of your work.","Say what they show."],
-
-    photos:["Tap a photo you can get today.","Come back for the rest another day.","Then tap Write up."],
-    camera:["Take a photo of what it says under the picture.","Take more if you like.","Tap Save when you’re done."],
-    write:["Look at each photo.","Type what it shows.","Tap Save."],
-    talk:["Read each question.","Answer it in your own words.","Tap Save."],
+    home:["Tap what you’re doing today.","I’ll show you which photos to take, one at a time."],
+    activity:["This is what we’ll get evidence for.","The number shows how many times it’s in your portfolio.","Tap Begin evidence."],
+    camera:["Take a photo of what it says under the picture.","I’ll tell you what’s next.","Skip any you can’t get. Tap Finish when you’re done."],
+    talk:["Say what each photo shows.","Use the things to talk about.","Tap Save."],
     portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."],
     progress:["The ring shows how much of your course has evidence.","Tap a KSB to see what it means."],
     learn:["Tap Teach me for short lessons.","Tap EPA practice to test yourself."]
   };
-  let page="topics";
+  let page="home";
   function help(which){
     const steps=HELP[which||page]||[];
     const w=document.createElement("div");w.className="bubble-wrap";
@@ -92,194 +89,219 @@
     document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===on));
     const n=document.getElementById("pf-n");if(n){n.hidden=!S.pf.length;n.textContent=S.pf.length}
   }
-  const done=i=>S.pf.some(p=>p.route===i);
-  const started=i=>{const d=draft(i);return d.photos.length>0||Object.values(d.answers||{}).some(a=>String(a).trim())};
-  function topics(){
-    page="topics";tabs("topics");
-    const n=T.filter((_,k)=>done(k)).length,next=T.findIndex((_,k)=>!done(k));
-    app.innerHTML=top("Brickwork")+
-      '<button type="button" class="card goal" id="goal">'+ring(Math.round(n/T.length*100),'<b>'+n+'</b><small>of '+T.length+'</small>')+
-        '<span><span class="card-k"><span>Your goal</span></span><strong>'+(n>=T.length?"Every topic is in your portfolio":"Get all "+T.length+" topics into your portfolio")+'</strong>'+(next>=0?'<small>Next: '+esc(T[next].name)+' ›</small>':"")+'</span></button>'+
-      ["photo","talk"].map(kind=>'<h2 class="group-h">'+(kind==="photo"?"On the job <small>Take photos</small>":"Talk about it <small>Answer a few questions</small>")+'</h2><div class="grid">'+T.map((t,i)=>{if(t.kind!==kind)return "";const d=done(i),g=!d&&started(i);
-      return '<button type="button" class="tile'+(d?" done":g?" going":"")+'" data-t="'+i+'"><span class="n">'+(i+1)+'</span><strong>'+esc(t.name)+'</strong><small class="codes">'+esc(t.ksbs.join(" · "))+'</small>'+(d?'<span class="st" aria-label="Done">'+ICON.tick+'</span>':g?'<span class="st" aria-label="Started">'+ICON.dots+'</span>':"")+'</button>'}).join("")+'</div>').join("");
-    wireEvia();
-    app.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>topic(+b.dataset.t));
-    document.getElementById("goal").onclick=()=>{if(next>=0)topic(next);else portfolio()};
-  }
-  /* A topic: straight into the camera, or to the write-up if photos are already waiting. "Talk about it" topics ask
-     their questions instead. */
-  function topic(i){if(T[i].kind==="talk")talk(i);else photos(i)}
+  const A=window.EB_ACTIVITIES,MENTION=window.EB_MENTION||[];
+  /* How many times a topic has gone into the portfolio. */
+  const routesOf=p=>p.routes||(p.route!=null?[p.route]:[]);
+  const timesDone=r=>S.pf.filter(p=>routesOf(p).includes(r)).length;
+  const first=()=>String(S.name||"").trim().split(/\s+/)[0];
+  /* Evia says it (on screen, and out loud for anyone who won't read it). */
+  function say(text){try{if(window.speechSynthesis&&!S.quiet){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g,""));u.lang="en-GB";u.rate=.97;speechSynthesis.speak(u)}}catch(_){}}
 
-  /* ---------- A topic's photos: each thing to capture with its own camera button ----------
-     Learners take whichever they can that day and come back for the rest; each keeps its photos (tick when it has
-     one). "Something else" is for anything not on the list. Write up once there's at least one. */
-  async function photos(i){
-    page="photos";tabs(null);
-    const t=T[i],d=draft(i),list=t.capture.concat([["Something else","Anything else from the job that shows your work."]]);
-    const of=k=>d.photos.filter(p=>(k===list.length-1?!t.capture.some(c=>c[0]===p.label):p.label===list[k][0]));
-    const got=t.capture.filter((c,k)=>of(k).length).length;
-    app.innerHTML=top(t.name,true)+
-      '<p class="lead">Take each photo when you can. Come back any day for the rest.</p>'+
-      '<div class="shots-h"><span class="bar"><i style="width:'+Math.round(got/t.capture.length*100)+'%"></i></span><b>'+got+' of '+t.capture.length+'</b></div>'+
-      '<div class="shots">'+list.map((c,k)=>{const n=of(k).length,extra=k===list.length-1;
-        return '<div class="shot'+(n?" got":"")+(extra?" extra":"")+'"><button type="button" class="shot-main" data-k="'+k+'"><span class="shot-tick">'+(n?ICON.tick:extra?"+":(k+1))+'</span><span class="shot-copy"><strong>'+esc(c[0])+'</strong><small>'+esc(c[1])+'</small></span><span class="shot-cam" aria-label="'+(n?"Add another":"Take photo")+'">'+ICON.cam+'</span></button>'+
-          (n?'<div class="shot-th" data-th="'+k+'"></div>':"")+'</div>'}).join("")+'</div>'+
-      dock('<button type="button" class="big" id="go-write"'+(d.photos.length?"":" disabled")+'>'+ICON.pen+'Write up'+(d.photos.length?" ("+d.photos.length+")":"")+'</button>');
-    wireEvia("photos");
-    document.getElementById("back").onclick=topics;
-    document.getElementById("go-write").onclick=()=>write(i);
-    app.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>camera(i,+b.dataset.k));
-    for(const box of app.querySelectorAll("[data-th]"))for(const p of of(+box.dataset.th)){const u=await url(p.id);if(u)box.insertAdjacentHTML("beforeend",'<img src="'+u+'" alt="">')}
+  /* ---------- Home: Evia asks what they're doing today, then floats up to show the practical activities ----------
+     The first time each time the app opens, she's big in the middle; then she shrinks to the top and the activities
+     appear below her. A session not finished shows first, to carry on. */
+  let greeted=false;
+  function home(){
+    page="home";tabs("home");
+    const intro=!greeted;greeted=true;
+    const sess=S.session,sa=sess&&A[sess.act];
+    const hi=(first()?"Hi "+esc(first())+". ":"Hi. ")+"What are you doing today?";
+    app.innerHTML='<section class="ev-home'+(intro?" intro":" up")+'">'+
+      '<div class="ev-head"><button type="button" class="evia ev-big" id="evia" aria-label="Help from Evia"><span class="face"><i></i><i></i></span></button><p class="ev-say">'+hi+'</p></div>'+
+      '<div class="ev-list">'+
+        (sa?'<button type="button" class="card ev-carry" id="carry"><span class="ev-ic">'+sa.icon+'</span><span><span class="card-k"><span>Carry on</span></span><strong>'+esc(sa.name)+'</strong><small>'+sess.photos.length+' photo'+(sess.photos.length===1?"":"s")+' so far</small></span><span class="go">Carry on</span></button>':"")+
+        '<div class="ev-acts">'+A.map((a,i)=>'<button type="button" class="ev-act'+(a.other?" other":"")+'" data-a="'+i+'" style="--d:'+(i*45)+'ms"><span class="ev-ic">'+a.icon+'</span><strong>'+esc(a.name)+'</strong></button>').join("")+
+          '<button type="button" class="ev-act pf" id="see-pf" style="--d:'+(A.length*45)+'ms"><span class="ev-ic">📂</span><strong>See my portfolio</strong></button></div>'+
+      '</div></section>';
+    wireEvia("home");
+    if(intro){say(hi.replace(/<[^>]+>/g,""));setTimeout(()=>{const h=app.querySelector(".ev-home");if(h){h.classList.remove("intro");h.classList.add("up")}},1700)}
+    app.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>activity(+b.dataset.a));
+    document.getElementById("see-pf").onclick=()=>portfolio();
+    const c=document.getElementById("carry");if(c)c.onclick=()=>sess.photos.length&&sess.step>=steps(sess.act).length?talkAbout():guide();
   }
+  const steps=a=>A[a].steps.map(([r,k])=>({r,k,say:T[r].capture[k][0],hint:T[r].capture[k][1]}));
+  const areasOf=a=>[...new Set(A[a].steps.map(s=>s[0]).concat(A[a].talk||[]))];
 
-  /* ---------- Talk about it: a few questions, answered in their own words ---------- */
-  function talk(i){
-    page="talk";tabs(null);
-    const t=T[i],d=draft(i);d.answers=d.answers||{};
-    app.innerHTML=top(t.name,true)+'<p class="lead">Answer in your own words. A few sentences is plenty.</p>'+
-      '<div class="wu">'+t.ask.map((q,k)=>'<div class="ask"><div class="k">QUESTION '+(k+1)+'</div><strong>'+esc(q)+'</strong><textarea rows="4" data-q="'+k+'" placeholder="Your answer">'+esc(d.answers[k]||"")+'</textarea></div>').join("")+'</div>'+
-      '<p class="codes-line">Covers '+esc(t.ksbs.join(", "))+'</p>'+
-      dock('<button type="button" class="big" id="save">'+ICON.save+'Save</button>');
-    wireEvia("talk");
-    app.querySelectorAll("[data-q]").forEach(ta=>ta.oninput=()=>{d.answers[ta.dataset.q]=ta.value;save()});
-    document.getElementById("back").onclick=topics;
-    document.getElementById("save").onclick=async()=>{
-      const empty=[...app.querySelectorAll("[data-q]")].filter(ta=>ta.value.trim().split(/\s+/).filter(Boolean).length<3);
-      if(empty.length){empty[0].scrollIntoView({behavior:"smooth",block:"center"});empty[0].focus();toast(empty.length===1?"Answer 1 more question":"Answer "+empty.length+" more questions");return}
-      await saveToPortfolio(i,{answers:t.ask.length});
+  /* ---------- An activity: the areas Evia will help them get evidence for ---------- */
+  function activity(a){
+    page="activity";tabs(null);
+    const act=A[a],ar=areasOf(a),n=act.steps.length;
+    app.innerHTML='<header class="top"><button type="button" class="back" id="back" aria-label="Back">'+ICON.back+'</button><h1>'+esc(act.name)+'</h1>'+EVIA+'</header>'+
+      '<p class="ev-bubble">'+(act.other?"Here’s the evidence that isn’t part of a day’s practical work. I’ll ask for a few photos, then some questions.":"Here’s what we’ll get evidence for today. I’ll take you through it, one photo at a time.")+'</p>'+
+      '<div class="areas">'+ar.map(r=>{const t=T[r],x=timesDone(r);return '<div class="area"><span class="area-n'+(x?" on":"")+'" title="Times in your portfolio">'+(x||"")+'</span><span><strong>'+esc(t.name)+'</strong><small>'+esc(t.ksbs.join(" · "))+'</small></span>'+(t.kind==="talk"?'<span class="area-t">Questions</span>':"")+'</div>'}).join("")+'</div>'+
+      '<p class="codes-line">'+n+' photos'+(act.talk?", then "+act.talk.length+" sets of questions":"")+'. Skip any you can’t get today.</p>'+
+      dock('<button type="button" class="big" id="begin">'+ICON.cam+'Begin evidence</button>');
+    wireEvia("activity");
+    document.getElementById("back").onclick=home;
+    document.getElementById("begin").onclick=()=>{
+      if(S.session&&S.session.act!==a&&S.session.photos.length&&!confirm("You’ve got "+S.session.photos.length+" photos waiting from "+A[S.session.act].name+". Start "+act.name+" instead? Those photos will be deleted."))return;
+      if(!S.session||S.session.act!==a){if(S.session)S.session.photos.forEach(p=>del(p.id).catch(()=>{}));S.session={act:a,step:0,photos:[],notes:{},answers:{}};save()}
+      guide();
     };
   }
-  /* The PDF goes in the Portfolio, the topic starts fresh, and Evia celebrates. */
-  async function saveToPortfolio(i,extra){
-    const t=T[i],d=draft(i),b=document.createElement("div");b.className="busy";b.textContent="Saving…";document.body.appendChild(b);
-    try{
-      const blob=await pdf(i),id=uid("pdf");await put(id,blob);
-      S.pf.unshift(Object.assign({id,route:i,name:t.name,ksbs:t.ksbs.slice(),at:Date.now(),photos:d.photos.length},extra||{}));
-      for(const p of d.photos){await del(p.id).catch(()=>{});if(urls[p.id]){URL.revokeObjectURL(urls[p.id]);delete urls[p.id]}}
-      S.drafts[i]={photos:[],notes:{}};save();
-      b.remove();celebrate(i,()=>portfolio(id));
-    }catch(err){b.remove();console.error("Evia Basic: PDF",err);alert("That didn’t save. Please try again.")}
-  }
 
-  /* ---------- Camera: square, stays open, Save when done ----------
-     For one thing to capture (k), shown under the picture; every photo taken is labelled with it. k past the list is
-     "Something else" (no label). */
-  function camera(i,k){
-    const t=T[i],shots=[],c=t.capture[k]||null;let stream=null;
+  /* ---------- Evia's guide: each photo in the order of the job, saying what's next ----------
+     Each photo is kept as it's taken, so stopping part-way loses nothing. Finish goes to talking about them. */
+  function guide(){
+    const s=S.session,act=A[s.act],L=steps(s.act);let stream=null;
     const el=document.createElement("div");el.className="cam";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");
-    el.innerHTML='<header class="cam-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc(t.name)+'</strong>'+EVIA.replace('id="evia"','id="evia-cam"')+'</header>'+
+    el.innerHTML='<header class="cam-top"><button type="button" class="cam-x" data-x aria-label="Stop for now">'+ICON.x+'</button><strong>'+esc(act.name)+'</strong>'+EVIA.replace('id="evia"','id="evia-cam"')+'</header>'+
       '<div class="cam-stage"><video playsinline muted autoplay></video><span class="flash"></span><span class="cam-n" hidden></span></div>'+
-      '<div class="cam-prompt"><div class="cp-mid"><strong class="cp-say">'+esc(c?c[0]:"Something else")+'</strong><span class="cp-hint">'+esc(c?c[1]:"Anything else from the job that shows your work.")+'</span></div></div>'+
+      '<div class="cam-prompt" aria-live="polite"><button type="button" class="cp-nav" data-prev aria-label="Back one">‹</button><div class="cp-mid"><small class="cp-n"></small><strong class="cp-say"></strong><span class="cp-hint"></span><span class="cp-next"></span></div><button type="button" class="cp-nav cp-skip" data-next>Skip</button></div>'+
       '<div class="cam-strip"></div>'+
       '<footer class="cam-bottom"><label class="cam-gal" aria-label="Add from gallery">'+ICON.gal+'<input type="file" accept="image/*" multiple hidden></label>'+
-      '<button type="button" class="shutter" aria-label="Take photo"><i></i></button><button type="button" class="cam-save" disabled>Save</button></footer>';
-    document.body.appendChild(el);
-    const video=el.querySelector("video"),strip=el.querySelector(".cam-strip"),saveB=el.querySelector(".cam-save"),n=el.querySelector(".cam-n");
-    const label=c?c[0]:"";
-    const refresh=()=>{saveB.disabled=!shots.length;n.hidden=!shots.length;n.textContent=shots.length+" photo"+(shots.length===1?"":"s");
-      strip.innerHTML=shots.map((s,k)=>'<span><img src="'+s.url+'" alt=""><button type="button" data-rm="'+k+'" aria-label="Remove">×</button></span>').join("");
-      strip.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const [s]=shots.splice(+b.dataset.rm,1);if(s)URL.revokeObjectURL(s.url);refresh()});
-      strip.scrollLeft=strip.scrollWidth};
-    const stop=()=>{if(stream)stream.getTracks().forEach(x=>x.stop());el.remove()};
-    /* The middle square of what the camera sees, like the preview. */
+      '<button type="button" class="shutter" aria-label="Take photo"><i></i></button><button type="button" class="cam-save" disabled>Finish</button></footer>';
+    document.body.appendChild(el);document.body.classList.add("pv-open");
+    const video=el.querySelector("video"),strip=el.querySelector(".cam-strip"),fin=el.querySelector(".cam-save"),n=el.querySelector(".cam-n");
+    const got=k=>s.photos.some(p=>p.step===k);
+    const refresh=async()=>{
+      const c=L[s.step],nx=L[s.step+1];
+      el.querySelector(".cp-n").innerHTML=c?"Photo "+(s.step+1)+" of "+L.length+'<span class="cp-dots">'+L.map((x,k)=>'<i class="'+(k===s.step?"now":got(k)?"got":"")+'"></i>').join("")+'</span>':"";
+      el.querySelector(".cp-say").textContent=c?c.say:"That’s all the photos";
+      el.querySelector(".cp-hint").textContent=c?c.hint:"Brilliant. Tap Finish and tell me about them.";
+      el.querySelector(".cp-next").textContent=c?(nx?"Next: "+nx.say:"That’s the last one"):"";
+      el.querySelector("[data-prev]").disabled=s.step===0;el.querySelector("[data-next]").hidden=!c;
+      fin.disabled=!s.photos.length;fin.classList.toggle("ready",!c);
+      n.hidden=!s.photos.length;n.textContent=s.photos.length+" photo"+(s.photos.length===1?"":"s");
+      strip.innerHTML="";for(const p of s.photos.slice(-12)){const u=await url(p.id);strip.insertAdjacentHTML("beforeend",'<span><img src="'+u+'" alt=""></span>')}
+      strip.scrollLeft=strip.scrollWidth;
+    };
+    const keep=async(blob,at)=>{
+      const c=L[s.step],id=uid("p");await put(id,blob);urls[id]=URL.createObjectURL(blob);
+      s.photos.push({id,at,step:s.step,route:c?c.r:null,label:c?c.say:""});
+      if(s.step<L.length){s.step++;const nx=L[s.step];if(nx)say("Next, "+nx.say+".");else say("That’s all the photos. Tap Finish.")}
+      save();refresh();
+    };
+    el.querySelector("[data-prev]").onclick=()=>{if(s.step>0){s.step--;save();refresh()}};
+    el.querySelector("[data-next]").onclick=()=>{if(s.step<L.length){s.step++;save();refresh()}};
     el.querySelector(".shutter").onclick=()=>{
       if(!video.videoWidth)return;
       const side=Math.min(video.videoWidth,video.videoHeight),px=Math.min(side,1600),cv=document.createElement("canvas");cv.width=cv.height=px;
       cv.getContext("2d").drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,px,px);
       try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
       const f=el.querySelector(".flash");f.classList.remove("on");void f.offsetWidth;f.classList.add("on");
-      cv.toBlob(b=>{if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:Date.now(),label});refresh()}},"image/jpeg",.86);
+      cv.toBlob(b=>{if(b)keep(b,Date.now())},"image/jpeg",.86);
     };
-    /* From the gallery: made square the same way. */
     const pick=el.querySelector("input");
-    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b){shots.push({blob:b,url:URL.createObjectURL(b),at:f.lastModified||Date.now(),label})}}pick.value="";refresh()};
-    saveB.onclick=async()=>{
-      const d=draft(i);
-      for(const s of shots){const id=uid("p");await put(id,s.blob);urls[id]=s.url;d.photos.push({id,at:s.at,label:s.label||""})}
-      save();stop();photos(i);
-    };
-    el.querySelector("[data-x]").onclick=()=>{if(shots.length&&!confirm("Lose these "+shots.length+" photos?"))return;shots.forEach(s=>URL.revokeObjectURL(s.url));stop()};
+    pick.onchange=async()=>{for(const f of [...pick.files].filter(f=>/^image\//.test(f.type||""))){const b=await square(f);if(b)await keep(b,f.lastModified||Date.now())}pick.value=""};
+    const stop=()=>{if(stream)stream.getTracks().forEach(x=>x.stop());el.remove();document.body.classList.remove("pv-open")};
+    fin.onclick=()=>{stop();talkAbout()};
+    el.querySelector("[data-x]").onclick=()=>{stop();if(s.photos.length)toast("Your photos are kept. Carry on any time.");home()};
     el.querySelector("#evia-cam").onclick=()=>help("camera");
     navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1920}},audio:false})
-      .then(s=>{stream=s;video.srcObject=s;return video.play().catch(()=>{})})
+      .then(st=>{stream=st;video.srcObject=st;return video.play().catch(()=>{})})
       .catch(err=>{el.querySelector(".cam-stage").insertAdjacentHTML("beforeend",'<div class="cam-msg">'+(err&&err.name==="NotAllowedError"?"Allow the camera in your phone settings, then try again.":"The camera didn’t start. Use the gallery button instead.")+'</div>')})
       :el.querySelector(".cam-stage").insertAdjacentHTML("beforeend",'<div class="cam-msg">Use the gallery button to add photos.</div>');
     refresh();
+    const c=L[s.step];if(c)say((s.photos.length?"Let’s carry on. ":"Let’s start. ")+"First, "+c.say+".");
   }
   function square(file){
     return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const side=Math.min(img.naturalWidth,img.naturalHeight),px=Math.min(side,1600),c=document.createElement("canvas");c.width=c.height=px;
       c.getContext("2d").drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,px,px);URL.revokeObjectURL(u);c.toBlob(b=>res(b),"image/jpeg",.86)};img.onerror=()=>{URL.revokeObjectURL(u);res(null)};img.src=u});
   }
 
-  /* ---------- Write up: each photo, what it shows ---------- */
-  async function write(i){
-    page="write";tabs(null);
-    const t=T[i],d=draft(i);
-    if(!d.photos.length)return photos(i);
-    const hint=l=>{const c=t.capture.find(x=>x[0]===l);return c?c[1]:""};
-    /* In the order of the list (as they'd do the job), anything else last. */
-    const ord=p=>{const k=t.capture.findIndex(c=>c[0]===p.label);return k<0?999:k};d.photos.sort((a,b)=>ord(a)-ord(b)||a.at-b.at);
-    app.innerHTML=top("Write up",true)+
+  /* ---------- Talk about it: Evia says what to talk about for the photos taken, and asks any questions ---------- */
+  async function talkAbout(){
+    page="talk";tabs(null);
+    const s=S.session;if(!s)return home();
+    const act=A[s.act],groups=[...new Set(s.photos.map(p=>p.route))],qs=(act.talk||[]);
+    s.answers=s.answers||{};s.notes=s.notes||{};
+    app.innerHTML='<header class="top"><button type="button" class="back" id="back" aria-label="Back">'+ICON.back+'</button><h1>Talk about it</h1>'+EVIA+'</header>'+
       (S.name?"":'<label class="name"><span>Your name</span><input id="nm" autocomplete="name" placeholder="First and last name"></label>')+
-      '<div class="wu">'+d.photos.map((p,k)=>'<div class="wu-row" data-p="'+esc(p.id)+'"><img alt="Photo '+(k+1)+'"><div><div class="k">PHOTO '+(k+1)+(p.label?' · '+esc(p.label.toUpperCase()):"")+'</div><textarea rows="4" placeholder="'+esc(p.label?"What does it show? "+hint(p.label):"What does it show?")+'">'+esc(d.notes[p.id]||"")+'</textarea><button type="button" class="rm">Remove photo</button></div></div>').join("")+'</div>'+
-      dock('<button type="button" class="big alt" id="more">'+ICON.cam+'More</button><button type="button" class="big" id="save">'+ICON.save+'Save</button>');
-    wireEvia();
+      '<p class="ev-bubble">'+(s.photos.length?"Now tell me what each photo shows. Here’s what to talk about.":"")+(qs.length?(s.photos.length?" Then ":"")+"Answer a few questions in your own words.":"")+'</p>'+
+      groups.map(r=>{const t=T[r]||{name:"Other photos",ksbs:[]},m=MENTION[r]||[];
+        return '<section class="tg"><div class="tg-h"><strong>'+esc(t.name)+'</strong><small>'+esc((t.ksbs||[]).join(" · "))+'</small></div>'+
+          (m.length?'<div class="tg-m"><span>Talk about</span>'+m.map(x=>'<i>'+esc(x)+'</i>').join("")+'</div>':"")+
+          '<div class="wu">'+s.photos.filter(p=>p.route===r).map(p=>'<div class="wu-row" data-p="'+esc(p.id)+'"><img alt=""><div><div class="k">'+esc((p.label||"Photo").toUpperCase())+'</div><textarea rows="4" placeholder="'+esc("What does it show? "+((L=>L?L.hint:"")(steps(s.act).find(x=>x.say===p.label))))+'">'+esc(s.notes[p.id]||"")+'</textarea><button type="button" class="rm">Remove photo</button></div></div>').join("")+'</div></section>'}).join("")+
+      qs.map(r=>{const t=T[r];return '<section class="tg"><div class="tg-h"><strong>'+esc(t.name)+'</strong><small>'+esc(t.ksbs.join(" · "))+'</small></div><div class="wu">'+
+        t.ask.map((q,k)=>'<div class="ask"><strong>'+esc(q)+'</strong><textarea rows="3" data-q="'+r+':'+k+'" placeholder="Your answer">'+esc(s.answers[r+":"+k]||"")+'</textarea></div>').join("")+'</div></section>'}).join("")+
+      dock('<button type="button" class="big alt" id="more">'+ICON.cam+'Photos</button><button type="button" class="big" id="save">'+ICON.save+'Save</button>');
+    wireEvia("talk");
+    say(s.photos.length?"Now tell me what each photo shows.":"Answer a few questions in your own words.");
     for(const row of app.querySelectorAll(".wu-row")){const u=await url(row.dataset.p);row.querySelector("img").src=u}
-    /* Words are kept as they're typed, so nothing is lost. */
-    app.querySelectorAll(".wu-row textarea").forEach(ta=>ta.oninput=()=>{d.notes[ta.closest(".wu-row").dataset.p]=ta.value;save()});
+    app.querySelectorAll(".wu-row textarea").forEach(ta=>ta.oninput=()=>{s.notes[ta.closest(".wu-row").dataset.p]=ta.value;save()});
+    app.querySelectorAll("[data-q]").forEach(ta=>ta.oninput=()=>{s.answers[ta.dataset.q]=ta.value;save()});
     app.querySelectorAll(".wu-row .rm").forEach(b=>b.onclick=async()=>{const id=b.closest(".wu-row").dataset.p;if(!confirm("Remove this photo?"))return;
-      d.photos=d.photos.filter(p=>p.id!==id);delete d.notes[id];save();await del(id).catch(()=>{});write(i)});
+      s.photos=s.photos.filter(p=>p.id!==id);delete s.notes[id];save();await del(id).catch(()=>{});talkAbout()});
     const nm=document.getElementById("nm");if(nm)nm.oninput=()=>{S.name=nm.value.trim();save()};
-    document.getElementById("back").onclick=()=>photos(i);
-    document.getElementById("more").onclick=()=>photos(i);
+    document.getElementById("back").onclick=home;
+    document.getElementById("more").onclick=()=>{if(s.step>=steps(s.act).length)s.step=Math.max(0,steps(s.act).length-1);guide()};
     document.getElementById("save").onclick=async()=>{
-      const empty=d.photos.filter(p=>!String(d.notes[p.id]||"").trim()).length;
       if(nm&&!nm.value.trim()){nm.focus();toast("Type your name first");return}
-      if(empty){const ta=[...app.querySelectorAll(".wu-row")].find(r=>!r.querySelector("textarea").value.trim());if(ta){ta.scrollIntoView({behavior:"smooth",block:"center"});ta.querySelector("textarea").focus()}toast(empty===1?"Say what 1 photo shows":"Say what "+empty+" photos show");return}
-      await saveToPortfolio(i);
+      const emptyP=[...app.querySelectorAll(".wu-row textarea")].filter(ta=>!ta.value.trim());
+      const emptyQ=[...app.querySelectorAll("[data-q]")].filter(ta=>ta.value.trim().split(/\s+/).filter(Boolean).length<3);
+      const first_=emptyP[0]||emptyQ[0];
+      if(first_){first_.scrollIntoView({behavior:"smooth",block:"center"});first_.focus();toast(emptyP.length?(emptyP.length===1?"Say what 1 photo shows":"Say what "+emptyP.length+" photos show"):(emptyQ.length===1?"Answer 1 more question":"Answer "+emptyQ.length+" more questions"));return}
+      if(!s.photos.length&&!qs.length){toast("Take a photo first");return}
+      await finish();
     };
   }
+  /* One PDF for the day's activity, in the Portfolio; the session is cleared, and Evia says they're done. */
+  async function finish(){
+    const s=S.session,act=A[s.act],b=document.createElement("div");b.className="busy";b.textContent="Saving…";document.body.appendChild(b);
+    try{
+      const routes=[...new Set(s.photos.map(p=>p.route).filter(r=>r!=null).concat(act.talk||[]))];
+      const ksbs=[...new Set([].concat(...routes.map(r=>T[r].ksbs)))];
+      const blob=await pdf(s,routes,ksbs),id=uid("pdf");await put(id,blob);
+      S.pf.unshift({id,act:s.act,name:act.name,routes,ksbs,at:Date.now(),photos:s.photos.length,answers:(act.talk||[]).reduce((n,r)=>n+T[r].ask.length,0)});
+      for(const p of s.photos){await del(p.id).catch(()=>{});if(urls[p.id]){URL.revokeObjectURL(urls[p.id]);delete urls[p.id]}}
+      S.session=null;save();b.remove();doneForToday(act,id);
+    }catch(err){b.remove();console.error("Evia Basic: PDF",err);alert("That didn’t save. Please try again.")}
+  }
+  function doneForToday(act,id){
+    const w=document.createElement("div");w.className="party";
+    w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h2>That’s you done for today'+(first()?", "+esc(first()):"")+'!</h2><p>Your '+esc(act.name.toLowerCase())+' evidence is saved in your portfolio. You can do another one if you want to.</p>'+
+      '<button type="button" class="big" id="dn-another">Do another one</button><button type="button" class="big alt" id="dn-pf">See my portfolio</button></div>';
+    document.body.appendChild(w);confetti();try{navigator.vibrate&&navigator.vibrate([15,60,15])}catch(_){}
+    say("That’s you done for today. Your evidence is saved in your portfolio.");
+    const go=f=>{w.classList.add("out");setTimeout(()=>w.remove(),300);f()};
+    w.querySelector("#dn-another").onclick=()=>go(home);w.querySelector("#dn-pf").onclick=()=>go(()=>portfolio(id));
+  }
 
-  /* ---------- The PDF: photo on the left, what it shows on the right ---------- */
+  /* ---------- The PDF: the day's activity, each topic with its photos and what they show, then any answers ---------- */
   function loadPdf(){
     if(window.jspdf)return Promise.resolve(window.jspdf);
     return new Promise((res,rej)=>{const s=document.createElement("script");s.src="vendor/jspdf.umd.min.js";s.onload=()=>window.jspdf?res(window.jspdf):rej(new Error("PDF maker didn't load"));s.onerror=()=>rej(new Error("PDF maker didn't load"));document.head.appendChild(s)});
   }
   const dataUrl=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(blob)});
   const when=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
-  async function pdf(i){
-    const t=T[i],d=draft(i),{jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4",compress:true});
+  async function pdf(s,routes,ksbs){
+    const act=A[s.act],{jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4",compress:true});
     const W=210,H=297,M=16,CW=W-2*M,IMG=62,ink=[23,32,51],muted=[102,112,133];let y=M;
-    const txt=s=>String(s||"").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/[^\x00-\xFF]/g,"");
+    const txt=t=>String(t||"").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/[^\x00-\xFF]/g,"");
+    const need=h=>{if(y+h>H-M-8){doc.addPage();y=M}};
     doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...muted);doc.setCharSpace(.35);doc.text("EVIA · EVIDENCE",M,y+3);doc.setCharSpace(0);y+=7;
-    doc.setFontSize(20);doc.setTextColor(...ink);doc.text(txt(t.name),M,y+7);y+=12;
-    doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(71,84,103);
-    [["Apprentice",S.name||""],["Course",COURSE.name+" ("+COURSE.std+")"],["Submitted",when(Date.now())],["KSBs",t.ksbs.join(", ")]].forEach(([k,v])=>{doc.setFont("helvetica","bold");doc.text(k+":",M,y+4);doc.setFont("helvetica","normal");doc.text(txt(v),M+26,y+4);y+=5.6});
-    /* What this covers, in the standard's own words. */
-    y+=1;t.ksbs.forEach(c=>{const l=doc.setFont("helvetica","normal").setFontSize(8.5).splitTextToSize(txt((window.EB_KSBS||{})[c]||""),CW-14);
-      if(y+l.length*3.8>H-M-8){doc.addPage();y=M}doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(c,M,y+3);doc.setFont("helvetica","normal");doc.setTextColor(...muted);doc.text(l,M+14,y+3);y+=l.length*3.8+1.2});
+    doc.setFontSize(20);doc.setTextColor(...ink);doc.text(txt(act.name),M,y+7);y+=12;
+    doc.setFontSize(10);doc.setTextColor(71,84,103);
+    [["Apprentice",S.name||""],["Course",COURSE.name+" ("+COURSE.std+")"],["Submitted",when(Date.now())],["KSBs",ksbs.join(", ")]].forEach(([k,v])=>{const l=doc.setFont("helvetica","normal").splitTextToSize(txt(v),CW-26);doc.setFont("helvetica","bold");doc.text(k+":",M,y+4);doc.setFont("helvetica","normal");doc.text(l,M+26,y+4);y+=5.6*l.length});
     y+=2;doc.setDrawColor(229,188,2);doc.setLineWidth(.8);doc.line(M,y,W-M,y);y+=6;
-    /* Talk about it: each question and the learner's answer. */
-    if(t.kind==="talk")t.ask.forEach((q,k)=>{
-      const ql=doc.setFont("helvetica","bold").setFontSize(11).splitTextToSize(txt((k+1)+". "+q),CW),al=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt((d.answers||{})[k]||""),CW);
-      if(y+ql.length*5.2+al.length*5.2+8>H-M-8){doc.addPage();y=M}
-      doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(ql,M,y+4);y+=ql.length*5.2+1;
-      doc.setFont("helvetica","normal");doc.text(al,M,y+4);y+=al.length*5.2+7;
-    });
-    for(let k=0;k<d.photos.length;k++){
-      const p=d.photos[k],b=await get(p.id);if(!b)continue;
-      const lines=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt(d.notes[p.id]||""),CW-IMG-8);
-      const h=Math.max(IMG,10+lines.length*5.2);
-      if(y+h>H-M-8){doc.addPage();y=M}
-      doc.addImage(await dataUrl(b),"JPEG",M,y,IMG,IMG,undefined,"FAST");
-      const x=M+IMG+8;doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...ink);doc.text(txt("Photo "+(k+1)+(p.label?": "+p.label:"")),x,y+4);
-      doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...muted);doc.text("Taken "+txt(when(p.at)),x,y+8.5);
-      doc.setFontSize(11);doc.setTextColor(...ink);doc.text(lines,x,y+15);
-      y+=h+8;
+    for(const r of routes){
+      const t=T[r];need(30);
+      doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(...ink);doc.text(txt(t.name),M,y+5);y+=8;
+      t.ksbs.forEach(c=>{const l=doc.setFont("helvetica","normal").setFontSize(8.5).splitTextToSize(txt((window.EB_KSBS||{})[c]||""),CW-14);need(l.length*3.8+2);
+        doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(c,M,y+3);doc.setFont("helvetica","normal");doc.setTextColor(...muted);doc.text(l,M+14,y+3);y+=l.length*3.8+1.2});
+      y+=4;
+      if(t.kind==="talk")t.ask.forEach((q,k)=>{
+        const ql=doc.setFont("helvetica","bold").setFontSize(11).splitTextToSize(txt((k+1)+". "+q),CW),al=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt(s.answers[r+":"+k]||""),CW);
+        need(ql.length*5.2+al.length*5.2+8);
+        doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(ql,M,y+4);y+=ql.length*5.2+1;
+        doc.setFont("helvetica","normal");doc.text(al,M,y+4);y+=al.length*5.2+7;
+      });
+      for(const p of s.photos.filter(x=>x.route===r)){
+        const b=await get(p.id);if(!b)continue;
+        const lines=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt(s.notes[p.id]||""),CW-IMG-8);
+        const h=Math.max(IMG,15+lines.length*5.2);need(h);
+        doc.addImage(await dataUrl(b),"JPEG",M,y,IMG,IMG,undefined,"FAST");
+        const x=M+IMG+8;doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...ink);doc.text(txt(p.label||"Photo"),x,y+4);
+        doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...muted);doc.text("Taken "+txt(when(p.at)),x,y+8.5);
+        doc.setFontSize(11);doc.setTextColor(...ink);doc.text(lines,x,y+15);
+        y+=h+8;
+      }
+      y+=2;
     }
     const pages=doc.getNumberOfPages();
     for(let n=1;n<=pages;n++){doc.setPage(n);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...muted);
-      doc.text(txt((S.name||"Apprentice")+" · "+t.name),M,H-9);doc.text("Page "+n+" of "+pages,W-M,H-9,{align:"right"})}
+      doc.text(txt((S.name||"Apprentice")+" · "+act.name),M,H-9);doc.text("Page "+n+" of "+pages,W-M,H-9,{align:"right"})}
     return doc.output("blob");
   }
 
@@ -287,7 +309,7 @@
   function portfolio(fresh){
     page="portfolio";tabs("portfolio");
     app.innerHTML=top("Portfolio")+(S.pf.length?'<div class="pf">'+S.pf.map(p=>'<button type="button" class="pf-row'+(p.id===fresh?" new":"")+'" data-pf="'+esc(p.id)+'"><span class="ic">PDF</span><span><strong>'+esc(pfName(p))+'</strong><small>'+esc(new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+' · '+(p.answers?p.answers+' answers':p.photos+' photo'+(p.photos===1?"":"s"))+'</small></span></button>').join("")+'</div>'
-      :'<div class="empty"><b>📂</b>Nothing here yet.<br>Pick a topic and take photos.</div>');
+      :'<div class="empty"><b>📂</b>Nothing here yet.<br>Tell Evia what you’re doing today and she’ll help you take your photos.</div>');
     wireEvia();
     app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>openPdf(S.pf.find(p=>p.id===b.dataset.pf)));
   }
@@ -344,7 +366,7 @@
   const ring=(p,inner,size)=>'<span class="ring'+(size?" "+size:"")+'" style="--p:'+Math.max(0,Math.min(100,p))+'"><span>'+inner+'</span></span>';
   async function progress(){
     page="progress";tabs("progress");
-    const have=evidenced(),pct=ALL.length?Math.round(have.size/ALL.length*100):0,tp=timePct(),doneN=T.filter((_,i)=>done(i)).length;
+    const have=evidenced(),pct=ALL.length?Math.round(have.size/ALL.length*100):0,tp=timePct(),doneN=S.pf.length;
     const R=teachReport(),best=bestTest();
     const verdict=tp==null?"":pct>=tp-10?'<span class="pill good">On track</span>':'<span class="pill low">Behind</span>';
     const group=(l,n)=>{const ks=ALL.filter(k=>k[0]===l);return '<section class="card"><div class="card-k"><span>'+n+'</span><b>'+ks.filter(k=>have.has(k)).length+' of '+ks.length+'</b></div><div class="chips">'+
@@ -353,12 +375,12 @@
       '<section class="card hero">'+ring(pct,'<b>'+pct+'%</b>',"big")+'<div><strong>'+have.size+' of '+ALL.length+' KSBs</strong><small>have evidence in your portfolio</small>'+verdict+'</div></section>'+
       (tp!=null?'<section class="card"><div class="card-k"><span>Your course</span><b>'+tp+'% through</b></div><span class="bar"><i style="width:'+tp+'%"></i></span><small class="muted">'+esc(fmtDate(S.start))+' to '+esc(fmtDate(S.end))+'</small></section>'
         :'<button type="button" class="card row" id="dates"><span>Add your course dates</span><small>So Evia can tell you if you’re on track</small><i>›</i></button>')+
-      '<div class="stats"><div><b>'+doneN+'<small>/'+T.length+'</small></b><span>topics</span></div><div><b>'+(R?R.done:"–")+(R?'<small>/'+R.total+'</small>':"")+'</b><span>lessons</span></div><div><b>'+(best==null?"–":best+"%")+'</b><span>best EPA</span></div></div>'+
+      '<div class="stats"><div><b>'+doneN+'</b><span>saved</span></div><div><b>'+(R?R.done:"–")+(R?'<small>/'+R.total+'</small>':"")+'</b><span>lessons</span></div><div><b>'+(best==null?"–":best+"%")+'</b><span>best EPA</span></div></div>'+
       group("K","Knowledge")+group("S","Skills")+group("B","Behaviours")+
       '<button type="button" class="card row" id="me"><span>Your details</span><small>'+esc(S.name||"Name, course dates and colour")+'</small><i>›</i></button>';
     wireEvia();
     app.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k,where=T.filter((t,i)=>t.ksbs.includes(k)).map(t=>t.name);
-      sheet('<span class="sheet-k">'+k+'</span><p class="sheet-big">'+esc(window.EB_KSBS[k]||"")+'</p><p class="muted">'+(have.has(k)?"✓ In your portfolio":"Not in your portfolio yet")+(where.length?". Topic"+(where.length>1?"s":"")+": "+esc(where.join(", ")):"")+'</p>')});
+      sheet('<span class="sheet-k">'+k+'</span><p class="sheet-big">'+esc(window.EB_KSBS[k]||"")+'</p><p class="muted">'+(have.has(k)?"✓ In your portfolio":"Not in your portfolio yet")+(where.length?". Part of: "+esc(where.join(", ")):"")+'</p>')});
     const d=document.getElementById("dates");if(d)d.onclick=me;
     document.getElementById("me").onclick=me;
     if(!R)loadLearn().then(()=>{if(page==="progress")progress()}).catch(()=>{});
@@ -447,14 +469,6 @@
     c.innerHTML=Array.from({length:36},(_,k)=>'<i style="left:'+Math.round(Math.random()*100)+'%;background:'+cols[k%cols.length]+';animation-delay:'+(Math.random()*.4).toFixed(2)+'s;--x:'+Math.round(Math.random()*120-60)+'px;--r:'+Math.round(Math.random()*720)+'deg"></i>').join("");
     document.body.appendChild(c);setTimeout(()=>c.remove(),2400);
   }
-  function celebrate(i,then){
-    const n=T.filter((_,k)=>done(k)).length;
-    const w=document.createElement("div");w.className="party";
-    w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h2>'+esc(T[i].name)+' saved!</h2><p>'+(n>=T.length?"Every topic is in your portfolio. Amazing!":n+" of "+T.length+" topics in your portfolio")+'</p></div>';
-    document.body.appendChild(w);confetti();try{navigator.vibrate&&navigator.vibrate([15,60,15])}catch(_){}
-    const go=()=>{if(!w.parentNode)return;w.classList.add("out");setTimeout(()=>w.remove(),300);then()};
-    w.onclick=go;setTimeout(go,2200);
-  }
   function welcome(){
     const w=document.createElement("div");w.className="hello";
     if(!S.name){
@@ -462,20 +476,19 @@
         '<label class="field"><span>What’s your name?</span><input id="hello-n" autocomplete="name" placeholder="First and last name"></label><button type="button" class="big" id="hello-go">Let’s go</button></div>';
       document.body.appendChild(w);
       const n=w.querySelector("#hello-n"),go=w.querySelector("#hello-go");
-      go.onclick=()=>{if(!n.value.trim()){n.focus();return}S.name=n.value.trim();save();w.classList.add("out");setTimeout(()=>{w.remove();help("topics")},350)};
+      go.onclick=()=>{if(!n.value.trim()){n.focus();return}S.name=n.value.trim();save();w.classList.add("out");setTimeout(()=>{w.remove();greeted=false;home()},350)};
       n.onkeydown=e=>{if(e.key==="Enter")go.click()};
       return;
     }
-    w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h1>Hi '+esc(S.name.split(/\s+/)[0])+'</h1></div>';
-    document.body.appendChild(w);
-    const go=()=>{if(!w.parentNode)return;w.classList.add("out");setTimeout(()=>w.remove(),450)};
-    w.onclick=go;setTimeout(go,1600);
+    /* After the first time, Evia's hello is the home screen itself. */
   }
 
-  const PAGES={topics,progress,learn,portfolio};
-  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>(PAGES[b.dataset.tab]||topics)());
-  paint();topics();welcome();
+  const PAGES={home,progress,learn,portfolio};
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>(PAGES[b.dataset.tab]||home)());
+  paint();
+  /* The first time: her name question first; after that, straight to Evia asking what they're doing today. */
+  if(S.name){home()}else{greeted=true;home();greeted=false;welcome()}
   /* Lessons load quietly once the app is open, so Learn opens straight away. */
   setTimeout(()=>loadLearn().catch(()=>{}),2500);
-  window.eviaBasic={topics,topic,write,portfolio,progress,learn,epa,camera,pdf,state:S,help,loadLearn};
+  window.eviaBasic={home,activity,guide,talkAbout,portfolio,progress,learn,epa,pdf,state:S,help,loadLearn};
 })();
