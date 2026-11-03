@@ -470,7 +470,8 @@ window.EB_ACTIVITIES=[
  {name:"Cavity walling",icon:"🧱",steps:[[12,0],[10,0],[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[3,2],[5,0],[5,2],[7,6]]},
  {name:"Solid walling",icon:"🏠",steps:[[12,0],[10,0],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5],[3,2],[5,0],[5,1],[4,6]]},
  {name:"Raked walling",icon:"📏",steps:[[12,0],[10,0],[8,0],[8,1],[3,0],[3,1],[3,3],[5,0],[8,2]]},
- {name:"None of these",icon:"💬",other:true,steps:[[9,0],[9,1],[9,2],[11,2],[11,3],[13,2],[13,3],[10,2],[2,0]],talk:[14,15,16,17]}
+ {name:"Repair work",icon:"🔧",steps:[[12,0],[11,0],[9,0],[9,1],[3,1],[5,0],[9,2],[13,0]]},
+ {name:"None of these",icon:"💬",other:true,steps:[[11,2],[11,3],[13,2],[13,3],[10,2],[2,0]],talk:[14,15,16,17]}
 ];
 /* What to talk about for each On the job topic, when saying what the photos show. */
 window.EB_MENTION=[

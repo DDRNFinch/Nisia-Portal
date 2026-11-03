@@ -2,8 +2,9 @@
    Milos, Paros or Symi, and everything stays on the phone (photos and PDFs in IndexedDB, the rest in localStorage, all
    under "eviab", apart from Evia's own storage on the same site).
      Evia       the home screen. She asks what they're doing today, then floats up to show the practical activities
-                (Mixing mortar, Setting out, Labouring, Cavity, Solid and Raked walling), None of these, and See my
-                portfolio. A session not finished shows first, to carry on.
+                (Mixing mortar, Setting out, Labouring, Cavity, Solid and Raked walling, Repair work), None of these,
+                then See my portfolio, My progress and Learn (there's no bottom bar). A session not finished shows
+                first, to carry on.
      Activity   the areas (KSB topics, topics.js) it gets evidence for, with how many times each is in the portfolio,
                 then Begin evidence.
      Guide      the square camera, one photo at a time in the order of the job, saying what's next (on screen and out
@@ -80,12 +81,12 @@
   }
   const wireEvia=which=>{const e=document.getElementById("evia");if(e)e.onclick=()=>help(which)};
   function toast(t){document.querySelectorAll(".toast").forEach(x=>x.remove());const o=document.createElement("div");o.className="toast";o.textContent=t;document.body.appendChild(o);setTimeout(()=>o.remove(),2600)}
-  const top=(title,back)=>'<header class="top">'+(back?'<button type="button" class="back" id="back" aria-label="Back">'+ICON.back+'</button>':"")+'<h1>'+esc(title)+'</h1>'+EVIA+'</header>';
+  const top=(title,back)=>'<header class="top">'+(back?'<button type="button" class="back" id="back" aria-label="Back"'+(back==="home"?" data-home":"")+'>'+ICON.back+'</button>':"")+'<h1>'+esc(title)+'</h1>'+EVIA+'</header>';
   const dock=html=>'<div class="dock"><div class="dock-in">'+html+'</div></div>';
 
   /* ---------- Pages ---------- */
   function tabs(on){
-    document.body.classList.toggle("no-tabs",!on);
+    document.body.classList.add("no-tabs");
     document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===on));
     const n=document.getElementById("pf-n");if(n){n.hidden=!S.pf.length;n.textContent=S.pf.length}
   }
@@ -110,13 +111,15 @@
       '<div class="ev-head"><button type="button" class="evia ev-big" id="evia" aria-label="Help from Evia"><span class="face"><i></i><i></i></span></button><p class="ev-say">'+hi+'</p></div>'+
       '<div class="ev-list">'+
         (sa?'<button type="button" class="card ev-carry" id="carry"><span class="ev-ic">'+sa.icon+'</span><span><span class="card-k"><span>Carry on</span></span><strong>'+esc(sa.name)+'</strong><small>'+sess.photos.length+' photo'+(sess.photos.length===1?"":"s")+' so far</small></span><span class="go">Carry on</span></button>':"")+
-        '<div class="ev-acts">'+A.map((a,i)=>'<button type="button" class="ev-act'+(a.other?" other":"")+'" data-a="'+i+'" style="--d:'+(i*45)+'ms"><span class="ev-ic">'+a.icon+'</span><strong>'+esc(a.name)+'</strong></button>').join("")+
-          '<button type="button" class="ev-act pf" id="see-pf" style="--d:'+(A.length*45)+'ms"><span class="ev-ic">📂</span><strong>See my portfolio</strong></button></div>'+
+        '<div class="ev-acts">'+A.map((a,i)=>'<button type="button" class="ev-act'+(a.other?" other":"")+'" data-a="'+i+'" style="--d:'+(i*45)+'ms"><span class="ev-ic">'+a.icon+'</span><strong>'+esc(a.name)+'</strong><span class="ev-go" aria-hidden="true">›</span></button>').join("")+'</div>'+
+        '<div class="ev-acts ev-more">'+[["see-pf","📂","See my portfolio"],["go-progress","📈","My progress"],["go-learn","📚","Learn"]].map(([id,ic,t],k)=>'<button type="button" class="ev-act" id="'+id+'" style="--d:'+((A.length+k)*45)+'ms"><span class="ev-ic">'+ic+'</span><strong>'+t+'</strong><span class="ev-go" aria-hidden="true">›</span></button>').join("")+'</div>'+
       '</div></section>';
     wireEvia("home");
     if(intro){say(hi.replace(/<[^>]+>/g,""));setTimeout(()=>{const h=app.querySelector(".ev-home");if(h){h.classList.remove("intro");h.classList.add("up")}},1700)}
     app.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>activity(+b.dataset.a));
     document.getElementById("see-pf").onclick=()=>portfolio();
+    document.getElementById("go-progress").onclick=()=>progress();
+    document.getElementById("go-learn").onclick=()=>learn();
     const c=document.getElementById("carry");if(c)c.onclick=()=>sess.photos.length&&sess.step>=steps(sess.act).length?talkAbout():guide();
   }
   const steps=a=>A[a].steps.map(([r,k])=>({r,k,say:T[r].capture[k][0],hint:T[r].capture[k][1]}));
@@ -308,7 +311,7 @@
   /* ---------- Portfolio ---------- */
   function portfolio(fresh){
     page="portfolio";tabs("portfolio");
-    app.innerHTML=top("Portfolio")+(S.pf.length?'<div class="pf">'+S.pf.map(p=>'<button type="button" class="pf-row'+(p.id===fresh?" new":"")+'" data-pf="'+esc(p.id)+'"><span class="ic">PDF</span><span><strong>'+esc(pfName(p))+'</strong><small>'+esc(new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+' · '+(p.answers?p.answers+' answers':p.photos+' photo'+(p.photos===1?"":"s"))+'</small></span></button>').join("")+'</div>'
+    app.innerHTML=top("Portfolio","home")+(S.pf.length?'<div class="pf">'+S.pf.map(p=>'<button type="button" class="pf-row'+(p.id===fresh?" new":"")+'" data-pf="'+esc(p.id)+'"><span class="ic">PDF</span><span><strong>'+esc(pfName(p))+'</strong><small>'+esc(new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+' · '+(p.answers?p.answers+' answers':p.photos+' photo'+(p.photos===1?"":"s"))+'</small></span></button>').join("")+'</div>'
       :'<div class="empty"><b>📂</b>Nothing here yet.<br>Tell Evia what you’re doing today and she’ll help you take your photos.</div>');
     wireEvia();
     app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>openPdf(S.pf.find(p=>p.id===b.dataset.pf)));
@@ -371,7 +374,7 @@
     const verdict=tp==null?"":pct>=tp-10?'<span class="pill good">On track</span>':'<span class="pill low">Behind</span>';
     const group=(l,n)=>{const ks=ALL.filter(k=>k[0]===l);return '<section class="card"><div class="card-k"><span>'+n+'</span><b>'+ks.filter(k=>have.has(k)).length+' of '+ks.length+'</b></div><div class="chips">'+
       ks.map(k=>'<button type="button" class="chip'+(have.has(k)?" on":"")+'" data-k="'+k+'">'+k+'</button>').join("")+'</div></section>'};
-    app.innerHTML=top("Progress")+
+    app.innerHTML=top("Progress","home")+
       '<section class="card hero">'+ring(pct,'<b>'+pct+'%</b>',"big")+'<div><strong>'+have.size+' of '+ALL.length+' KSBs</strong><small>have evidence in your portfolio</small>'+verdict+'</div></section>'+
       (tp!=null?'<section class="card"><div class="card-k"><span>Your course</span><b>'+tp+'% through</b></div><span class="bar"><i style="width:'+tp+'%"></i></span><small class="muted">'+esc(fmtDate(S.start))+' to '+esc(fmtDate(S.end))+'</small></section>'
         :'<button type="button" class="card row" id="dates"><span>Add your course dates</span><small>So Evia can tell you if you’re on track</small><i>›</i></button>')+
@@ -406,12 +409,12 @@
   /* ---------- Learn: Teach me lessons and EPA practice ---------- */
   async function learn(){
     page="learn";tabs("learn");
-    app.innerHTML=top("Learn")+'<p class="muted center">Loading…</p>';wireEvia();
-    try{await loadLearn()}catch(_){app.innerHTML=top("Learn")+'<p class="muted center">Lessons didn’t load. Check your signal and try again.</p>';wireEvia();return}
+    app.innerHTML=top("Learn","home")+'<p class="muted center">Loading…</p>';wireEvia();
+    try{await loadLearn()}catch(_){app.innerHTML=top("Learn","home")+'<p class="muted center">Lessons didn’t load. Check your signal and try again.</p>';wireEvia();return}
     if(page!=="learn")return;
     const R=teachReport()||{subjects:[],done:0,total:0},next=window.eviaTeach.summary(),best=bestTest();
     const SUB={course:["Bricklaying","🧱"],maths:["Maths","➗"],english:["English","✏️"],edi:["Safeguarding","🛡️"]};
-    app.innerHTML=top("Learn")+
+    app.innerHTML=top("Learn","home")+
       '<button type="button" class="card teach" id="teach">'+'<span class="evia small"><span class="face"><i></i><i></i></span></span>'+
         '<span><span class="card-k"><span>Teach me</span></span><strong>'+esc(next.next||"Every lesson done")+'</strong><small>'+R.done+' of '+R.total+' lessons done</small></span><span class="go">'+(R.done?"Carry on":"Start")+'</span></button>'+
       '<div class="subjects">'+R.subjects.map(s=>{const p=s.total?Math.round(s.done/s.total*100):0;return '<button type="button" class="subj" data-s="'+s.id+'"><span class="subj-ic" aria-hidden="true">'+(SUB[s.id]||["",""])[1]+'</span>'+ring(p,p+"%","small")+'<strong>'+esc((SUB[s.id]||[s.name])[0])+'</strong><small>'+s.done+' of '+s.total+' lessons</small></button>'}).join("")+'</div>'+
@@ -483,8 +486,8 @@
     /* After the first time, Evia's hello is the home screen itself. */
   }
 
-  const PAGES={home,progress,learn,portfolio};
-  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>(PAGES[b.dataset.tab]||home)());
+  /* No bottom bar: Portfolio, Progress and Learn are on Evia's list, and each has a way back to her. */
+  document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("[data-home]"))home()});
   paint();
   /* The first time: her name question first; after that, straight to Evia asking what they're doing today. */
   if(S.name){home()}else{greeted=true;home();greeted=false;welcome()}

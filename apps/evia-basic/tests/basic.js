@@ -36,8 +36,8 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("Evia is the home screen: big in the middle, she asks what they're doing today",intro.say==="Hi Callum. What are you doing today?"&&intro.size>100&&intro.listShown<.5,JSON.stringify(intro));
     await snap("1-intro");
     await page.waitForSelector(".ev-home.up");await page.waitForTimeout(900);
-    const up=await page.evaluate(()=>({size:Math.round(document.querySelector(".ev-big").getBoundingClientRect().width),top:Math.round(document.querySelector(".ev-big").getBoundingClientRect().top),acts:[...document.querySelectorAll(".ev-act strong")].map(x=>x.textContent).join("|")}));
-    check("…then she floats up to the top and shows the practical activities, None of these, and See my portfolio",up.size<80&&up.top<120&&up.acts==="Mixing mortar|Setting out|Labouring|Cavity walling|Solid walling|Raked walling|None of these|See my portfolio",JSON.stringify(up));
+    const up=await page.evaluate(()=>({tabs:!!document.querySelector(".tabs"),list:[...document.querySelectorAll(".ev-act")].slice(0,2).map(b=>Math.round(b.getBoundingClientRect().left)).join(),size:Math.round(document.querySelector(".ev-big").getBoundingClientRect().width),top:Math.round(document.querySelector(".ev-big").getBoundingClientRect().top),acts:[...document.querySelectorAll(".ev-act strong")].map(x=>x.textContent).join("|")}));
+    check("…then she floats up and lists the practical activities (Repair work too), None of these, then See my portfolio, My progress and Learn; no bottom bar",up.size<80&&up.top<120&&up.acts==="Mixing mortar|Setting out|Labouring|Cavity walling|Solid walling|Raked walling|Repair work|None of these|See my portfolio|My progress|Learn"&&!up.tabs&&up.list.split(",")[0]===up.list.split(",")[1],JSON.stringify(up));
     await snap("2-home");
     await page.click("#evia",{force:true});await page.waitForSelector(".bubble");
     check("Tapping Evia says what to do here",/Tap what you’re doing today/.test(await text(".bubble")));
@@ -77,8 +77,8 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("Saved: Evia says they're done for today, it's in the portfolio, and they can do another",/That’s you done for today, Callum!/.test(dn)&&/solid walling evidence is saved in your portfolio/.test(dn)&&/Do another one/.test(dn)&&/See my portfolio/.test(dn),dn);
     await snap("6-done");
     await page.click("#dn-pf");await page.waitForSelector(".pf-row");
-    const pf=await page.evaluate(()=>({txt:document.querySelector(".pf-row").innerText.replace(/\s+/g," "),badge:document.getElementById("pf-n").textContent,session:window.eviaBasic.state.session}));
-    check("One PDF for the day in the Portfolio, and the session is cleared",/Solid walling/.test(pf.txt)&&/3 photos/.test(pf.txt)&&pf.badge==="1"&&!pf.session,JSON.stringify(pf));
+    const pf=await page.evaluate(()=>({txt:document.querySelector(".pf-row").innerText.replace(/\s+/g," "),session:window.eviaBasic.state.session}));
+    check("One PDF for the day in the Portfolio, and the session is cleared",/Solid walling/.test(pf.txt)&&/3 photos/.test(pf.txt)&&!pf.session,JSON.stringify(pf));
     const head=await page.evaluate(async()=>{const id=window.eviaBasic.state.pf[0].id;const r=await new Promise(res=>{const o=indexedDB.open("evia-basic",1);o.onsuccess=()=>{const g=o.result.transaction("files").objectStore("files").get(id);g.onsuccess=()=>res(g.result)}});return r&&r.blob?{size:r.blob.size,head:await r.blob.slice(0,5).text(),b64:await new Promise(res=>{const f=new FileReader();f.onload=()=>res(f.result.split(",")[1]);f.readAsDataURL(r.blob)})}:null});
     if(shots&&head)fs.writeFileSync(path.join(shots,"evidence.pdf"),Buffer.from(head.b64,"base64"));
     check("The PDF is a real PDF with the photos in it",head&&head.head==="%PDF-"&&head.size>20000,JSON.stringify(head&&{size:head.size,head:head.head}));
@@ -87,16 +87,16 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await snap("7-preview");
     await page.click(".pv [data-x]");
     /* The areas now show they've been done once. */
-    await page.click('[data-tab="home"]');await page.waitForSelector(".ev-home.up");
+    await page.click("[data-home]");await page.waitForSelector(".ev-home.up");
     check("Back home, Evia goes straight to the activities (no second hello)",!await page.$(".ev-home.intro"));
     await page.click('.ev-act[data-a="4"]');await page.waitForSelector(".area");
     const counts=await page.$$eval(".area",x=>x.map(a=>a.querySelector(".area-n").textContent));
     check("An area's number shows how many times it's in the portfolio",counts[0]==="1"&&counts.filter(Boolean).length===2,JSON.stringify(counts));
     await page.click("#back");await page.waitForSelector(".ev-home.up");
     /* None of these: photos, then questions. */
-    await page.click('.ev-act[data-a="6"]');await page.waitForSelector(".area");
+    await page.click('.ev-act[data-a="7"]');await page.waitForSelector(".area");
     const other=await page.$$eval(".area",x=>x.map(a=>a.innerText.replace(/\s+/g," ")));
-    check("None of these holds what isn't part of a day's practical work, with questions for the talk topics",other.some(a=>/Repairs/.test(a))&&other.filter(a=>/Questions/.test(a)).length===4,other.join(" | "));
+    check("None of these holds what isn't part of a day's practical work, with questions for the talk topics",other.some(a=>/Health and safety/.test(a))&&!other.some(a=>/Repairs/.test(a))&&other.filter(a=>/Questions/.test(a)).length===4,other.join(" | "));
     await page.click("#begin");await camReady();await page.click(".shutter");await page.waitForTimeout(400);await page.click(".cam-save");await page.waitForSelector(".tg");
     const qn=await page.$$eval("[data-q]",x=>x.length);
     await page.fill(".wu-row textarea","The cracked bricks before I started the repair.");
@@ -105,7 +105,7 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("None of these: a photo and its questions (12 of them), saved like the rest",qn===12);
     await page.click("#dn-another");await page.waitForSelector(".ev-home.up");
     /* Progress: each KSB counted once. */
-    await page.click('[data-tab="progress"]');await page.waitForSelector(".hero");
+    await page.click("#go-progress");await page.waitForSelector(".hero");
     const pr=await page.evaluate(()=>({hero:document.querySelector(".hero").innerText.replace(/\s+/g," "),on:[...document.querySelectorAll(".chip.on")].length}));
     check("Progress counts each KSB with evidence once",/of 59 KSBs/.test(pr.hero)&&pr.on>=14&&(/(\d+) of 59/.exec(pr.hero)||[])[1]==String(pr.on),JSON.stringify(pr));
     await page.click('.chip[data-k="S13"]');await page.waitForSelector(".sheet");
@@ -117,7 +117,7 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("Course dates show whether they're on track; Evia's colour changes",col==="#2e90fa"&&/Behind|On track/.test(await text(".hero .pill")));
     await snap("8-progress");
     /* Learn: Teach me and EPA practice. */
-    await page.click('[data-tab="learn"]');await page.waitForSelector(".subj",{timeout:15000});
+    await page.click("[data-home]");await page.waitForSelector("#go-learn");await page.click("#go-learn");await page.waitForSelector(".subj",{timeout:15000});
     check("Learn has Teach me, the four subjects and EPA practice",(await page.$$eval(".subj strong",x=>x.map(e=>e.textContent).join()))==="Bricklaying,Maths,English,Safeguarding"&&/What’s in mortar/.test(await text("#teach")));
     await page.click("#teach");await page.waitForSelector(".tm .tm-node.next button");
     check("Teach me opens Evia's lessons",await page.evaluate(()=>!!document.querySelector(".tm")));
@@ -130,15 +130,15 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     /* Opening again: Evia asks what they're doing today, and everything is still there. */
     await page.reload();await page.waitForSelector(".ev-home.intro");
     check("Opening again, Evia asks by name what they're doing today",await text(".ev-say")==="Hi Callum. What are you doing today?"&&!await page.$(".hello"));
-    check("Everything is still there after closing and opening again",await page.evaluate(()=>document.getElementById("pf-n").textContent==="2"));
+    check("Everything is still there after closing and opening again",await page.evaluate(()=>window.eviaBasic.state.pf.length===2));
     check("No script errors",!errors.length,errors.join(" | "));
     /* Portfolios saved before (the old 10 units) keep their names and still count their KSBs. */
     const old=await (await browser.newContext({...devices["Pixel 7"],serviceWorkers:"block"})).newPage();
     await old.goto(url+"manifest.json");await old.evaluate(()=>{localStorage.clear();localStorage.setItem("eviab",JSON.stringify({name:"Old Learner",pf:[{id:"old-1",topic:0,at:Date.now(),photos:4}],drafts:{}}))});
     await old.goto(url);await old.waitForSelector(".ev-home");
-    await old.click('[data-tab="portfolio"]');await old.waitForSelector(".pf-row");
+    await old.waitForSelector("#see-pf");await old.click("#see-pf");await old.waitForSelector(".pf-row");
     const op=await old.textContent(".pf-row");
-    await old.click('[data-tab="progress"]');await old.waitForSelector(".hero");
+    await old.click("[data-home]");await old.waitForSelector("#go-progress");await old.click("#go-progress");await old.waitForSelector(".hero");
     const oh=await old.evaluate(()=>document.querySelector(".hero").innerText.replace(/\s+/g," "));
     check("Portfolios saved before keep their names and still count their KSBs",/Mixing mortar/.test(op)&&/8 of 59 KSBs/.test(oh),JSON.stringify({op,oh}));
   }catch(e){check("The test ran to the end",false,e.stack+" | "+errors.join(" | "))}

@@ -313,3 +313,13 @@ button.card:active{transform:scale(.99)}
 .tg-m span{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px}
 .tg-m i{font-style:normal;background:var(--soft);border-radius:99px;padding:5px 10px;font-size:13.5px;font-weight:700}
 .party .big{width:100%;margin-top:10px}
+/* Evia's list (no bottom bar) */
+#app{padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
+body.no-tabs #app{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
+.ev-acts{display:flex;flex-direction:column;gap:8px}
+.ev-act{flex-direction:row;align-items:center;justify-content:flex-start;min-height:0;gap:14px;padding:13px 14px;border-radius:18px}
+.ev-act .ev-ic{font-size:26px;width:34px;text-align:center}
+.ev-act strong{flex:1;font-size:17.5px}
+.ev-go{font-size:24px;color:#98a2b3;line-height:1}
+.ev-more{margin-top:16px}
+.ev-more .ev-act{background:#f9fafb}
