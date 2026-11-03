@@ -1,10 +1,12 @@
 /* Evia Basic (tester): build your brickwork portfolio with Evia. Works on its own: nothing goes to Evia Portal,
    Milos, Paros or Symi, and everything stays on the phone (photos and PDFs in IndexedDB, the rest in localStorage, all
    under "eviab", apart from Evia's own storage on the same site).
-     Topics     the goal (every topic into the portfolio, and the next one), then the 10 topics, 2 wide. A tick when
+     Topics     the goal (every topic into the portfolio, and the next one), then the topics, 2 wide. A tick when
                 it's in the portfolio, orange when photos are waiting.
-     Topic      straight into the square camera, with the topic's things to capture under the picture one at a time;
-                each photo is labelled with its one. Save goes to the write-up.
+     Topics     18 of them, each a K (or a few) with the S and/or B that match it, so all 18 cover all 59 KSBs.
+                On the job: straight into the square camera, with the things to capture under the picture one at a
+                time (each photo labelled with its one); Save goes to the write-up. Talk about it: a few questions,
+                answered in their own words.
      Write up   each photo with a box: what does it show? Save makes a PDF (photo on the left, words on the right),
                 puts it in the Portfolio, and Evia celebrates.
      Progress   the KSBs with evidence (a topic's KSBs count once it's in the portfolio), how far through the course,
@@ -45,6 +47,15 @@
   const urls={};
   const url=async id=>urls[id]||(urls[id]=await get(id).then(b=>b?URL.createObjectURL(b):""));
   const uid=p=>p+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
+  /* Saved before the 18 topics (there were 10): PDFs keep their old names and KSBs; photos not yet written up are
+     cleared, as they belonged to the old topics. */
+  if(S.layout!==2){
+    const O=window.EB_OLD_TOPICS||[];
+    S.pf.forEach(p=>{if(p.route==null&&p.name==null){const o=O[p.topic]||{};p.name=o.name||"Evidence";p.ksbs=(o.ksbs||[]).slice()}});
+    Object.values(S.drafts||{}).forEach(d=>(d.photos||[]).forEach(ph=>del(ph.id).catch(()=>{})));
+    S.drafts={};S.layout=2;save();
+  }
+  const pfName=p=>p.name||(T[p.route]||{}).name||"Evidence";
 
   /* ---------- Evia: what to do on this page ---------- */
   const HELP={
@@ -52,6 +63,7 @@
 
     camera:["Take a photo of what it says under the picture.","Then the next one comes up.","Tap Save when you’re done."],
     write:["Look at each photo.","Type what it shows.","Tap Save."],
+    talk:["Read each question.","Answer it in your own words.","Tap Save."],
     portfolio:["Your saved work is here.","Tap one to see it.","Tap Share to send it."],
     progress:["The ring shows how much of your course has evidence.","Tap a KSB to see what it means."],
     learn:["Tap Teach me for short lessons.","Tap EPA practice to test yourself."]
@@ -79,21 +91,52 @@
     document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===on));
     const n=document.getElementById("pf-n");if(n){n.hidden=!S.pf.length;n.textContent=S.pf.length}
   }
-  const done=i=>S.pf.some(p=>p.topic===i);
+  const done=i=>S.pf.some(p=>p.route===i);
+  const started=i=>{const d=draft(i);return d.photos.length>0||Object.values(d.answers||{}).some(a=>String(a).trim())};
   function topics(){
     page="topics";tabs("topics");
     const n=T.filter((_,k)=>done(k)).length,next=T.findIndex((_,k)=>!done(k));
     app.innerHTML=top("Brickwork")+
       '<button type="button" class="card goal" id="goal">'+ring(Math.round(n/T.length*100),'<b>'+n+'</b><small>of '+T.length+'</small>')+
         '<span><span class="card-k"><span>Your goal</span></span><strong>'+(n>=T.length?"Every topic is in your portfolio":"Get all "+T.length+" topics into your portfolio")+'</strong>'+(next>=0?'<small>Next: '+esc(T[next].name)+' ›</small>':"")+'</span></button>'+
-      '<div class="grid">'+T.map((t,i)=>{const d=done(i),g=!d&&draft(i).photos.length;
-      return '<button type="button" class="tile'+(d?" done":g?" going":"")+'" data-t="'+i+'"><span class="n">'+(i+1)+'</span><strong>'+esc(t.name)+'</strong>'+(d?'<span class="st" aria-label="Done">'+ICON.tick+'</span>':g?'<span class="st" aria-label="Started">'+ICON.dots+'</span>':"")+'</button>'}).join("")+'</div>';
+      ["photo","talk"].map(kind=>'<h2 class="group-h">'+(kind==="photo"?"On the job <small>Take photos</small>":"Talk about it <small>Answer a few questions</small>")+'</h2><div class="grid">'+T.map((t,i)=>{if(t.kind!==kind)return "";const d=done(i),g=!d&&started(i);
+      return '<button type="button" class="tile'+(d?" done":g?" going":"")+'" data-t="'+i+'"><span class="n">'+(i+1)+'</span><strong>'+esc(t.name)+'</strong><small class="codes">'+esc(t.ksbs.join(" · "))+'</small>'+(d?'<span class="st" aria-label="Done">'+ICON.tick+'</span>':g?'<span class="st" aria-label="Started">'+ICON.dots+'</span>':"")+'</button>'}).join("")+'</div>').join("");
     wireEvia();
     app.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>topic(+b.dataset.t));
     document.getElementById("goal").onclick=()=>{if(next>=0)topic(next);else portfolio()};
   }
-  /* A topic: straight into the camera, or to the write-up if photos are already waiting. */
-  function topic(i){if(draft(i).photos.length)write(i);else camera(i)}
+  /* A topic: straight into the camera, or to the write-up if photos are already waiting. "Talk about it" topics ask
+     their questions instead. */
+  function topic(i){if(T[i].kind==="talk")talk(i);else if(draft(i).photos.length)write(i);else camera(i)}
+
+  /* ---------- Talk about it: a few questions, answered in their own words ---------- */
+  function talk(i){
+    page="talk";tabs(null);
+    const t=T[i],d=draft(i);d.answers=d.answers||{};
+    app.innerHTML=top(t.name,true)+'<p class="lead">Answer in your own words. A few sentences is plenty.</p>'+
+      '<div class="wu">'+t.ask.map((q,k)=>'<div class="ask"><div class="k">QUESTION '+(k+1)+'</div><strong>'+esc(q)+'</strong><textarea rows="4" data-q="'+k+'" placeholder="Your answer">'+esc(d.answers[k]||"")+'</textarea></div>').join("")+'</div>'+
+      '<p class="codes-line">Covers '+esc(t.ksbs.join(", "))+'</p>'+
+      dock('<button type="button" class="big" id="save">'+ICON.save+'Save</button>');
+    wireEvia("talk");
+    app.querySelectorAll("[data-q]").forEach(ta=>ta.oninput=()=>{d.answers[ta.dataset.q]=ta.value;save()});
+    document.getElementById("back").onclick=topics;
+    document.getElementById("save").onclick=async()=>{
+      const empty=[...app.querySelectorAll("[data-q]")].filter(ta=>ta.value.trim().split(/\s+/).filter(Boolean).length<3);
+      if(empty.length){empty[0].scrollIntoView({behavior:"smooth",block:"center"});empty[0].focus();toast(empty.length===1?"Answer 1 more question":"Answer "+empty.length+" more questions");return}
+      await saveToPortfolio(i,{answers:t.ask.length});
+    };
+  }
+  /* The PDF goes in the Portfolio, the topic starts fresh, and Evia celebrates. */
+  async function saveToPortfolio(i,extra){
+    const t=T[i],d=draft(i),b=document.createElement("div");b.className="busy";b.textContent="Saving…";document.body.appendChild(b);
+    try{
+      const blob=await pdf(i),id=uid("pdf");await put(id,blob);
+      S.pf.unshift(Object.assign({id,route:i,name:t.name,ksbs:t.ksbs.slice(),at:Date.now(),photos:d.photos.length},extra||{}));
+      for(const p of d.photos){await del(p.id).catch(()=>{});if(urls[p.id]){URL.revokeObjectURL(urls[p.id]);delete urls[p.id]}}
+      S.drafts[i]={photos:[],notes:{}};save();
+      b.remove();celebrate(i,()=>portfolio(id));
+    }catch(err){b.remove();console.error("Evia Basic: PDF",err);alert("That didn’t save. Please try again.")}
+  }
 
   /* ---------- Camera: square, stays open, Save when done ----------
      The topic's things to capture show under the picture, one at a time. Each photo is labelled with the one on screen
@@ -179,15 +222,7 @@
       const empty=d.photos.filter(p=>!String(d.notes[p.id]||"").trim()).length;
       if(nm&&!nm.value.trim()){nm.focus();toast("Type your name first");return}
       if(empty){const ta=[...app.querySelectorAll(".wu-row")].find(r=>!r.querySelector("textarea").value.trim());if(ta){ta.scrollIntoView({behavior:"smooth",block:"center"});ta.querySelector("textarea").focus()}toast(empty===1?"Say what 1 photo shows":"Say what "+empty+" photos show");return}
-      const b=document.createElement("div");b.className="busy";b.textContent="Saving…";document.body.appendChild(b);
-      try{
-        const blob=await pdf(i),id=uid("pdf");await put(id,blob);
-        S.pf.unshift({id,topic:i,at:Date.now(),photos:d.photos.length});
-        /* The photos are in the PDF now; the topic starts fresh for next time. */
-        for(const p of d.photos){await del(p.id).catch(()=>{});if(urls[p.id]){URL.revokeObjectURL(urls[p.id]);delete urls[p.id]}}
-        S.drafts[i]={photos:[],notes:{}};save();
-        b.remove();celebrate(i,()=>portfolio(id));
-      }catch(err){b.remove();console.error("Evia Basic: PDF",err);alert("That didn’t save. Please try again.")}
+      await saveToPortfolio(i);
     };
   }
 
@@ -206,7 +241,17 @@
     doc.setFontSize(20);doc.setTextColor(...ink);doc.text(txt(t.name),M,y+7);y+=12;
     doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(71,84,103);
     [["Apprentice",S.name||""],["Course",COURSE.name+" ("+COURSE.std+")"],["Submitted",when(Date.now())],["KSBs",t.ksbs.join(", ")]].forEach(([k,v])=>{doc.setFont("helvetica","bold");doc.text(k+":",M,y+4);doc.setFont("helvetica","normal");doc.text(txt(v),M+26,y+4);y+=5.6});
+    /* What this covers, in the standard's own words. */
+    y+=1;t.ksbs.forEach(c=>{const l=doc.setFont("helvetica","normal").setFontSize(8.5).splitTextToSize(txt((window.EB_KSBS||{})[c]||""),CW-14);
+      if(y+l.length*3.8>H-M-8){doc.addPage();y=M}doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(c,M,y+3);doc.setFont("helvetica","normal");doc.setTextColor(...muted);doc.text(l,M+14,y+3);y+=l.length*3.8+1.2});
     y+=2;doc.setDrawColor(229,188,2);doc.setLineWidth(.8);doc.line(M,y,W-M,y);y+=6;
+    /* Talk about it: each question and the learner's answer. */
+    if(t.kind==="talk")t.ask.forEach((q,k)=>{
+      const ql=doc.setFont("helvetica","bold").setFontSize(11).splitTextToSize(txt((k+1)+". "+q),CW),al=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt((d.answers||{})[k]||""),CW);
+      if(y+ql.length*5.2+al.length*5.2+8>H-M-8){doc.addPage();y=M}
+      doc.setFont("helvetica","bold");doc.setTextColor(...ink);doc.text(ql,M,y+4);y+=ql.length*5.2+1;
+      doc.setFont("helvetica","normal");doc.text(al,M,y+4);y+=al.length*5.2+7;
+    });
     for(let k=0;k<d.photos.length;k++){
       const p=d.photos[k],b=await get(p.id);if(!b)continue;
       const lines=doc.setFont("helvetica","normal").setFontSize(11).splitTextToSize(txt(d.notes[p.id]||""),CW-IMG-8);
@@ -227,7 +272,7 @@
   /* ---------- Portfolio ---------- */
   function portfolio(fresh){
     page="portfolio";tabs("portfolio");
-    app.innerHTML=top("Portfolio")+(S.pf.length?'<div class="pf">'+S.pf.map(p=>'<button type="button" class="pf-row'+(p.id===fresh?" new":"")+'" data-pf="'+esc(p.id)+'"><span class="ic">PDF</span><span><strong>'+esc((T[p.topic]||{}).name||"Topic")+'</strong><small>'+esc(new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+' · '+p.photos+' photo'+(p.photos===1?"":"s")+'</small></span></button>').join("")+'</div>'
+    app.innerHTML=top("Portfolio")+(S.pf.length?'<div class="pf">'+S.pf.map(p=>'<button type="button" class="pf-row'+(p.id===fresh?" new":"")+'" data-pf="'+esc(p.id)+'"><span class="ic">PDF</span><span><strong>'+esc(pfName(p))+'</strong><small>'+esc(new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}))+' · '+(p.answers?p.answers+' answers':p.photos+' photo'+(p.photos===1?"":"s"))+'</small></span></button>').join("")+'</div>'
       :'<div class="empty"><b>📂</b>Nothing here yet.<br>Pick a topic and take photos.</div>');
     wireEvia();
     app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>openPdf(S.pf.find(p=>p.id===b.dataset.pf)));
@@ -239,7 +284,7 @@
     const s=document.createElement("script");s.src=PDFJS+"pdf.min.js";
     s.onload=()=>{if(!window.pdfjsLib)return rej(new Error("no viewer"));window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.js";res(window.pdfjsLib)};
     s.onerror=()=>{pdfjsP=null;rej(new Error("no viewer"))};document.head.appendChild(s)}));
-  const pdfName=p=>((T[p.topic]||{}).name||"Evidence").replace(/[\\/:*?"<>|]/g,"-")+" - "+new Date(p.at).toISOString().slice(0,10)+".pdf";
+  const pdfName=p=>pfName(p).replace(/[\\/:*?"<>|]/g,"-")+" - "+new Date(p.at).toISOString().slice(0,10)+".pdf";
   async function sharePdf(p,blob){
     const name=pdfName(p),file=typeof File==="function"?new File([blob],name,{type:"application/pdf"}):null;
     if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e&&e.name==="AbortError")return}}
@@ -248,7 +293,7 @@
   async function openPdf(p){
     const blob=await get(p.id);if(!blob){alert("That PDF isn’t on this phone any more.");return}
     const el=document.createElement("div");el.className="pv";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");
-    el.innerHTML='<header class="pv-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc((T[p.topic]||{}).name||"Evidence")+'</strong>'+
+    el.innerHTML='<header class="pv-top"><button type="button" class="cam-x" data-x aria-label="Close">'+ICON.x+'</button><strong>'+esc(pfName(p))+'</strong>'+
       '<button type="button" class="pv-share" data-share>Share</button></header><div class="pv-pages"><p class="pv-wait">Opening…</p></div>';
     document.body.appendChild(el);document.body.classList.add("pv-open");
     let closed=false;const close=()=>{closed=true;el.remove();document.body.classList.remove("pv-open")};
@@ -280,7 +325,7 @@
 
   /* ---------- Progress: how much of the course has evidence ---------- */
   const ALL=Object.keys(window.EB_KSBS||{});
-  const evidenced=()=>{const s=new Set();S.pf.forEach(p=>((T[p.topic]||{}).ksbs||[]).forEach(k=>s.add(k)));return s};
+  const evidenced=()=>{const s=new Set();S.pf.forEach(p=>(p.ksbs||(T[p.route]||{}).ksbs||[]).forEach(k=>s.add(k)));return s};
   const timePct=()=>{const a=Date.parse(S.start||""),b=Date.parse(S.end||"");return a&&b&&b>a?Math.max(0,Math.min(100,Math.round((Date.now()-a)/(b-a)*100))):null};
   const ring=(p,inner,size)=>'<span class="ring'+(size?" "+size:"")+'" style="--p:'+Math.max(0,Math.min(100,p))+'"><span>'+inner+'</span></span>';
   async function progress(){

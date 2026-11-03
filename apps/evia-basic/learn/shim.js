@@ -1,7 +1,7 @@
 /* Evia Basic: what Teach me (teach.js, taken from Evia) expects to find, kept on this phone only and apart from Evia's
    own storage (both apps live on the same site). Lesson results and XP go in "eviab-teach". */
 var course="bricklayer";
-function data(){return {name:"Bricklaying",u:window.EB_TOPICS.map(t=>[t.name,t.ksbs])}}
+function data(){return {name:"Bricklaying",u:(window.EB_OLD_TOPICS||window.EB_TOPICS).map(t=>[t.name,t.ksbs])}}
 window.EPA_QUESTIONS=window.EPA_QUESTIONS||{};window.EPA_DISCUSSIONS=window.EPA_DISCUSSIONS||{};
 (function(){
   const KEY="eviab-teach";

@@ -30,9 +30,10 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     check("…then shows what to do",/Tap a topic/.test(await page.textContent(".bubble")));
     await page.click(".bubble button");await page.waitForFunction(()=>!document.querySelector(".hello"));
     const goal=await page.evaluate(()=>document.getElementById("goal").innerText.replace(/\s+/g," "));
-    check("Topics leads with the goal: every topic into the portfolio, and the next one",/0 of 10/.test(goal)&&/Get all 10 topics into your portfolio/.test(goal)&&/Next: Mixing mortar/.test(goal),goal);
+    check("Topics leads with the goal: every topic into the portfolio, and the next one",/0 of 18/.test(goal)&&/Get all 18 topics into your portfolio/.test(goal)&&/Next: Mixing mortar/.test(goal),goal);
     const grid=await page.evaluate(()=>{const t=[...document.querySelectorAll(".tile")],r=t.map(x=>x.getBoundingClientRect());return {n:t.length,cols:new Set(r.map(x=>Math.round(x.left))).size,rows:new Set(r.map(x=>Math.round(x.top))).size,first:t[0].innerText.replace(/\s+/g," "),evia:!!document.querySelector(".top .evia")}});
-    check("Home shows the 10 brickwork topics, 2 wide and 5 down, with Evia in the top right",grid.n===10&&grid.cols===2&&grid.rows===5&&/1 Mixing mortar/.test(grid.first)&&grid.evia,JSON.stringify(grid));
+    const groups=await page.evaluate(()=>[...document.querySelectorAll(".group-h")].map(h=>h.textContent+":"+h.nextElementSibling.querySelectorAll(".tile").length).join("|"));
+    check("Home shows 18 topics, 2 wide, in two groups (On the job: 14, Talk about it: 4), each with its KSBs, and Evia in the top right",grid.n===18&&grid.cols===2&&/1 Mixing mortar K20 · S14/.test(grid.first)&&grid.evia&&/On the job.*:14\|Talk about it.*:4/.test(groups),JSON.stringify({grid,groups}));
     await snap("1-topics");
     await page.click("#evia",{force:true});await page.waitForSelector(".bubble");
     const b=await page.textContent(".bubble");
@@ -42,10 +43,10 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.click('.tile[data-t="0"]');await page.waitForSelector(".cam video");
     await page.waitForFunction(()=>document.querySelector(".cam video").videoWidth>0,null,{timeout:8000});
     const p1=await page.evaluate(()=>({n:document.querySelector(".cp-n").textContent,say:document.querySelector(".cp-say").textContent,hint:document.querySelector(".cp-hint").textContent}));
-    check("Tapping a topic opens the camera straight away, with the first thing to capture under the picture",/^1 of 10/.test(p1.n)&&p1.say==="Silos"&&/silo you used/.test(p1.hint),JSON.stringify(p1));
+    check("Tapping a topic opens the camera straight away, with the first thing to capture under the picture",/^1 of 6/.test(p1.n)&&p1.say==="Silos"&&/silo you used/.test(p1.hint),JSON.stringify(p1));
     await snap("3-prompt");
     await page.click(".shutter");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
-    await page.click("[data-next]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Mortar quantity");
+    await page.click("[data-next]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Gauging");
     await page.click("[data-prev]");await page.waitForFunction(()=>document.querySelector(".cp-say").textContent==="Pre-mix");
     check("Each photo moves on to the next thing to capture; Skip and back move along without one",true);
     for(let k=0;k<2;k++){await page.click(".shutter");await page.waitForTimeout(300)}
@@ -55,7 +56,7 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await snap("4-camera");
     await page.click(".cam-save");await page.waitForSelector(".wu-row");
     const wu=await page.evaluate(()=>({rows:document.querySelectorAll(".wu-row").length,img:[...document.querySelectorAll(".wu-row img")].every(i=>i.src.startsWith("blob:")),name:!!document.getElementById("nm"),labels:[...document.querySelectorAll(".wu-row .k")].map(k=>k.textContent).join("|"),ph:document.querySelector(".wu-row textarea").placeholder}));
-    check("Save goes to the write-up: each photo, labelled with what it was for, with a box for what it shows",wu.rows===3&&wu.img&&!wu.name&&wu.labels==="PHOTO 1 · SILOS|PHOTO 2 · PRE-MIX|PHOTO 3 · MORTAR QUANTITY"&&/silo you used/.test(wu.ph),JSON.stringify(wu));
+    check("Save goes to the write-up: each photo, labelled with what it was for, with a box for what it shows",wu.rows===3&&wu.img&&!wu.name&&wu.labels==="PHOTO 1 · SILOS|PHOTO 2 · PRE-MIX|PHOTO 3 · GAUGING"&&/silo you used/.test(wu.ph),JSON.stringify(wu));
     /* Save with a box empty: it says so and goes to it. */
     const tas=await page.$$(".wu-row textarea");await tas[0].fill("Gauging the mix 1 to 4 with buckets.");await tas[1].fill("The mixer and silo, with the water feed.");
     await page.click("#save");await page.waitForSelector(".toast");
@@ -64,7 +65,7 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await snap("5-write");
     await page.click("#save");await page.waitForSelector(".party",{timeout:15000});
     const party=await page.textContent(".party");
-    check("Saving celebrates: Evia, confetti, and how many topics are in the portfolio",/Mixing mortar saved!/.test(party)&&/1 of 10 topics/.test(party)&&!!await page.$(".confetti"),party);
+    check("Saving celebrates: Evia, confetti, and how many topics are in the portfolio",/Mixing mortar saved!/.test(party)&&/1 of 18 topics/.test(party)&&!!await page.$(".confetti"),party);
     await snap("6a-saved");
     await page.waitForSelector(".pf-row",{timeout:15000});
     const pf=await page.evaluate(async()=>{const S=window.eviaBasic.state;return {rows:document.querySelectorAll(".pf-row").length,txt:document.querySelector(".pf-row").innerText.replace(/\s+/g," "),isNew:document.querySelector(".pf-row").classList.contains("new"),badge:document.getElementById("pf-n").textContent,drafts:S.drafts[0].photos.length,name:S.name}});
@@ -78,16 +79,27 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.click(".pf-row");await page.waitForSelector(".pv canvas",{timeout:15000});await page.waitForTimeout(800);
     const pv=await page.evaluate(()=>{const c=document.querySelector(".pv canvas"),x=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let ink=0;for(let k=0;k<x.length;k+=40)if(x[k]<200)ink++;
       return {pages:document.querySelectorAll(".pv canvas").length,ink:ink>200,share:!!document.querySelector(".pv [data-share]"),title:document.querySelector(".pv-top strong").textContent,tabs:getComputedStyle(document.querySelector(".tabs")).display}});
-    check("Tapping a PDF in the Portfolio shows a preview of it, with Share",pv.pages===1&&pv.ink&&pv.share&&pv.title==="Mixing mortar"&&pv.tabs==="none",JSON.stringify(pv));
+    check("Tapping a PDF in the Portfolio shows a preview of it, with Share",pv.pages>=1&&pv.ink&&pv.share&&pv.title==="Mixing mortar"&&pv.tabs==="none",JSON.stringify(pv));
     await snap("7-preview");
     await page.click(".pv [data-x]");
     check("Closing the preview goes back to the Portfolio",!await page.$(".pv")&&!!await page.$(".pf-row"));
     await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
-    check("Back on Topics, Mixing mortar has a tick, and the goal moves on",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&/1 of 10/.test(document.getElementById("goal").innerText.replace(/\s+/g," "))&&/Next: Jointing Styles/.test(document.getElementById("goal").innerText)));
+    check("Back on Topics, Mixing mortar has a tick, and the goal moves on",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&/1 of 18/.test(document.getElementById("goal").innerText.replace(/\s+/g," "))&&/Next: Materials and estimating/.test(document.getElementById("goal").innerText)));
+    /* Talk about it: questions instead of photos. */
+    await page.click('.tile[data-t="14"]');await page.waitForSelector(".ask textarea");
+    const asks=await page.$$eval(".ask strong",x=>x.map(e=>e.textContent));
+    await page.fill('[data-q="0"]',"Building regulations Part A and British Standards for masonry.");await page.click("#save");await page.waitForSelector(".toast");
+    const short=await page.textContent(".toast");
+    await page.fill('[data-q="1"]',"Precast lintels and corner profiles on our site.");await page.fill('[data-q="2"]',"So the wall can expand and shrink without cracking.");
+    await snap("7b-talk");
+    await page.click("#save");await page.waitForSelector(".party");await page.waitForSelector(".pf-row");
+    const tr=await page.evaluate(()=>document.querySelector(".pf-row").innerText.replace(/\s+/g," "));
+    check("A Talk about it topic asks its questions, wants every one answered, then saves a PDF to the Portfolio",asks.length===3&&/building regulations/i.test(asks[0])&&/Answer 2 more questions/.test(short)&&/Regulations and standards/.test(tr)&&/3 answers/.test(tr),JSON.stringify({asks,short,tr}));
+    await page.click('[data-tab="topics"]');await page.waitForSelector(".tile");
     /* Progress: the KSBs in the portfolio, what each means, course dates and Evia's colour. */
     await page.click('[data-tab="progress"]');await page.waitForSelector(".hero");
     const pr=await page.evaluate(()=>({hero:document.querySelector(".hero").innerText.replace(/\s+/g," "),on:[...document.querySelectorAll(".chip.on")].map(c=>c.textContent).sort().join(),chips:document.querySelectorAll(".chip").length,dates:!!document.getElementById("dates")}));
-    check("Progress shows how many KSBs have evidence (Mixing mortar's 8 of 59), each one lit up",/8 of 59 KSBs/.test(pr.hero)&&/14%/.test(pr.hero)&&pr.chips===59&&pr.on==="B1,K1,K12,K20,S1,S14,S20,S6"&&pr.dates,JSON.stringify(pr));
+    check("Progress shows how many KSBs have evidence (Mixing mortar's 2 and Regulations' 4: 6 of 59), each one lit up",/6 of 59 KSBs/.test(pr.hero)&&/10%/.test(pr.hero)&&pr.chips===59&&pr.on==="K19,K20,K7,K9,S14,S4"&&pr.dates,JSON.stringify(pr));
     await page.click('.chip[data-k="S14"]');await page.waitForSelector(".sheet");
     check("Tapping a KSB says what it means and where it's evidenced",/Gauge and hand mix mortar to ratio/.test(await page.textContent(".sheet"))&&/In your portfolio/.test(await page.textContent(".sheet")));
     await page.click(".sheet-ok");await page.waitForTimeout(300);
@@ -131,8 +143,17 @@ const check=(name,ok,detail)=>{results.push(!!ok);console.log((ok?"✓ ":"✗ ")
     await page.reload();await page.waitForSelector(".hello");
     check("Opening again, Evia says hi by name and then gets out of the way",/Hi Callum/.test(await page.textContent(".hello")));
     await page.waitForFunction(()=>!document.querySelector(".hello"),null,{timeout:5000});
-    check("Everything is still there after closing and opening again",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&document.querySelector('.tile[data-t="1"]').classList.contains("going")&&document.getElementById("pf-n").textContent==="1"));
+    check("Everything is still there after closing and opening again",await page.evaluate(()=>document.querySelector('.tile[data-t="0"]').classList.contains("done")&&document.querySelector('.tile[data-t="1"]').classList.contains("going")&&document.getElementById("pf-n").textContent==="2"));
     check("No script errors",!errors.length,errors.join(" | "));
+    /* A portfolio saved with the old 10 topics keeps its name and counts its KSBs. */
+    const old=await (await browser.newContext({...devices["Pixel 7"],serviceWorkers:"block"})).newPage();
+    await old.goto(url+"manifest.json");await old.evaluate(()=>{localStorage.clear();localStorage.setItem("eviab",JSON.stringify({name:"Old Learner",pf:[{id:"old-1",topic:0,at:Date.now(),photos:4}],drafts:{3:{photos:[{id:"gone"}],notes:{}}}}))});
+    await old.goto(url);await old.waitForFunction(()=>!document.querySelector(".hello"),null,{timeout:6000});
+    await old.click('[data-tab="portfolio"]');await old.waitForSelector(".pf-row");
+    const op=await old.textContent(".pf-row");
+    await old.click('[data-tab="progress"]');await old.waitForSelector(".hero");
+    const oh=await old.evaluate(()=>document.querySelector(".hero").innerText.replace(/\s+/g," "));
+    check("Portfolios saved with the old 10 topics keep their names and still count their KSBs",/Mixing mortar/.test(op)&&/8 of 59 KSBs/.test(oh)&&await old.evaluate(()=>Object.values(window.eviaBasic.state.drafts).every(d=>!d.photos.length)),JSON.stringify({op,oh}));
   }catch(e){check("The test ran to the end",false,e.stack+" | "+errors.join(" | "))}
   await browser.close();server.close();
   const failed=results.filter(x=>!x).length;
