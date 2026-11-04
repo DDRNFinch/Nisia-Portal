@@ -7,14 +7,13 @@
                 first, to carry on.
      Activity   the areas (KSB topics, topics.js) it gets evidence for, with how many times each is in the portfolio,
                 then Begin evidence.
-     Guide      the square camera, one photo at a time in the order of the job, saying what's next (on screen and out
-                loud); Skip any, back one, Finish. Each photo is kept as it's taken.
+     Guide      the square camera, one photo at a time in the order of the job, saying what's next; Skip any, back one, Finish. Each photo is kept as it's taken.
      Talk       for each area with photos, what to talk about, and each photo with a box for what it shows; None of
                 these also asks its questions. Save makes one PDF for the day, and Evia says they're done for today.
      Progress   the KSBs with evidence, how far through the course, and each KSB's meaning. Your details.
      Learn      Teach me (Evia's lessons, taken from Evia as they are) and EPA practice (10 questions at a time).
      Portfolio  the PDFs, newest first. Tap one to see it, then Share.
-   Evia sits in the top right of the other pages: tap her and she shows and says what to do. */
+   Evia sits in the top right of the other pages: tap her and she shows what to do. */
 (function(){
   const T=window.EB_TOPICS,COURSE=window.EB_COURSE;
   const app=document.getElementById("app");
@@ -75,8 +74,6 @@
     const close=()=>{w.remove();hush()};
     w.onclick=e=>{if(e.target===w||e.target.tagName==="BUTTON")close()};
     document.body.appendChild(w);
-    /* Said out loud too: many learners won't read it. */
-    say(LINES["help:"+(which||page)]?"help:"+(which||page):steps.join(" "));
   }
   const wireEvia=which=>{const e=document.getElementById("evia");if(e)e.onclick=()=>help(which)};
   function toast(t){document.querySelectorAll(".toast").forEach(x=>x.remove());const o=document.createElement("div");o.className="toast";o.textContent=t;document.body.appendChild(o);setTimeout(()=>o.remove(),2600)}
@@ -94,21 +91,9 @@
   const routesOf=p=>p.routes||(p.route!=null?[p.route]:[]);
   const timesDone=r=>S.pf.filter(p=>routesOf(p).includes(r)).length;
   const first=()=>String(S.name||"").trim().split(/\s+/)[0];
-  /* Evia says it (on screen, and out loud for anyone who won't read it). */
-  /* Evia's voice: her recorded lines (voice/lines.json, made with ElevenLabs), one after another. A line with no
-     recording yet falls back to the phone's own voice. */
-  let LINES={},queue=[],playing=null;
-  fetch("voice/lines.json?v="+V).then(r=>r.ok?r.json():{}).then(j=>{LINES=j||{}}).catch(()=>{});
-  const talking=on=>document.querySelectorAll(".evia").forEach(e=>e.classList.toggle("talk",on));
-  function hush(){queue=[];if(playing){try{playing.pause()}catch(_){}playing=null}try{speechSynthesis.cancel()}catch(_){}talking(false)}
-  function playNext(){
-    const k=queue.shift();if(!k){playing=null;talking(false);return}
-    const L=LINES[k],text=L?L.text:k;talking(true);
-    const fallback=()=>{try{if(!window.speechSynthesis)return playNext();const u=new SpeechSynthesisUtterance(text);u.lang="en-GB";u.rate=.97;u.onend=u.onerror=playNext;speechSynthesis.speak(u)}catch(_){playNext()}};
-    if(!L||!L.recorded)return fallback();
-    const a=new Audio("voice/"+L.file+"?v="+V);playing=a;a.onended=playNext;a.onerror=fallback;a.play().catch(fallback);
-  }
-  function say(...keys){if(S.quiet)return;hush();queue=keys.filter(Boolean);playNext()}
+  /* Evia doesn't speak: her words are on screen only. say() and hush() are kept so the pages read the same. */
+  function hush(){}
+  function say(){}
 
   /* ---------- Home: Evia asks what they're doing today, then floats up to show the practical activities ----------
      The first time each time the app opens, she's big in the middle; then she shrinks to the top and the activities
