@@ -1,0 +1,282 @@
+{
+ "hello": {
+  "text": "Hiya! What are you doing today?",
+  "file": "hello.mp3"
+ },
+ "start": {
+  "text": "Right, let’s get started.",
+  "file": "start.mp3"
+ },
+ "carry": {
+  "text": "Welcome back! Let’s carry on where we left off.",
+  "file": "carry.mp3"
+ },
+ "last": {
+  "text": "That’s all the photos. Nice one! Tap Finish when you’re ready.",
+  "file": "last.mp3"
+ },
+ "talk": {
+  "text": "Now tell me what each photo shows. I’ve put some ideas for what to talk about.",
+  "file": "talk.mp3"
+ },
+ "questions": {
+  "text": "Now answer a few questions, in your own words.",
+  "file": "questions.mp3"
+ },
+ "done": {
+  "text": "That’s you done for today! Your evidence is saved in your portfolio. You can do another one if you like.",
+  "file": "done.mp3"
+ },
+ "help:home": {
+  "text": "Tap what you’re doing today, and I’ll show you which photos to take, one at a time.",
+  "file": "help-home.mp3"
+ },
+ "help:activity": {
+  "text": "This is what we’ll get evidence for. The number shows how many times it’s already in your portfolio. Tap Begin evidence when you’re ready.",
+  "file": "help-activity.mp3"
+ },
+ "help:camera": {
+  "text": "Take a photo of what it says under the picture, and I’ll tell you what’s next. Skip any you can’t get today.",
+  "file": "help-camera.mp3"
+ },
+ "help:talk": {
+  "text": "Say what each photo shows, using the ideas to talk about. Then tap Save.",
+  "file": "help-talk.mp3"
+ },
+ "help:portfolio": {
+  "text": "All your saved work is here. Tap one to see it, then tap Share to send it.",
+  "file": "help-portfolio.mp3"
+ },
+ "help:progress": {
+  "text": "The ring shows how much of your course has evidence. Tap a KSB to see what it means.",
+  "file": "help-progress.mp3"
+ },
+ "help:learn": {
+  "text": "Tap Teach me for short lessons, or EPA practice to test yourself.",
+  "file": "help-learn.mp3"
+ },
+ "next:You in your PPE": {
+  "text": "Next, a photo of you in your hat, hi-vis, boots, gloves and glasses.",
+  "file": "next-you-in-your-ppe.mp3"
+ },
+ "next:Safety signs": {
+  "text": "Next, a photo of the safety signs at your work area.",
+  "file": "next-safety-signs.mp3"
+ },
+ "next:Silos": {
+  "text": "Next, a photo of the silo you used, with the mixer and the water feed.",
+  "file": "next-silos.mp3"
+ },
+ "next:Pre-mix": {
+  "text": "Next, a photo of the pre-mix tub, with its label and use-by time.",
+  "file": "next-pre-mix.mp3"
+ },
+ "next:Gauging": {
+  "text": "Next, a photo of your gauging buckets or boxes, struck off level.",
+  "file": "next-gauging.mp3"
+ },
+ "next:Ratio": {
+  "text": "Next, a photo of your gauging for the mix ratio, like 1 cement to 4 sand.",
+  "file": "next-ratio.mp3"
+ },
+ "next:Mixing": {
+  "text": "Next, a photo of the mix being made, by hand or in the mixer.",
+  "file": "next-mixing.mp3"
+ },
+ "next:The finished mortar": {
+  "text": "Next, a photo of the mortar ready to use.",
+  "file": "next-the-finished-mortar.mp3"
+ },
+ "next:Your quantities": {
+  "text": "Next, a photo of your working out: how many bricks, blocks and how much mortar.",
+  "file": "next-your-quantities.mp3"
+ },
+ "next:Waste sorted": {
+  "text": "Next, a photo of waste sorted into the right skips or bags.",
+  "file": "next-waste-sorted.mp3"
+ },
+ "next:The drawing": {
+  "text": "Next, a photo of the drawing or plan you worked from.",
+  "file": "next-the-drawing.mp3"
+ },
+ "next:Measuring": {
+  "text": "Next, a photo of taking a measurement from the drawing on the job.",
+  "file": "next-measuring.mp3"
+ },
+ "next:Profiles and lines": {
+  "text": "Next, a photo of your profiles and lines set up.",
+  "file": "next-profiles-and-lines.mp3"
+ },
+ "next:Gauge rod": {
+  "text": "Next, a photo of your gauge rod against the work.",
+  "file": "next-gauge-rod.mp3"
+ },
+ "next:Square corners": {
+  "text": "Next, a photo of checking the corners are square.",
+  "file": "next-square-corners.mp3"
+ },
+ "next:Openings marked": {
+  "text": "Next, a photo of where the openings go, marked out.",
+  "file": "next-openings-marked.mp3"
+ },
+ "next:Levels": {
+  "text": "Next, a photo of your levels across the setting out.",
+  "file": "next-levels.mp3"
+ },
+ "next:Tools in use": {
+  "text": "Next, a photo of you using your hand tools on the job.",
+  "file": "next-tools-in-use.mp3"
+ },
+ "next:Safety equipment": {
+  "text": "Next, guards, barriers or edge protection on the job.",
+  "file": "next-safety-equipment.mp3"
+ },
+ "next:Your work area": {
+  "text": "Next, a photo of your work area, tidy and safe.",
+  "file": "next-your-work-area.mp3"
+ },
+ "next:Bricks and blocks": {
+  "text": "Next, a photo of the bricks and blocks for the job, stacked and labelled.",
+  "file": "next-bricks-and-blocks.mp3"
+ },
+ "next:DPC and wall ties": {
+  "text": "Next, a photo of the damp proof course, wall ties and plasticiser you used.",
+  "file": "next-dpc-and-wall-ties.mp3"
+ },
+ "next:Power tools": {
+  "text": "Next, a photo of a disc cutter, mixer or drill, with its guard and your PPE.",
+  "file": "next-power-tools.mp3"
+ },
+ "next:Reuse": {
+  "text": "Next, a photo of materials saved to use again.",
+  "file": "next-reuse.mp3"
+ },
+ "next:Cleaned and stored": {
+  "text": "Next, a photo of your tools cleaned and put away safely.",
+  "file": "next-cleaned-and-stored.mp3"
+ },
+ "next:Materials protected": {
+  "text": "Next, bricks, blocks and sand covered and stored off the ground.",
+  "file": "next-materials-protected.mp3"
+ },
+ "next:Brick and block": {
+  "text": "Next, a photo of the stretcher bond brick and block leaves going up.",
+  "file": "next-brick-and-block.mp3"
+ },
+ "next:Wall ties": {
+  "text": "Next, a photo of the wall ties in place.",
+  "file": "next-wall-ties.mp3"
+ },
+ "next:Insulation": {
+  "text": "Next, a photo of the cavity insulation fitted.",
+  "file": "next-insulation.mp3"
+ },
+ "next:The return": {
+  "text": "Next, a photo of the return at the corner.",
+  "file": "next-the-return.mp3"
+ },
+ "next:The opening and lintel": {
+  "text": "Next, a photo of the opening, with the lintel and soldiers over it.",
+  "file": "next-the-opening-and-lintel.mp3"
+ },
+ "next:Closing the cavity": {
+  "text": "Next, a photo of the cavity closed at the opening, with the tray or closer.",
+  "file": "next-closing-the-cavity.mp3"
+ },
+ "next:The cut": {
+  "text": "Next, a photo of the cut brick or block, to size.",
+  "file": "next-the-cut.mp3"
+ },
+ "next:Jointing": {
+  "text": "Next, a photo of you finishing the joints with a jointer.",
+  "file": "next-jointing.mp3"
+ },
+ "next:Protecting the work": {
+  "text": "Next, a photo of covers or boards protecting the work from frost, rain or damage.",
+  "file": "next-protecting-the-work.mp3"
+ },
+ "next:The finished wall": {
+  "text": "Next, a photo of stand back and get the whole wall in.",
+  "file": "next-the-finished-wall.mp3"
+ },
+ "next:Setting out": {
+  "text": "Next, a photo of your solid wall set out: lines, corners and gauge.",
+  "file": "next-setting-out.mp3"
+ },
+ "next:The bond": {
+  "text": "Next, a photo of the bond you laid: English, Flemish or garden wall bond.",
+  "file": "next-the-bond.mp3"
+ },
+ "next:Level and plumb": {
+  "text": "Next, a photo of your level on the wall, checking it's level and plumb.",
+  "file": "next-level-and-plumb.mp3"
+ },
+ "next:Soldier or brick-on-edge": {
+  "text": "Next, a photo of a soldier course or brick-on-edge course.",
+  "file": "next-soldier-or-brick-on-edge.mp3"
+ },
+ "next:Piers or banding": {
+  "text": "Next, a photo of a pier, or decorative banding.",
+  "file": "next-piers-or-banding.mp3"
+ },
+ "next:Capping": {
+  "text": "Next, a photo of the capping on top of the wall.",
+  "file": "next-capping.mp3"
+ },
+ "next:Joint finish close up": {
+  "text": "Next, a photo of the joints close up, all the same style.",
+  "file": "next-joint-finish-close-up.mp3"
+ },
+ "next:Marking the rake": {
+  "text": "Next, a photo of your line for the raking cut.",
+  "file": "next-marking-the-rake.mp3"
+ },
+ "next:Cutting the rake": {
+  "text": "Next, a photo of cutting the bricks for the rake.",
+  "file": "next-cutting-the-rake.mp3"
+ },
+ "next:Marking the cut": {
+  "text": "Next, a photo of your measurement and mark on the brick or block.",
+  "file": "next-marking-the-cut.mp3"
+ },
+ "next:Cutting by hand": {
+  "text": "Next, a photo of cutting with a bolster and club hammer, or brick hammer.",
+  "file": "next-cutting-by-hand.mp3"
+ },
+ "next:The defect": {
+  "text": "Next, a photo of the damaged bricks before you started.",
+  "file": "next-the-defect.mp3"
+ },
+ "next:Taking it out": {
+  "text": "Next, a photo of removing the damaged bricks and mortar.",
+  "file": "next-taking-it-out.mp3"
+ },
+ "next:The repair": {
+  "text": "Next, a photo of the finished repair, matched in.",
+  "file": "next-the-repair.mp3"
+ },
+ "next:Toolbox talk or induction": {
+  "text": "Next, a photo of a toolbox talk or induction you took part in.",
+  "file": "next-toolbox-talk-or-induction.mp3"
+ },
+ "next:Risk assessment": {
+  "text": "Next, a photo of the risk assessment or method statement for the job.",
+  "file": "next-risk-assessment.mp3"
+ },
+ "next:Airtightness and insulation": {
+  "text": "Next, a photo of insulation or airtightness work, done properly.",
+  "file": "next-airtightness-and-insulation.mp3"
+ },
+ "next:Keeping water clean": {
+  "text": "Next, a photo of how you stopped washout or waste getting into drains.",
+  "file": "next-keeping-water-clean.mp3"
+ },
+ "next:Checking the spec": {
+  "text": "Next, a photo of checking your work against the specification.",
+  "file": "next-checking-the-spec.mp3"
+ },
+ "next:Your tool kit": {
+  "text": "Next, a photo of your hand tools laid out: trowels, levels, line and pins, bolster.",
+  "file": "next-your-tool-kit.mp3"
+ }
+}
