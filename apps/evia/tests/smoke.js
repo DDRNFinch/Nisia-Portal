@@ -35,7 +35,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       hours.push({id:"h1",n:3,description:"Toolbox talk",createdAt:Date.now()});persist();render()});
     await page.waitForTimeout(500);
 
-    check("The app opens on Home (the topics); the nav is Home, Time, Evia, Review and Learn (the tester's layout)",await page.evaluate(()=>screen==="course"&&!!document.querySelector(".th-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Home,Time,Review,Learn"));
+    check("The app opens on Topics; the nav is Topics, Time, Evia, Review and Learn (the tester's layout)",await page.evaluate(()=>screen==="course"&&!!document.querySelector(".th-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Topics,Time,Review,Learn"));
     for(const s of ["course","progress","portfolio","learning"]){await page.evaluate(s=>nav(s),s);await page.waitForTimeout(450)}
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
     /* On a computer (1024 px and wider) it's Evia Portal's layout: the bar is a sidebar on the left with Ask Evia in it, and
@@ -48,7 +48,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       /* The computer's sidebar pieces never show in the bar on a tablet or phone, and every tab sits in one row inside it. */
       const bar=()=>page.evaluate(()=>{const n=document.querySelector(".bottom-nav").getBoundingClientRect(),side=[...document.querySelectorAll(".ev-side,.ev-side-ask,.ev-side-me")].some(x=>x.offsetParent),
         tabs=[...document.querySelectorAll(".bottom-nav [data-nav]")].filter(b=>b.offsetParent).map(b=>b.getBoundingClientRect());
-        return !side&&tabs.length>=4&&tabs.every(r=>r.top>=n.top-1&&r.bottom<=n.bottom+1&&Math.abs(r.top-tabs[0].top)<2)});
+        /* Not connected to a college: Topics and Learn (Time and Review are for connected learners). */
+        return !side&&tabs.length>=(document.body.classList.contains("th-solo")?2:4)&&tabs.every(r=>r.top>=n.top-1&&r.bottom<=n.bottom+1&&Math.abs(r.top-tabs[0].top)<2)});
       t.oneRow=await bar();await page.setViewportSize(vp);await page.waitForTimeout(250);t.phone=await bar();
       check("On a computer the bar is a sidebar with Ask Evia and the page beside it; on a tablet and phone it’s the bar at the bottom, every tab in one row, Evia in the middle",
         m.left===0&&m.w===248&&m.tall&&m.ask&&m.page>=248&&Math.abs(t.l-t.r)<=2&&t.l>0&&Math.abs(t.fab)<=2&&t.oneRow&&t.phone,JSON.stringify({m,t}));}
@@ -138,8 +139,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>openUnit(data().u.findIndex(u=>u[0]==="Mixing mortar")));await page.waitForTimeout(900);
     const fr={choice:await page.evaluate(()=>!!document.getElementById("eg-start")&&!!document.getElementById("fr-start")&&!document.getElementById("write")&&!document.getElementById("evidence-camera"))};
     const egBtn=async re=>{await page.evaluate(src=>{const b=[...document.querySelectorAll(".eg-sheet button")].find(b=>new RegExp(src).test(b.textContent.trim()));if(b)b.click()},re);await page.waitForTimeout(350)};
-    /* Free range is under "Other ways to add evidence" (simple.js). */
-    await page.evaluate(()=>{const d=document.querySelector(".sm-more");if(d)d.open=true});await page.click("#fr-start");await page.waitForTimeout(400);
+    await page.click("#fr-start");await page.waitForTimeout(400);
     fr.intro=await page.evaluate(()=>{const sh=document.querySelector(".eg-sheet");return !!sh&&/^FREE RANGE$/.test(sh.querySelector(".chat-kicker").textContent)&&!!sh.querySelector(".ra-free .evia-mini")&&/Photos/.test(sh.textContent)});
     fr.oneButton=await page.evaluate(()=>[...document.querySelectorAll(".eg-sheet .eg-actions button")].map(b=>b.textContent.trim()).join()==="Get started");
     await page.evaluate(()=>document.getElementById("eg-close").click());await page.waitForTimeout(500);
@@ -446,7 +446,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
 
     // Page headings, draft tags, the strength key, the backup reminder, clean test screens and the OTJ PDF.
     await page.evaluate(()=>{localStorage.setItem("evia7-working-evidence-packs",JSON.stringify({["bricklayer|"+data().u[5][0]]:{course:"bricklayer",unit:data().u[5][0],photos:[],write:"Started"}}));nav("course")});await page.waitForTimeout(450);
-    check("Home has a heading, and a started pack says to finish it and submit",await page.evaluate(()=>/Home/.test((document.querySelector(".th-head h1")||{}).textContent||"")&&[...document.querySelectorAll(".th-row[data-u] small")].filter(x=>/^Started: finish it and submit/.test(x.textContent)).length===1));
+    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Topics/.test((document.querySelector(".th-head h1")||{}).textContent||"")&&[...document.querySelectorAll(".th-pill")].filter(x=>x.textContent==="Draft").length===1));
     check("Evia reminds learners to back up once they have a few packs",await page.evaluate(()=>{localStorage.removeItem("evia7-last-backup");return window.eviaStats.nudges(window.eviaStats.compute()).some(n=>n.id==="backup")}));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaStartTest("maths",5,"Maths")});await page.waitForSelector(".ex #ex-start",{state:"visible",timeout:12000});
     check("A maths test from Practice opens as an exam",await page.evaluate(()=>/Maths test/.test(document.querySelector(".ex").textContent)));
@@ -696,7 +696,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const w=ms=>new Promise(r=>setTimeout(r,ms)),R=window.eviaRewards,G=window.eviaGames,out={},keep=localStorage.getItem("evia7-rewards");
       localStorage.setItem("evia7-rewards",JSON.stringify({bank:500,spent:0,owned:[],hat:"",pity:0,seenAch:[],lastXp:1e9,day:"",workV:1,paid:{}}));
       nav("teach");await w(500);
-      out.free=!document.querySelector(".tt-game.locked")&&document.querySelectorAll(".tt-game").length===5&&document.querySelectorAll(".tt-game .tg-shot img").length===5&&document.querySelector(".tt-game").dataset.key==="battle";
+      /* Not connected to a college: no Question Battle (it needs a classmate at the same college). */
+      out.free=!document.querySelector(".tt-game.locked")&&document.querySelectorAll(".tt-game").length===4&&document.querySelectorAll(".tt-game .tg-shot img").length===4&&!document.querySelector('.tt-game[data-key="battle"]');
       /* The Teach me card shows medals, the streak and coins: no XP or levels. */
       out.medals=!!document.querySelector(".tg-player .tg-medals")&&!/\bXP\b|Level \d/.test(document.querySelector(".tg-player").textContent);
       /* The camera always carries the photo-consent line (opened without a real camera, then closed). */
@@ -1048,9 +1049,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       lv.noRecordings=await p6.evaluate(()=>!document.getElementById("rec-start")&&!!document.getElementById("cu-start")&&!!document.getElementById("eg-start")&&!!document.getElementById("fr-start"));
       /* Recordings are switched off for now (storage); the rest of this switches them on to keep the code working for later. */
       await p6.evaluate(()=>{window.eviaRecordings=true;document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
-      lv.fourRoutes=await p6.evaluate(()=>{const d=document.querySelector(".sm-more");if(d)d.open=true;return true})&&await p6.evaluate(()=>["cu-start","eg-start","fr-start","rec-start"].every(id=>document.getElementById(id))&&!!document.querySelector("#cu-start .ra-catch")&&!!document.querySelector("#eg-start .ra-guide")&&!!document.querySelector("#fr-start .ra-free")&&!!document.querySelector("#rec-start .ra-record")&&
-        /* The first way in leads (bigger, simple.js); the others, under "Other ways to add evidence", match. */
-        new Set(["eg-start","fr-start","rec-start"].map(id=>Math.round(document.getElementById(id).getBoundingClientRect().height))).size===1);
+      lv.fourRoutes=await p6.evaluate(()=>["cu-start","eg-start","fr-start","rec-start"].every(id=>document.getElementById(id))&&!!document.querySelector("#cu-start .ra-catch")&&!!document.querySelector("#eg-start .ra-guide")&&!!document.querySelector("#fr-start .ra-free")&&!!document.querySelector("#rec-start .ra-record")&&
+        new Set(["cu-start","eg-start","fr-start","rec-start"].map(id=>Math.round(document.getElementById(id).getBoundingClientRect().height))).size===1);
       await p6.evaluate(()=>document.getElementById("cu-start").click());await p6.waitForTimeout(400);
       lv.catchUp=await p6.evaluate(()=>{const t=document.querySelector(".eg-sheet").textContent;return /CATCH UP/.test(t)&&/a bit more/.test(t)&&window.eviaMoreRequired().filter(x=>x.unit===data().u[0][0]).every(x=>t.includes(x.code))&&!!document.querySelector(".eg-sheet .ra-catch")});
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(500);

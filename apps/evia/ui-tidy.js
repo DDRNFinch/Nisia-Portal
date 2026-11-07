@@ -89,21 +89,36 @@
     const ev=typeof evidence!=="undefined"?evidence:[],mine=n=>ev.filter(e=>e.c===course&&e.u===n&&!e.induction);
     const LV={strong:["Strong","g"],good:["Good","y"],weak:["Weak","o"]};
     const behind=A&&A.timePct!=null&&A.timePct-A.ksbPct>10;
-    const hero=A?'<section class="th-hero th-tap" id="th-course" role="button" tabindex="0" aria-label="Your course: see your '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+'"><span class="th-k">Your course</span><strong class="th-big">'+A.ksbPct+'%<small> of '+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(A.signoff?" signed off":" with evidence")+'</small></strong>'+
-      '<span class="th-bar"><i style="width:'+Math.min(100,A.ksbPct)+'%"></i></span><small class="th-note">'+(A.timePct==null?"":A.timePct-A.ksbPct>25?"Behind for this point in your course: you’re "+A.timePct+"% of the way through":behind?"A little behind for this point in your course":"On track for this point in your course")+'</small><span class="th-more">See your '+esc(window.eviaTerm?window.eviaTerm().many:"KSBs")+' ›</span></section>':"";
+    /* The course at a glance: KSBs and learning hours, each a bar with a black line where they should be by now,
+       and the progress review just below. */
+    let St=null;try{St=window.eviaStats.compute()}catch(_){}
+    const term=window.eviaTerm?window.eviaTerm().many:"KSBs";
+    const lh=(()=>{try{const en=D().enrolment&&D().enrolment(),p=D().learner()||{},s0=Date.parse((en&&en.start)||p.start||""),e0=Date.parse((en&&en.end)||p.end||"");
+      if(!(s0&&e0&&e0>s0))return null;const wk=7*DAY,all=Math.max(1,(e0-s0)/wk),now=Math.max(0,Math.min(all,(Date.now()-s0)/wk));
+      return {full:Math.round(all*6),due:Math.round(now*6)}}catch(_){return null}})();
+    const got=St?Number(St.otjTotal)||0:0;
+    const meter=(id,label,value,pct,mark,note)=>'<div class="th-meter"'+(id?' id="'+id+'" role="button" tabindex="0"':"")+'><div class="th-meter-top"><span>'+label+'</span><b>'+value+'</b></div>'+
+      '<span class="th-bar th-bar-mark"><i style="width:'+Math.max(0,Math.min(100,pct))+'%"></i>'+(mark!=null?'<em style="left:'+Math.max(0,Math.min(100,mark))+'%" aria-hidden="true"></em>':"")+'</span>'+(note?'<small class="th-note">'+note+'</small>':"")+'</div>';
+    const rd=window.eviaReviewDue&&window.eviaReviewDue();
+    const hero=A?'<section class="th-hero th-glance">'+
+      meter("th-course",(A.signoff?term+" signed off":term+" with evidence"),A.ksbPct+"%",A.ksbPct,A.timePct,A.timePct==null?"":A.ksbPct>=A.timePct?"On track: the line is where you should be by now":"The line is where you should be by now")+
+      meter("th-hours","Learning hours",hm(got)+(lh?'<small> / '+hm(lh.full)+'</small>':""),lh?got/lh.full*100:0,lh?lh.due/lh.full*100:null,lh?"6 hours a week: about "+hm(lh.due)+" by now":"Add your course dates to see where you should be")+
+      '<button type="button" class="th-review" id="th-review"><span>'+IC.review+'</span><span><strong>Progress review</strong><small>'+(rd?(rd.days<0?"Overdue":rd.days===0?"Today":"Next one in "+rd.days+" day"+(rd.days===1?"":"s")):"Get ready for your review")+'</small></span>'+GO+'</button></section>':"";
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':"")+(n&&typeof strengthBars==="function"?'<span class="th-bars" title="'+esc(lv?LV[lv][0]+" evidence":"")+'">'+strengthBars(lv)+'</span>':"")+GO+'</button>'});
     scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+
 hero+
-      group(rows,nvq?"Site jobs":"Units")+
-      group([row({id:"th-sup",ic:"clip",c:"p",title:"Supporting evidence",sub:"Witness statements, videos and files"}),
-        row({id:"th-share",ic:"send",c:"b",title:"Send to my portfolio",sub:"A unit’s evidence as one PDF, for Aptem"})]);
+      /* Supporting evidence sits at the end of the list like a topic; sending to the e-portfolio has its own box. */
+      group(rows.concat(['<button type="button" class="th-row th-row-sup" id="th-sup"><span class="th-num th-num-sup">'+IC.clip+'</span><span class="th-copy"><strong>Supporting evidence</strong><small>'+(()=>{const n=(typeof supportingMeta==="function"?supportingMeta():[]).filter(x=>x&&x.course===course).length;return n?n+(n===1?" item":" items"):"Witness statements, videos and files"})()+'</small></span>'+GO+'</button>']),nvq?"Site jobs":"Units")+
+      group([row({id:"th-share",ic:"send",c:"b",title:"Send to my e-portfolio",sub:"A unit’s evidence as one PDF, for Aptem"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
     /* Your course: every KSB (criterion on an NVQ), what it means and where it is. */
     const ksbs=()=>window.eviaProgressDeep&&window.eviaProgressDeep(nvq?"ksb":"where");
     on("th-course",ksbs);const hc=document.getElementById("th-course");if(hc)hc.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ksbs()}};
+    on("th-hours",()=>window.eviaOpenLearningLogs?window.eviaOpenLearningLogs():window.eviaProgressDeep&&window.eviaProgressDeep("otj"));
+    on("th-review",()=>typeof nav==="function"&&nav("learning"));
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     /* The first-run tour points at Supporting evidence by this. */
     const sup=document.getElementById("th-sup");if(sup)sup.setAttribute("data-supporting-evidence","");
@@ -311,6 +326,10 @@ hero+
   };
   /* The bottom bar: Topics · Time · Evia · Review · Learn. */
   const label=()=>{const l=document.getElementById("nav-college");if(l)l.textContent="Time";const r=document.querySelector('[data-nav="learning"] span:last-child');if(r)r.textContent="Review"};
+  /* Time and Review are for learners connected to their college (registers, reviews with the assessor); everyone
+     else reaches the review from the button on Topics. */
+  const navFor=()=>{const on=live();["calendar","learning"].forEach(k=>{const b=document.querySelector('[data-nav="'+k+'"]');if(b)b.hidden=!on});document.body.classList.toggle("th-solo",!on)};
+  navFor();setTimeout(navFor,600);setInterval(navFor,5000);
   label();setTimeout(label,500);
   if(window.eviaCalendar)window.eviaCalendar.name=()=>"Time";
   window.eviaTidy={topics,review,plan,learn,header,checklist};
