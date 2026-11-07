@@ -97,12 +97,13 @@
       if(!(s0&&e0&&e0>s0))return null;const wk=7*DAY,all=Math.max(1,(e0-s0)/wk),now=Math.max(0,Math.min(all,(Date.now()-s0)/wk));
       return {full:Math.round(all*6),due:Math.round(now*6)}}catch(_){return null}})();
     const got=St?Number(St.otjTotal)||0:0;
-    const meter=(id,label,value,pct,mark,note)=>'<div class="th-meter"'+(id?' id="'+id+'" role="button" tabindex="0"':"")+'><div class="th-meter-top"><span>'+label+'</span><b>'+value+'</b></div>'+
-      '<span class="th-bar th-bar-mark"><i style="width:'+Math.max(0,Math.min(100,pct))+'%"></i>'+(mark!=null?'<em style="left:'+Math.max(0,Math.min(100,mark))+'%" aria-hidden="true"></em>':"")+'</span>'+(note?'<small class="th-note">'+note+'</small>':"")+'</div>';
+    /* Each bar is a button (a card that presses in), with what it does spelled out underneath. */
+    const meter=(id,label,value,pct,mark,note,act)=>'<div class="th-meter th-tapcard"'+(id?' id="'+id+'" role="button" tabindex="0"':"")+'><div class="th-meter-top"><span>'+label+'</span><b>'+value+'</b></div>'+
+      '<span class="th-bar th-bar-mark"><i style="width:'+Math.max(0,Math.min(100,pct))+'%"></i>'+(mark!=null?'<em style="left:'+Math.max(0,Math.min(100,mark))+'%" aria-hidden="true"></em>':"")+'</span>'+(note?'<small class="th-note">'+note+'</small>':"")+(act?'<span class="th-act">'+act+'<i aria-hidden="true">›</i></span>':"")+'</div>';
     const rd=window.eviaReviewDue&&window.eviaReviewDue();
     const hero=A?'<section class="th-hero th-glance">'+
-      meter("th-course",(A.signoff?term+" signed off":term+" with evidence"),A.ksbPct+"%",A.ksbPct,A.timePct,A.timePct==null?"":A.ksbPct>=A.timePct?"On track: the line is where you should be by now":"The line is where you should be by now")+
-      meter("th-hours","Learning hours",hm(got)+(lh?'<small> / '+hm(lh.full)+'</small>':""),lh?got/lh.full*100:0,lh?lh.due/lh.full*100:null,lh?"6 hours a week: about "+hm(lh.due)+" by now":"Add your course dates to see where you should be")+
+      meter("th-course",(A.signoff?term+" signed off":term+" with evidence"),A.ksbPct+"%",A.ksbPct,A.timePct,A.timePct==null?"":A.ksbPct>=A.timePct?"On track: the line is where you should be by now":"The line is where you should be by now","See my "+term)+
+      meter("th-hours","Learning hours",hm(got)+(lh?'<small> / '+hm(lh.full)+'</small>':""),lh?got/lh.full*100:0,lh?lh.due/lh.full*100:null,lh?"6 hours a week: about "+hm(lh.due)+" by now":"Add your course dates to see where you should be","Log hours")+
       '<button type="button" class="th-review" id="th-review"><span>'+IC.review+'</span><span><strong>Progress review</strong><small>'+(rd?(rd.days<0?"Overdue":rd.days===0?"Today":"Next one in "+rd.days+" day"+(rd.days===1?"":"s")):"Get ready for your review")+'</small></span>'+GO+'</button></section>':"";
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
@@ -117,7 +118,9 @@ hero+
     /* Your course: every KSB (criterion on an NVQ), what it means and where it is. */
     const ksbs=()=>window.eviaProgressDeep&&window.eviaProgressDeep(nvq?"ksb":"where");
     on("th-course",ksbs);const hc=document.getElementById("th-course");if(hc)hc.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ksbs()}};
-    on("th-hours",()=>window.eviaOpenLearningLogs?window.eviaOpenLearningLogs():window.eviaProgressDeep&&window.eviaProgressDeep("otj"));
+    /* Learning hours: log some (the chat's hours flow); the hours themselves are on Time and in the learning logs. */
+    on("th-hours",()=>{if(window.chat)window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)});
+    const hh=document.getElementById("th-hours");if(hh)hh.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();hh.click()}};
     on("th-review",()=>typeof nav==="function"&&nav("learning"));
     on("th-sup",()=>window.openSupportingEvidence&&window.openSupportingEvidence());
     /* The first-run tour points at Supporting evidence by this. */

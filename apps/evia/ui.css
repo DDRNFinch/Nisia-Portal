@@ -3391,3 +3391,9 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .bottom-nav [hidden],nav [data-nav][hidden]{display:none!important}
 /* Tester: learners not connected to a college have Topics, Evia and Learn */
 html body.th-solo .bottom-nav{grid-template-columns:1fr 96px 1fr}
+/* Tester: the KSBs and learning hours bars are buttons, and look it */
+.th-tapcard{border:1.5px solid var(--ui-line,#e4e7ec);background:#fff;border-radius:16px;padding:12px 13px;box-shadow:0 2px 0 var(--ui-line,#e4e7ec);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
+.th-tapcard:active{transform:translateY(2px);box-shadow:0 0 0 var(--ui-line,#e4e7ec)}
+.th-act{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--accent-fill,var(--yellow));color:var(--ui-on-accent,#172033);border-radius:999px;padding:7px 14px;font-weight:800;font-size:14px}
+.th-act i{font-style:normal;font-size:17px;line-height:1}
+.th-glance{gap:10px}
