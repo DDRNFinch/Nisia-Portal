@@ -46,8 +46,12 @@
     proto.setItem=function(k,v){if(this===window.localStorage&&moved(k)){v=String(v);cache.set(k,v);write(k,v);return}return orig.setItem.call(this,k,v)};
     proto.removeItem=function(k){if(this===window.localStorage&&moved(k)){cache.delete(k);write(k,null);return}return orig.removeItem.call(this,k)};
   }
+  let gaveUp=false;
   async function loadAppData(){
-    db=await openAppDB();
+    const opened=await openAppDB();
+    /* Too late: Evia has already started on localStorage, so leave it there for this visit. */
+    if(gaveUp){try{opened.close()}catch(_){}return}
+    db=opened;
     const tx=db.transaction(STORE,"readonly"),store=tx.objectStore(STORE);
     const [keys,values]=await Promise.all([req2p(store.getAllKeys()),req2p(store.getAll())]);
     keys.forEach((k,i)=>cache.set(k,values[i]));
@@ -58,8 +62,10 @@
       const wtx=db.transaction(STORE,"readwrite"),ws=wtx.objectStore(STORE);
       legacy.forEach(k=>{if(!cache.has(k)){const v=orig.getItem.call(localStorage,k);cache.set(k,v);ws.put(v,k)}});
       await txDone(wtx);
-      legacy.forEach(k=>orig.removeItem.call(localStorage,k));
+      /* Only once Evia will read from here: if it already started without this storage, its data stays put. */
+      if(!gaveUp)legacy.forEach(k=>orig.removeItem.call(localStorage,k));
     }
+    if(gaveUp){try{db.close()}catch(_){}db=null;cache.clear();return}
     patchLocalStorage();
   }
 
@@ -336,8 +342,11 @@
   /* A meeting guest's demo that has ended (install.js): nothing of Evia starts. */
   if(window.EVIA_DEMO_ENDED){document.documentElement.classList.remove("evia-booting");return}
   setTimeout(()=>document.documentElement.classList.remove("evia-booting"),5000);
-  loadAppData()
-    .catch(err=>console.warn("Evia is using browser localStorage because IndexedDB is unavailable",err))
-    .then(()=>trimData().catch(err=>console.error("Evia storage tidy-up failed",err)))
+  /* Never wait for ever: storage that doesn't answer (just after site data is cleared, or locked by another tab of
+     the same site) gives up after a few seconds and Evia starts on localStorage instead of an empty page. */
+  const within=(p,ms,what)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(what+" took too long")),ms))]);
+  within(loadAppData(),4000,"Opening Evia's storage")
+    .catch(err=>{gaveUp=true;console.warn("Evia is using browser localStorage because IndexedDB is unavailable",err)})
+    .then(()=>within(trimData(),4000,"Tidying Evia's storage").catch(err=>console.error("Evia storage tidy-up failed",err)))
     .then(()=>loadScripts(scriptEl||document.querySelector("script[data-app-scripts]")));
 })();

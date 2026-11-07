@@ -39,7 +39,8 @@
     return sc&&app&&!app.classList.contains("welcome-app-hidden")&&!document.getElementById("welcome-screen")&&!sc.textContent.trim()&&!sc.querySelector("img,svg,canvas")};
   /* What Evia was trying to show, for the screenshot: the page, the course, the pack and its topics. */
   const state=()=>{const g=(f)=>{try{return f()}catch(e){return "?"}};
-    return ["page: "+g(()=>typeof screen!=="undefined"?screen:"none")+(g(()=>typeof unit!=="undefined"&&unit>=0?" "+unit:"")),
+    /* Before app.js runs, "screen" is the browser's own (window.screen): say Evia's files hadn't started. */
+    return ["page: "+g(()=>typeof render!=="function"?"Evia's files hadn't started":typeof screen==="string"?screen:"none")+(g(()=>typeof unit!=="undefined"&&unit>=0?" "+unit:"")),
       "course: "+g(()=>typeof course!=="undefined"?course:"none")+" · enrolled on "+g(()=>(window.eviaData.enrolment()||{}).course||"none"),
       "pack: "+g(()=>{const f=window.eviaPacks&&window.eviaPacks.followingPack(course);return f?f.title+" ("+f.topics+" topics)":"Evia's own"})+" · topics shown: "+g(()=>data().u.length)].join("\n")};
   let checks=0,tried=false;const watch=setInterval(()=>{
