@@ -160,7 +160,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Evia's writing rules still fix spelling, capitals and punctuation",await page.evaluate(()=>{const r=window.eviaWriting.check("i laid the morter on the dpc and checked it was plum");let t="i laid the morter on the dpc and checked it was plum";return r.fixes.length>=4}));
 
     await page.evaluate(()=>window.eviaOpenSendToPortfolio(data().u[2][0]));await page.waitForTimeout(3500);
-    check("Send to e-portfolio shows a preview, everything as a zip (the PDF and photos), and just the PDF",await page.evaluate(()=>!!document.getElementById("eport-preview")&&!!document.getElementById("eport-zip")&&!!document.getElementById("eport-pdf-only")&&!!document.getElementById("eport-email")&&/the PDF and 1 photo/.test(document.querySelector(".eport-all .eport-status").innerText)));
+    if(process.env.SHOT){await page.evaluate(()=>{const m=document.getElementById('modal-root');if(m)m.innerHTML='';window.scrollTo(0,0)});await page.screenshot({path:process.env.SHOT,fullPage:true}).catch(()=>{})}
+    check("Send to e-portfolio shows a preview, everything as a zip (the PDF and photos), and just the PDF",await page.evaluate(()=>!!document.getElementById("eport-preview")&&!!document.getElementById("eport-zip")&&!!document.getElementById("eport-pdf-only")&&/the PDF and 1 photo/.test(document.querySelector(".eport-every .eport-status").innerText)));
 
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
@@ -1066,9 +1067,9 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
       lv.tilesColoured=await p6.evaluate(()=>!document.querySelector(".ev-unit-fb")&&!!document.querySelector(".ev-tile.ev-signed"));
       await p6.evaluate(()=>{const e=window.eviaData.list("evidence").find(x=>x.media&&x.media.length);window.eviaOpenSendToPortfolio(e.unit,e.id)});
-      await p6.waitForFunction(()=>{const x=document.querySelector(".eport-all .eport-status");return x&&/Everything|couldn/.test(x.innerText)||document.querySelector("#eport-files .card p")&&!document.querySelector(".eport-sheet.is-loading")},null,{timeout:20000}).catch(()=>{});
+      await p6.waitForFunction(()=>{const x=document.querySelector(".eport-every .eport-status");return x&&/Everything|couldn/.test(x.innerText)||document.querySelector("#eport-files .card p")&&!document.querySelector(".eport-sheet.is-loading")},null,{timeout:20000}).catch(()=>{});
       if(process.env.EVIA_SHOTS)await p6.screenshot({path:process.env.EVIA_SHOTS+"/eport.png",fullPage:true});
-      lv.zipHasRecording=await p6.evaluate(()=>!!document.querySelector(".eport-all .eport-status")&&/1 recording/.test(document.querySelector(".eport-all .eport-status").innerText)&&/what was said/.test(document.querySelector(".eport-all .eport-status").innerText)&&!!document.getElementById("eport-zip"));
+      lv.zipHasRecording=await p6.evaluate(()=>!!document.querySelector(".eport-every .eport-status")&&/1 recording/.test(document.querySelector(".eport-every .eport-status").innerText)&&/what was said/.test(document.querySelector(".eport-every .eport-status").innerText)&&!!document.getElementById("eport-zip"));
       if(process.env.EVIA_SHOTS){const d=process.env.EVIA_SHOTS;
         await p6.evaluate(()=>{window.eviaKsbAims.set("B3",true);nav("progress")});await p6.waitForTimeout(900);
         await p6.evaluate(()=>{document.querySelectorAll("[data-group]").forEach(b=>{if(b.getAttribute("aria-expanded")!=="true")b.click()})});await p6.waitForTimeout(500);

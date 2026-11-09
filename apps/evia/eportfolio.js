@@ -224,7 +224,9 @@
       .eport-copy{min-height:40px;padding:8px 14px;border-radius:12px;border:1px solid #e3e7ed;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
       .eport-files{display:grid;gap:10px;margin-bottom:13px}
       .eport-pdf{display:grid;gap:12px;margin:0!important}
-      .eport-all{display:grid;gap:10px;margin:12px 0 0!important}
+      .eport-every{display:grid;gap:10px;margin:12px 0 0!important}
+      .eport-one{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;font-size:16px}
+      .eport-more{margin:0 0 13px}
       .eport-sheet{position:relative;display:flex;flex-direction:column;gap:6px;width:min(230px,70%);aspect-ratio:1/1.414;margin:4px auto 0;padding:16px 14px;border-radius:6px;border:1px solid #e4e7ec;background:#fff;box-shadow:0 10px 26px rgba(16,24,40,.12),0 2px 4px rgba(16,24,40,.06);text-align:left;font:inherit;color:#172033;cursor:pointer;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease}
       .eport-sheet:active{transform:scale(.98)}
       .eport-sheet-kicker{font-size:6.5px;font-weight:800;letter-spacing:.14em;color:#667085}
@@ -246,7 +248,7 @@
       .eport-main{display:grid;grid-template-columns:1fr 1fr;gap:8px}
       .eport-main.single{grid-template-columns:1fr}
       .eport-main button{min-height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14.5px}
-      .eport-main svg,.eport-zip svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+      .eport-main svg,.eport-zip svg,.eport-one svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
       .eport-zip{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:13px 16px;border-radius:16px;border:1px dashed #d0d5dd;background:transparent;font:inherit;text-align:left;color:#344054;cursor:pointer}
       .eport-zip span{display:grid;gap:2px}
       .eport-zip strong{font-size:13.5px;color:#172033}
@@ -350,23 +352,16 @@
     const unitTotal=evidence.filter(e=>e.c===course&&e.u===unitName).length;
     /* One entry opened from its tile: offer every saved entry for the unit in one PDF instead. */
     const allLink=entryId!=null&&unitTotal>1?'<button type="button" class="eport-copy eport-all" id="eport-all">Everything for this unit ('+unitTotal+' pieces)</button>':"";
-    const introText=(entryId==null&&entries.length>1?"All "+entries.length+" pieces of evidence for this unit: one PDF (oldest first, each with its date), plus the photos and any recordings.":"This evidence as a PDF, plus the photos and any recordings.")+" Save it as one zip, or share it to Aptem or email. Every file is named so your assessor can see what it is.";
     $("#screen").innerHTML=back+
       '<div class="eport-page">'+
-        '<div class="card eport-intro"><div class="section-title">SEND TO E-PORTFOLIO</div><h2>'+escHtml(unitName)+'</h2><p>'+escHtml(introText)+'</p><span class="eport-sent" id="eport-sent">'+(sent?"Last sent "+escHtml(ukDate(sent)):"")+'</span>'+(allLink?'<div>'+allLink+'</div>':"")+'</div>'+
-        '<div class="card"><div class="section-title">KSBS COVERED</div><div class="eport-ksbs">'+ksbs.map(k=>'<span>'+escHtml(k)+'</span>').join("")+'</div><button type="button" class="eport-copy" id="eport-copy">Copy KSB codes</button></div>'+
         '<div class="eport-files" id="eport-files"><div class="card eport-pdf"><div class="eport-sheet is-loading" aria-hidden="true"><span></span><span></span><span></span></div><p class="eport-status">Preparing your evidence PDF…</p></div></div>'+
+        (allLink?'<div class="eport-more">'+allLink+'</div>':"")+
         '<div class="card" id="eport-mine"></div>'+
-        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share all</strong> to send everything to email or another app, or <strong>Save .zip</strong> to keep it all in one file.</li><li>In '+escHtml((readMine()||{}).name||"Aptem (or your e-portfolio)")+', add new evidence and upload the zip, or the PDF and any recordings.</li><li>Tag the KSBs listed above.</li></ol></div>'+
+        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share the PDF</strong> and pick email or another app.</li><li>In '+escHtml((readMine()||{}).name||"Aptem (or your e-portfolio)")+', add new evidence and upload the PDF.</li><li>Tag the KSBs (they’re in the PDF).</li></ol></div>'+
       '</div>';
     $("#eport-back").onclick=goBack;
     drawMine($("#eport-mine"));
     const allBtn=$("#eport-all");if(allBtn)allBtn.onclick=()=>openSendToPortfolio(unitName);
-    $("#eport-copy").onclick=async()=>{
-      const text=ksbs.join(", ");
-      try{await navigator.clipboard.writeText(text);if(typeof showEvidenceToast==="function")showEvidenceToast("KSB codes copied")}
-      catch(_){prompt("Copy these KSB codes:",text)}
-    };
 
     // Prepare the files up front so Share still counts as a direct tap when it is pressed.
     /* Each part is prepared on its own, so one unreadable photo or a PDF problem never blocks the rest. */
@@ -430,33 +425,19 @@
         '<span class="eport-sheet-ksbs">'+ksbs.slice(0,8).map(k=>'<i>'+escHtml(k)+'</i>').join("")+(ksbs.length>8?'<i>+'+(ksbs.length-8)+'</i>':"")+'</span>'+
         '<span class="eport-sheet-open">Tap to open the full PDF</span>'+
       '</button>':"";
-    /* The PDF on its own is the main thing to send: Share (or Save), and Email, which opens the phone's share menu with
-       the PDF attached and the subject and message filled in, ready for their email app (a web page can't attach a
-       file to an email itself; on a computer it saves the PDF and opens a new email to attach it to). Everything
-       (the PDF with the photos and recordings) is underneath. */
-    const learnerName=window.eviaData.learner().name||"";
-    const subject="Evidence: "+unitName+(learnerName?" - "+learnerName:"");
-    const message="Hi,\n\nHere’s my evidence for "+unitName+" ("+data().name+"), from Evia.\n\n"+(learnerName||"");
-    const mail=pdf&&canShareFiles([pdf.file]);
+    /* The PDF on its own is the main thing to send, with one Share (or Save) button; everything else is underneath. */
     $("#eport-files").innerHTML=
       (problems.length?'<div class="card eport-note" role="status"><p>'+problems.join("<br>")+'</p></div>':"")+
       (pdf?'<div class="card eport-pdf">'+preview+
         '<p class="eport-status"><strong>The PDF</strong> · '+(pdf.pages?pdf.pages+" page"+(pdf.pages===1?"":"s")+" · ":"")+formatBytes(pdf.file.size)+(recs.length?" · recordings aren’t in a PDF":"")+'</p>'+
-        '<div class="eport-main"><button type="button" class="primary" id="eport-pdf-only">'+(shareOk?icon.share+"Share the PDF":icon.save+"Save the PDF")+'</button>'+
-        '<button type="button" class="secondary" id="eport-email">'+icon.mail+'Email it</button></div></div>':"")+
-      '<div class="card eport-all"><p class="eport-status"><strong>Everything</strong> · '+escHtml(partText)+' · '+formatBytes(everything.reduce((n,f)=>n+f.size,0))+'</p>'+
+        '<button type="button" class="primary eport-one" id="eport-pdf-only">'+(shareOk?icon.share+"Share the PDF":icon.save+"Save the PDF")+'</button></div>':"")+
+      '<div class="card eport-every"><p class="eport-status"><strong>Everything</strong> · '+escHtml(partText)+' · '+formatBytes(everything.reduce((n,f)=>n+f.size,0))+'</p>'+
         '<div class="eport-main'+(shareAll?"":" single")+'">'+(shareAll?'<button type="button" class="secondary" id="eport-share-all">'+icon.share+'Share all</button>':"")+'<button type="button" class="secondary" id="eport-zip">'+icon.save+'Save .zip</button></div>'+
       '</div>';
     if(pdf){
       const pdfUrl=URL.createObjectURL(pdf.file);
       const pv=$("#eport-preview");if(pv)pv.onclick=()=>{const w=window.open(pdfUrl,"_blank");if(!w)saveFile(pdf.file)};
       $("#eport-pdf-only").onclick=async()=>{if(shareOk){if(await shareFiles([pdf.file]))markSent(unitName,entries)}else{saveFile(pdf.file);markSent(unitName,entries)}};
-      $("#eport-email").onclick=async()=>{
-        if(mail){if(await shareFiles([pdf.file],{title:subject,text:message}))markSent(unitName,entries);return}
-        saveFile(pdf.file);markSent(unitName,entries);
-        notify("Evia saved the PDF. Attach it to the email that’s opening.");
-        setTimeout(()=>{location.href="mailto:?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(message.replace(/\n\n(?=[^\n]*$)/,"\n\n(The PDF is attached.)\n\n"))},400);
-      };
     }
     const sa=$("#eport-share-all");if(sa)sa.onclick=async()=>{if(await shareFiles(everything))markSent(unitName,entries)};
     $("#eport-zip").onclick=async()=>{
