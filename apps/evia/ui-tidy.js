@@ -84,7 +84,7 @@
   function topics(){
     const d=typeof data==="function"?data():{u:[]},us=d.u||[],nvq=window.eviaNvq&&window.eviaNvq.on();
     /* An NVQ keeps its own screen (site jobs by type of work, the knowledge questions), under the same header. */
-    if(nvq&&window.eviaNvq.courseScreen){window.eviaNvq.courseScreen();scr().insertAdjacentHTML("afterbegin",header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"'));wireHeader();return}
+    if(nvq&&window.eviaNvq.courseScreen){window.eviaNvq.courseScreen();scr().insertAdjacentHTML("afterbegin",header("Course").replace('class="th-head"','class="th-head" id="ui-course-head"'));wireHeader();return}
     let A=null;try{A=window.eviaStats.compute().a}catch(_){}
     const ev=typeof evidence!=="undefined"?evidence:[],mine=n=>ev.filter(e=>e.c===course&&e.u===n&&!e.induction);
     const LV={strong:["Strong","g"],good:["Good","y"],weak:["Weak","o"]};
@@ -108,11 +108,11 @@
     const rows=us.map((u,i)=>{const name=u[0],n=mine(name).length,lv=typeof unitStrengthForCourse==="function"?unitStrengthForCourse(name):null,draft=typeof isDraft==="function"&&isDraft(name);
       return '<button type="button" class="th-row" data-u="'+i+'"><span class="th-num'+(lv?" th-num-"+lv:"")+'">'+(i+1)+'</span><span class="th-copy"><strong>'+esc(name)+'</strong><small>'+(n?n+(n===1?" piece":" pieces")+" of evidence":"Not started")+'</small></span>'+
         (draft?'<span class="th-pill th-pill-y">Draft</span>':"")+(n&&typeof strengthBars==="function"?'<span class="th-bars" title="'+esc(lv?LV[lv][0]+" evidence":"")+'">'+strengthBars(lv)+'</span>':"")+GO+'</button>'});
-    scr().innerHTML=header("Topics").replace('class="th-head"','class="th-head" id="ui-course-head"')+
+    scr().innerHTML=header("Course").replace('class="th-head"','class="th-head" id="ui-course-head"')+
 hero+
       /* Supporting evidence sits at the end of the list like a topic; sending to the e-portfolio has its own box. */
-      group(rows.concat(['<button type="button" class="th-row th-row-sup" id="th-sup"><span class="th-num th-num-sup">'+IC.clip+'</span><span class="th-copy"><strong>Supporting evidence</strong><small>'+(()=>{const n=(typeof supportingMeta==="function"?supportingMeta():[]).filter(x=>x&&x.course===course).length;return n?n+(n===1?" item":" items"):"Witness statements, videos and files"})()+'</small></span>'+GO+'</button>']),nvq?"Site jobs":"Units")+
-      group([row({id:"th-share",ic:"send",c:"b",title:"Send to my e-portfolio",sub:"A unit’s evidence as one PDF, for Aptem"})]);
+      group(rows.concat(['<button type="button" class="th-row th-row-sup" id="th-sup"><span class="th-num th-num-sup">'+IC.clip+'</span><span class="th-copy"><strong>Supporting evidence</strong><small>'+(()=>{const n=(typeof supportingMeta==="function"?supportingMeta():[]).filter(x=>x&&x.course===course).length;return n?n+(n===1?" item":" items"):"Witness statements, videos and files"})()+'</small></span>'+GO+'</button>']),nvq?"Site jobs":"Learning plan activities")+
+      group([row({id:"th-share",ic:"send",c:"b",title:"Send to my e-portfolio",sub:"An activity’s evidence as one PDF, for Aptem"})]);
     wireHeader();
     scr().querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>window.openUnit(+b.dataset.u));
     /* Your course: every KSB (criterion on an NVQ), what it means and where it is. */
@@ -136,7 +136,7 @@ hero+
     const mp=window.eviaMyPortfolio&&window.eviaMyPortfolio.read();
     const o=document.createElement("div");o.className="th-sheet-wrap";
     o.innerHTML='<section class="th-sheet" role="dialog" aria-modal="true" aria-labelledby="th-sw-t"><header class="th-sheet-head"><h2 id="th-sw-t">Send to my portfolio</h2><button type="button" class="th-x" aria-label="Close">×</button></header>'+
-      '<p class="th-note" style="margin:0 4px 12px">Pick a unit. Evia makes one PDF of its evidence, with the photos, ready to upload to Aptem or your e-portfolio.</p>'+
+      '<p class="th-note" style="margin:0 4px 12px">Pick a learning plan activity. Evia makes one PDF of its evidence, with the photos, ready to upload to Aptem or your e-portfolio.</p>'+
       '<div class="th-group">'+have.map(([n,c],i)=>row({title:n,sub:c+(c===1?" piece":" pieces")+" of evidence",ic:"send",c:"b",attrs:' data-sw="'+i+'"'})).join("")+'</div>'+
       (mp?'<div class="th-group th-quiet">'+row({id:"th-sw-mine",title:"Open "+mp.name,sub:"Sign in and upload",ic:"send",c:"g"})+'</div>':"")+'</section>';
     const close=()=>o.remove();

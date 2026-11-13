@@ -480,10 +480,10 @@
   /* The College tab is "Me" for a learner on their own (calendar.js). */
   const tabName=()=>window.eviaCalendar&&window.eviaCalendar.name?window.eviaCalendar.name():"College";
   const TOUR=[
-    {nav:"course",seen:"course",target:"[data-supporting-evidence]",tap:true,text:"It’s in <strong>Supporting evidence</strong>, on Topics. Tap it."},
+    {nav:"course",seen:"course",target:"[data-supporting-evidence]",tap:true,text:"It’s in <strong>Supporting evidence</strong>, on Course. Tap it."},
     {seen:"supporting",target:savedTarget,text:"Here’s your PPE, linked to "+"{ksb}"+". Tap any file to see it or share it."},
-    {nav:"course",target:"#screen [data-u]",tap:true,text:"Your topics are here on <strong>Topics</strong>. Tap one."},
-    {seen:"unit",target:".ev-modes",text:"Every unit works like your PPE: <strong>Evia guides you</strong>, or go <strong>free range</strong> and add it your way."},
+    {nav:"course",target:"#screen [data-u]",tap:true,text:"Your learning plan activities are here on <strong>Course</strong>. Tap one."},
+    {seen:"unit",target:".ev-modes",text:"Every activity works like your PPE: <strong>Evia guides you</strong>, or go <strong>free range</strong> and add it your way."},
     {target:'[data-nav="learning"]',tap:true,text:"Tap <strong>Review</strong>."},
     {seen:"learning",text:"<strong>Review</strong> is your one checklist: everything your assessor needs at your next review. It ticks itself off as you go."},
     {target:'[data-nav="calendar"]',tap:true,get text(){return "Tap <strong>"+tabName()+"</strong>."}},

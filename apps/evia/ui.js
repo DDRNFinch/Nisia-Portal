@@ -61,7 +61,7 @@
   function suggestion(a){
     if(a.drafts.length){const d=a.drafts[0];return {unit:d,text:pick(["You started "+d.name+" but haven’t submitted it yet. Finish it off and it counts towards your KSBs.","Your "+d.name+" evidence is still a draft. Submit it and those KSBs get ticked off."]),action:"Finish "+d.name,draft:true}}
     if(a.quickest){const q=a.quickest,n=q.missing.length;return {unit:q,text:q.name+" covers "+n+" KSB"+(n===1?"":"s")+" you haven’t got evidence for yet. That’s your quickest win.",action:"Open "+q.name}}
-    return {unit:null,text:"Every KSB on your course has some evidence. Keep strengthening the units with the least photos and detail.",action:null};
+    return {unit:null,text:"Every KSB on your course has some evidence. Keep strengthening the activities with the least photos and detail.",action:null};
   }
 
   /* ---------- Evia speaks from her button: one Evia on screen ---------- */
@@ -537,7 +537,7 @@
     const a=analyse(),prompts=(window.eviaLearnerPrompts||{})[course]||{};
     const checks=a.units.filter(u=>u.started&&prompts[u.name]).map(u=>checkUnit(u,prompts)).filter(c=>c.terms.length)
       .sort((x,y)=>(y.missing.length/y.terms.length)-(x.missing.length/x.terms.length));
-    if(!checks.length){say("You haven’t submitted a unit with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to Topics",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
+    if(!checks.length){say("You haven’t submitted a learning plan activity with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to Course",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
     const needsWork=checks.filter(c=>c.missing.length||c.words<50||c.photos<3);
     if(!needsWork.length){
       say(pick(["Your write-ups cover all the key points, with plenty of photos. Nice.","I’ve checked your write-ups: they mention everything they should and have good photos. Good job."]));
@@ -565,7 +565,7 @@
     const groups=[["K","Knowledge"],["S","Skills"],["B","Behaviours"]].map(([l,n])=>[n,missing.filter(x=>x[0].startsWith(l)).length]).filter(g=>g[1]);
     say("You still need evidence for <strong>"+plural(missing.length,"KSB")+"</strong>: "+groups.map(g=>g[1]+" "+g[0]).join(", ")+".");
     const plan=coverPlan(a),top=plan.slice(0,3),covered=top.reduce((n,p)=>n+p.covers.length,0);
-    say("The fastest way to close the gap: "+top.map(p=>"<strong>"+escHtml(p.unit.name)+"</strong> ("+p.covers.length+")").join(", ").replace(/, ([^,]*)$/," then $1")+". "+(top.length===1?"That one unit":"Those "+top.length+" units")+" would cover "+covered+" of them.");
+    say("The fastest way to close the gap: "+top.map(p=>"<strong>"+escHtml(p.unit.name)+"</strong> ("+p.covers.length+")").join(", ").replace(/, ([^,]*)$/," then $1")+". "+(top.length===1?"That one activity":"Those "+top.length+" activities")+" would cover "+covered+" of them.");
     replies([
       {label:"Open "+top[0].unit.name,primary:true,run:()=>openUnitFromChat(top[0].unit)},
       {label:"Show the full list",run:()=>{
@@ -586,7 +586,7 @@
     lines.push(st.streak?"You’ve been active <strong>"+plural(st.streak,"week")+" in a row</strong>."+(st.activeThisWeek?"":" Add something this week to keep it going."):"No streak yet. Add evidence or log learning each week to start one.");
     lines.push("Learning hours: <strong>"+hrsText(st.otjWeek)+"</strong> this week, "+hrsText(st.otjTotal)+" in total.");
     say(lines.join("<br>"));
-    if(st.weeksPerUnit!=null)say("You’ve got about <strong>"+plural(st.weeksLeft,"week")+"</strong> left and <strong>"+plural(st.unitsLeft,"unit")+"</strong> still to start. That’s about <strong>"+plural(Math.max(1,Math.floor(st.weeksPerUnit)),"week")+" per unit</strong>"+(st.weeksPerUnit>=2?", which is very doable.":st.weeksPerUnit>=1?", so keep a steady pace.":", so capture every suitable job you get."));
+    if(st.weeksPerUnit!=null)say("You’ve got about <strong>"+plural(st.weeksLeft,"week")+"</strong> left and <strong>"+(st.unitsLeft+" "+(st.unitsLeft===1?"activity":"activities"))+"</strong> still to start. That’s about <strong>"+plural(Math.max(1,Math.floor(st.weeksPerUnit)),"week")+" per activity</strong>"+(st.weeksPerUnit>=2?", which is very doable.":st.weeksPerUnit>=1?", so keep a steady pace.":", so capture every suitable job you get."));
     else if(!st.a.endDate)say("Add your apprenticeship dates in Profile and I’ll work out how many weeks you’ve got per unit.");
     say("Achievements: <strong>"+ach.count+" of "+ach.list.length+"</strong>."+(ach.fresh.length?" New: "+escHtml(listText(ach.fresh.map(x=>x.label)))+".":""));
     if(ach.fresh.length){S.markSeen(ach.fresh.map(x=>x.id));if(window.eviaMood)window.eviaMood("happy")}
@@ -797,11 +797,11 @@
     originalCourses();
     const head=document.querySelector("#screen > .card:not(.unit-card)");
     if(head)head.remove();
-    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("Topics").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
+    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("Course").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
     /* The units sit together in one grouped list. */
     const scr=document.getElementById("screen"),units=[...scr.querySelectorAll(":scope > .unit-card[data-u]")];
     if(units.length){const list=document.createElement("div");list.className="ui-unit-list";units[0].before(list);units.forEach((u,i)=>{u.insertAdjacentHTML("afterbegin",'<span class="ui-unit-no" aria-hidden="true">'+(i+1)+'</span>');list.appendChild(u)});
-      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Topics</h2>')}
+      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Learning plan activities</h2>')}
     /* Supporting evidence sits in its own grouped list, like the units. */
     const sup=scr.querySelector(":scope > .supporting-course-card");
     if(sup){const box=document.createElement("div");box.className="ui-unit-list ui-sup-list";sup.before(box);box.appendChild(sup);box.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Workplace evidence</h2>')}
@@ -812,7 +812,7 @@
   };
   function courseHero(){
     const nvq=window.eviaNvq&&window.eviaNvq.on(),us=data().u,lv=us.map(u=>unitStrengthForCourse(u[0])),n=lv.filter(Boolean).length,c=k=>lv.filter(l=>l===k).length,pct=us.length?Math.round(n/us.length*100):0;
-    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Topics with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
+    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Activities with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
       '<span class="pv-sub">'+(n?c("strong")+" strong · "+c("good")+" good · "+c("weak")+" weak":"Open a "+(nvq?"job":"topic")+" to capture your first evidence")+'</span><i class="pv-bar ui-hero-bar"><i style="width:'+pct+'%"></i></i></div>';
   }
   window.portfolio=()=>window.courses();

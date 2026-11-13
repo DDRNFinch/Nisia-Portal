@@ -187,7 +187,7 @@ function supportingCardIcon(type){const icons={photo:'<svg viewBox="0 0 24 24" a
 async function openSupportingEvidence(){
  const base={course};
  $("#page-title").textContent="Supporting Evidence";
- $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ Topics</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button>${window.eviaRecordings?`<button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button>`:""}<button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
+ $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ Course</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button>${window.eviaRecordings?`<button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button>`:""}<button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
 
  $("#back-supporting-course").onclick=()=>nav("course");
  document.querySelectorAll("[data-supporting-type]").forEach(btn=>btn.onclick=()=>supportingPrepare(base,btn.dataset.supportingType));
@@ -405,7 +405,7 @@ const draftChip=unitName=>isDraft(unitName)?'<span class="draft-chip">Draft</spa
 function courses(){
  if(window.eviaNvq&&window.eviaNvq.on())return window.eviaNvq.courseScreen();
  $("#page-title").textContent="Course";
- $("#screen").innerHTML='<div class="card"><div class="section-title">'+esc(data().std)+'</div><h2>'+esc(data().name)+'</h2><p>'+data().u.length+' units. Open a unit to capture evidence.</p></div>'+data().u.map((u,i)=>{
+ $("#screen").innerHTML='<div class="card"><div class="section-title">'+esc(data().std)+'</div><h2>'+esc(data().name)+'</h2><p>'+data().u.length+' learning plan activities. Open one to capture evidence.</p></div>'+data().u.map((u,i)=>{
    const level=unitStrengthForCourse(u[0]);
    return '<div class="card unit-card" data-u="'+i+'"><div class="unit-title">'+esc(u[0])+draftChip(u[0])+'</div>'+strengthBars(level)+'</div>';
  }).join("")+'<div class="card unit-card supporting-course-card" data-supporting-evidence><div class="unit-title">Supporting Evidence</div><small>Witness testimony, photos, videos and files</small><span class="supporting-course-arrow">›</span></div>';
@@ -452,7 +452,7 @@ function ksbDetail(codeValue,wording,mapped,onClose){
 function openSavedReviews(){
  const reviews=window.eviaGetReviews?window.eviaGetReviews():[];
  $("#page-title").textContent="Reviews";
- $("#screen").innerHTML='<button class="secondary" id="back-reviews-portfolio" type="button">‹ Topics</button><div class="card portfolio-intro"><div class="section-title">PORTFOLIO</div><h2>Saved Reviews</h2><p>All progress reviews saved for this course.</p></div>'+
+ $("#screen").innerHTML='<button class="secondary" id="back-reviews-portfolio" type="button">‹ Course</button><div class="card portfolio-intro"><div class="section-title">PORTFOLIO</div><h2>Saved Reviews</h2><p>All progress reviews saved for this course.</p></div>'+
  (reviews.length?'<div class="saved-reviews-list">'+reviews.map((r,i)=>'<button type="button" class="card saved-review-item" data-review-id="'+esc(r.id||"")+'"><div><strong>Progress Review</strong><span>'+esc(new Date(r.date).toLocaleDateString("en-GB"))+'</span></div><b>›</b></button>').join("")+'</div>':'<div class="card"><p>No saved reviews yet.</p></div>');
  $("#back-reviews-portfolio").onclick=()=>nav("course");
  document.querySelectorAll("[data-review-id]").forEach(b=>b.onclick=()=>{

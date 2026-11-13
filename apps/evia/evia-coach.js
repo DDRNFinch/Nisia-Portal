@@ -198,7 +198,7 @@
     });
     const notStarted=a.units.filter(u=>!u.started).length;
     if(notStarted)k.say(k.plural(notStarted,"topic")+" still "+(notStarted===1?"has":"have")+" no evidence. Add to them when you do that work on site.");
-    k.replies([{label:"Go to Topics",run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);
+    k.replies([{label:"Go to Course",run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);
   }
 
   /* ---------- Shared: go to a place in the app from the chat ---------- */
@@ -230,7 +230,7 @@
     const started=a.units.filter(u=>u.started).sort((x,y)=>latest(y)-latest(x));
     if(!started.length){
       k.say("You haven’t saved any evidence yet. Pick a topic on Topics, take a few photos and write what you did. Then I’ll check it for you.");
-      k.replies([{label:"Go to Topics",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
+      k.replies([{label:"Go to Course",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
     }
     k.say("Which evidence shall I check? Your most recent is first.");
     k.replies(started.slice(0,5).map((u,i)=>({label:u.name,primary:!i,run:()=>{checkOne(u)}})).concat([{label:"Something else",run:k.somethingElse}]));

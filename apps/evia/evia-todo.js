@@ -63,7 +63,7 @@
 
     /* No evidence yet: the first unit. */
     const started=units.filter(u=>u.started);
-    if(!started.length&&a.units.length)add(95,"evidence","Add your first evidence","Any job you’ve done on site counts","Go to Topics",leave(()=>nav("course")));
+    if(!started.length&&a.units.length)add(95,"evidence","Add your first evidence","Any job you’ve done on site counts","Go to Course",leave(()=>nav("course")));
 
     /* Targets from the review. */
     const T=window.eviaTargets,targets=T?T.mine().filter(t=>!t.done):[];
