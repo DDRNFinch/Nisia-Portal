@@ -135,7 +135,7 @@
   const kit=name=>inChat(()=>{const k=window.eviaChatKit;if(k&&k[name])k[name]()});
   const ACTS={
     review:[["Get ready for my review",coach("prepare"),1],["My review prep pack",()=>window.eviaPrepPack&&window.eviaPrepPack.open()],["My review",inChat(()=>window.eviaChatReview&&window.eviaChatReview())],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
-    where:[["Go to Topics",()=>nav("course")]],
+    where:[["Go to Course",()=>nav("course")]],
     ksb:[["Add evidence",()=>{let q=null;try{q=window.eviaChatKit.analyse().quickest}catch(_){}if(q&&window.openUnit)window.openUnit(q.index);else nav("course")},1]],
     otj:[["Log hours",coach("hours"),1],["Learning logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs()]],
     tests:[[()=>nvqOn()?"Knowledge tests":"EPA mocks",coach("epa"),1]],
@@ -272,7 +272,7 @@
     const yr=new Date().getFullYear(),mc=monthCounts(D.counts,yr),thisMonth=mc[new Date().getMonth()],yearTotal=mc.reduce((n,v)=>n+v,0);
     out.push(card("act","Activity",num(thisMonth)+'<small> this month</small>',"things added in "+new Date().toLocaleDateString("en-GB",{month:"long"})+" · "+yearTotal+" in "+yr+(S.streak?" · "+S.streak+"-week streak":""),yearTotal?'<span class="pv-year">'+yr+'</span>'+yearBars(D.counts,yr):empty("Each month you add evidence or hours shows as a bar here.")));
     // Evidence quality
-    out.push(card("quality","Evidence quality",S.coverage==null?"–":num(S.coverage,"%"),S.coverage==null?"Submit a unit with a write-up first":"of the key points covered"+(S.avgPhotos!=null?" · "+(Math.round(S.avgPhotos*10)/10)+(Math.round(S.avgPhotos*10)/10===1?" photo":" photos")+" a pack":""),S.coverage==null?empty("Evia checks each write-up once it’s saved"):dial(S.coverage)));
+    out.push(card("quality","Evidence quality",S.coverage==null?"–":num(S.coverage,"%"),S.coverage==null?"Submit a learning plan activity with a write-up first":"of the key points covered"+(S.avgPhotos!=null?" · "+(Math.round(S.avgPhotos*10)/10)+(Math.round(S.avgPhotos*10)/10===1?" photo":" photos")+" a pack":""),S.coverage==null?empty("Evia checks each write-up once it’s saved"):dial(S.coverage)));
     if(window.eviaStrength)out.push('<button type="button" class="pv-guide" data-pv="guide" id="pv-guide"><span class="pv-guide-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2"/><path d="M8 7h6M8 11h6"/></svg></span><span><strong>How to build a strong portfolio</strong><small>What makes evidence Weak, Good or Strong</small></span><span class="pv-guide-chev" aria-hidden="true">›</span></button>');
     // Targets
     const T2=window.eviaTargets,tg=T2?T2.mine():[];
@@ -379,13 +379,13 @@
           (a.timePct!=null?stat("Through your course",a.timePct+"%"):"")+
           (verdict?stat("Pace",'<em class="pv-verdict '+verdict.cls+'"><i aria-hidden="true">'+verdict.icon+'</i>'+verdict.text+'</em>'):"")+
           (S.weeksLeft!=null?stat("Weeks left",S.weeksLeft):"")+
-          stat((nvqOn()?"Site jobs":"Units")+" not started",S.unitsLeft)+
+          stat((nvqOn()?"Site jobs":"Activities")+" not started",S.unitsLeft)+
           (S.weeksPerUnit!=null?stat("Time for each one","about "+Math.max(1,Math.floor(S.weeksPerUnit))+" weeks"):"")+
           (p.start&&p.end?stat("Course dates",'<span class="pv-nw">'+midDate(p.start)+'</span> – <span class="pv-nw">'+midDate(p.end)+'</span>'):"")+
           (rd?stat("Next review",rd.days<0?"Overdue · was due "+shortDate(rd.due):shortDate(rd.due)):"")+
         '</div>'+
         '<h3 class="pv-deep-h">'+(nvqOn()?"Your units":"Your "+esc(T.many))+' <small>'+a.met+' / '+a.total+(a.signoff?' signed off':' with evidence')+'</small></h3>'+ksbList()+
-        note(verdict&&verdict.cls==="behind"?"To catch up, start a unit you haven’t touched yet: it ticks off the most in one go. Evia can tell you which one.":"Keep adding evidence as you go. Evia can take you through your progress review when it’s due."));
+        note(verdict&&verdict.cls==="behind"?"To catch up, start an activity you haven’t touched yet: it ticks off the most in one go. Evia can tell you which one.":"Keep adding evidence as you go. Evia can take you through your progress review when it’s due."));
       bindKsb(el,()=>openDeep("where"));
     }
     else if(id==="ksb"){
@@ -399,7 +399,7 @@
         const items=all.filter(x=>x[0].startsWith(l));if(!items.length)return"";
         const d=items.filter(x=>a.evidenced.has(x[0])).length,w=a.signoff?items.filter(x=>a.possible.has(x[0])).length:0,aims=a.aims||[];
         return '<div class="pv-ksb-group"><div class="pv-ksb-head">'+ring(Math.round(d/items.length*100),40,5,null,Math.round(w/items.length*100))+'<span><strong>'+n+'</strong><small>'+d+' of '+items.length+(a.signoff?' signed off'+(w?' · '+w+' waiting':''):' with evidence')+'</small></span></div><div class="pv-ksb-grid">'+items.map(x=>'<button type="button" class="pv-ksb'+(a.evidenced.has(x[0])?" met":a.signoff&&a.possible.has(x[0])?" maybe":"")+(aims.includes(x[0])?" aim":"")+'" data-ksb="'+esc(x[0])+'">'+esc(x[0])+'</button>').join("")+'</div></div>';
-      }).join("")+(a.signoff?'<p class="pv-key"><span class="pv-ksb met">K1</span> signed off by your assessor <span class="pv-ksb maybe">K2</span> evidence added, waiting <span class="pv-ksb aim">K3</span> aiming for</p>':"")+note("Tap a code to see what it means"+(a.signoff?", or to aim for it":"")+". Units you haven’t started cover the most missing ones."));
+      }).join("")+(a.signoff?'<p class="pv-key"><span class="pv-ksb met">K1</span> signed off by your assessor <span class="pv-ksb maybe">K2</span> evidence added, waiting <span class="pv-ksb aim">K3</span> aiming for</p>':"")+note("Tap a code to see what it means"+(a.signoff?", or to aim for it":"")+". Activities you haven’t started cover the most missing ones."));
       el.querySelectorAll("[data-ksb]").forEach(b=>b.onclick=()=>{const it=all.find(x=>x[0]===b.dataset.ksb);if(it&&typeof ksbDetail==="function")ksbDetail(it[0],it[1],a.evidenced.has(it[0]),()=>openDeep("ksb"))});
     }
     else if(id==="otj"){
@@ -442,7 +442,7 @@
     else if(id==="quality"){
       const checks=(S.checks||[]).slice().sort((x,y)=>x.covered.length/x.terms.length-y.covered.length/y.terms.length);
       sheet("MY PROGRESS","Evidence quality",
-        (S.coverage!=null?'<div class="pv-dial-big">'+dial(S.coverage)+'<div class="pv-dial-num">'+num(S.coverage,"%")+'<span>key points covered</span></div></div>':'<p class="pv-empty">Submit a unit with a write-up and Evia will score it.</p>')+
+        (S.coverage!=null?'<div class="pv-dial-big">'+dial(S.coverage)+'<div class="pv-dial-num">'+num(S.coverage,"%")+'<span>key points covered</span></div></div>':'<p class="pv-empty">Submit a learning plan activity with a write-up and Evia will score it.</p>')+
         (checks.length?'<div class="pv-rows">'+checks.map((c,i)=>{const p=Math.round(c.covered.length/c.terms.length*100);return '<span class="pv-row"><span class="pv-row-top"><span>'+esc(c.u.name)+'</span><strong>'+p+'%</strong></span>'+bar(p,p<50?"low":p>=80?"good":"",i*50)+'<small class="pv-row-note">'+c.photos+' photo'+(c.photos===1?"":"s")+' · '+c.words+' words'+(c.missing.length?' · missing: '+esc(c.missing.slice(0,4).join(", "))+(c.missing.length>4?"…":""):"")+'</small></span>'}).join("")+'</div>':"")+
         note("Strong evidence has plenty of photos from the start, middle and end of the job, and a write-up that talks about the things to mention in your own words. Evia can guide you through a pack if you’re not sure where to start."));
     }

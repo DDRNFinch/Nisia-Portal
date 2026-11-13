@@ -35,7 +35,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       hours.push({id:"h1",n:3,description:"Toolbox talk",createdAt:Date.now()});persist();render()});
     await page.waitForTimeout(500);
 
-    check("The app opens on Topics; the nav is Topics, Time, Evia, Review and Learn (the tester's layout)",await page.evaluate(()=>screen==="course"&&!!document.querySelector(".th-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Topics,Time,Review,Learn"));
+    check("The app opens on Course; the nav is Course, Time, Evia, Review and Learn (the tester's layout)",await page.evaluate(()=>screen==="course"&&!!document.querySelector(".th-head")&&[...document.querySelectorAll("[data-nav]")].map(b=>b.textContent.trim()).join()==="Course,Time,Review,Learn"));
     for(const s of ["course","progress","portfolio","learning"]){await page.evaluate(s=>nav(s),s);await page.waitForTimeout(450)}
     await page.evaluate(()=>nav("progress"));await page.waitForTimeout(450);
     /* On a computer (1024 px and wider) it's Evia Portal's layout: the bar is a sidebar on the left with Ask Evia in it, and
@@ -361,7 +361,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
-    if(process.env.SHOT2){await page.evaluate(()=>{nav('course');window.scrollTo(0,0)});await page.waitForTimeout(500);await page.screenshot({path:process.env.SHOT2,clip:{x:0,y:0,width:390,height:420}}).catch(()=>{})}
+    if(process.env.SHOT2){await page.evaluate(()=>{nav('course');window.scrollTo(0,0)});await page.waitForTimeout(500);await page.screenshot({path:process.env.SHOT2,fullPage:true}).catch(()=>{})}
     check("The first-run tour can point at Review and at the learner's photo",!!await page.$('[data-nav="learning"]')&&await page.evaluate(async()=>{nav("course");await new Promise(r=>setTimeout(r,300));return !!document.getElementById("th-me")}));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
     check("Time: the profile photo is in the header and opens the profile",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
@@ -448,7 +448,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
 
     // Page headings, draft tags, the strength key, the backup reminder, clean test screens and the OTJ PDF.
     await page.evaluate(()=>{localStorage.setItem("evia7-working-evidence-packs",JSON.stringify({["bricklayer|"+data().u[5][0]]:{course:"bricklayer",unit:data().u[5][0],photos:[],write:"Started"}}));nav("course")});await page.waitForTimeout(450);
-    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Topics/.test((document.querySelector(".th-head h1")||{}).textContent||"")&&[...document.querySelectorAll(".th-pill")].filter(x=>x.textContent==="Draft").length===1));
+    check("Topics has a heading and a Draft tag",await page.evaluate(()=>/Course/.test((document.querySelector(".th-head h1")||{}).textContent||"")&&[...document.querySelectorAll(".th-pill")].filter(x=>x.textContent==="Draft").length===1));
     check("Evia reminds learners to back up once they have a few packs",await page.evaluate(()=>{localStorage.removeItem("evia7-last-backup");return window.eviaStats.nudges(window.eviaStats.compute()).some(n=>n.id==="backup")}));
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.eviaStartTest("maths",5,"Maths")});await page.waitForSelector(".ex #ex-start",{state:"visible",timeout:12000});
     check("A maths test from Practice opens as an exam",await page.evaluate(()=>/Maths test/.test(document.querySelector(".ex").textContent)));

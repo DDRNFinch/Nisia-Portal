@@ -99,7 +99,7 @@
     const sec=(t,h)=>h?'<section class="jp-sec"><h3>'+t+'</h3>'+h+'</section>':"";
     return '<div class="jp-head"><strong>'+esc(J.name||"Apprentice")+'</strong><span>'+esc([J.course,J.workplace,J.college].filter(Boolean).join(" · "))+'</span></div>'+
       sec("Where I am",road(J)+tiles(J))+
-      sec("Since my last review"+(J.from?" ("+esc(dt(J.from))+")":""),'<div class="jp-tiles jp-3">'+tile(String(J.evidence.since),"new evidence")+tile(esc(hm(J.hours.since)),"hours logged")+tile(String(J.evidence.units.length),"topics worked on")+'</div>'+
+      sec("Since my last review"+(J.from?" ("+esc(dt(J.from))+")":""),'<div class="jp-tiles jp-3">'+tile(String(J.evidence.since),"new evidence")+tile(esc(hm(J.hours.since)),"hours logged")+tile(String(J.evidence.units.length),"activities worked on")+'</div>'+
         (J.evidence.units.length?'<p class="jp-note">'+esc(J.evidence.units.join(", "))+'</p>':""))+
       sec("My topics",'<div class="jp-units">'+J.units.map(u=>'<div class="jp-unit"><span>'+esc(u.name)+'</span><small>'+(u.n?u.n+(u.n===1?" piece":" pieces"):"Not started")+'</small>'+bars(u.level)+'</div>').join("")+'</div>')+
       sec("My "+(J.ksbs.groups.length&&/^Unit/.test(J.ksbs.groups[0].name)?"criteria":J.ksb.word),J.ksbs.groups.map(g=>{const d=g.items.filter(x=>x.st==="met").length;
@@ -165,10 +165,10 @@
     tileRow([[J.ksb.met+"/"+J.ksb.total,J.ksb.word],[hm(J.hours.total),J.hours.planned?"of "+J.hours.planned+"h learning":"learning hours"],[String(J.evidence.total),"pieces of evidence"],[J.attendance?J.attendance.pct+"%":"-","attendance"]]);
     /* Since the last review */
     head("Since the last review"+(J.from?" ("+dt(J.from)+")":""));
-    tileRow([[String(J.evidence.since),"new evidence"],[hm(J.hours.since),"hours logged"],[String(J.evidence.units.length),"topics worked on"]]);
+    tileRow([[String(J.evidence.since),"new evidence"],[hm(J.hours.since),"hours logged"],[String(J.evidence.units.length),"activities worked on"]]);
     if(J.evidence.units.length)para(J.evidence.units.join(", "));
     /* Topics with strength bars */
-    head("Topics");
+    head("Learning plan activities");
     J.units.forEach(u=>{need(7);font(9.5,false);doc.text(txt(u.name).slice(0,60),M,y+4);font(8,false,muted);doc.text(txt(u.n?u.n+(u.n===1?" piece":" pieces"):"Not started"),M+120,y+4);
       [1,2,3].forEach(i=>{const on=i<=(LEVEL[u.level]||0);doc.setFillColor(...(on?yellow:line));const bh=2+i*1.4;doc.roundedRect(W-M-14+(i-1)*4.5,y+5-bh,3,bh,.6,.6,"F")});
       doc.setDrawColor(...line);doc.setLineWidth(.2);doc.line(M,y+6.5,W-M,y+6.5);y+=7.5});

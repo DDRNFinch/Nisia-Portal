@@ -343,7 +343,7 @@
     $("#page-title").textContent="Send to e-portfolio";
     const back='<button class="secondary" id="eport-back" type="button">‹ '+escHtml(unitName)+'</button>';
     if(!entries.length){
-      $("#screen").innerHTML=back+'<div class="eport-page"><div class="card eport-intro"><div class="section-title">SEND TO E-PORTFOLIO</div><h2>'+escHtml(unitName)+'</h2><p>There is no evidence saved for this unit yet. Capture some evidence first, then come back here to send it to your e-portfolio.</p></div>'+(unitIndex>=0?'<button class="primary" id="eport-open-unit" type="button">Open unit</button>':"")+'</div>';
+      $("#screen").innerHTML=back+'<div class="eport-page"><div class="card eport-intro"><div class="section-title">SEND TO E-PORTFOLIO</div><h2>'+escHtml(unitName)+'</h2><p>There is no evidence saved for this activity yet. Capture some evidence first, then come back here to send it to your e-portfolio.</p></div>'+(unitIndex>=0?'<button class="primary" id="eport-open-unit" type="button">Open activity</button>':"")+'</div>';
       $("#eport-back").onclick=goBack;
       const openBtn=$("#eport-open-unit");if(openBtn)openBtn.onclick=()=>openUnit(unitIndex);
       return;
@@ -351,7 +351,7 @@
     const ksbs=[...new Set(entries.flatMap(e=>e.k||[]))];
     const unitTotal=evidence.filter(e=>e.c===course&&e.u===unitName).length;
     /* One entry opened from its tile: offer every saved entry for the unit in one PDF instead. */
-    const allLink=entryId!=null&&unitTotal>1?'<button type="button" class="eport-copy eport-all" id="eport-all">Everything for this unit ('+unitTotal+' pieces)</button>':"";
+    const allLink=entryId!=null&&unitTotal>1?'<button type="button" class="eport-copy eport-all" id="eport-all">Everything for this activity ('+unitTotal+' pieces)</button>':"";
     $("#screen").innerHTML=back+
       '<div class="eport-page">'+
         '<div class="eport-files" id="eport-files"><div class="card eport-pdf"><div class="eport-sheet is-loading" aria-hidden="true"><span></span><span></span><span></span></div><p class="eport-status">Preparing your evidence PDF…</p></div></div>'+
@@ -594,7 +594,7 @@
     const scDone=s.teach?(edi?edi.areasDone:0):(s.scen||[]).reduce((n,t)=>n+t.done,0),scTotal=s.teach?(edi?edi.areas:0):(s.scen||[]).reduce((n,t)=>n+t.total,0);
     const tiles=[
       [(nvq?"Criteria":"KSBs")+" evidenced",s.met+"/"+s.total,tp!=null?"Expected about "+tp+"%":"Add course dates to compare",s.ksbPct,tp==null?null:s.ksbPct>=tp-10,false],
-      [nvq?"Site jobs started":"Units started",s.unitsStarted+"/"+s.unitsTotal,expUnits!=null?"Expected about "+expUnits:"",s.unitsTotal?s.unitsStarted/s.unitsTotal*100:0,expUnits==null?null:s.unitsStarted>=expUnits,false],
+      [nvq?"Site jobs started":"Activities started",s.unitsStarted+"/"+s.unitsTotal,expUnits!=null?"Expected about "+expUnits:"",s.unitsTotal?s.unitsStarted/s.unitsTotal*100:0,expUnits==null?null:s.unitsStarted>=expUnits,false],
       ["Learning hours",String(s.otjTotal),s.otjExpected!=null?"Planned about "+s.otjExpected+" by now":s.otjMonth+" this month",s.otjExpected?s.otjTotal/s.otjExpected*100:0,s.otjExpected==null?null:s.otjTotal>=s.otjExpected*.9,false],
       [nvq?"Knowledge test":"EPA practice",knowledge?knowledge.latest+"%":"Not yet","Target 70% or more",knowledge?knowledge.latest:0,knowledge?knowledge.latest>=70:null,!knowledge],
       nvq&&s.nvqQ?["Knowledge questions",s.nvqQ.done+"/"+s.nvqQ.total,"Answered in own words",s.nvqQ.total?s.nvqQ.done/s.nvqQ.total*100:0,tp==null?null:s.nvqQ.done/Math.max(1,s.nvqQ.total)*100>=tp-15,false]:null,
