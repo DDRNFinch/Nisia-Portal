@@ -3368,3 +3368,35 @@ body.evia-dark .jp-sec{background:var(--ui-card);border-color:var(--ui-line)}
 .eg-ksbs ul{list-style:none;margin:8px 0 2px;padding:0;display:grid;gap:5px}
 .eg-ksbs li{font-size:13px;line-height:1.45;color:var(--ui-text,#344054)}
 .eg-ksbs li b{display:inline-block;min-width:28px;margin-right:6px;padding:0 6px;border-radius:999px;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-size:11px;text-align:center}
+/* Tester: Evia grows in to say hi, then fades away after 2 seconds */
+#welcome-screen.welcome-hi .welcome-avatar{animation:evHiGrow .7s cubic-bezier(.3,1.5,.5,1) both}
+#welcome-screen.welcome-hi .welcome-copy{animation:evHiText .5s .35s ease-out both}
+#welcome-screen.welcome-hi .welcome-copy h2{font-size:34px;margin:18px 0 0}
+@keyframes evHiGrow{from{transform:scale(.15);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes evHiText{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){#welcome-screen.welcome-hi .welcome-avatar,#welcome-screen.welcome-hi .welcome-copy{animation:none}}
+/* Tester: the course at a glance on Topics (KSBs and learning hours, each with a line where they should be) */
+.th-glance{gap:14px}
+.th-meter{cursor:pointer}
+.th-meter-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:800;font-size:15px}
+.th-meter-top b{font-size:20px}.th-meter-top b small{font-size:13px;color:var(--ui-muted,#667085);font-weight:700}
+.th-bar.th-bar-mark{position:relative;overflow:visible;height:10px;margin:8px 0 4px}
+.th-bar.th-bar-mark i{border-radius:9px}
+.th-bar.th-bar-mark em{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1.5px;background:#101828;border-radius:2px}
+.th-review{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-soft,#f7f7f5);border-radius:16px;padding:11px 12px;font:inherit;color:inherit;cursor:pointer}
+.th-review>span:first-child{width:36px;height:36px;border-radius:12px;background:#fff;display:grid;place-items:center;flex:none}
+.th-review>span:first-child svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.th-review>span:nth-child(2){flex:1}.th-review strong{display:block;font-size:15.5px}.th-review small{display:block;color:var(--ui-muted,#667085);font-size:13px}
+.th-num-sup svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.bottom-nav [hidden],nav [data-nav][hidden]{display:none!important}
+/* Tester: learners not connected to a college have Topics, Evia and Learn */
+html body.th-solo .bottom-nav{grid-template-columns:1fr 96px 1fr}
+/* Tester: the KSBs and learning hours bars are buttons, and look it */
+.th-tapcard{border:1.5px solid var(--ui-line,#e4e7ec);background:#fff;border-radius:16px;padding:12px 13px;box-shadow:0 2px 0 var(--ui-line,#e4e7ec);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
+.th-tapcard:active{transform:translateY(2px);box-shadow:0 0 0 var(--ui-line,#e4e7ec)}
+.th-act{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--accent-fill,var(--yellow));color:var(--ui-on-accent,#172033);border-radius:999px;padding:7px 14px;font-weight:800;font-size:14px}
+.th-act i{font-style:normal;font-size:17px;line-height:1}
+.th-glance{gap:10px}
+/* The profile button with no photo: a dark silhouette on a light circle, so it reads as the learner's profile. */
+html body .th-me{background:#e4e7ec;border:2px solid #fff;box-shadow:0 0 0 1px #d0d5dd}
+html body .th-me .th-me-sil{width:100%;height:100%;display:block;fill:#344054}

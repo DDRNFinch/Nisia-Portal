@@ -273,11 +273,14 @@
     root.innerHTML='<div class="welcome-inner">'+
       '<div class="welcome-avatar evia-welcome-face"><span class="evia-face"><i></i><i></i></span></div>'+
       '<div class="welcome-pulse"></div>'+
-      '<div class="welcome-copy"><div class="welcome-small">EVIA</div><h2>Hi'+(p.name?", "+esc(String(p.name).trim().split(/\s+/)[0]):"")+'.</h2><p>What do you want to work on today?</p></div>'+
+      '<div class="welcome-copy"><h2>Hi'+(p.name?" "+esc(String(p.name).trim().split(/\s+/)[0]):"")+'!</h2></div>'+
       '</div>';
+    /* Evia grows in to say hi, then fades away by herself after 2 seconds (a tap skips it). */
+    root.classList.add("welcome-hi");
     document.body.appendChild(root);
     requestAnimationFrame(()=>root.classList.add("visible"));
     root.querySelector(".welcome-avatar").onclick=finishWelcome;
+    setTimeout(finishWelcome,2000);
   }
 
   function finishWelcome(){

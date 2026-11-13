@@ -48,7 +48,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       /* The computer's sidebar pieces never show in the bar on a tablet or phone, and every tab sits in one row inside it. */
       const bar=()=>page.evaluate(()=>{const n=document.querySelector(".bottom-nav").getBoundingClientRect(),side=[...document.querySelectorAll(".ev-side,.ev-side-ask,.ev-side-me")].some(x=>x.offsetParent),
         tabs=[...document.querySelectorAll(".bottom-nav [data-nav]")].filter(b=>b.offsetParent).map(b=>b.getBoundingClientRect());
-        return !side&&tabs.length>=4&&tabs.every(r=>r.top>=n.top-1&&r.bottom<=n.bottom+1&&Math.abs(r.top-tabs[0].top)<2)});
+        /* Not connected to a college: Topics and Learn (Time and Review are for connected learners). */
+        return !side&&tabs.length>=(document.body.classList.contains("th-solo")?2:4)&&tabs.every(r=>r.top>=n.top-1&&r.bottom<=n.bottom+1&&Math.abs(r.top-tabs[0].top)<2)});
       t.oneRow=await bar();await page.setViewportSize(vp);await page.waitForTimeout(250);t.phone=await bar();
       check("On a computer the bar is a sidebar with Ask Evia and the page beside it; on a tablet and phone it’s the bar at the bottom, every tab in one row, Evia in the middle",
         m.left===0&&m.w===248&&m.tall&&m.ask&&m.page>=248&&Math.abs(t.l-t.r)<=2&&t.l>0&&Math.abs(t.fab)<=2&&t.oneRow&&t.phone,JSON.stringify({m,t}));}
@@ -159,7 +160,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     check("Evia's writing rules still fix spelling, capitals and punctuation",await page.evaluate(()=>{const r=window.eviaWriting.check("i laid the morter on the dpc and checked it was plum");let t="i laid the morter on the dpc and checked it was plum";return r.fixes.length>=4}));
 
     await page.evaluate(()=>window.eviaOpenSendToPortfolio(data().u[2][0]));await page.waitForTimeout(3500);
-    check("Send to e-portfolio shows a preview, everything as a zip (the PDF and photos), and just the PDF",await page.evaluate(()=>!!document.getElementById("eport-preview")&&!!document.getElementById("eport-zip")&&!!document.getElementById("eport-pdf-only")&&/the PDF and 1 photo/.test(document.querySelector(".eport-status").innerText)));
+    if(process.env.SHOT){await page.evaluate(()=>{const m=document.getElementById('modal-root');if(m)m.innerHTML='';window.scrollTo(0,0)});await page.screenshot({path:process.env.SHOT,fullPage:true}).catch(()=>{})}
+    check("Send to e-portfolio shows a preview, everything as a zip (the PDF and photos), and just the PDF",await page.evaluate(()=>!!document.getElementById("eport-preview")&&!!document.getElementById("eport-zip")&&!!document.getElementById("eport-pdf-only")&&/the PDF and 1 photo/.test(document.querySelector(".eport-every .eport-status").innerText)));
 
     await page.evaluate(()=>nav("home"));await page.waitForTimeout(450);
     await page.evaluate(()=>window.chat());
@@ -359,6 +361,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
+    if(process.env.SHOT2){await page.evaluate(()=>{nav('course');window.scrollTo(0,0)});await page.waitForTimeout(500);await page.screenshot({path:process.env.SHOT2,clip:{x:0,y:0,width:390,height:420}}).catch(()=>{})}
     check("The first-run tour can point at Review and at the learner's photo",!!await page.$('[data-nav="learning"]')&&await page.evaluate(async()=>{nav("course");await new Promise(r=>setTimeout(r,300));return !!document.getElementById("th-me")}));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
     check("Time: the profile photo is in the header and opens the profile",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
@@ -695,7 +698,8 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       const w=ms=>new Promise(r=>setTimeout(r,ms)),R=window.eviaRewards,G=window.eviaGames,out={},keep=localStorage.getItem("evia7-rewards");
       localStorage.setItem("evia7-rewards",JSON.stringify({bank:500,spent:0,owned:[],hat:"",pity:0,seenAch:[],lastXp:1e9,day:"",workV:1,paid:{}}));
       nav("teach");await w(500);
-      out.free=!document.querySelector(".tt-game.locked")&&document.querySelectorAll(".tt-game").length===5&&document.querySelectorAll(".tt-game .tg-shot img").length===5&&document.querySelector(".tt-game").dataset.key==="battle";
+      /* Not connected to a college: no Question Battle (it needs a classmate at the same college). */
+      out.free=!document.querySelector(".tt-game.locked")&&document.querySelectorAll(".tt-game").length===4&&document.querySelectorAll(".tt-game .tg-shot img").length===4&&!document.querySelector('.tt-game[data-key="battle"]');
       /* The Teach me card shows medals, the streak and coins: no XP or levels. */
       out.medals=!!document.querySelector(".tg-player .tg-medals")&&!/\bXP\b|Level \d/.test(document.querySelector(".tg-player").textContent);
       /* The camera always carries the photo-consent line (opened without a real camera, then closed). */
@@ -1064,9 +1068,9 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
       await p6.evaluate(()=>{document.getElementById("modal-root").innerHTML="";window.openUnit(0)});await p6.waitForTimeout(700);
       lv.tilesColoured=await p6.evaluate(()=>!document.querySelector(".ev-unit-fb")&&!!document.querySelector(".ev-tile.ev-signed"));
       await p6.evaluate(()=>{const e=window.eviaData.list("evidence").find(x=>x.media&&x.media.length);window.eviaOpenSendToPortfolio(e.unit,e.id)});
-      await p6.waitForFunction(()=>{const x=document.querySelector(".eport-status");return x&&/Everything|couldn/.test(x.innerText)||document.querySelector("#eport-files .card p")&&!document.querySelector(".eport-sheet.is-loading")},null,{timeout:20000}).catch(()=>{});
+      await p6.waitForFunction(()=>{const x=document.querySelector(".eport-every .eport-status");return x&&/Everything|couldn/.test(x.innerText)||document.querySelector("#eport-files .card p")&&!document.querySelector(".eport-sheet.is-loading")},null,{timeout:20000}).catch(()=>{});
       if(process.env.EVIA_SHOTS)await p6.screenshot({path:process.env.EVIA_SHOTS+"/eport.png",fullPage:true});
-      lv.zipHasRecording=await p6.evaluate(()=>!!document.querySelector(".eport-status")&&/1 recording/.test(document.querySelector(".eport-status").innerText)&&/what was said/.test(document.querySelector(".eport-status").innerText)&&!!document.getElementById("eport-zip"));
+      lv.zipHasRecording=await p6.evaluate(()=>!!document.querySelector(".eport-every .eport-status")&&/1 recording/.test(document.querySelector(".eport-every .eport-status").innerText)&&/what was said/.test(document.querySelector(".eport-every .eport-status").innerText)&&!!document.getElementById("eport-zip"));
       if(process.env.EVIA_SHOTS){const d=process.env.EVIA_SHOTS;
         await p6.evaluate(()=>{window.eviaKsbAims.set("B3",true);nav("progress")});await p6.waitForTimeout(900);
         await p6.evaluate(()=>{document.querySelectorAll("[data-group]").forEach(b=>{if(b.getAttribute("aria-expanded")!=="true")b.click()})});await p6.waitForTimeout(500);
