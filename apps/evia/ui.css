@@ -3397,3 +3397,6 @@ html body.th-solo .bottom-nav{grid-template-columns:1fr 96px 1fr}
 .th-act{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--accent-fill,var(--yellow));color:var(--ui-on-accent,#172033);border-radius:999px;padding:7px 14px;font-weight:800;font-size:14px}
 .th-act i{font-style:normal;font-size:17px;line-height:1}
 .th-glance{gap:10px}
+/* The profile button with no photo: a dark silhouette on a light circle, so it reads as the learner's profile. */
+html body .th-me{background:#e4e7ec;border:2px solid #fff;box-shadow:0 0 0 1px #d0d5dd}
+html body .th-me .th-me-sil{width:100%;height:100%;display:block;fill:#344054}

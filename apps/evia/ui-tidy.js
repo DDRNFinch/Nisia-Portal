@@ -59,8 +59,8 @@
   /* ---------- The header, the same on every page ---------- */
   function avatar(){
     const p=(D()&&D().learner&&D().learner())||{},photo=D()&&D().files&&D().files.photo?D().files.photo():"";
-    const initials=String(p.name||"").trim().split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase()||"·";
-    return photo?'<img src="'+photo+'" alt="">':esc(initials);
+    /* No photo: a dark head-and-shoulders silhouette, so it reads as "me, my profile". */
+    return photo?'<img src="'+photo+'" alt="">':'<svg class="th-me-sil" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="24" r="12"/><path d="M8 66c1-15 11-25 24-25s23 10 24 25z"/></svg>';
   }
   function header(title,extra){
     const n=live()&&window.eviaMessages?window.eviaMessages.unread():0;

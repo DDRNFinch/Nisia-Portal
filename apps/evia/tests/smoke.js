@@ -361,6 +361,7 @@ const check=(name,ok,detail)=>{results.push({name,ok:!!ok});console.log((ok?"✓
     await page.evaluate(()=>{document.getElementById("modal-root").innerHTML=""});
 
     await page.evaluate(()=>{document.body.classList.add("evia-onboarding");nav("progress")});await page.waitForTimeout(200);
+    if(process.env.SHOT2){await page.evaluate(()=>{nav('course');window.scrollTo(0,0)});await page.waitForTimeout(500);await page.screenshot({path:process.env.SHOT2,clip:{x:0,y:0,width:390,height:420}}).catch(()=>{})}
     check("The first-run tour can point at Review and at the learner's photo",!!await page.$('[data-nav="learning"]')&&await page.evaluate(async()=>{nav("course");await new Promise(r=>setTimeout(r,300));return !!document.getElementById("th-me")}));
     await page.evaluate(()=>nav("calendar"));await page.waitForTimeout(300);
     check("Time: the profile photo is in the header and opens the profile",await page.evaluate(async()=>{const w=t=>new Promise(r=>setTimeout(r,t));nav("calendar");await w(300);
