@@ -1,0 +1,42 @@
+const http=require("http"),fs=require("fs"),path=require("path");const {chromium,devices}=require("playwright");
+const root=process.argv[2]||require("path").join(__dirname,".."),shots=process.env.SHOT;
+const TYPES={".html":"text/html",".js":"text/javascript",".css":"text/css",".json":"application/json",".svg":"image/svg+xml",".png":"image/png"};
+(async()=>{
+  const server=http.createServer((req,res)=>{const file=path.join(root,decodeURIComponent(req.url.split("?")[0]).replace(/\/$/,"/index.html"));
+    if(!fs.existsSync(file)){res.writeHead(404);return res.end()}res.writeHead(200,{"Content-Type":TYPES[path.extname(file)]||"application/octet-stream"});fs.createReadStream(file).pipe(res)}).listen(0);
+  const url="http://localhost:"+server.address().port+"/";const browser=await chromium.launch();let fails=0;
+  const ok=(n,c,d)=>{if(!c)fails++;console.log((c?"✓ ":"✗ ")+n+(c||!d?"":" — "+d))};
+  const open=async profile=>{const ctx=await browser.newContext({...devices["Pixel 7"]});const page=await ctx.newPage();await page.goto(url+"manifest.json");
+    await page.evaluate(p=>{localStorage.clear();sessionStorage.setItem("evia7-install-later","1");["evia7-theme-picked","evia7-shape-picked"].forEach(k=>localStorage.setItem(k,"1"));
+      localStorage.setItem("evia7-onboarding",'{"stage":"done"}');localStorage.setItem("evia7-tips-seen",'["*"]');localStorage.setItem("evia7-home-tip",JSON.stringify({day:new Date().toDateString(),id:"x"}));
+      localStorage.setItem("evia7-profile",JSON.stringify(p))},profile);
+    await page.goto(url);await page.waitForTimeout(6500);return {ctx,page}};
+  // Missing signature and email: asked on opening, Later closes it, Do it now opens the profile with them marked.
+  let {ctx,page}=await open({name:"Sam Taylor",start:"2024-11-01",end:"2026-12-01"});
+  let r=await page.evaluate(()=>({shown:!!document.querySelector(".pf-remind"),items:[...document.querySelectorAll(".pf-remind-list li")].map(x=>x.textContent)}));
+  ok("Opening Evia with a profile missing things asks to finish it, listing just what's missing",r.shown&&r.items.join()==="Your signature,Your email address",JSON.stringify(r));
+  if(shots)await page.screenshot({path:shots+"-popup.png"});
+  await page.click("#pf-remind-now");await page.waitForTimeout(700);
+  r=await page.evaluate(()=>({sheet:!!document.querySelector(".pf-sheet"),miss:[...document.querySelectorAll(".pf-missing")].map(x=>x.id||x.className)}));
+  ok("Do it now opens the profile with the missing ones marked",r.sheet&&r.miss.length===2,JSON.stringify(r));
+  if(shots)await page.screenshot({path:shots+"-profile.png"});
+  await page.fill("#profile-email","sam@example.com");
+  const c=await page.$("#signature-pad");await c.scrollIntoViewIfNeeded();await page.waitForTimeout(400);const b=await c.boundingBox();await page.mouse.move(b.x+20,b.y+20);await page.mouse.down();await page.mouse.move(b.x+120,b.y+60,{steps:5});await page.mouse.up();
+  await page.click("#save-profile");await page.waitForTimeout(300);
+  r=await page.evaluate(()=>({gaps:window.eviaProfileGaps(),email:JSON.parse(localStorage.getItem("evia7-profile")).email}));
+  ok("Saving with the email and signature saves the email, and nothing is missing any more",r.gaps.length===0&&r.email==="sam@example.com",JSON.stringify(r));
+  await page.reload();await page.waitForTimeout(6500);
+  ok("A complete profile isn't asked about",!(await page.$(".pf-remind")));await ctx.close();
+  ({ctx,page}=await open({name:"",start:"",end:""}));
+  await page.click("#pf-remind-later");await page.waitForTimeout(300);
+  ok("Later closes it",!(await page.$(".pf-remind")));
+  await page.reload();await page.waitForTimeout(6500);
+  r=await page.evaluate(()=>[...document.querySelectorAll(".pf-remind-list li")].map(x=>x.textContent));
+  ok("It asks again next time Evia opens, with name, dates, signature and email",r.join()==="Your name,Your course dates,Your signature,Your email address",JSON.stringify(r));
+  await ctx.close();
+  // Not finished the first-run screens: not asked yet.
+  ({ctx,page}=await open({name:""}));
+  await page.evaluate(()=>localStorage.setItem("evia7-onboarding",'{"stage":"welcome"}'));await page.reload();await page.waitForTimeout(6500);
+  ok("Not asked in the middle of the first-run screens",!(await page.$(".pf-remind")));await ctx.close();
+  await browser.close();server.close();process.exit(fails?1:0);
+})();

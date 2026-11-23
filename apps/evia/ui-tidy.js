@@ -336,4 +336,6 @@ hero+
   label();setTimeout(label,500);
   if(window.eviaCalendar)window.eviaCalendar.name=()=>"Time";
   window.eviaTidy={topics,review,plan,learn,header,checklist};
+  /* The app draws its first page before this file has loaded, in the old layout: draw it again now, in this one. */
+  try{if(scr()&&scr().children.length&&typeof window.render==="function")window.render()}catch(e){console.error("Evia tidy first draw",e)}
 })();
